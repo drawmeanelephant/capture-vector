@@ -1,0 +1,452 @@
+//! Workbench — the shell's whole state (the rune `S`), pure and testable.
+//! Canary pipeline: engine `EventSink` → channel → `drain` (on wake) →
+//! commit (dedupe by event id, journal to the `Store` port, cascade,
+//! module ingest) → redraw.
+
+use crate::app_state::AppState;
+use crate::cascade;
+use crate::command::{CommandSpec, Intent, Palette};
+use crate::module::{Registry, RowModel};
+use crate::theme::{Mode, Theme};
+use crate::windows::{CloseOutcome, PRIMARY, WindowId, Windows};
+use cv_core::engine::{EventSink, WatchHandle};
+use cv_core::events::Envelope;
+use cv_core::events::shell::{DegradedReason, ShellEvent};
+use cv_core::events::{AppEvent, Cursor, EventId, SessionId, SnapshotEpoch};
+use cv_core::id::{Selection, StableId, WorkspaceId};
+use cv_core::store::{Namespace, Store};
+use std::collections::BTreeSet;
+use std::sync::mpsc::{Receiver, Sender, channel};
+use std::sync::{Arc, Mutex};
+
+/// Same shape as `rune::Waker`, without importing rune.
+pub type Waker = Arc<dyn Fn() + Send + Sync>;
+
+pub const JOURNAL: &str = "shell.journal";
+
+/// Toolkit-neutral key input; `cv-widgets` maps rune keys onto it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum KeyInput {
+    Char(char),
+    /// Primary-modifier chord (⌘ on macOS, Ctrl elsewhere), lowercased.
+    Command(char),
+    Up,
+    Down,
+    Enter,
+    Escape,
+    Backspace,
+    Tab,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KeyPress {
+    pub key: KeyInput,
+    pub shift: bool,
+}
+
+impl KeyPress {
+    pub fn new(key: KeyInput) -> Self {
+        Self { key, shift: false }
+    }
+}
+
+pub struct Workbench {
+    pub app: AppState,
+    pub theme: Theme,
+    pub registry: Registry,
+    pub active: usize,
+    /// Per-module nav selection, indexed like `registry`.
+    pub nav: Vec<Option<String>>,
+    pub windows: Windows,
+    pub palette: Palette,
+    pub inspector_open: bool,
+    pub status: String,
+    seen: BTreeSet<String>,
+    tx: Sender<Envelope>,
+    rx: Receiver<Envelope>,
+    waker: Arc<Mutex<Option<Waker>>>,
+    store: Option<Box<dyn Store>>,
+    watch: Option<Box<dyn WatchHandle>>,
+    local_seq: u64,
+}
+
+impl Workbench {
+    pub fn new(registry: Registry) -> Self {
+        let (tx, rx) = channel();
+        let nav = registry
+            .iter()
+            .map(|m| m.nav().items.first().map(|i| i.key.clone()))
+            .collect();
+        Self {
+            app: AppState::default(),
+            theme: Theme::dark(),
+            registry,
+            active: 0,
+            nav,
+            windows: Windows::new(),
+            palette: Palette::default(),
+            inspector_open: true,
+            status: String::new(),
+            seen: BTreeSet::new(),
+            tx,
+            rx,
+            waker: Arc::new(Mutex::new(None)),
+            store: None,
+            watch: None,
+            local_seq: 0,
+        }
+    }
+
+    pub fn with_store(mut self, store: Box<dyn Store>) -> Self {
+        self.store = Some(store);
+        self
+    }
+
+    pub fn set_waker(&mut self, w: Waker) {
+        *self.waker.lock().unwrap_or_else(|e| e.into_inner()) = Some(w);
+    }
+
+    pub fn attach_watch(&mut self, h: Box<dyn WatchHandle>) {
+        self.watch = Some(h);
+    }
+
+    pub fn stop_watch(&mut self) {
+        if let Some(mut h) = self.watch.take() {
+            h.stop();
+        }
+    }
+
+    /// An `EventSink` for the engine port: enqueue + wake the UI loop.
+    pub fn sink(&self) -> EventSink {
+        let tx = self.tx.clone();
+        let waker = self.waker.clone();
+        Box::new(move |env| {
+            if tx.send(env).is_ok()
+                && let Some(w) = waker.lock().unwrap_or_else(|e| e.into_inner()).as_ref()
+            {
+                w();
+            }
+        })
+    }
+
+    /// Drain pending envelopes. Returns true when visible state changed.
+    pub fn drain(&mut self) -> bool {
+        let mut changed = false;
+        while let Ok(env) = self.rx.try_recv() {
+            changed |= self.commit(&env);
+        }
+        changed
+    }
+
+    fn commit(&mut self, env: &Envelope) -> bool {
+        if !self.seen.insert(env.event_id.0.clone()) {
+            return false;
+        }
+        if let Some(store) = &self.store {
+            let doc = serde_json::to_value(env).unwrap_or(serde_json::Value::Null);
+            let put = store.put(
+                &Namespace(JOURNAL.into()),
+                &StableId(env.event_id.0.clone()),
+                &doc,
+            );
+            if put.is_err() {
+                self.app.degraded = Some(DegradedReason::StoreCorrupt);
+            }
+        }
+        let mut changed = cascade::dispatch(&mut self.app, env);
+        for m in self.registry.iter_mut() {
+            changed |= m.ingest(env);
+        }
+        self.reclamp_rows();
+        changed
+    }
+
+    /// Disclose a degraded state through the same commit path as engine events.
+    pub fn disclose(&mut self, reason: DegradedReason) {
+        self.local_seq += 1;
+        let env = Envelope {
+            workspace: WorkspaceId("local".into()),
+            snapshot_epoch: SnapshotEpoch(self.app.snapshot_epoch),
+            build_id: None,
+            cursor: Cursor {
+                session: SessionId("shell".into()),
+                seq: self.local_seq,
+            },
+            event_id: EventId(format!("shell-{}", self.local_seq)),
+            payload: AppEvent::Shell(ShellEvent::Degraded { reason }),
+        };
+        let _ = self.tx.send(env);
+        self.drain();
+    }
+
+    // ---- theme ----
+
+    pub fn set_mode(&mut self, mode: Mode) {
+        self.theme = Theme::for_mode(mode, self.theme.motion.reduced);
+    }
+
+    pub fn set_reduced_motion(&mut self, reduced: bool) {
+        self.theme = Theme::for_mode(self.theme.mode, reduced);
+    }
+
+    // ---- navigation & selection ----
+
+    pub fn active_nav(&self) -> Option<&str> {
+        self.nav.get(self.active).and_then(|n| n.as_deref())
+    }
+
+    pub fn list_len(&self) -> usize {
+        self.registry
+            .get(self.active)
+            .map_or(0, |m| m.list_len(self.active_nav()))
+    }
+
+    pub fn row(&self, i: usize) -> RowModel {
+        self.registry
+            .get(self.active)
+            .map(|m| m.row(self.active_nav(), i))
+            .unwrap_or_default()
+    }
+
+    pub fn selected_key(&self) -> Option<&str> {
+        self.windows.primary.row.as_ref().map(|(_, k)| k.as_str())
+    }
+
+    pub fn activate(&mut self, index: usize) {
+        if index < self.registry.len() && index != self.active {
+            self.active = index;
+            self.clear_selection();
+            if let Some(m) = self.registry.get(index) {
+                self.status = format!("{} — {}", m.spec().slot.title(), m.spec().title);
+            }
+        }
+    }
+
+    pub fn set_nav(&mut self, key: &str) {
+        if let Some(slot) = self.nav.get_mut(self.active) {
+            *slot = Some(key.to_string());
+        }
+        self.clear_selection();
+    }
+
+    fn cycle_nav(&mut self, delta: isize) {
+        let Some(m) = self.registry.get(self.active) else {
+            return;
+        };
+        let items = m.nav().items;
+        if items.is_empty() {
+            return;
+        }
+        let cur = items
+            .iter()
+            .position(|i| Some(i.key.as_str()) == self.active_nav())
+            .unwrap_or(0) as isize;
+        let next = (cur + delta).rem_euclid(items.len() as isize) as usize;
+        let key = items[next].key.clone();
+        self.set_nav(&key);
+    }
+
+    pub fn clear_selection(&mut self) {
+        self.windows.primary.row = None;
+        self.windows.primary.selection = Selection::default();
+        self.app.selection = Selection::default();
+    }
+
+    pub fn select_row(&mut self, i: usize) {
+        if i >= self.list_len() {
+            return;
+        }
+        let key = self.row(i).key;
+        let noun = self.registry.get(self.active).and_then(|m| m.noun(&key));
+        let sel = Selection {
+            account: noun.as_ref().map(|n| n.account.clone()),
+            mailbox: self.active_nav().map(str::to_string),
+            noun,
+        };
+        self.windows.primary.row = Some((i, key));
+        self.windows.primary.selection = sel.clone();
+        self.app.selection = sel;
+    }
+
+    pub fn select_key(&mut self, key: &str) {
+        if let Some(i) = (0..self.list_len()).find(|&i| self.row(i).key == key) {
+            self.select_row(i);
+        }
+    }
+
+    fn move_row(&mut self, delta: isize) {
+        let len = self.list_len();
+        if len == 0 {
+            return;
+        }
+        let next = match &self.windows.primary.row {
+            None if delta >= 0 => 0,
+            None => len - 1,
+            Some((i, _)) => (*i as isize + delta).clamp(0, len as isize - 1) as usize,
+        };
+        self.select_row(next);
+    }
+
+    fn reclamp_rows(&mut self) {
+        if let Some((_, key)) = self.windows.primary.row.clone() {
+            let len = self.list_len();
+            match (0..len).find(|&i| self.row(i).key == key) {
+                Some(i) => self.windows.primary.row = Some((i, key)),
+                None => self.clear_selection(),
+            }
+        }
+    }
+
+    // ---- commands ----
+
+    pub fn commands(&self) -> Vec<CommandSpec> {
+        let mut out = vec![
+            CommandSpec::new("shell.palette", "Command palette").chord("mod+k"),
+            CommandSpec::new("shell.theme.toggle", "Toggle light/dark theme"),
+            CommandSpec::new("shell.motion.toggle", "Toggle reduced motion"),
+            CommandSpec::new("shell.inspector.toggle", "Toggle inspector").chord("mod+i"),
+            CommandSpec::new(
+                "shell.window.companion",
+                "Open selection in companion window",
+            )
+            .chord("enter"),
+            CommandSpec::new("shell.window.close-companions", "Close companion windows"),
+            CommandSpec::new("shell.degraded.dismiss", "Dismiss degraded banner"),
+        ];
+        for (i, m) in self.registry.iter().enumerate() {
+            let s = m.spec();
+            let mut c =
+                CommandSpec::new(format!("shell.goto.{}", s.id), format!("Go to {}", s.title));
+            if i < 9 {
+                c = c.chord(&format!("mod+{}", i + 1));
+            }
+            out.push(c);
+            out.extend(m.commands());
+        }
+        out
+    }
+
+    pub fn run_command(&mut self, id: &str) {
+        match id {
+            "shell.palette" => self.palette.toggle(),
+            "shell.theme.toggle" => self.set_mode(match self.theme.mode {
+                Mode::Dark => Mode::Light,
+                Mode::Light => Mode::Dark,
+            }),
+            "shell.motion.toggle" => self.set_reduced_motion(!self.theme.motion.reduced),
+            "shell.inspector.toggle" => self.inspector_open = !self.inspector_open,
+            "shell.window.companion" => {
+                if let Some(key) = self.selected_key().map(str::to_string) {
+                    self.apply(Intent::OpenCompanion { key });
+                }
+            }
+            "shell.window.close-companions" => {
+                let ids: Vec<WindowId> = self.windows.companions.iter().map(|c| c.id).collect();
+                for w in ids {
+                    self.close_window(w, false);
+                }
+            }
+            "shell.degraded.dismiss" => self.apply(Intent::Recover),
+            _ => {
+                if let Some(target) = id.strip_prefix("shell.goto.") {
+                    if let Some(i) = self.registry.index_of(target) {
+                        self.activate(i);
+                    }
+                    return;
+                }
+                let module = id.split('.').next().unwrap_or_default();
+                let Some(i) = self.registry.index_of(module) else {
+                    self.status = format!("unknown command {id}");
+                    return;
+                };
+                let intents = self
+                    .registry
+                    .get_mut(i)
+                    .map(|m| m.run(id))
+                    .unwrap_or_default();
+                for it in intents {
+                    self.apply(it);
+                }
+            }
+        }
+    }
+
+    pub fn apply(&mut self, intent: Intent) {
+        match intent {
+            Intent::Degrade(reason) => self.disclose(reason),
+            Intent::Recover => self.app.degraded = None,
+            Intent::Status(s) => self.status = s,
+            Intent::MarkDirty => self.windows.set_dirty(PRIMARY, true),
+            Intent::OpenCompanion { key } => {
+                let Some(m) = self.registry.get(self.active) else {
+                    return;
+                };
+                let title = m.reading(&key).title;
+                let module = m.spec().id;
+                self.windows.open_companion(module, &key, &title);
+                self.status = format!("companion: {title}");
+            }
+        }
+    }
+
+    pub fn close_window(&mut self, id: WindowId, force: bool) -> CloseOutcome {
+        let out = self.windows.close(id, force);
+        if let CloseOutcome::NeedsConfirm(ws) = &out {
+            self.status = format!("{} window(s) have unsaved changes", ws.len());
+        }
+        out
+    }
+
+    // ---- keyboard ----
+
+    /// Keyboard-first shell keymap. Returns true when consumed.
+    pub fn key(&mut self, k: &KeyPress) -> bool {
+        if self.palette.open {
+            return self.palette_key(k);
+        }
+        match &k.key {
+            KeyInput::Command('k') => self.palette.toggle(),
+            KeyInput::Command('i') => self.run_command("shell.inspector.toggle"),
+            KeyInput::Command(c) if c.is_ascii_digit() && *c != '0' => {
+                self.activate(*c as usize - '1' as usize)
+            }
+            KeyInput::Down | KeyInput::Char('j') => self.move_row(1),
+            KeyInput::Up | KeyInput::Char('k') => self.move_row(-1),
+            KeyInput::Tab => self.cycle_nav(if k.shift { -1 } else { 1 }),
+            KeyInput::Enter => self.run_command("shell.window.companion"),
+            KeyInput::Escape => self.clear_selection(),
+            _ => return false,
+        }
+        true
+    }
+
+    fn palette_key(&mut self, k: &KeyPress) -> bool {
+        let cmds = self.commands();
+        match &k.key {
+            KeyInput::Escape | KeyInput::Command('k') => self.palette.close(),
+            KeyInput::Char(c) => self.palette.type_char(*c),
+            KeyInput::Backspace => self.palette.backspace(),
+            KeyInput::Down | KeyInput::Tab => self
+                .palette
+                .move_cursor(1, self.palette.matches(&cmds).len()),
+            KeyInput::Up => self
+                .palette
+                .move_cursor(-1, self.palette.matches(&cmds).len()),
+            KeyInput::Enter => {
+                let id = self.palette.selected(&cmds).map(|c| c.id.clone());
+                self.palette.close();
+                if let Some(id) = id {
+                    self.run_command(&id);
+                }
+            }
+            _ => return false,
+        }
+        true
+    }
+}
+
+impl Drop for Workbench {
+    fn drop(&mut self) {
+        self.stop_watch();
+    }
+}

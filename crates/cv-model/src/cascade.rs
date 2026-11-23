@@ -2,12 +2,50 @@
 //! cascade paragraph: build-finished → persist IR → rules re-eval →
 //! findings refresh → staleness badges. Idempotent by
 //! `event_id + input_hash`; replay is a no-op at every step.
+//!
+//! The shell slice handled here: snapshot epoch, engine handshake
+//! (version gate), and degraded-state disclosure.
 
-use cv_core::events::Envelope;
+use crate::app_state::AppState;
+use cv_core::events::engine::{EngineEvent, WatchEndReason};
+use cv_core::events::shell::{DegradedReason, ShellEvent};
+use cv_core::events::{AppEvent, Envelope};
+
+/// The Boris version this build is ratified against.
+pub const WANT_ENGINE: &str = "0.9.0";
+
+/// `boris/0.9.0` → `0.9.0`.
+fn engine_version(compiler: &str) -> &str {
+    compiler.rsplit('/').next().unwrap_or(compiler)
+}
 
 /// Apply one committed envelope to app state. Ordering and replay rules
-/// are normative in `cv-core::events` docs.
-pub fn dispatch(_state: &mut crate::app_state::AppState, _env: &Envelope) {
-    // L0 scaffold: the canary slice exercises the pattern; lane slices
-    // land in `modules/<lane>/`.
+/// are normative in `cv-core::events` docs. Returns true when changed.
+pub fn dispatch(state: &mut AppState, env: &Envelope) -> bool {
+    state.committed += 1;
+    state.snapshot_epoch = state.snapshot_epoch.max(env.snapshot_epoch.0);
+    match &env.payload {
+        AppEvent::Engine(EngineEvent::WatchSessionStarted { compiler, .. }) => {
+            state.engine = Some(compiler.clone());
+            let found = engine_version(compiler);
+            if found != WANT_ENGINE {
+                state.degraded = Some(DegradedReason::EngineVersionMismatch {
+                    found: found.into(),
+                    want: WANT_ENGINE.into(),
+                });
+            } else if matches!(state.degraded, Some(DegradedReason::WatchDead)) {
+                state.degraded = None;
+            }
+        }
+        AppEvent::Engine(EngineEvent::WatchSessionEnded { reason }) => {
+            if *reason != WatchEndReason::CleanExit {
+                state.degraded = Some(DegradedReason::WatchDead);
+            }
+        }
+        AppEvent::Shell(ShellEvent::Degraded { reason }) => {
+            state.degraded = Some(reason.clone());
+        }
+        _ => {}
+    }
+    true
 }
