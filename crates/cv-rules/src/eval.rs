@@ -283,7 +283,7 @@ impl<'a> Ctx<'a, '_> {
                 }
             }
             Selector::IrNode { kind, field } => {
-                let Some(ir) = &set.ir else {
+                let Some(ir) = set.ir_graph() else {
                     return self.limited_unavailable(ArtifactKind::Ir);
                 };
                 for page in pages {
@@ -307,7 +307,7 @@ impl<'a> Ctx<'a, '_> {
     }
 
     fn count_ir(&mut self, selector: &Selector, pred: Pred) {
-        let Some(ir) = &self.set.ir else {
+        let Some(ir) = self.set.ir_graph() else {
             return self.limited_unavailable(ArtifactKind::Ir);
         };
         let path = ir.path.as_str();
@@ -400,7 +400,7 @@ impl<'a> Ctx<'a, '_> {
             }
             Selector::IrNode { kind: nk, field } => {
                 let set = self.set;
-                let Some(ir) = &set.ir else {
+                let Some(ir) = set.ir_graph() else {
                     return self.limited_unavailable(ArtifactKind::Ir);
                 };
                 let by_entity = matches!(kind, ArtifactKind::Rag | ArtifactKind::ContextBundle);
@@ -622,7 +622,7 @@ impl<'a> Ctx<'a, '_> {
         let base = self.base_path();
         let routes: Vec<&str> = set.pages.iter().map(|p| p.route.as_str()).collect();
         // Leg 1: every advertised page is in the sitemap.
-        match (set.availability(ArtifactKind::Sitemap), &set.ir) {
+        match (set.availability(ArtifactKind::Sitemap), set.ir_graph()) {
             (Availability::Unavailable, _) => self.limited_unavailable(ArtifactKind::Sitemap),
             (Availability::NotEmitted, _) => {}
             (Availability::Present, None) => {

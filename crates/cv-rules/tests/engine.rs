@@ -571,3 +571,16 @@ fn engine_source_has_no_io_or_nondeterminism() {
         }
     }
 }
+
+#[test]
+fn ir_declared_missing_limits_draft_checks_even_if_supplied() {
+    let r = eval(&seeded().missing(ArtifactKind::Ir).build(), &Ruleset::v1());
+    assert!(!r.failed().any(|f| f.finding.code.contains("DRAFT-LEAK")));
+    for code in ["TGT-SITEMAP-DRAFT-LEAK", "TGT-RAG-DRAFT-LEAK"] {
+        assert!(r.limited().any(|f| f.finding.code == code), "{code}");
+    }
+    assert!(
+        !r.failed()
+            .any(|f| f.finding.evidence.summary.contains("absent from"))
+    );
+}

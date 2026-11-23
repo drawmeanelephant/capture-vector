@@ -543,6 +543,13 @@ impl ArtifactSet {
         self.exports.iter().find(|e| e.kind == kind)
     }
 
+    /// The IR graph, unless the manifest declares it missing.
+    pub fn ir_graph(&self) -> Option<&IrGraph> {
+        self.ir
+            .as_ref()
+            .filter(|_| !self.manifest.missing.contains(&ArtifactKind::Ir))
+    }
+
     pub fn availability(&self, kind: ArtifactKind) -> Availability {
         let present = match kind {
             ArtifactKind::Ir => self.ir.is_some(),
@@ -565,7 +572,7 @@ impl ArtifactSet {
         if let Some(a) = self.archetypes.get(id) {
             return Some(*a);
         }
-        match self.ir.as_ref()?.node(id)?.role.as_str() {
+        match self.ir_graph()?.node(id)?.role.as_str() {
             "trunk" => Some(Archetype::Trunk),
             "satellite" => Some(Archetype::Satellite),
             _ => None,
