@@ -1,6 +1,6 @@
-//! cv-app — composition root. Wave-0 shell (module rail + DemoModule)
-//! lands against cv-widgets; this binary stays thin.
+//! cv-app — composition root binary. Native window by default; rune's
+//! headless flags (`--scene`, `--tree`, `--snap`, `--script`) also apply.
 
 fn main() {
-    eprintln!("capture-vector: wave-0 chassis (shell lands with L2)");
+    cv_widgets::app::run(cv_app::launch());
 }
