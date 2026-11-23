@@ -43,10 +43,9 @@ pub fn register(r: &mut Registry) {
 
 pub struct ResearchModule {
     session: Research<Box<dyn ResearchPort>>,
-    /// Last note the shell resolved a noun for (the selection) and last
-    /// nav listed — commands act on these; the module grammar passes no key.
-    focus: RefCell<Option<StableId>>,
-    nav: RefCell<Option<String>>,
+    /// The selection the shell told us just before a command (the module
+    /// grammar passes no key); consumed by that command.
+    focus: Option<StableId>,
     filter: Filter,
     promote_error: Option<(StableId, String)>,
     last_build: Option<(String, Tone)>,
@@ -58,8 +57,7 @@ impl ResearchModule {
     pub fn new(session: Research<Box<dyn ResearchPort>>) -> Self {
         Self {
             session,
-            focus: RefCell::new(None),
-            nav: RefCell::new(None),
+            focus: None,
             filter: Filter::default(),
             promote_error: None,
             last_build: None,
@@ -90,12 +88,9 @@ impl ResearchModule {
         }
     }
 
-    fn target(&self) -> Option<StableId> {
-        let focus = self.focus.borrow().clone();
-        focus.filter(|f| self.nb().note(f).is_some()).or_else(|| {
-            let nav = self.nav.borrow().clone();
-            self.notes(nav.as_deref()).first().map(|n| n.id.clone())
-        })
+    fn target(&mut self) -> Option<StableId> {
+        let focus = self.focus.take();
+        focus.filter(|f| self.nb().note(f).is_some())
     }
 
     fn title_of(&self, id: &StableId) -> String {
@@ -208,7 +203,6 @@ impl Module for ResearchModule {
     }
 
     fn list_len(&self, nav: Option<&str>) -> usize {
-        *self.nav.borrow_mut() = nav.map(str::to_string);
         match self.notes(nav).len() {
             0 if nav.unwrap_or("inbox") == "inbox" => 1,
             n => n,
@@ -286,11 +280,8 @@ impl Module for ResearchModule {
             lines.push(line("backlink", self.title_of(&l.from), Tone::Normal));
         }
         if let Some(p) = nb.provenance(&n.id) {
-            lines.push(line(
-                "promoted",
-                format!("page {} ({})", p.page.0, p.path),
-                Tone::Ok,
-            ));
+            lines.push(line("promoted", format!("page {}", p.page.0), Tone::Ok));
+            lines.push(line("path", p.path.clone(), Tone::Dim));
             for other in nb
                 .page_backlinks(&p.page)
                 .into_iter()
@@ -347,7 +338,6 @@ impl Module for ResearchModule {
     fn noun(&self, key: &str) -> Option<NounId> {
         let id = StableId(key.into());
         self.nb().note(&id)?;
-        *self.focus.borrow_mut() = Some(id.clone());
         Some(self.nb().noun(&id))
     }
 
@@ -367,6 +357,18 @@ impl Module for ResearchModule {
     }
 
     fn run(&mut self, command: &str) -> Vec<Intent> {
+        let out = self.dispatch(command);
+        self.focus = None;
+        out
+    }
+
+    fn select(&mut self, key: Option<&str>) {
+        self.focus = key.map(|k| StableId(k.into()));
+    }
+}
+
+impl ResearchModule {
+    fn dispatch(&mut self, command: &str) -> Vec<Intent> {
         let verb = command.strip_prefix("research.").unwrap_or(command);
         if let Some(f) = verb.strip_prefix("filter.") {
             let msg = self.filter.run(f, &mut self.session);
@@ -382,10 +384,7 @@ impl Module for ResearchModule {
                     None,
                 );
                 vec![Intent::Status(match r {
-                    Ok(id) => {
-                        *self.focus.borrow_mut() = Some(id.clone());
-                        format!("captured {} to inbox", id.0)
-                    }
+                    Ok(id) => format!("captured {} to inbox", id.0),
                     Err(e) => format!("research: {e}"),
                 })]
             }

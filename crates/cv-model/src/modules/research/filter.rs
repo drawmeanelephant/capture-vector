@@ -105,10 +105,10 @@ impl Filter {
     fn draft<P: ResearchPort>(&self, s: &Research<P>) -> Option<Term> {
         let vals = self.values(s);
         let value = vals.get(self.value % vals.len().max(1))?.clone();
-        let op = if FIELDS[self.field] == "tags" {
-            Op::Contains
-        } else {
-            OPS[self.op]
+        let op = match (FIELDS[self.field], &value, OPS[self.op]) {
+            ("tags", _, _) => Op::Contains,
+            (_, AttrValue::Bool(_), Op::Contains) => Op::Eq,
+            (_, _, op) => op,
         };
         Some(Term {
             field: FIELDS[self.field].into(),
