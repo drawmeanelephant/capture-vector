@@ -34,8 +34,15 @@ pub enum Intent {
     Degrade(DegradedReason),
     Recover,
     Status(String),
-    OpenCompanion { key: String },
+    OpenCompanion {
+        key: String,
+    },
     MarkDirty,
+    /// Activate `module` and select `key` in its first mailbox.
+    Reveal {
+        module: String,
+        key: String,
+    },
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]

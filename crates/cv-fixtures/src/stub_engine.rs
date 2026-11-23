@@ -2,7 +2,8 @@
 //! `StubEngine ≡ ProcessEngine` conformance runs continuously once L1
 //! lands; the suite is driven against this same API.
 
-use cv_contracts::watch::{Phase, WatchEvent};
+use cv_contracts::watch::{Phase, WatchDiagnostic, WatchEvent};
+use cv_core::diagnostic::{Diagnostic, Severity, Span, StderrDiagnostic};
 use cv_core::engine::{
     Engine, EngineCaps, EngineInfo, EventSink, ExitClass, Fingerprint, PageDraft, Verb,
     WatchHandle, WriteOutcome,
@@ -51,6 +52,11 @@ impl StubEngine {
         self.sent.lock().unwrap().clone()
     }
 
+    /// Build id the next emitted envelope carries.
+    fn next_build(&self) -> BuildId {
+        BuildId(format!("stub-build-{}", self.seq.load(Ordering::SeqCst)))
+    }
+
     fn emit(&self, sink: &mut EventSink, payload: EngineEvent) {
         let seq = self.seq.fetch_add(1, Ordering::SeqCst);
         self.sent.lock().unwrap().push(payload.clone());
@@ -75,7 +81,7 @@ impl StubEngine {
         for line in ndjson.lines() {
             match cv_contracts::watch::decode_line(line) {
                 Ok(Some(ev)) => {
-                    let Some(payload) = map_event(ev) else {
+                    let Some(payload) = map_event(ev, &self.next_build()) else {
                         continue;
                     };
                     self.emit(&mut sink, payload);
@@ -96,7 +102,41 @@ impl StubEngine {
     }
 }
 
-fn map_event(ev: WatchEvent) -> Option<EngineEvent> {
+/// Same mapping as `cv-engine`'s `watch_diagnostic`: the stub must hand
+/// lanes the diagnostics the process adapter would.
+fn watch_diagnostic(d: &WatchDiagnostic, build: &BuildId) -> Diagnostic {
+    let extra = |k: &str| d.extra.get(k);
+    let path = d.path.clone().or_else(|| {
+        extra("sourcePath")
+            .and_then(|v| v.as_str())
+            .map(String::from)
+    });
+    Diagnostic {
+        code: d.code.clone().unwrap_or_default(),
+        severity: match extra("severity")
+            .or_else(|| extra("level"))
+            .and_then(|v| v.as_str())
+        {
+            Some("warning") => Severity::Warning,
+            Some("note") | Some("info") => Severity::Note,
+            _ => Severity::Error,
+        },
+        span: path.map(|path| Span {
+            path,
+            start: 0,
+            end: 0,
+            line: d.line.unwrap_or(0),
+            col: d
+                .col
+                .or_else(|| extra("column").and_then(|v| v.as_u64()).map(|c| c as u32))
+                .unwrap_or(0),
+        }),
+        message: d.message.clone().unwrap_or_default(),
+        build_version: Some(build.clone()),
+    }
+}
+
+fn map_event(ev: WatchEvent, build: &BuildId) -> Option<EngineEvent> {
     let phase = |p: Phase| match p {
         Phase::Initial => BuildPhase::Initial,
         Phase::Rebuild => BuildPhase::Rebuild,
@@ -124,11 +164,15 @@ fn map_event(ev: WatchEvent) -> Option<EngineEvent> {
         },
         WatchEvent::BuildFailed {
             phase: p,
+            diagnostics,
             recoverable,
             ..
         } => EngineEvent::BuildFailed {
             phase: phase(p),
-            diagnostics: vec![],
+            diagnostics: diagnostics
+                .iter()
+                .map(|d| watch_diagnostic(d, build))
+                .collect(),
             recoverable,
         },
         WatchEvent::WatcherStarted { .. } | WatchEvent::Unknown => return None,
@@ -186,6 +230,46 @@ impl Engine for StubEngine {
             .parse()
             .unwrap_or(3);
         let exit = ExitClass::from_code(code);
+        // Build verbs report the one-shot build in watch vocabulary, as
+        // `ProcessEngine` does: diagnostics come from captured stderr.
+        if verb_dir == "build" {
+            let c = crate::corpus(&self.corpus);
+            let (stdout, stderr) = (
+                c.file_str("build/stdout.txt"),
+                c.file_str("build/stderr.txt"),
+            );
+            let build = self.next_build();
+            let diagnostics: Vec<Diagnostic> = stderr
+                .lines()
+                .filter_map(StderrDiagnostic::parse)
+                .map(|d| Diagnostic {
+                    build_version: Some(build.clone()),
+                    ..Diagnostic::from(&d)
+                })
+                .collect();
+            let ev = if exit == ExitClass::Ok {
+                EngineEvent::BuildFinished {
+                    phase: BuildPhase::Initial,
+                    pages_written: stdout
+                        .lines()
+                        .chain(stderr.lines())
+                        .filter(|l| l.starts_with("  wrote ") && l.ends_with(".html"))
+                        .count() as u64,
+                    diagnostics: diagnostics
+                        .into_iter()
+                        .filter(|d| d.severity != Severity::Error)
+                        .collect(),
+                    duration_ms: 0,
+                }
+            } else {
+                EngineEvent::BuildFailed {
+                    phase: BuildPhase::Initial,
+                    diagnostics,
+                    recoverable: exit == ExitClass::ContentFailure,
+                }
+            };
+            self.emit(&mut sink, ev);
+        }
         self.emit(
             &mut sink,
             EngineEvent::VerbFinished {

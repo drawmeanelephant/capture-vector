@@ -9,6 +9,7 @@
 //! - [`editor`]: the L7 editor surface (form + body, problems, draft sketch).
 
 pub mod app;
+pub mod diagnostic;
 pub mod editor;
 pub mod harness;
 pub mod keys;

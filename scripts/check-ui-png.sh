@@ -14,7 +14,7 @@ if [ "$(uname -s)" != "Linux" ]; then
 fi
 export WGPU_BACKEND="${WGPU_BACKEND:-vulkan}"
 
-SCENES=(canary palette light store-corrupt)
+SCENES=(canary palette light store-corrupt pages outputs activity broken-parent activity-broken empty pages-watch-dead)
 GOLD=fixtures/ui/golden/png
 OUT=target/ui
 mkdir -p "$GOLD" "$OUT"

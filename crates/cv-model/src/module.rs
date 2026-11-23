@@ -3,8 +3,9 @@
 //! renders it with generic providers and never matches on module identity.
 
 use crate::command::{CommandSpec, Intent};
+use cv_core::diagnostic::Diagnostic;
 use cv_core::events::Envelope;
-use cv_core::id::NounId;
+use cv_core::id::{NounAttrRow, NounId};
 use serde::Serialize;
 
 /// Fixed rail order. `Extra` holds non-core modules (the wave-0 demo).
@@ -15,16 +16,18 @@ pub enum Slot {
     Research,
     Audit,
     Publish,
+    Outputs,
     Activity,
     Extra,
 }
 
 impl Slot {
-    pub const CORE: [Slot; 5] = [
+    pub const CORE: [Slot; 6] = [
         Slot::Pages,
         Slot::Research,
         Slot::Audit,
         Slot::Publish,
+        Slot::Outputs,
         Slot::Activity,
     ];
     pub fn title(self) -> &'static str {
@@ -33,6 +36,7 @@ impl Slot {
             Slot::Research => "Research",
             Slot::Audit => "Audit",
             Slot::Publish => "Publish",
+            Slot::Outputs => "Outputs",
             Slot::Activity => "Activity",
             Slot::Extra => "Extra",
         }
@@ -78,6 +82,8 @@ pub struct RowModel {
     pub detail: String,
     pub badge: Option<String>,
     pub tone: Tone,
+    /// Severity rail drawn at the row's leading edge.
+    pub rail: Option<Tone>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
@@ -92,11 +98,81 @@ pub struct ReadingLine {
 pub struct ReadingModel {
     pub title: String,
     pub lines: Vec<ReadingLine>,
+    /// Ancestor chain, root first.
+    pub breadcrumbs: Vec<String>,
+    /// Markdown source rendered as a draft sketch — Boris output is
+    /// authoritative.
+    pub markdown: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Default, Serialize)]
+pub struct InspectorModel {
+    pub fields: Vec<(String, String)>,
+    /// Rendered by one shared surface wherever they appear — the value is
+    /// never remapped per module.
+    pub diagnostics: Vec<Diagnostic>,
+    /// Titled lists (impact, provenance inputs, occurrences).
+    pub lists: Vec<(String, Vec<String>)>,
+}
+
+/// Click-through target: a row key in another module's list.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Link {
+    pub module: &'static str,
+    pub key: String,
+    pub label: String,
+}
+
+/// Project state resynced from the engine (`Engine::snapshot` + proof
+/// pack). Pure data: the composition root loads it, modules consume it.
+#[derive(Debug, Clone, PartialEq, Default, Serialize)]
+pub struct ProjectSnapshot {
+    pub epoch: u64,
+    /// Compiler identity that produced the outputs (`boris/0.9.0`).
+    pub compiler: Option<String>,
+    /// Publication profile target the artifacts belong to.
+    pub target: Option<String>,
+    pub pages: Vec<PageRecord>,
+    pub outputs: Vec<OutputRecord>,
+    /// Hashes recorded at the last publish, by output path.
+    pub last_publish: Option<PublishMark>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
-pub struct InspectorModel {
-    pub fields: Vec<(String, String)>,
+pub struct PageRecord {
+    /// Source path relative to the content root — the row key, and the
+    /// path Boris diagnostics cite.
+    pub path: String,
+    /// Graph id as authored (`id:` frontmatter or the content path stem).
+    pub id: String,
+    pub title: String,
+    pub parent: Option<String>,
+    pub tags: Vec<String>,
+    /// `(relation, target id)` pairs.
+    pub relations: Vec<(String, String)>,
+    /// Frontmatter exactly as authored, in source order.
+    pub frontmatter: Vec<(String, String)>,
+    pub body: String,
+    /// Rendered dist path, when the last build wrote one.
+    pub output: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
+pub struct OutputRecord {
+    pub path: String,
+    pub kind: String,
+    pub producer: String,
+    pub status: String,
+    pub required: bool,
+    pub bytes: u64,
+    pub sha256: String,
+    pub format_version: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
+pub struct PublishMark {
+    pub label: String,
+    pub hashes: std::collections::BTreeMap<String, String>,
 }
 
 /// A lane module. Pure: no rune, no IO, no process spawning.
@@ -122,6 +198,23 @@ pub trait Module {
         Vec::new()
     }
     fn run(&mut self, _command: &str) -> Vec<Intent> {
+        Vec::new()
+    }
+    /// Resync from a project snapshot. Returns whether state changed.
+    fn load(&mut self, _snap: &ProjectSnapshot) -> bool {
+        false
+    }
+    /// Whether `key` names a row this module can reveal.
+    fn contains(&self, _key: &str) -> bool {
+        true
+    }
+
+    /// Click-through target for a row, if it names a noun elsewhere.
+    fn link(&self, _key: &str) -> Option<Link> {
+        None
+    }
+    /// Uniform attribute projection of every noun this module owns.
+    fn attr_rows(&self) -> Vec<NounAttrRow> {
         Vec::new()
     }
 }

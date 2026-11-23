@@ -20,6 +20,7 @@ fn press(wb: &mut Workbench, k: KeyInput) -> bool {
 
 fn replayed(corpus: &str) -> (Workbench, Arc<AtomicUsize>) {
     let mut wb = Workbench::new(Registry::with_all()).with_store(Box::new(StubStore::new()));
+    wb.activate(wb.registry.index_of("demo").expect("demo registered"));
     let wakes = Arc::new(AtomicUsize::new(0));
     let w = wakes.clone();
     wb.set_waker(Arc::new(move || {

@@ -1,0 +1,2294 @@
+{
+  "nodes": [
+    {
+      "fill": "#0e1014ff",
+      "key": "shell",
+      "opacity": 1.0,
+      "path": "shell",
+      "rect": [
+        0.0,
+        0.0,
+        1280.0,
+        800.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "body",
+      "opacity": 1.0,
+      "path": "shell/body",
+      "rect": [
+        0.0,
+        0.0,
+        1280.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/rail",
+      "rect": [
+        0.0,
+        0.0,
+        88.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-pages",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages",
+      "rect": [
+        0.0,
+        8.0,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages/#0",
+      "rect": [
+        12.0,
+        14.0,
+        38.7,
+        16.3
+      ],
+      "role": "text",
+      "text": "Pages"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-research",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research",
+      "rect": [
+        0.0,
+        40.3,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research/#0",
+      "rect": [
+        12.0,
+        46.3,
+        58.8,
+        16.3
+      ],
+      "role": "text",
+      "text": "Research"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-audit",
+      "label": "not registered",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit",
+      "rect": [
+        0.0,
+        72.5,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#0",
+      "rect": [
+        12.0,
+        78.5,
+        33.5,
+        16.3
+      ],
+      "role": "text",
+      "text": "Audit"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-publish",
+      "label": "not registered",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish",
+      "rect": [
+        0.0,
+        104.8,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish/#0",
+      "rect": [
+        12.0,
+        110.8,
+        46.4,
+        16.3
+      ],
+      "role": "text",
+      "text": "Publish"
+    },
+    {
+      "fill": "#00d1ffff",
+      "key": "rail-outputs",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs",
+      "rect": [
+        0.0,
+        137.0,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#001018ff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs/#0",
+      "rect": [
+        12.0,
+        143.0,
+        50.2,
+        16.3
+      ],
+      "role": "text",
+      "text": "Outputs"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-activity",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity",
+      "rect": [
+        0.0,
+        169.3,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity/#0",
+      "rect": [
+        12.0,
+        175.3,
+        48.4,
+        16.3
+      ],
+      "role": "text",
+      "text": "Activity"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-demo",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo",
+      "rect": [
+        0.0,
+        201.5,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo/#0",
+      "rect": [
+        12.0,
+        207.5,
+        36.7,
+        16.3
+      ],
+      "role": "text",
+      "text": "Demo"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav",
+      "opacity": 1.0,
+      "path": "shell/body/nav",
+      "rect": [
+        88.0,
+        0.0,
+        180.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/#0",
+      "rect": [
+        96.0,
+        8.0,
+        164.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Outputs"
+    },
+    {
+      "fill": "#00d1ff33",
+      "key": "nav-all",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-all",
+      "rect": [
+        96.0,
+        28.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-all/#0",
+      "rect": [
+        104.0,
+        32.3,
+        60.3,
+        15.0
+      ],
+      "role": "text",
+      "text": "All outputs"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-all/#1",
+      "rect": [
+        164.3,
+        32.3,
+        76.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-all/#2",
+      "rect": [
+        240.3,
+        32.3,
+        11.7,
+        15.0
+      ],
+      "role": "text",
+      "text": "10"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-ir",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-ir",
+      "rect": [
+        96.0,
+        55.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-ir/#0",
+      "rect": [
+        104.0,
+        59.3,
+        47.4,
+        15.0
+      ],
+      "role": "text",
+      "text": "IR graph"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-ir/#1",
+      "rect": [
+        151.4,
+        59.3,
+        93.5,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-ir/#2",
+      "rect": [
+        244.9,
+        59.3,
+        7.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-rag",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-rag",
+      "rect": [
+        96.0,
+        82.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-rag/#0",
+      "rect": [
+        104.0,
+        86.3,
+        61.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "RAG packs"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-rag/#1",
+      "rect": [
+        165.9,
+        86.3,
+        79.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-rag/#2",
+      "rect": [
+        244.9,
+        86.3,
+        7.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-context",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-context",
+      "rect": [
+        96.0,
+        109.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-context/#0",
+      "rect": [
+        104.0,
+        113.3,
+        92.8,
+        15.0
+      ],
+      "role": "text",
+      "text": "Context bundles"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-context/#1",
+      "rect": [
+        196.8,
+        113.3,
+        48.1,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-context/#2",
+      "rect": [
+        244.9,
+        113.3,
+        7.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-llms",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-llms",
+      "rect": [
+        96.0,
+        136.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-llms/#0",
+      "rect": [
+        104.0,
+        140.3,
+        40.8,
+        15.0
+      ],
+      "role": "text",
+      "text": "llms.txt"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-llms/#1",
+      "rect": [
+        144.8,
+        140.3,
+        100.1,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-llms/#2",
+      "rect": [
+        244.9,
+        140.3,
+        7.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-rss",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-rss",
+      "rect": [
+        96.0,
+        163.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-rss/#0",
+      "rect": [
+        104.0,
+        167.3,
+        23.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "RSS"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-rss/#1",
+      "rect": [
+        127.1,
+        167.3,
+        117.8,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-rss/#2",
+      "rect": [
+        244.9,
+        167.3,
+        7.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-sitemap",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-sitemap",
+      "rect": [
+        96.0,
+        190.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-sitemap/#0",
+      "rect": [
+        104.0,
+        194.3,
+        46.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "Sitemap"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-sitemap/#1",
+      "rect": [
+        150.0,
+        194.3,
+        94.9,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-sitemap/#2",
+      "rect": [
+        244.9,
+        194.3,
+        7.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-proof",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-proof",
+      "rect": [
+        96.0,
+        217.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-proof/#0",
+      "rect": [
+        104.0,
+        221.3,
+        61.8,
+        15.0
+      ],
+      "role": "text",
+      "text": "Proof pack"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-proof/#1",
+      "rect": [
+        165.8,
+        221.3,
+        79.5,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-proof/#2",
+      "rect": [
+        245.4,
+        221.3,
+        6.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "5"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-search",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-search",
+      "rect": [
+        96.0,
+        244.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-search/#0",
+      "rect": [
+        104.0,
+        248.3,
+        73.8,
+        15.0
+      ],
+      "role": "text",
+      "text": "Search index"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-search/#1",
+      "rect": [
+        177.8,
+        248.3,
+        69.6,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-search/#2",
+      "rect": [
+        247.4,
+        248.3,
+        4.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "1"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-dist",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-dist",
+      "rect": [
+        96.0,
+        271.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-dist/#0",
+      "rect": [
+        104.0,
+        275.3,
+        21.8,
+        15.0
+      ],
+      "role": "text",
+      "text": "Dist"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-dist/#1",
+      "rect": [
+        125.8,
+        275.3,
+        119.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-dist/#2",
+      "rect": [
+        244.8,
+        275.3,
+        7.2,
+        15.0
+      ],
+      "role": "text",
+      "text": "4"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "list-pane",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane",
+      "rect": [
+        268.0,
+        0.0,
+        320.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "list-viewport",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport",
+      "rect": [
+        268.0,
+        0.0,
+        320.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "row-_boris/proof/artifacts.json",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fartifacts.json",
+      "rect": [
+        268.0,
+        0.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fartifacts.json/#0",
+      "rect": [
+        276.0,
+        3.5,
+        115.2,
+        15.0
+      ],
+      "role": "text",
+      "text": "_boris/proof/artifacts.json"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fartifacts.json/#1",
+      "rect": [
+        399.2,
+        11.0,
+        0.0,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fartifacts.json/#2",
+      "rect": [
+        407.2,
+        4.1,
+        81.7,
+        13.8
+      ],
+      "role": "text",
+      "text": "proof-pack · 2014 B"
+    },
+    {
+      "color": "#00d1ffff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fartifacts.json/#3",
+      "rect": [
+        496.9,
+        4.1,
+        83.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "never published"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "row-_boris/proof/checks.json",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fchecks.json",
+      "rect": [
+        268.0,
+        22.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fchecks.json/#0",
+      "rect": [
+        276.0,
+        25.5,
+        113.7,
+        15.0
+      ],
+      "role": "text",
+      "text": "_boris/proof/checks.json"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fchecks.json/#1",
+      "rect": [
+        397.7,
+        33.0,
+        0.0,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fchecks.json/#2",
+      "rect": [
+        405.7,
+        26.1,
+        83.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "proof-pack · 2241 B"
+    },
+    {
+      "color": "#00d1ffff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fchecks.json/#3",
+      "rect": [
+        496.9,
+        26.1,
+        83.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "never published"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "row-_boris/proof/claims.json",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fclaims.json",
+      "rect": [
+        268.0,
+        44.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fclaims.json/#0",
+      "rect": [
+        276.0,
+        47.5,
+        110.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "_boris/proof/claims.json"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fclaims.json/#1",
+      "rect": [
+        394.9,
+        55.0,
+        0.0,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fclaims.json/#2",
+      "rect": [
+        402.9,
+        48.1,
+        86.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "proof-pack · 6508 B"
+    },
+    {
+      "color": "#00d1ffff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fclaims.json/#3",
+      "rect": [
+        496.9,
+        48.1,
+        83.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "never published"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "row-_boris/proof/proof-pack.json",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fproof-pack.json",
+      "rect": [
+        268.0,
+        66.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fproof-pack.json/#0",
+      "rect": [
+        276.0,
+        69.5,
+        119.2,
+        15.0
+      ],
+      "role": "text",
+      "text": "_boris/proof/proof-pack.json"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fproof-pack.json/#1",
+      "rect": [
+        403.2,
+        77.0,
+        0.0,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fproof-pack.json/#2",
+      "rect": [
+        411.2,
+        70.1,
+        77.7,
+        13.8
+      ],
+      "role": "text",
+      "text": "proof-pack · 17771 B"
+    },
+    {
+      "color": "#00d1ffff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fproof-pack.json/#3",
+      "rect": [
+        496.9,
+        70.1,
+        83.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "never published"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "row-_boris/proof/touches.json",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Ftouches.json",
+      "rect": [
+        268.0,
+        88.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Ftouches.json/#0",
+      "rect": [
+        276.0,
+        91.5,
+        113.3,
+        15.0
+      ],
+      "role": "text",
+      "text": "_boris/proof/touches.json"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Ftouches.json/#1",
+      "rect": [
+        397.3,
+        99.0,
+        0.0,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Ftouches.json/#2",
+      "rect": [
+        405.3,
+        92.1,
+        83.6,
+        13.8
+      ],
+      "role": "text",
+      "text": "proof-pack · 11709 B"
+    },
+    {
+      "color": "#00d1ffff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Ftouches.json/#3",
+      "rect": [
+        496.9,
+        92.1,
+        83.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "never published"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "row-_boris/search/search-index.json",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fsearch%2Fsearch-index.json",
+      "rect": [
+        268.0,
+        110.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fsearch%2Fsearch-index.json/#0",
+      "rect": [
+        276.0,
+        113.5,
+        112.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "_boris/search/search-index.json"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fsearch%2Fsearch-index.json/#1",
+      "rect": [
+        396.9,
+        121.0,
+        0.0,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fsearch%2Fsearch-index.json/#2",
+      "rect": [
+        404.9,
+        114.1,
+        84.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "rendered-search · 3484 B"
+    },
+    {
+      "color": "#00d1ffff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fsearch%2Fsearch-index.json/#3",
+      "rect": [
+        496.9,
+        114.1,
+        83.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "never published"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "row-assets/css/boris.css",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-assets%2Fcss%2Fboris.css",
+      "rect": [
+        268.0,
+        132.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-assets%2Fcss%2Fboris.css/#0",
+      "rect": [
+        276.0,
+        135.5,
+        100.5,
+        15.0
+      ],
+      "role": "text",
+      "text": "assets/css/boris.css"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-assets%2Fcss%2Fboris.css/#1",
+      "rect": [
+        384.5,
+        143.0,
+        0.0,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-assets%2Fcss%2Fboris.css/#2",
+      "rect": [
+        392.5,
+        136.1,
+        96.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "theme-asset · 1483 B"
+    },
+    {
+      "color": "#00d1ffff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-assets%2Fcss%2Fboris.css/#3",
+      "rect": [
+        496.9,
+        136.1,
+        83.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "never published"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "row-guides/getting-started.html",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fgetting-started.html",
+      "rect": [
+        268.0,
+        154.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fgetting-started.html/#0",
+      "rect": [
+        276.0,
+        157.5,
+        119.5,
+        15.0
+      ],
+      "role": "text",
+      "text": "guides/getting-started.html"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fgetting-started.html/#1",
+      "rect": [
+        403.5,
+        165.0,
+        0.0,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fgetting-started.html/#2",
+      "rect": [
+        411.5,
+        158.1,
+        77.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "html-page · 2789 B"
+    },
+    {
+      "color": "#00d1ffff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fgetting-started.html/#3",
+      "rect": [
+        496.9,
+        158.1,
+        83.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "never published"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "row-guides/publishing.html",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fpublishing.html",
+      "rect": [
+        268.0,
+        176.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fpublishing.html/#0",
+      "rect": [
+        276.0,
+        179.5,
+        110.5,
+        15.0
+      ],
+      "role": "text",
+      "text": "guides/publishing.html"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fpublishing.html/#1",
+      "rect": [
+        394.5,
+        187.0,
+        0.0,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fpublishing.html/#2",
+      "rect": [
+        402.5,
+        180.1,
+        86.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "html-page · 2552 B"
+    },
+    {
+      "color": "#00d1ffff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fpublishing.html/#3",
+      "rect": [
+        496.9,
+        180.1,
+        83.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "never published"
+    },
+    {
+      "fill": "#00d1ff33",
+      "key": "row-index.html",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-index.html",
+      "rect": [
+        268.0,
+        198.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-index.html/#0",
+      "rect": [
+        276.0,
+        201.5,
+        58.5,
+        15.0
+      ],
+      "role": "text",
+      "text": "index.html"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-index.html/#1",
+      "rect": [
+        342.5,
+        209.0,
+        37.3,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-index.html/#2",
+      "rect": [
+        387.9,
+        202.1,
+        101.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "html-page · 2292 B"
+    },
+    {
+      "color": "#00d1ffff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-index.html/#3",
+      "rect": [
+        496.9,
+        202.1,
+        83.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "never published"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "reading",
+      "opacity": 1.0,
+      "path": "shell/body/reading",
+      "rect": [
+        588.0,
+        0.0,
+        452.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/#0",
+      "rect": [
+        604.0,
+        16.0,
+        420.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "index.html"
+    },
+    {
+      "key": "line-0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-0",
+      "rect": [
+        604.0,
+        38.3,
+        420.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-0/#0",
+      "rect": [
+        604.0,
+        38.3,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "class"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-0/#1",
+      "rect": [
+        708.0,
+        38.3,
+        316.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "dist"
+    },
+    {
+      "key": "line-1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-1",
+      "rect": [
+        604.0,
+        59.3,
+        420.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-1/#0",
+      "rect": [
+        604.0,
+        59.3,
+        96.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "kind"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-1/#1",
+      "rect": [
+        708.0,
+        59.3,
+        316.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "html-page"
+    },
+    {
+      "key": "line-2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-2",
+      "rect": [
+        604.0,
+        79.0,
+        420.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-2/#0",
+      "rect": [
+        604.0,
+        79.0,
+        96.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "producer"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-2/#1",
+      "rect": [
+        708.0,
+        79.0,
+        316.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "html-render"
+    },
+    {
+      "key": "line-3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-3",
+      "rect": [
+        604.0,
+        98.8,
+        420.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-3/#0",
+      "rect": [
+        604.0,
+        98.8,
+        96.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "source"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-3/#1",
+      "rect": [
+        708.0,
+        98.8,
+        316.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "index.md"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "inspector",
+      "opacity": 1.0,
+      "path": "shell/body/inspector",
+      "rect": [
+        1040.0,
+        0.0,
+        240.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/#0",
+      "rect": [
+        1048.0,
+        8.0,
+        224.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Inspector"
+    },
+    {
+      "key": "field-path",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-path",
+      "rect": [
+        1048.0,
+        28.3,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-path/#0",
+      "rect": [
+        1048.0,
+        28.3,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "path"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-path/#1",
+      "rect": [
+        1128.0,
+        28.3,
+        53.6,
+        13.8
+      ],
+      "role": "text",
+      "text": "index.html"
+    },
+    {
+      "key": "field-class",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-class",
+      "rect": [
+        1048.0,
+        46.0,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-class/#0",
+      "rect": [
+        1048.0,
+        46.0,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "class"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-class/#1",
+      "rect": [
+        1128.0,
+        46.0,
+        18.8,
+        13.8
+      ],
+      "role": "text",
+      "text": "dist"
+    },
+    {
+      "key": "field-status",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-status",
+      "rect": [
+        1048.0,
+        63.8,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-status/#0",
+      "rect": [
+        1048.0,
+        63.8,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "status"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-status/#1",
+      "rect": [
+        1128.0,
+        63.8,
+        55.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "committed"
+    },
+    {
+      "key": "field-required",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-required",
+      "rect": [
+        1048.0,
+        81.5,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-required/#0",
+      "rect": [
+        1048.0,
+        81.5,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "required"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-required/#1",
+      "rect": [
+        1128.0,
+        81.5,
+        20.7,
+        13.8
+      ],
+      "role": "text",
+      "text": "true"
+    },
+    {
+      "key": "field-bytes",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-bytes",
+      "rect": [
+        1048.0,
+        99.3,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-bytes/#0",
+      "rect": [
+        1048.0,
+        99.3,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "bytes"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-bytes/#1",
+      "rect": [
+        1128.0,
+        99.3,
+        27.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "2292"
+    },
+    {
+      "key": "field-sha256",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-sha256",
+      "rect": [
+        1048.0,
+        117.0,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-sha256/#0",
+      "rect": [
+        1048.0,
+        117.0,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "sha256"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-sha256/#1",
+      "rect": [
+        1128.0,
+        117.0,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "df35843613ebf220d714fbec1f7da975941de84ea4f9b236fc7cca22dee65e3e"
+    },
+    {
+      "key": "field-format",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-format",
+      "rect": [
+        1048.0,
+        134.8,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-format/#0",
+      "rect": [
+        1048.0,
+        134.8,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "format"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-format/#1",
+      "rect": [
+        1128.0,
+        134.8,
+        11.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "—"
+    },
+    {
+      "key": "field-compiler",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-compiler",
+      "rect": [
+        1048.0,
+        152.5,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-compiler/#0",
+      "rect": [
+        1048.0,
+        152.5,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "compiler"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-compiler/#1",
+      "rect": [
+        1128.0,
+        152.5,
+        56.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "boris/0.9.0"
+    },
+    {
+      "key": "field-profile",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-profile",
+      "rect": [
+        1048.0,
+        170.3,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-profile/#0",
+      "rect": [
+        1048.0,
+        170.3,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "profile"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-profile/#1",
+      "rect": [
+        1128.0,
+        170.3,
+        36.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "default"
+    },
+    {
+      "key": "field-snapshot",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-snapshot",
+      "rect": [
+        1048.0,
+        188.0,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-snapshot/#0",
+      "rect": [
+        1048.0,
+        188.0,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "snapshot"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-snapshot/#1",
+      "rect": [
+        1128.0,
+        188.0,
+        40.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "epoch 1"
+    },
+    {
+      "key": "field-fresh",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-fresh",
+      "rect": [
+        1048.0,
+        205.8,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-fresh/#0",
+      "rect": [
+        1048.0,
+        205.8,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "fresh"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-fresh/#1",
+      "rect": [
+        1128.0,
+        205.8,
+        83.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "never published"
+    },
+    {
+      "key": "field-publish",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-publish",
+      "rect": [
+        1048.0,
+        223.5,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-publish/#0",
+      "rect": [
+        1048.0,
+        223.5,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "publish"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-publish/#1",
+      "rect": [
+        1128.0,
+        223.5,
+        11.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "—"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "list-0",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-0",
+      "rect": [
+        1048.0,
+        249.3,
+        224.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Sources (1)"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "list-0-0",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-0-0",
+      "rect": [
+        1048.0,
+        267.0,
+        224.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "index.md"
+    },
+    {
+      "fill": "#00d1ffff",
+      "key": "follow-link",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/follow-link",
+      "rect": [
+        1048.0,
+        292.8,
+        224.0,
+        23.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#001018ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/follow-link/#0",
+      "rect": [
+        1056.0,
+        296.8,
+        104.7,
+        15.0
+      ],
+      "role": "text",
+      "text": "Open source page"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/#16",
+      "rect": [
+        1048.0,
+        327.8,
+        224.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Windows"
+    },
+    {
+      "key": "field-primary",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-primary",
+      "rect": [
+        1048.0,
+        345.5,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-primary/#0",
+      "rect": [
+        1048.0,
+        345.5,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "primary"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-primary/#1",
+      "rect": [
+        1128.0,
+        345.5,
+        28.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "clean"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "status",
+      "opacity": 1.0,
+      "path": "shell/status",
+      "rect": [
+        0.0,
+        778.0,
+        1280.0,
+        22.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-0",
+      "opacity": 1.0,
+      "path": "shell/status/status-0",
+      "rect": [
+        12.0,
+        782.1,
+        57.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "boris/0.9.0"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1",
+      "opacity": 1.0,
+      "path": "shell/status/status-1",
+      "rect": [
+        81.4,
+        782.1,
+        44.8,
+        13.8
+      ],
+      "role": "text",
+      "text": "3 events"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-2",
+      "opacity": 1.0,
+      "path": "shell/status/status-2",
+      "rect": [
+        138.2,
+        782.1,
+        40.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "epoch 1"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-3",
+      "opacity": 1.0,
+      "path": "shell/status/status-3",
+      "rect": [
+        190.6,
+        782.1,
+        23.6,
+        13.8
+      ],
+      "role": "text",
+      "text": "dark"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-4",
+      "opacity": 1.0,
+      "path": "shell/status/status-4",
+      "rect": [
+        226.2,
+        782.1,
+        36.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "motion"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/status/#5",
+      "rect": [
+        274.4,
+        789.0,
+        770.0,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-msg",
+      "opacity": 1.0,
+      "path": "shell/status/status-msg",
+      "rect": [
+        1056.4,
+        782.1,
+        100.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "Outputs — Outputs"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/status/#7",
+      "rect": [
+        1168.8,
+        782.1,
+        99.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "mod+K commands"
+    }
+  ],
+  "schema": 1
+}

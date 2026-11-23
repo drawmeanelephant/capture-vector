@@ -218,6 +218,7 @@ impl Module for ResearchModule {
                 detail: "Capture with Research: Capture idea (palette)".into(),
                 badge: None,
                 tone: Tone::Dim,
+                rail: None,
             };
         };
         let promoted = self.nb().provenance(&n.id).is_some();
@@ -242,6 +243,7 @@ impl Module for ResearchModule {
             ),
             badge: Some(badge),
             tone: if promoted { Tone::Ok } else { Tone::Normal },
+            rail: None,
         }
     }
 
@@ -255,6 +257,7 @@ impl Module for ResearchModule {
                     "Nothing to triage. Captures land here first.",
                     Tone::Dim,
                 )],
+                ..Default::default()
             };
         };
         let mut lines: Vec<ReadingLine> = n
@@ -293,6 +296,7 @@ impl Module for ResearchModule {
         ReadingModel {
             title: n.title.clone(),
             lines,
+            ..Default::default()
         }
     }
 
@@ -301,6 +305,7 @@ impl Module for ResearchModule {
         let Some(n) = nb.note(&StableId(key.into())) else {
             return InspectorModel {
                 fields: vec![("store".into(), self.session.port.describe())],
+                ..Default::default()
             };
         };
         let tags: Vec<&str> = n.tags.iter().map(String::as_str).collect();
@@ -332,7 +337,10 @@ impl Module for ResearchModule {
             fields.push(("last build".into(), b.clone()));
         }
         fields.push(("store".into(), self.session.port.describe()));
-        InspectorModel { fields }
+        InspectorModel {
+            fields,
+            ..Default::default()
+        }
     }
 
     fn noun(&self, key: &str) -> Option<NounId> {

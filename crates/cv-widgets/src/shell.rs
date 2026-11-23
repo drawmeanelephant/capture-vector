@@ -2,15 +2,17 @@
 //! reading / inspector providers, status bar, command palette. Renders
 //! `*Model` data only — no lane logic, no IO.
 
+use crate::diagnostic;
 use crate::theme::{color, font};
 use cv_core::events::shell::DegradedReason;
 use cv_model::module::{ReadingModel, RowModel, Slot, Tone};
-use cv_model::theme::Theme;
+use cv_model::theme::{Mode, Theme};
 use cv_model::workbench::Workbench;
 use rune::{Color, Cx, El, GrowthSpec, ScrollSpec, col, row, spacer, text};
+use rune_kit::{Markdown, MarkdownStyle};
 use std::borrow::Cow;
 
-fn tone(t: &Theme, tone: Tone) -> Color {
+pub(crate) fn tone(t: &Theme, tone: Tone) -> Color {
     let c = &t.colors;
     color(match tone {
         Tone::Normal => c.text,
@@ -190,6 +192,7 @@ fn list_row(s: &Workbench, i: usize) -> El {
         detail,
         badge,
         tone: tn,
+        rail: rl,
     } = s.row(i);
     let sel = s.selected_key() == Some(key.as_str());
     let k = key.clone();
@@ -207,7 +210,17 @@ fn list_row(s: &Workbench, i: usize) -> El {
             t.colors.pane
         }))
         .hover(color(t.colors.pane_alt))
-        .on_press(move |s: &mut Workbench| s.select_key(&k))
+        .on_press(move |s: &mut Workbench| s.select_key(&k));
+    if let Some(rt) = rl {
+        r = r.child(
+            col()
+                .key("rail")
+                .w(3.0)
+                .h(t.spacing.row_h * 0.6)
+                .fill(tone(t, rt)),
+        );
+    }
+    r = r
         .child(
             text(title)
                 .font(font(t.type_.body))
@@ -244,24 +257,32 @@ fn list(s: &Workbench) -> El {
             s.active_nav().map(str::to_string),
             s.app.committed,
         ));
-    col()
+    let mut pane = col()
         .key("list-pane")
         .w(t.spacing.list_w)
         .h_full()
         .min_h(0.0)
         .fill(color(t.colors.pane))
-        .border(1.0, color(t.colors.border))
-        .child(
-            col()
-                .key("list-viewport")
-                .w_full()
-                .grow(1.0)
-                .min_h(0.0)
-                .scroll(ScrollSpec {
-                    stick_bottom: false,
-                })
-                .child(rows),
-        )
+        .border(1.0, color(t.colors.border));
+    if s.list_len() == 0 {
+        pane = pane.child(
+            label(t, "Empty mailbox")
+                .key("list-empty")
+                .px(t.spacing.unit * 3.0)
+                .py(t.spacing.unit * 2.0),
+        );
+    }
+    pane.child(
+        col()
+            .key("list-viewport")
+            .w_full()
+            .grow(1.0)
+            .min_h(0.0)
+            .scroll(ScrollSpec {
+                stick_bottom: false,
+            })
+            .child(rows),
+    )
 }
 
 fn reading(s: &Workbench) -> El {
@@ -271,28 +292,64 @@ fn reading(s: &Workbench) -> El {
         .and_then(|k| s.registry.get(s.active).map(|m| m.reading(k)))
         .unwrap_or_else(|| ReadingModel {
             title: "Nothing selected".into(),
-            lines: vec![],
+            ..Default::default()
         });
     let mut pane = col()
         .key("reading")
         .grow(1.0)
+        .min_w(0.0)
         .h_full()
         .min_h(0.0)
         .padding(t.spacing.unit * 4.0)
         .gap(t.spacing.unit * 1.5)
-        .fill(color(t.colors.bg))
-        .child(
-            text(model.title)
-                .font(font(t.type_.title))
-                .color(color(t.colors.text)),
-        );
+        .fill(color(t.colors.bg));
+    if !model.breadcrumbs.is_empty() {
+        let mut crumbs = row().key("breadcrumbs").gap(t.spacing.unit);
+        for (n, c) in model.breadcrumbs.into_iter().enumerate() {
+            if n > 0 {
+                crumbs = crumbs.child(label(t, "›"));
+            }
+            crumbs = crumbs.child(label(t, c).key(format!("crumb-{n}")));
+        }
+        pane = pane.child(crumbs);
+    }
+    pane = pane.child(
+        text(model.title)
+            .font(font(t.type_.title))
+            .color(color(t.colors.text))
+            .wrap(),
+    );
     for (n, l) in model.lines.into_iter().enumerate() {
         let style = if l.mono { t.type_.mono } else { t.type_.body };
         let mut r = row().key(format!("line-{n}")).gap(t.spacing.unit * 2.0);
         if let Some(lb) = l.label {
             r = r.child(label(t, lb).w(96.0));
         }
-        pane = pane.child(r.child(text(l.text).font(font(style)).color(tone(t, l.tone))));
+        pane = pane.child(
+            r.child(
+                text(l.text)
+                    .font(font(style))
+                    .color(tone(t, l.tone))
+                    .wrap()
+                    .grow(1.0)
+                    .min_w(0.0),
+            ),
+        );
+    }
+    if let Some(md) = model.markdown {
+        // Draft sketch only: Boris output stays authoritative.
+        pane = pane.child(label(t, "Draft sketch").key("sketch-label"));
+        pane = pane.child(
+            col()
+                .key("sketch")
+                .w_full()
+                .grow(1.0)
+                .min_h(0.0)
+                .scroll(ScrollSpec {
+                    stick_bottom: false,
+                })
+                .child(Markdown::new(md).render(&MarkdownStyle::neutral(t.mode == Mode::Dark))),
+        );
     }
     pane
 }
@@ -326,8 +383,52 @@ fn inspector(s: &Workbench) -> El {
     if let Some(k) = s.selected_key()
         && let Some(m) = s.registry.get(s.active)
     {
-        for (name, v) in m.inspector(k).fields {
+        let model = m.inspector(k);
+        for (name, v) in model.fields {
             pane = pane.child(field(&name, v));
+        }
+        if !model.diagnostics.is_empty() {
+            pane = pane.child(
+                label(t, "Diagnostics")
+                    .key("diagnostics")
+                    .mt(t.spacing.unit * 2.0),
+            );
+            for (n, d) in model.diagnostics.iter().enumerate() {
+                pane = pane.child(diagnostic::card(t, d, n));
+            }
+        }
+        for (n, (title, items)) in model.lists.into_iter().enumerate() {
+            pane = pane.child(
+                label(t, format!("{title} ({})", items.len()))
+                    .key(format!("list-{n}"))
+                    .mt(t.spacing.unit * 2.0),
+            );
+            for (j, it) in items.into_iter().take(12).enumerate() {
+                pane = pane.child(
+                    text(it)
+                        .key(format!("list-{n}-{j}"))
+                        .font(font(t.type_.mono))
+                        .color(color(t.colors.text))
+                        .truncate(),
+                );
+            }
+        }
+        if let Some(l) = s.link_for(k) {
+            pane = pane.child(
+                row()
+                    .key("follow-link")
+                    .role("button")
+                    .mt(t.spacing.unit * 2.0)
+                    .px(t.spacing.unit * 2.0)
+                    .py(t.spacing.unit)
+                    .fill(color(t.colors.accent))
+                    .on_press(|s: &mut Workbench| s.follow_link())
+                    .child(
+                        text(l.label)
+                            .font(font(t.type_.body))
+                            .color(color(t.colors.accent_text)),
+                    ),
+            );
         }
     }
     pane = pane.child(label(t, "Windows").mt(t.spacing.unit * 2.0));

@@ -221,6 +221,7 @@ impl Module for DemoModule {
                 } else {
                     Tone::Normal
                 },
+                rail: None,
             },
             _ => self
                 .events
@@ -231,6 +232,7 @@ impl Module for DemoModule {
                     detail: e.detail.clone(),
                     badge: Some(format!("#{}", e.seq)),
                     tone: e.tone,
+                    rail: None,
                 })
                 .unwrap_or_default(),
         }
@@ -241,6 +243,7 @@ impl Module for DemoModule {
             return ReadingModel {
                 title: e.title.clone(),
                 lines: e.lines.clone(),
+                ..Default::default()
             };
         }
         if let Some(n) = key.strip_prefix("page-") {
@@ -254,6 +257,7 @@ impl Module for DemoModule {
                         ..ReadingLine::default()
                     },
                 ],
+                ..Default::default()
             };
         }
         ReadingModel::default()
@@ -267,7 +271,10 @@ impl Module for DemoModule {
         } else {
             fields.push(("kind".into(), "page".into()));
         }
-        InspectorModel { fields }
+        InspectorModel {
+            fields,
+            ..Default::default()
+        }
     }
 
     fn noun(&self, key: &str) -> Option<NounId> {
