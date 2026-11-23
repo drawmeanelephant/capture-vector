@@ -42,9 +42,11 @@ jobs:
           version: 0.17.0
           use-cache: false
 
-      - name: zig build --release=safe
+      # Zig defaults to -Dcpu=native; the smoke job may land on a runner
+      # with an older CPU (SIGILL), so target the baseline x86_64.
+      - name: zig build --release=safe -Dcpu=baseline
         working-directory: boris
-        run: zig build --release=safe
+        run: zig build --release=safe -Dcpu=baseline
 
       - name: check identity
         working-directory: boris
