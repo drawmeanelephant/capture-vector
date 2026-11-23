@@ -365,3 +365,27 @@ fn editor_goldens() {
     }
     assert!(errs.is_empty(), "{}", errs.join("\n"));
 }
+
+#[test]
+fn first_body_edit_after_a_fence_at_eof_keeps_the_frontmatter() {
+    let ses = session();
+    let buf = ses.borrow_mut().open("p.md", "---\ntitle: P\n---", None);
+    let mut rt = window(&ses, 1, buf);
+    click(&mut rt, "editor-body");
+    type_str(&mut rt, "hi");
+    assert_eq!(ses.borrow().get(buf).unwrap().buffer.text(), "---\ntitle: P\n---\nhi");
+    assert_eq!(rt.state.body.text, "hi");
+}
+
+#[test]
+fn form_field_keeps_a_typed_space_between_words() {
+    let ses = session();
+    let buf = ses.borrow_mut().open("p.md", "---\ntitle: P\n---\n", None);
+    let mut rt = window(&ses, 1, buf);
+    click(&mut rt, "fm-summary");
+    type_str(&mut rt, "two words");
+    assert_eq!(
+        ses.borrow().get(buf).unwrap().buffer.text(),
+        "---\ntitle: P\nsummary: two words\n---\n"
+    );
+}

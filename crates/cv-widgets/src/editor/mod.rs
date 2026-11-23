@@ -165,7 +165,14 @@ impl EditorWindow {
     pub fn body_changed(&mut self) {
         let text = self.text();
         let off = frontmatter::read(&text).body_offset;
-        let next = format!("{}{}", &text[..off], self.body.text);
+        let head = &text[..off];
+        // A closing fence at end of file needs its line ending before a body.
+        let sep = match (head.is_empty() || head.ends_with('\n'), self.body.text.is_empty()) {
+            (false, false) if text.contains("\r\n") => "\r\n",
+            (false, false) => "\n",
+            _ => "",
+        };
+        let next = format!("{head}{sep}{}", self.body.text);
         if let Some(e) = self.session.borrow_mut().get_mut(self.buffer) {
             let _ = e.buffer.set_text(&next);
         }
