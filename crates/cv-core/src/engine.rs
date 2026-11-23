@@ -76,6 +76,12 @@ pub enum ExportKind {
 /// Fingerprint stolen from boris-editor: SHA-256 + mtime, staged
 /// `*.tmp` + atomic rename (the watcher treats a rename as one clean
 /// change; Windows retries on sharing violation).
+///
+/// Windows retry pin: on `ERROR_SHARING_VIOLATION`/`ERROR_ACCESS_DENIED`
+/// from the rename, retry up to 5 times on a fixed 50 ms backoff (AV
+/// filters and reader handles release quickly). Exhaustion fails the
+/// write as an honest diagnostic — saves never silently drop, and the
+/// retry loop never runs on the UI thread.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Fingerprint {
     pub sha256: Hash,

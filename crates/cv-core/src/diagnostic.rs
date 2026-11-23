@@ -1,7 +1,13 @@
 //! Diagnostics are sacred: exit codes and stderr are data and reach the
 //! Activity module intact. Every diagnostic carries the `build_id` it was
-//! computed against — stale policy (dim, or diff-remap into the new build)
-//! is applied at render time, not at capture.
+//! computed against.
+//!
+//! Stale policy pin (decided): a diagnostic whose `build_id` is not the
+//! current build renders **dimmed** and groups under "stale" — never
+//! deleted (stderr is data), never remapped. Diff-remap into the new
+//! build is rejected for v1: byte offsets from build N-1 are meaningless
+//! against build N's files, and remapping guesses wrong silently. Fresh
+//! positions are Boris's job — the next build replaces them.
 
 use crate::events::BuildId;
 use serde::{Deserialize, Serialize};
