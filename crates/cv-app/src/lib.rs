@@ -3,7 +3,9 @@
 //! rune import here; scenes are shared by the binary and golden tests.
 
 pub mod editor;
+pub mod live;
 pub mod snapshot;
+pub mod workspace;
 
 use cv_core::engine::{Engine, Verb};
 use cv_core::events::Envelope;
@@ -14,6 +16,9 @@ use cv_model::module::{ProjectSnapshot, Registry};
 use cv_model::theme::Mode;
 use cv_model::workbench::Workbench;
 use cv_widgets::app::{Launch, Scene};
+use std::path::PathBuf;
+use std::thread::JoinHandle;
+use workspace::RecentList;
 
 mod research;
 
@@ -53,6 +58,158 @@ pub fn boot(wb: &mut Workbench) {
         let _ = open_corpus(wb, CANARY_CORPUS);
     }
     editor::open_from_env(wb);
+}
+
+/// Where an opened workspace finds its engine and keeps its recent list.
+#[derive(Debug, Clone, Default)]
+pub struct WorkspaceEnv {
+    /// `None`: the production chain (`CV_BORIS_BIN` → bundled → PATH →
+    /// sibling) rooted at the workspace.
+    pub locator: Option<cv_engine::locate::Locator>,
+    pub recent_file: Option<PathBuf>,
+}
+
+impl WorkspaceEnv {
+    pub fn native() -> Self {
+        Self {
+            locator: None,
+            recent_file: workspace::config_dir().map(|d| d.join(workspace::RECENT_FILE)),
+        }
+    }
+    pub fn recent(&self) -> RecentList {
+        RecentList::load(self.recent_file.clone())
+    }
+}
+
+/// Wall clock for research records (ms since the Unix epoch).
+struct SystemClock;
+
+impl cv_core::sys::Clock for SystemClock {
+    fn now(&self) -> cv_core::sys::Timestamp {
+        let ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_millis() as i64);
+        cv_core::sys::Timestamp(ms)
+    }
+}
+
+/// Open `root` as the workspace: Research persists under `root/.cv/`,
+/// module state resets, the recent list is updated, and the engine boots
+/// on a worker thread (returned so tests can join it). Runs on a
+/// boot/command path, never inside a frame.
+pub fn open_workspace(
+    wb: &mut Workbench,
+    root: PathBuf,
+    env: &WorkspaceEnv,
+) -> Option<JoinHandle<()>> {
+    let root = match workspace::normalize(&root) {
+        Ok(r) if r.is_dir() => r,
+        _ => {
+            wb.status = format!("cannot open workspace {}: not a folder", root.display());
+            return None;
+        }
+    };
+    // Editor buffers belong to the workspace they were opened from; their
+    // saves and Problems rails must not follow a switch.
+    let editors = wb
+        .windows
+        .companions
+        .iter()
+        .filter(|c| c.module == cv_widgets::editor::MODULE)
+        .count();
+    if editors > 0 {
+        wb.status = format!(
+            "close {editors} editor window(s) before opening {}",
+            root.display()
+        );
+        return None;
+    }
+    let slot = live::EngineSlot::default();
+    let research = cv_notes::disk::open(
+        &root,
+        cv_core::id::AccountId("local".into()),
+        Box::new(SystemClock),
+    );
+    let research_err = match research {
+        Ok((r, _)) => {
+            let input = snapshot::content_input(&root);
+            // Promotion writes under the input; one that resolves outside
+            // the workspace (a symlink) gets no writer, so promotion
+            // refuses instead of writing elsewhere.
+            let inside =
+                workspace::normalize(&root.join(&input)).map_or(true, |p| p.starts_with(&root));
+            let port = if inside {
+                r.port.with_writer(Box::new(live::SlotEngine(slot.clone())))
+            } else {
+                r.port
+            };
+            cv_model::modules::research::install_in(Box::new(port), r.notebook, &input);
+            None
+        }
+        Err(e) => Some(e.to_string()),
+    };
+    wb.reset_project(Registry::with_all());
+    wb.workspace = Some(root.clone());
+    show(wb, "pages");
+    let warning = research_err.map(|e| format!("research notes not persisted: {e}"));
+    if let Some(w) = &warning {
+        wb.disclose(DegradedReason::StoreCorrupt);
+        wb.status = w.clone();
+    } else {
+        wb.status = format!("{} · locating Boris…", root.display());
+    }
+    let mut recent = env.recent();
+    recent.push(&root);
+    let _ = recent.save();
+    wb.recent = recent.entries;
+
+    let mut cfg = cv_engine::EngineConfig::new(&root);
+    if let Some(l) = &env.locator {
+        cfg.locator = l.clone();
+    }
+    // A bare corpus (no profile) must name its input to boris.
+    let input = snapshot::content_input(&root);
+    if !root.join("boris.json").is_file() && input != "." {
+        cfg.watch_args = vec!["--input".into(), input];
+    }
+    Some(live::spawn(live::EngineBoot {
+        cfg,
+        slot,
+        inbox: wb.inbox(),
+        warning,
+    }))
+}
+
+/// Native boot: `--project` → `CV_PROJECT` → most recent workspace. With
+/// none, the fixture demo stays up and the status line says how to open
+/// one. A `--scene` that loaded its own project is left alone.
+pub fn native_boot(wb: &mut Workbench) {
+    if wb.app.snapshot_epoch == 0 {
+        let env = WorkspaceEnv::native();
+        let recent = env.recent();
+        wb.recent = recent.entries.clone();
+        let pick = workspace::resolve(
+            workspace::project_arg(std::env::args().skip(1)),
+            workspace::project_env(),
+            &recent,
+        );
+        match pick {
+            Some(root) => {
+                open_workspace(wb, root, &env);
+            }
+            None => {
+                let _ = open_corpus(wb, CANARY_CORPUS);
+                wb.status = "No workspace open — showing the fixture demo. \
+                             Open workspace… (mod+shift+O) or launch with --project <dir>."
+                    .into();
+            }
+        }
+    }
+    editor::open_from_env(wb);
+}
+
+fn open_native(wb: &mut Workbench, root: PathBuf) {
+    open_workspace(wb, root, &WorkspaceEnv::native());
 }
 
 /// Load the corpus' page/output snapshot, then replay its watch session.
@@ -245,7 +402,8 @@ pub fn launch() -> Launch {
     Launch {
         title: "Capture Vector",
         init,
-        boot,
+        boot: native_boot,
+        open: open_native,
         scenes: SCENES,
     }
 }

@@ -45,13 +45,17 @@ pub fn open_page(wb: &mut Workbench, root: &Path, rel: &str) -> std::io::Result<
 }
 
 /// `CV_EDIT=<page>` opens that page for editing at launch, relative to
-/// `CV_PROJECT` (default: the working directory). A failure is shown in
-/// the status line.
+/// the open workspace (else `CV_PROJECT`, else the working directory). A
+/// failure is shown in the status line.
 pub fn open_from_env(wb: &mut Workbench) {
     let Ok(rel) = std::env::var("CV_EDIT") else {
         return;
     };
-    let root = std::env::var_os("CV_PROJECT").map_or_else(|| ".".into(), std::path::PathBuf::from);
+    let root = wb
+        .workspace
+        .clone()
+        .or_else(crate::workspace::project_env)
+        .unwrap_or_else(|| ".".into());
     if let Err(e) = open_page(wb, &root, &rel) {
         wb.status = format!("cannot open {rel} for editing: {e}");
     }

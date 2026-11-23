@@ -8,6 +8,7 @@ description = "Composition root + rune shell wiring. Integrator-owned."
 
 [dependencies]
 cv-core.workspace = true
+cv-engine.workspace = true
 cv-model.workspace = true
 cv-notes.workspace = true
 cv-widgets.workspace = true

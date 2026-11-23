@@ -7,7 +7,9 @@ rust-version.workspace = true
 description = "The ONLY crate importing rune/rune-kit (version firewall; cargo-deny enforces)."
 
 [dependencies]
-rune.workspace = true
+# Native Open-folder dialog for the workspace picker (rfd on macOS and
+# Windows, the XDG portal on Linux).
+rune = { workspace = true, features = ["native-file-dialog"] }
 rune-kit = { workspace = true, features = ["markdown"] }
 cv-core.workspace = true
 cv-model.workspace = true
