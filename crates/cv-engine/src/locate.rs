@@ -1,5 +1,10 @@
 //! Binary discovery + version gate. Search order is fixed:
-//! `CV_BORIS_BIN` → bundled → `PATH` → sibling checkout. The first
+//! `CV_BORIS_BIN` → bundled → `PATH` → sibling checkout. The sibling
+//! candidate sits next to the *workspace*, which may come from anywhere,
+//! and the gate has to execute a binary (`--version`) to learn its
+//! identity — so it is searched only when `CV_BORIS_SIBLING=1` opts in
+//! (a developer with a trusted boris checkout beside their corpora). The
+//! first
 //! candidate that exists is gated; a mismatch is a typed error, never a
 //! fallthrough to the next candidate (no BYO engine).
 
@@ -12,6 +17,8 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 pub const ENV_OVERRIDE: &str = "CV_BORIS_BIN";
+/// Opt-in for the sibling-checkout candidate (`1` enables it).
+pub const ENV_SIBLING: &str = "CV_BORIS_SIBLING";
 
 /// The one engine pin (mirrors `fixtures/MANIFEST.toml` `engine_version`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -61,10 +68,10 @@ impl Locator {
             bundled_dirs.push(dir.join("..").join("Resources").join("engines"));
             bundled_dirs.push(dir);
         }
-        let sibling_dirs = root
-            .parent()
-            .map(|p| vec![p.join("boris").join("zig-out").join("bin")])
-            .unwrap_or_default();
+        let sibling_dirs = sibling_dirs(
+            root,
+            std::env::var_os(ENV_SIBLING).is_some_and(|v| v == "1"),
+        );
         Self {
             env_override: std::env::var_os(ENV_OVERRIDE)
                 .filter(|v| !v.is_empty())
@@ -119,6 +126,17 @@ impl Locator {
         let (source, path) = self.find()?;
         gate(source, &path, cwd, pin)
     }
+}
+
+/// `<root>/../boris/zig-out/bin`, only when opted in: nothing derived
+/// from the workspace location is executed by default.
+pub fn sibling_dirs(root: &Path, opt_in: bool) -> Vec<PathBuf> {
+    if !opt_in {
+        return vec![];
+    }
+    root.parent()
+        .map(|p| vec![p.join("boris").join("zig-out").join("bin")])
+        .unwrap_or_default()
 }
 
 pub fn is_executable(p: &Path) -> bool {
@@ -246,6 +264,30 @@ mod tests {
         };
         touch_exe(&t.path().join("b"));
         assert!(matches!(loc.find(), Err(EngineError::OverrideMissing(_))));
+    }
+
+    #[test]
+    fn sibling_checkout_is_opt_in() {
+        let t = tempfile::tempdir().unwrap();
+        let root = t.path().join("corpus");
+        let sib = t.path().join("boris").join("zig-out").join("bin");
+        touch_exe(&sib);
+        assert!(sibling_dirs(&root, false).is_empty());
+        assert_eq!(sibling_dirs(&root, true), vec![sib.clone()]);
+        // Default search space never offers (or runs) the sibling binary.
+        let loc = Locator {
+            sibling_dirs: sibling_dirs(&root, false),
+            ..Locator::default()
+        };
+        assert!(matches!(loc.find(), Err(EngineError::NotFound { .. })));
+        let loc = Locator {
+            sibling_dirs: sibling_dirs(&root, true),
+            ..Locator::default()
+        };
+        assert_eq!(
+            loc.find().unwrap(),
+            (EngineSource::SiblingCheckout, sib.join(exe_name()))
+        );
     }
 
     #[test]
