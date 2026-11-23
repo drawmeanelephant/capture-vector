@@ -62,6 +62,8 @@ pub struct Workbench {
     pub inspector_open: bool,
     pub status: String,
     seen: BTreeSet<String>,
+    /// Applied but not yet journaled (store write failed); retried on replay.
+    unjournaled: BTreeSet<String>,
     tx: Sender<Envelope>,
     rx: Receiver<Envelope>,
     waker: Arc<Mutex<Option<Waker>>>,
@@ -88,6 +90,7 @@ impl Workbench {
             inspector_open: true,
             status: String::new(),
             seen: BTreeSet::new(),
+            unjournaled: BTreeSet::new(),
             tx,
             rx,
             waker: Arc::new(Mutex::new(None)),
@@ -138,21 +141,29 @@ impl Workbench {
         changed
     }
 
+    fn journal(&mut self, env: &Envelope) {
+        let Some(store) = &self.store else { return };
+        let id = &env.event_id.0;
+        let doc = serde_json::to_value(env).unwrap_or(serde_json::Value::Null);
+        if store
+            .put(&Namespace(JOURNAL.into()), &StableId(id.clone()), &doc)
+            .is_ok()
+        {
+            self.unjournaled.remove(id);
+        } else {
+            self.unjournaled.insert(id.clone());
+            self.app.degraded = Some(DegradedReason::StoreCorrupt);
+        }
+    }
+
     fn commit(&mut self, env: &Envelope) -> bool {
         if !self.seen.insert(env.event_id.0.clone()) {
+            if self.unjournaled.contains(&env.event_id.0) {
+                self.journal(env);
+            }
             return false;
         }
-        if let Some(store) = &self.store {
-            let doc = serde_json::to_value(env).unwrap_or(serde_json::Value::Null);
-            let put = store.put(
-                &Namespace(JOURNAL.into()),
-                &StableId(env.event_id.0.clone()),
-                &doc,
-            );
-            if put.is_err() {
-                self.app.degraded = Some(DegradedReason::StoreCorrupt);
-            }
-        }
+        self.journal(env);
         let mut changed = cascade::dispatch(&mut self.app, env);
         for m in self.registry.iter_mut() {
             changed |= m.ingest(env);

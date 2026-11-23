@@ -189,3 +189,58 @@ fn companion_window_and_dirty_close() {
         CloseOutcome::Closed(_)
     ));
 }
+
+#[test]
+fn journal_writes_that_failed_are_retried_on_replay() {
+    struct Flaky(Arc<StubStore>, Arc<std::sync::atomic::AtomicBool>);
+    impl Store for Flaky {
+        fn put(&self, ns: &Namespace, k: &StableId, d: &Value) -> cv_core::Result<()> {
+            if self.1.load(Ordering::SeqCst) {
+                return Err(cv_core::Error::Store("disk full".into()));
+            }
+            self.0.put(ns, k, d)
+        }
+        fn get(&self, ns: &Namespace, k: &StableId) -> cv_core::Result<Option<Value>> {
+            self.0.get(ns, k)
+        }
+        fn query(&self, ns: &Namespace, p: &Predicate) -> cv_core::Result<Vec<Value>> {
+            self.0.query(ns, p)
+        }
+    }
+    let store = Arc::new(StubStore::new());
+    let failing = Arc::new(std::sync::atomic::AtomicBool::new(true));
+    let mut wb = Workbench::new(Registry::with_all())
+        .with_store(Box::new(Flaky(store.clone(), failing.clone())));
+    let captured = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let c = captured.clone();
+    let _h = StubEngine::new("happy").replay_watch(Box::new(move |e| c.lock().unwrap().push(e)));
+    let envs = captured.lock().unwrap().clone();
+    let journaled = || {
+        envs.iter()
+            .filter(|e| {
+                store
+                    .get(&Namespace(JOURNAL.into()), &StableId(e.event_id.0.clone()))
+                    .unwrap()
+                    .is_some()
+            })
+            .count()
+    };
+    let mut sink = wb.sink();
+    envs.iter().cloned().for_each(&mut sink);
+    wb.drain();
+    assert_eq!(wb.app.degraded, Some(DegradedReason::StoreCorrupt));
+    assert_eq!(journaled(), 0);
+    failing.store(false, Ordering::SeqCst);
+    envs.iter().cloned().for_each(&mut sink);
+    wb.drain();
+    assert_eq!(
+        wb.app.committed,
+        envs.len() as u64,
+        "replay applies nothing twice"
+    );
+    assert_eq!(
+        journaled(),
+        envs.len(),
+        "recovered store gets every envelope"
+    );
+}
