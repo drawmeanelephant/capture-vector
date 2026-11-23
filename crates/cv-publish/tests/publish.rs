@@ -526,13 +526,17 @@ fn crash_after_contact_is_unknown_reconciles_and_never_retries() {
     );
     assert!(p.run(&run2).unwrap().history.is_empty());
 
-    // Read-only probe sees the two files that landed before the crash.
+    // Read-only probe of the destination sealed for this run.
     assert_eq!(
-        p.reconcile_by_probe(&run, &cfg()).unwrap(),
+        p.reconcile_by_probe(&run).unwrap(),
         Some(RunState::Complete(RunStatus::Partial))
     );
     let v = p.run(&run).unwrap();
     assert_eq!(v.reconciliations.len(), 1);
+    assert!(
+        v.exports.is_some(),
+        "reconciled delivery still gets ship-the-outputs evidence"
+    );
     assert!(
         p.reconcile(&run, Observation::NotDelivered, "tester")
             .is_err(),

@@ -432,26 +432,34 @@ impl<'a> Publisher<'a> {
         })?;
         let state = RunState::Complete(status);
         self.set_state(run, state.clone(), Some(format!("reconciled by {by}")))?;
+        if matches!(status, RunStatus::Complete | RunStatus::Partial)
+            && let (Some(plan), Some(cfg)) = (v.plan, v.target_cfg)
+        {
+            let plan: SealedPlan = serde_json::from_value(plan)?;
+            let cfg: TargetConfig = serde_json::from_value(cfg)?;
+            if self.adapters.contains_key(&cfg.adapter) {
+                self.ship_check(run, &plan, &cfg)?;
+            }
+        }
         Ok(state)
     }
 
-    /// Reconcile from the adapter's read-only probe, if it has one.
-    pub fn reconcile_by_probe(
-        &mut self,
-        run: &StableId,
-        cfg: &TargetConfig,
-    ) -> Result<Option<RunState>> {
+    /// Reconcile from the adapter's read-only probe, if it has one. The
+    /// probe inspects the destination sealed for *this* run, not the
+    /// current target config.
+    pub fn reconcile_by_probe(&mut self, run: &StableId) -> Result<Option<RunState>> {
         let v = self
             .run(run)
             .ok_or_else(|| PublishError::UnknownRun(run.clone()))?;
-        let Some(plan) = v.plan else {
+        let (Some(plan), Some(cfg)) = (v.plan, v.target_cfg) else {
             return Ok(None);
         };
         let plan: SealedPlan = serde_json::from_value(plan)?;
+        let cfg: TargetConfig = serde_json::from_value(cfg)?;
         let Some(adapter) = self.adapters.get(&cfg.adapter) else {
             return Ok(None);
         };
-        let Some(obs) = adapter.probe(&plan, cfg) else {
+        let Some(obs) = adapter.probe(&plan, &cfg) else {
             return Ok(None);
         };
         let by = format!("probe:{}", cfg.adapter);
