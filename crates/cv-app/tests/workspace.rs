@@ -134,7 +134,12 @@ fn wait_for(wb: &mut Workbench, what: &str, mut f: impl FnMut(&Workbench) -> boo
         if f(wb) {
             return;
         }
-        assert!(Instant::now() < deadline, "timed out waiting for {what}");
+        assert!(
+            Instant::now() < deadline,
+            "timed out waiting for {what}; status {:?}, degraded {:?}",
+            wb.status,
+            wb.app.degraded
+        );
         std::thread::sleep(Duration::from_millis(20));
     }
 }
@@ -267,4 +272,50 @@ fn live_boris_workspace_boot() {
         module_len(wb, "activity", Some("diagnostics")) > 0
     });
     wb.stop_watch();
+}
+
+#[test]
+fn promotion_writes_under_the_profile_input() {
+    let ws = workspace("happy");
+    std::fs::rename(ws.path().join("content"), ws.path().join("docs")).unwrap();
+    let profile = std::fs::read_to_string(ws.path().join("boris.json")).unwrap();
+    std::fs::write(
+        ws.path().join("boris.json"),
+        profile.replace("\"input\": \"content\"", "\"input\": \"docs\""),
+    )
+    .unwrap();
+    let cfg = tempfile::tempdir().unwrap();
+    let fake = Fake::new("happy", None);
+    let mut wb = init();
+    open(&mut wb, ws.path(), &fake.env(cfg.path()));
+    wait_for(&mut wb, "watch handshake", |wb| wb.app.engine.is_some());
+    assert!(module_len(&wb, "pages", None) > 0, "pages read from docs/");
+    wb.run_command("shell.goto.research");
+    wb.run_command("research.capture.idea");
+    wb.set_nav("all");
+    wb.select_key("note-0001");
+    wb.run_command("research.promote");
+    assert!(
+        ws.path().join("docs/notes/idea-1.md").is_file(),
+        "{}",
+        wb.status
+    );
+    assert!(!ws.path().join("content").exists());
+}
+
+#[test]
+fn research_storage_failure_survives_the_engine_outcome() {
+    let ws = workspace("happy");
+    std::fs::create_dir_all(ws.path().join(".cv")).unwrap();
+    std::fs::write(ws.path().join(".cv/research"), b"not a dir").unwrap();
+    let cfg = tempfile::tempdir().unwrap();
+    let mut wb = init();
+    open(&mut wb, ws.path(), &absent_env(cfg.path()));
+    assert_eq!(wb.app.degraded, Some(DegradedReason::StoreCorrupt));
+    assert!(
+        wb.status.contains("research notes not persisted"),
+        "{}",
+        wb.status
+    );
+    assert!(wb.status.contains("boris not found"), "{}", wb.status);
 }

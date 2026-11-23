@@ -100,16 +100,31 @@ impl Drop for SessionWatch {
 /// Map a failed gate onto the disclosed degraded state.
 pub fn degraded_reason(e: &EngineError) -> DegradedReason {
     match e {
-        EngineError::VersionMismatch { found, .. } => {
+        EngineError::VersionMismatch {
+            found,
+            found_vcs,
+            expected,
+            expected_vcs,
+            ..
+        } => {
             let v = found.rsplit('/').next().unwrap_or_default();
-            DegradedReason::EngineVersionMismatch {
-                found: if v.is_empty() {
-                    "unknown".into()
-                } else {
-                    v.into()
-                },
-                want: WANT_ENGINE.into(),
+            let mut found = if v.is_empty() {
+                "unknown".into()
+            } else {
+                v.to_string()
+            };
+            let mut want = WANT_ENGINE.to_string();
+            // Same version, wrong build: name the revisions so the banner
+            // doesn't read "found 0.9.0, want 0.9.0".
+            if found == expected.rsplit('/').next().unwrap_or_default() {
+                let vcs = found_vcs
+                    .as_deref()
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or("none");
+                found = format!("{found} (vcs {vcs})");
+                want = format!("{want} (vcs {expected_vcs})");
             }
+            DegradedReason::EngineVersionMismatch { found, want }
         }
         EngineError::BuildInfoInvalid { .. } => DegradedReason::EngineVersionMismatch {
             found: "unknown (invalid --build-info)".into(),
@@ -123,6 +138,30 @@ pub struct EngineBoot {
     pub cfg: EngineConfig,
     pub slot: EngineSlot,
     pub inbox: Inbox,
+    /// A disclosure the boot outcome must not hide (research storage
+    /// failed): kept in the status line and re-disclosed last.
+    pub warning: Option<String>,
+}
+
+/// Final status + any degraded state; a carried warning stays visible.
+fn finish(
+    inbox: &Inbox,
+    warning: &Option<String>,
+    degraded: Option<DegradedReason>,
+    status: String,
+) {
+    if let Some(r) = degraded {
+        inbox.send(Inbound::Degraded(r));
+    }
+    match warning {
+        Some(w) => {
+            inbox.send(Inbound::Status(format!("{w} · {status}")));
+            inbox.send(Inbound::Degraded(DegradedReason::StoreCorrupt));
+        }
+        None => {
+            inbox.send(Inbound::Status(status));
+        }
+    }
 }
 
 pub fn spawn(b: EngineBoot) -> JoinHandle<()> {
@@ -149,6 +188,8 @@ fn resync_sink(
 ) -> EventSink {
     let mut tracker = CursorTracker::new();
     let (root, html) = (engine.root().to_path_buf(), html_dir());
+    // Finished builds also reach open editor buffers' Problems rails.
+    let mut deliver = cv_widgets::editor::host::tee_builds(inbox.sink());
     Box::new(move |env| {
         let obs = tracker.observe(&env.cursor);
         if obs == Observation::Duplicate {
@@ -176,7 +217,7 @@ fn resync_sink(
             AppEvent::Engine(EngineEvent::BuildFailed { diagnostics, recoverable: false, .. })
                 if diagnostics.is_empty()
         );
-        inbox.send(Inbound::Envelope(env));
+        deliver(env);
         if recover && let Some(s) = sched.upgrade() {
             let sink = resync_sink(
                 engine.clone(),
@@ -198,7 +239,12 @@ fn html_dir() -> String {
 }
 
 fn run(b: EngineBoot) {
-    let EngineBoot { cfg, slot, inbox } = b;
+    let EngineBoot {
+        cfg,
+        slot,
+        inbox,
+        warning,
+    } = b;
     let root: PathBuf = cfg.root.clone();
     let epoch = Arc::new(AtomicU64::new(1));
     // Browsable from disk whether or not the engine passes.
@@ -213,8 +259,8 @@ fn run(b: EngineBoot) {
     let engine = match ProcessEngine::start(cfg) {
         Ok(e) => Arc::new(e),
         Err(e) => {
-            inbox.send(Inbound::Degraded(degraded_reason(&e)));
-            inbox.send(Inbound::Status(format!("{}: {e}", root.display())));
+            let status = format!("{}: {e}", root.display());
+            finish(&inbox, &warning, Some(degraded_reason(&e)), status);
             return;
         }
     };
@@ -235,16 +281,17 @@ fn run(b: EngineBoot) {
     match sched.start_watch(sink) {
         Ok(session) => {
             inbox.send(Inbound::Watch(Box::new(SessionWatch { sched, session })));
-            inbox.send(Inbound::Status(format!(
+            let status = format!(
                 "{} · {} ({:?}) · {mode}",
                 root.display(),
                 id.version,
                 id.source
-            )));
+            );
+            finish(&inbox, &warning, None, status);
         }
         Err(e) => {
-            inbox.send(Inbound::Degraded(DegradedReason::WatchDead));
-            inbox.send(Inbound::Status(format!("{}: {e}", root.display())));
+            let status = format!("{}: {e}", root.display());
+            finish(&inbox, &warning, Some(DegradedReason::WatchDead), status);
         }
     }
 }
@@ -269,6 +316,21 @@ mod tests {
             DegradedReason::EngineVersionMismatch {
                 found: "0.8.2".into(),
                 want: "0.9.0".into()
+            }
+        );
+        let wrong_build = EngineError::VersionMismatch {
+            path: "b".into(),
+            source_kind: EngineSource::Path,
+            found: "boris/0.9.0".into(),
+            found_vcs: Some(String::new()),
+            expected: "boris/0.9.0",
+            expected_vcs: "66efcfb",
+        };
+        assert_eq!(
+            degraded_reason(&wrong_build),
+            DegradedReason::EngineVersionMismatch {
+                found: "0.9.0 (vcs none)".into(),
+                want: "0.9.0 (vcs 66efcfb)".into()
             }
         );
         let missing = EngineError::NotFound { searched: vec![] };

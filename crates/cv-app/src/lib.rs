@@ -118,7 +118,8 @@ pub fn open_workspace(
     let research_err = match research {
         Ok((r, _)) => {
             let port = r.port.with_writer(Box::new(live::SlotEngine(slot.clone())));
-            cv_model::modules::research::install(Box::new(port), r.notebook);
+            let input = snapshot::content_input(&root);
+            cv_model::modules::research::install_in(Box::new(port), r.notebook, &input);
             None
         }
         Err(e) => Some(e.to_string()),
@@ -126,9 +127,10 @@ pub fn open_workspace(
     wb.reset_project(Registry::with_all());
     wb.workspace = Some(root.clone());
     show(wb, "pages");
-    if let Some(e) = research_err {
+    let warning = research_err.map(|e| format!("research notes not persisted: {e}"));
+    if let Some(w) = &warning {
         wb.disclose(DegradedReason::StoreCorrupt);
-        wb.status = format!("research notes not persisted: {e}");
+        wb.status = w.clone();
     } else {
         wb.status = format!("{} · locating Boris…", root.display());
     }
@@ -150,6 +152,7 @@ pub fn open_workspace(
         cfg,
         slot,
         inbox: wb.inbox(),
+        warning,
     }))
 }
 

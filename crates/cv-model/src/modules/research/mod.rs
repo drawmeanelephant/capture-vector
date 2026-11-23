@@ -23,21 +23,35 @@ pub const ID: &str = "research";
 /// Profile input the default promotion plan writes under.
 pub const CONTENT_DIR: &str = "content";
 
+type Seed = (Box<dyn ResearchPort>, Notebook, String);
+
 thread_local! {
-    static SEED: RefCell<Option<(Box<dyn ResearchPort>, Notebook)>> = const { RefCell::new(None) };
+    static SEED: RefCell<Option<Seed>> = const { RefCell::new(None) };
 }
 
 /// Composition-root hook: the next `register` (i.e. `Registry::with_all`)
 /// on this thread uses `port` + the notebook replayed from its truth.
 pub fn install(port: Box<dyn ResearchPort>, notebook: Notebook) {
-    SEED.with(|s| *s.borrow_mut() = Some((port, notebook)));
+    install_in(port, notebook, CONTENT_DIR);
+}
+
+/// [`install`] for a profile whose content input is `content_dir`
+/// (workspace-relative); promotions are written under it.
+pub fn install_in(port: Box<dyn ResearchPort>, notebook: Notebook, content_dir: &str) {
+    SEED.with(|s| *s.borrow_mut() = Some((port, notebook, content_dir.into())));
 }
 
 pub fn register(r: &mut Registry) {
-    let (port, nb) = SEED
-        .with(|s| s.borrow_mut().take())
-        .unwrap_or_else(|| (Box::new(MemoryPort::default()), Notebook::default()));
-    r.register(Box::new(ResearchModule::new(Research::new(nb, port))))
+    let (port, nb, dir) = SEED.with(|s| s.borrow_mut().take()).unwrap_or_else(|| {
+        (
+            Box::new(MemoryPort::default()),
+            Notebook::default(),
+            CONTENT_DIR.into(),
+        )
+    });
+    let mut m = ResearchModule::new(Research::new(nb, port));
+    m.content_dir = dir;
+    r.register(Box::new(m))
         .expect("research module id is unique");
 }
 
@@ -49,6 +63,8 @@ pub struct ResearchModule {
     filter: Filter,
     promote_error: Option<(StableId, String)>,
     last_build: Option<(String, Tone)>,
+    /// Workspace-relative content input promotions write under.
+    content_dir: String,
 }
 
 const EMPTY: &str = "research-empty";
@@ -61,6 +77,7 @@ impl ResearchModule {
             filter: Filter::default(),
             promote_error: None,
             last_build: None,
+            content_dir: CONTENT_DIR.into(),
         }
     }
 
@@ -113,7 +130,7 @@ impl ResearchModule {
 
     fn promote(&mut self, id: StableId) -> Result<String, String> {
         let note = self.nb().note(&id).ok_or("unknown note")?;
-        let spec = PromoteSpec::for_note(note, CONTENT_DIR);
+        let spec = PromoteSpec::for_note(note, &self.content_dir);
         match self.session.promote(&id, &spec) {
             Ok(p) => match p.outcome {
                 WriteOutcome::Written { .. } => {
