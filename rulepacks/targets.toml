@@ -103,7 +103,7 @@ severity = "Error"
 tier = "EngineDocumented"
 archetypes = ["Any"]
 remediation = "A page that says noindex should not be advertised in the sitemap; drop one of the two signals."
-check = { NotPresent = { artifact = "Sitemap", selector = { Html = "meta[name=robots][content~=noindex]" } } }
+check = { NotPresent = { artifact = "Sitemap", selector = { Html = "meta:robots-noindex" } } }
 [rule.citation]
 source = "Google Search Central: Build and submit a sitemap"
 url = "https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap"
