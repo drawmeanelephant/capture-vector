@@ -24,7 +24,7 @@ pub fn init() -> Workbench {
 /// Engine-absent is disclosed, never fatal.
 pub fn attach_engine(wb: &mut Workbench, engine: &dyn Engine) {
     match engine.locate() {
-        Ok(_) => match engine.watch(wb.sink()) {
+        Ok(_) => match engine.watch(cv_widgets::editor::host::tee_builds(wb.sink())) {
             Ok(h) => wb.attach_watch(h),
             Err(_) => wb.disclose(DegradedReason::WatchDead),
         },
@@ -35,6 +35,7 @@ pub fn attach_engine(wb: &mut Workbench, engine: &dyn Engine) {
 
 pub fn boot(wb: &mut Workbench) {
     attach_engine(wb, &StubEngine::new(CANARY_CORPUS));
+    editor::open_from_env(wb);
 }
 
 fn canary(wb: &mut Workbench) {
