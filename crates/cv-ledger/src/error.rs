@@ -10,6 +10,8 @@ pub enum LedgerError {
     Corrupt { line: usize, msg: String },
     #[error("index: {0}")]
     Index(#[from] rusqlite::Error),
+    #[error("ledger is locked by another writer: {0}")]
+    Locked(String),
     #[error("proof pack: {0}")]
     Proof(String),
 }

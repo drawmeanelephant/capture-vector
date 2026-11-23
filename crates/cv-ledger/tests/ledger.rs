@@ -83,6 +83,7 @@ fn journal_is_truth_and_sqlite_rebuilds_from_it() {
     assert_eq!(idx.run_phase("run-1").unwrap().as_deref(), Some("partial"));
     let path = idx.path().to_path_buf();
     drop(idx);
+    drop(j);
 
     // Index lost: rebuilt byte-for-byte from JSONL.
     std::fs::remove_file(&path).unwrap();
@@ -127,8 +128,19 @@ fn torn_append_is_dropped_not_guessed() {
 #[test]
 fn corrupt_committed_line_fails_loudly() {
     let dir = tempfile::tempdir().unwrap();
-    let j = Journal::open(dir.path()).unwrap();
-    std::fs::write(j.path(), b"{garbage}\n").unwrap();
-    drop(j);
+    let path = Journal::open(dir.path()).unwrap().path().to_path_buf();
+    std::fs::write(path, b"{garbage}\n").unwrap();
     assert!(Journal::open(dir.path()).is_err());
+}
+
+#[test]
+fn second_writer_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let j = Journal::open(dir.path()).unwrap();
+    assert!(matches!(
+        Journal::open(dir.path()),
+        Err(cv_ledger::LedgerError::Locked(_))
+    ));
+    drop(j);
+    assert!(Journal::open(dir.path()).is_ok());
 }

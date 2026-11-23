@@ -8,7 +8,7 @@ use cv_core::publish::{PreflightGrant, RunState};
 use cv_core::sys::{Hash, Timestamp};
 use serde::{Deserialize, Serialize};
 use std::fs::{File, OpenOptions};
-use std::io::Write;
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 /// Project-relative journal location.
@@ -79,6 +79,25 @@ pub enum Entry {
     },
 }
 
+/// Make a freshly created journal's directory entries durable (Unix;
+/// Windows has no directory handle to flush).
+fn sync_dirs(project_root: &Path, path: &Path) -> Result<()> {
+    #[cfg(unix)]
+    {
+        let mut dir = path.parent();
+        while let Some(d) = dir {
+            File::open(d)?.sync_all()?;
+            if d == project_root {
+                break;
+            }
+            dir = d.parent();
+        }
+    }
+    #[cfg(not(unix))]
+    let _ = (project_root, path);
+    Ok(())
+}
+
 pub struct Journal {
     path: PathBuf,
     file: File,
@@ -93,17 +112,29 @@ impl Journal {
 
     /// Open (creating if absent). A final line without its newline is a
     /// torn append — never committed — and is truncated away; a corrupt
-    /// committed line fails loudly.
+    /// committed line fails loudly. Holds an exclusive lock until drop.
     pub fn open(project_root: &Path) -> Result<Self> {
         let path = Self::path_for(project_root);
         if let Some(dir) = path.parent() {
             std::fs::create_dir_all(dir)?;
         }
-        let raw = match std::fs::read(&path) {
-            Ok(b) => b,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Vec::new(),
-            Err(e) => return Err(e.into()),
-        };
+        let created = !path.exists();
+        let mut file = OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(false)
+            .open(&path)?;
+        // Single writer per project: a second writer would reuse `seq`.
+        // Locked before reading; all I/O goes through this one handle.
+        file.try_lock()
+            .map_err(|e| LedgerError::Locked(format!("{path:?}: {e}")))?;
+        if created {
+            file.sync_all()?;
+            sync_dirs(project_root, &path)?;
+        }
+        let mut raw = Vec::new();
+        file.read_to_end(&mut raw)?;
         let committed_len = raw.iter().rposition(|b| *b == b'\n').map_or(0, |i| i + 1);
         let torn_tail = (committed_len < raw.len())
             .then(|| String::from_utf8_lossy(&raw[committed_len..]).into_owned());
@@ -125,11 +156,10 @@ impl Journal {
             records.push(rec);
         }
         if torn_tail.is_some() {
-            let f = OpenOptions::new().write(true).open(&path)?;
-            f.set_len(committed_len as u64)?;
-            f.sync_all()?;
+            file.set_len(committed_len as u64)?;
+            file.sync_all()?;
         }
-        let file = OpenOptions::new().create(true).append(true).open(&path)?;
+        file.seek(SeekFrom::End(0))?;
         Ok(Self {
             path,
             file,
