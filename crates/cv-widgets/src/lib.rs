@@ -6,8 +6,10 @@
 //! - [`theme`]: `cv_model::theme` tokens → rune colours/type/springs.
 //! - [`harness`]: headless runtime, scripted input, tree/layout goldens.
 //! - [`app`]: native window boot + companion windows.
+//! - [`editor`]: the L7 editor surface (form + body, problems, draft sketch).
 
 pub mod app;
+pub mod editor;
 pub mod harness;
 pub mod keys;
 pub mod shell;
@@ -15,6 +17,3 @@ pub mod theme;
 pub mod tree;
 
 pub const FIREWALL: &str = "all rune contact lives here";
-
-#[allow(unused_imports)]
-use rune_kit as _rune_kit;

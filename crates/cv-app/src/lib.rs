@@ -2,6 +2,8 @@
 //! (`cv_model::workbench`) and hands it to `cv_widgets::app::run`. No
 //! rune import here; scenes are shared by the binary and golden tests.
 
+pub mod editor;
+
 use cv_core::engine::Engine;
 use cv_core::events::shell::DegradedReason;
 use cv_fixtures::stub_engine::StubEngine;
@@ -24,7 +26,7 @@ pub fn init() -> Workbench {
 /// Engine-absent is disclosed, never fatal.
 pub fn attach_engine(wb: &mut Workbench, engine: &dyn Engine) {
     match engine.locate() {
-        Ok(_) => match engine.watch(wb.sink()) {
+        Ok(_) => match engine.watch(cv_widgets::editor::host::tee_builds(wb.sink())) {
             Ok(h) => wb.attach_watch(h),
             Err(_) => wb.disclose(DegradedReason::WatchDead),
         },
@@ -37,6 +39,7 @@ pub fn boot(wb: &mut Workbench) {
     attach_engine(wb, &StubEngine::new(CANARY_CORPUS));
     // Rail order puts Research ahead of the wave-0 canary; keep landing on it.
     wb.run_command("shell.goto.demo");
+    editor::open_from_env(wb);
 }
 
 fn canary(wb: &mut Workbench) {

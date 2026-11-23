@@ -153,13 +153,38 @@ fn png_diff(args: &[String]) -> ExitCode {
     }
 }
 
+/// Draft-sketch ↔ Boris parity report (see `crates/cv-widgets/tests/parity.rs`).
+fn parity() -> ExitCode {
+    let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
+    let status = std::process::Command::new(cargo)
+        .args([
+            "test",
+            "-p",
+            "cv-widgets",
+            "--test",
+            "parity",
+            "--",
+            "--nocapture",
+        ])
+        .status();
+    match status {
+        Ok(s) if s.success() => ExitCode::SUCCESS,
+        Ok(_) => ExitCode::FAILURE,
+        Err(e) => {
+            eprintln!("parity: {e}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
         Some("codegen") => codegen(args.iter().any(|a| a == "--check")),
         Some("png-diff") => png_diff(&args[1..]),
+        Some("parity") => parity(),
         _ => {
-            eprintln!("usage: xtask <codegen [--check] | png-diff a.png b.png>");
+            eprintln!("usage: xtask <codegen [--check] | png-diff a.png b.png | parity>");
             ExitCode::FAILURE
         }
     }
