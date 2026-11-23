@@ -1,0 +1,163 @@
+name: validation-readiness
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [mission/full-v1]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validation-readiness-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_BUILD_JOBS: 2
+  CARGO_INCREMENTAL: 0
+  RUST_TEST_THREADS: 2
+  ZIG_GLOBAL_CACHE_DIR: ${{ runner.temp }}/zig-global-cache
+  RUNE_PIN: 2a59b0f95b82972478a497c42151dbcb3ca5c69f
+  BORIS_PIN: 4a8c12f48d4f583d15cebcfa5271ae7646304ff3
+
+jobs:
+  headless:
+    name: ${{ matrix.name }} headless toolchain and dependencies
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Linux x64, os: ubuntu-24.04, asset: linux }
+          - { name: macOS arm64, os: macos-15, asset: macos }
+          - { name: Windows x64 MSVC, os: windows-latest, asset: windows }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: mission/full-v1
+      - name: Rust 1.99.1
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+      - name: cargo-deny 0.22.0
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny@0.22.0
+      - name: Zig 0.17.0
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.0
+      - name: Linux native build and Vulkan prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential pkg-config libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libudev-dev libdbus-1-dev libatspi2.0-dev libxcb1-dev libx11-dev libxi-dev libxtst-dev mesa-vulkan-drivers vulkan-tools
+      - name: Verify tool versions and native target
+        shell: bash
+        run: |
+          rustc --version --verbose
+          cargo --version
+          cargo deny --version
+          zig version
+          test "$(rustc --version)" = "rustc 1.99.1 (58cf8f9c3 2026-10-13)"
+          test "$(cargo deny --version)" = "cargo-deny 0.22.0"
+          test "$(zig version)" = "0.17.0"
+          if [ "${{ runner.os }}" = Windows ]; then
+            test "$(rustc -vV | awk '/host:/ {print $2}')" = x86_64-pc-windows-msvc
+          elif [ "${{ runner.os }}" = macOS ]; then
+            test "$(rustc -vV | awk '/host:/ {print $2}')" = aarch64-apple-darwin
+            xcode-select -p
+            xcrun --sdk macosx --show-sdk-path
+          else
+            cc --version
+            pkg-config --modversion xkbcommon
+            vulkaninfo --summary
+          fi
+      - name: Fetch exact Rune source
+        run: python3 scripts/fetch_rune.py
+      - name: Acquire Rust dependencies
+        working-directory: spike/rune-probe
+        run: cargo fetch --locked
+      - name: Cargo check and dependency policy tooling
+        working-directory: spike/rune-probe
+        run: |
+          cargo check --locked
+          cargo deny check bans licenses sources
+      - name: Isolated headless Runtime tests
+        working-directory: spike/rune-probe
+        env:
+          CARGO_NET_OFFLINE: "true"
+          DISPLAY: ""
+          WAYLAND_DISPLAY: ""
+        run: cargo test --locked --offline -- --test-threads=2
+      - name: Element/layout JSON
+        working-directory: spike/rune-probe
+        env:
+          CARGO_NET_OFFLINE: "true"
+          DISPLAY: ""
+          WAYLAND_DISPLAY: ""
+        run: |
+          mkdir -p "$RUNNER_TEMP/rune"
+          cargo run --locked --offline -- --scene diags --window primary --tree "$RUNNER_TEMP/rune/tree.json"
+          python3 -c 'import json, os; p=os.environ["RUNNER_TEMP"]+"/rune/tree.json"; d=json.load(open(p)); s=str(d); assert "EPARENTMISSING" in s and "5000" in s; print("Rune element/layout JSON verified:", p)'
+      - name: Canonical real Vulkan/Lavapipe PNG
+        if: runner.os == 'Linux'
+        working-directory: spike/rune-probe
+        env:
+          CARGO_NET_OFFLINE: "true"
+          DISPLAY: ""
+          WAYLAND_DISPLAY: ""
+          WGPU_BACKEND: vulkan
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+        run: |
+          cargo run --locked --offline -- --scene diags --window primary --snap "$RUNNER_TEMP/rune/lavapipe.png" 2>&1 | tee "$RUNNER_TEMP/rune/lavapipe.log"
+          python3 -c 'import os, struct; p=os.environ["RUNNER_TEMP"]+"/rune/lavapipe.png"; b=open(p,"rb").read(); assert b[:8] == b"\x89PNG\r\n\x1a\n"; print("Real Rune PNG:", struct.unpack(">II",b[16:24]), len(b), "bytes")'
+          grep -Ei 'llvmpipe|lavapipe|vulkan' "$RUNNER_TEMP/rune/lavapipe.log"
+      - name: Fetch and verify exact Boris commit
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/boris"
+          git -C "$RUNNER_TEMP/boris" init
+          git -C "$RUNNER_TEMP/boris" remote add origin https://github.com/drawmeanelephant/boris.git
+          git -C "$RUNNER_TEMP/boris" fetch --depth=1 origin "$BORIS_PIN"
+          git -C "$RUNNER_TEMP/boris" checkout --detach FETCH_HEAD
+          test "$(git -C "$RUNNER_TEMP/boris" rev-parse HEAD)" = "$BORIS_PIN"
+          test "$(git -C "$RUNNER_TEMP/boris" rev-parse HEAD^{tree})" = ded1bf3497621cb4d7a6237310aa7ca04371e320
+      - name: Build Boris and verify provenance
+        shell: bash
+        run: |
+          cd "$RUNNER_TEMP/boris"
+          zig build -Dvcs-revision="$BORIS_PIN"
+          bin=zig-out/bin/boris
+          if [ "${{ runner.os }}" = Windows ]; then bin="$bin.exe"; fi
+          "$bin" --version
+          "$bin" --build-info | tee "$RUNNER_TEMP/boris-build-info.txt"
+          grep -F "$BORIS_PIN" "$RUNNER_TEMP/boris-build-info.txt"
+      - name: Boris protected provider and renderer tests with synthetic canaries
+        shell: bash
+        run: |
+          cd "$RUNNER_TEMP/boris"
+          zig build test-atproto-session-provider test-render
+      - name: Boris upstream test suite
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          cd "$RUNNER_TEMP/boris"
+          zig build test
+      - name: Oliver 1.3.0 acquisition, hashes and frontend smoke
+        run: python3 scripts/oliver_smoke.py "$RUNNER_TEMP/oliver"
+      - name: Unsigned package layout smoke
+        run: python3 scripts/package_smoke.py
+      - name: Check for orphaned validators
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = Windows ]; then
+            powershell -NoProfile -Command '$left = Get-Process | Where-Object { $_.ProcessName -match "rune-probe|boris|oliver" }; if ($left) { $left | Format-Table; exit 1 }'
+          else
+            if pgrep -x rune-probe || pgrep -x boris || pgrep -x oliver; then
+              echo "orphan validator process detected" >&2
+              exit 1
+            fi
+          fi
