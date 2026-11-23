@@ -1,0 +1,72 @@
+# aeo-llm v1 — answer-engine / LLM-facing surfaces: llms.txt, JSON-LD,
+# answer-first structure. Mostly Heuristic: advisory, never blocking.
+
+[pack]
+id = "aeo-llm"
+version = 1
+description = "Answer-engine and LLM-facing surfaces: llms.txt, JSON-LD, answer-first structure."
+
+[[rule]]
+id = "AEO-LLMS-TXT-H1"
+severity = "Warning"
+tier = "Heuristic"
+archetypes = ["Any"]
+remediation = "Build with `--llms` so Boris emits llms.txt; its first line must be an H1 naming the site."
+check = { Exists = { artifact = "Llms", selector = { JsonPath = "$.title" } } }
+[rule.citation]
+source = "llms.txt proposal (llmstxt.org), Format"
+url = "https://llmstxt.org/"
+frozen_quote = "An H1 with the name of the project or site. This is the only required section"
+captured = "2026-11-23"
+
+[[rule]]
+id = "AEO-LLMS-TXT-SUMMARY"
+severity = "Info"
+tier = "Heuristic"
+archetypes = ["Any"]
+remediation = "Follow the llms.txt H1 with a `> ` blockquote summarising the site."
+check = { Exists = { artifact = "Llms", selector = { JsonPath = "$.summary" } } }
+[rule.citation]
+source = "llms.txt proposal (llmstxt.org), Format"
+url = "https://llmstxt.org/"
+frozen_quote = "A blockquote with a short summary of the project, containing key information necessary for understanding the rest of the file"
+captured = "2026-11-23"
+
+[[rule]]
+id = "AEO-JSONLD-VALID"
+severity = "Error"
+tier = "NormativeSpec"
+archetypes = ["Any"]
+remediation = "Every <script type=\"application/ld+json\"> block must parse as JSON; fix or remove the malformed block."
+check = { NotPresent = { artifact = "Html", selector = { Html = 'script[type="application/ld+json"]:invalid-json' } } }
+[rule.citation]
+source = "W3C JSON-LD 1.1, 9. JSON-LD Grammar"
+url = "https://www.w3.org/TR/json-ld11/#json-ld-grammar"
+frozen_quote = "A JSON-LD document MUST be valid JSON text as described in [RFC8259]"
+captured = "2026-11-23"
+
+[[rule]]
+id = "AEO-JSONLD-TYPED"
+severity = "Info"
+tier = "Heuristic"
+archetypes = ["Article", "Faq"]
+remediation = "Article and FAQ pages benefit from a typed JSON-LD block (`@type`) describing the content."
+check = { Exists = { artifact = "Html", selector = { JsonPath = "$.@type" } } }
+[rule.citation]
+source = "Google Search Central: Introduction to structured data markup"
+url = "https://developers.google.com/search/docs/appearance/structured-data/intro-structured-data"
+frozen_quote = "Google uses structured data that it finds on the web to understand the content of the page, as well as to gather information about the web and the world in general"
+captured = "2026-11-23"
+
+[[rule]]
+id = "AEO-ANSWER-FIRST"
+severity = "Info"
+tier = "Heuristic"
+archetypes = ["Satellite", "Faq"]
+remediation = "Open answer-shaped pages with a paragraph directly under the H1 that states the answer before detail."
+check = { Count = { artifact = "Html", selector = { Html = "h1 + p" }, op = "Ge", threshold = 1 } }
+[rule.citation]
+source = "Nielsen Norman Group: Inverted Pyramid: Writing for Comprehension"
+url = "https://www.nngroup.com/articles/inverted-pyramid/"
+frozen_quote = "In journalism, the inverted pyramid refers to a story structure where the most important information (or what might even be considered the conclusion) is presented first."
+captured = "2026-11-23"

@@ -793,6 +793,11 @@ name = "cv-rules"
 version = "0.0.0"
 dependencies = [
  "cv-core",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.21",
+ "toml",
 ]
 
 [[package]]
