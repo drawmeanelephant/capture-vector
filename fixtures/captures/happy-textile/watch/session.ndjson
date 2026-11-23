@@ -1,4 +1,4 @@
-{"event":"hello","watch_events_schema":1,"compiler":"boris/0.8.2"}
+{"event":"hello","watch_events_schema":1,"compiler":"boris/0.9.0"}
 {"event":"build-started","phase":"initial","mode":"html","targets":["default"]}
 {"event":"build-failed","phase":"initial","mode":"html","targets":["default"],"errors":0,"diagnostics":[],"recoverable":true,"duration_ms":0}
 {"event":"watcher-started","mode":"html","targets":["default"]}

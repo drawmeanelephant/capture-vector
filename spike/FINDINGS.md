@@ -56,3 +56,12 @@ lanes and CI don't each improvise the checkout.
   free smoke-benchmark gate.
 - `Runtime::with_text` accepts a `TextSystem` — font-injection seam for
   deterministic goldens.
+
+## 2026-11-23 update — engine pin moved to boris 0.9.0
+
+Mission gameplan ratified: boris **0.9.0** (vcs `66efcfb`, tag `v0.9.0`,
+built w/ zig 0.17.1 — min is 0.17.0) because 0.8.2 lacks native Windows
+support. Fixtures re-captured: same exit matrix, watch hello now
+`"compiler":"boris/0.9.0"`. oliver 1.3.0 verified installed. Rust floor
+1.99.1; Lavapipe = canonical PNG rasterizer; signature-graph (nostr/
+atproto signing surface) approved — secrets stdin-only per spec.

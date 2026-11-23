@@ -25,14 +25,26 @@ publishing Boris content. Outlook-style mailboxes over a graph compiler.
 - **rune cannot be a git dependency.** Run `scripts/fetch-rune.sh` and
   replicate the `[patch.crates-io]` block it prints. Vendor dir is
   gitignored on purpose.
-- `fixtures/` contains REAL captures from `boris/0.8.2` (vcs `897611b7`)
+## Ratified toolchain (mission-approved 2026-11-23)
+
+| Component | Pin |
+|---|---|
+| Rust | 1.99.1 floor (CI `rust-toolchain.toml` when it lands) |
+| rune | `dev` @ `2a59b0f95b82972478a497c42151dbcb3ca5c69f`, vendored |
+| boris | **0.9.0** (vcs `66efcfb`) — built w/ zig 0.17.x; 0.8.2 lacks native Windows support |
+| oliver | 1.3.0 (`967bfdf`) |
+| PNG goldens | Lavapipe software rasterizer on Linux CI = canonical config |
+| signature graph | approved — boris nostr/atproto signing surface, secrets via stdin only |
+
+- `fixtures/` contains REAL captures from `boris/0.9.0` (vcs `66efcfb`)
   over 9 corpora: green happy build + dist proof-pack JSON, 5 broken
   corpora with distinct diagnostic codes (`EDUPLICATEID`,
   `EFRONTMATTER`, `EPARENTMISSING`, `EREFERENCEMISSING`, `ETEXTILE`),
   `--textile`/`--cooklang` mode contracts, and 9 real `watch --watch-json`
   NDJSON sessions (hello handshake, schema 1, rebuild events).
   `fixtures/MANIFEST.toml` pins sha256 + engine version + capture command.
-- Boris binary lives at `~/.local/bin/boris` on the capture machine;
+- Boris 0.9.0 builds from tag `v0.9.0` (`zig build --release=safe`;
+  local copy at `~/.local/src/boris-0.9.0/zig-out/bin/boris`);
   cloud lanes should consume `fixtures/` and never need the engine.
 
 ## Hard rules (violations = wrong work)

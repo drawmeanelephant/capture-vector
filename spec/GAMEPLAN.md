@@ -7,8 +7,10 @@ Status inputs (facts, not assumptions):
   Results: `spike/FINDINGS.md`, `spike/rune-probe`, `spike/vendor/rune`.
 - rune consumption REQUIRED to be vendored path dep + replicated `[patch]` —
   git dep cannot resolve. Spec updated (architecture.md §0, PROMPT-v3).
-- boris 0.8.2 installed at `~/.local/bin/boris` — fixture capture can start now;
-  a project pin still needs recording in `MANIFEST.toml` (is 0.8.2 the pin?).
+- boris **0.9.0** (vcs `66efcfb`) is the ratified pin — built from tag
+  `v0.9.0` w/ zig 0.17.1, fixtures re-captured (0.8.2 lacks native Windows
+  support). Oliver 1.3.0 matches the pin. Rust floor 1.99.1.
+  Lavapipe = canonical PNG gate on Linux CI.
 - Windows/Linux: nothing proven. The rune probe must eventually run in the
   3-OS CI matrix; IME needs real windows per OS.
 
@@ -32,7 +34,7 @@ Status inputs (facts, not assumptions):
 
 ## Known-unknown list (owner decisions / OS gates)
 
-- Boris pin version for `MANIFEST.toml` (installed is 0.8.2).
+- ~~Boris pin~~ resolved: 0.9.0 / `66efcfb`, in MANIFEST.toml.
 - Windows/Linux probe + CI runners (no containers allowed locally — CI-hosted
   runners or physical machines; cannot be faked from macOS).
 - `rune-ref` as canonical PNG rasterizer — test in wave 1 before picking the

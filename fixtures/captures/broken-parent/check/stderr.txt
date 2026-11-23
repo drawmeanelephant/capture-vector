@@ -1,1 +1,2 @@
-error: EPARENTMISSING: orphan.md:1:1: parent "does-not-exist" does not exist [Create the parent document or fix the parent id]
+error: EPARENTMISSING: broken-parent/orphan.md:3:1: parent "does-not-exist" does not exist [Create the parent document or fix the parent id]
+error: EPARENTMISSING: orphan.md:3:1: parent "does-not-exist" does not exist [Create the parent document or fix the parent id]

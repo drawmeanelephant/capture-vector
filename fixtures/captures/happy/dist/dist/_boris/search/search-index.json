@@ -6,7 +6,6 @@
       "path": "guides/getting-started.html",
       "title": "Getting Started",
       "sections": [
-        {"level": 0, "heading": "", "fragment": "", "text": "", "code": ""},
         {"level": 1, "heading": "Getting Started", "fragment": "getting-started", "text": "A page is one Markdown file with YAML frontmatter. The frontmatter is derived from the path unless you write one; , , and shape the graph.", "code": "id title tags parent"},
         {"level": 2, "heading": "Add a page", "fragment": "add-a-page", "text": "Create : Rebuild with and the page appears in the nav forest, the breadcrumb chain, and the frozen graph.", "code": "content/guides/example.md --- title: Example parent: index tags: [guides] --- # Example Hello from [[index]]. boris --input content --html-dir dist --theme themes/boris"},
         {"level": 2, "heading": "Frontmatter at a glance", "fragment": "frontmatter-at-a-glance", "text": "— page title ( , search, and metadata). — entity id of the structural parent (this page lives under ). — free-form list rendered into page metadata. — semantic edges such as ; see semantic relations. A wiki link is a real graph edge: a link to a missing page fails the build instead of rendering as dead prose.", "code": "title {{title}} parent index tags relations [relates_to=target] [[getting-started]]"}
@@ -16,7 +15,6 @@
       "path": "guides/publishing.html",
       "title": "Publishing",
       "sections": [
-        {"level": 0, "heading": "", "fragment": "", "text": "", "code": ""},
         {"level": 1, "heading": "Publishing", "fragment": "publishing", "text": "Boris treats the deployment URL as publication truth, not an incidental detail. The starter profile declares one public HTML target: Inspect the normalized plan before publishing: The official GitHub Pages workflow (see the repository's ) builds a verified target: it resolves the Pages location from , fails on any URL projection that disagrees with it, uploads only inventory-verified files, and retains a separate evidence artifact. Atmosphere publication uses : replace the obviously-fake DID and URL before . This starter page is related to Getting Started so the semantic graph has an edge to inspect.", "code": "{ \"format\": \"boris-publication-profile\", \"schema_version\": 1, \"input\": \"content\", \"targets\": [ { \"name\": \"public\", \"output\": \"dist\", \"public\": true, \"theme\": \"themes/boris\" } ] } boris plan --profile boris.json boris standard-site plan --profile standard-site.json docs/github-pages.md actions/configure-pages standard-site.json standard-site publish"}
       ]
     },
@@ -24,7 +22,6 @@
       "path": "index.html",
       "title": "Welcome",
       "sections": [
-        {"level": 0, "heading": "", "fragment": "", "text": "", "code": ""},
         {"level": 1, "heading": "Welcome", "fragment": "welcome", "text": "This is a fresh Boris documentation site. It already has a page graph: this trunk page, two guides beneath it, wiki links between them, and one semantic relation. Start here: Getting Started — add your own pages and watch the graph grow. Publishing — turn the site into a verified publication.", "code": ""},
         {"level": 2, "heading": "Anatomy of this starter", "fragment": "anatomy-of-this-starter", "text": "The tree created:", "code": "boris init content/ index.md trunk page (this one) guides/getting-started.md satellite, parent: index guides/publishing.md satellite, parent: index themes/boris/ starter theme (closed layout slots) boris.json publication profile (GitHub Pages) standard-site.json Atmosphere profile (edit the fake DID/URL)"}
       ]

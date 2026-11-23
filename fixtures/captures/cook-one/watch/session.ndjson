@@ -1,5 +1,3 @@
-{"event":"hello","watch_events_schema":1,"compiler":"boris/0.8.2"}
+{"event":"hello","watch_events_schema":1,"compiler":"boris/0.9.0"}
 {"event":"build-started","phase":"initial","mode":"html","targets":["default"]}
 {"event":"build-failed","phase":"initial","mode":"html","targets":["default"],"errors":0,"diagnostics":[],"recoverable":false,"duration_ms":0}
-error: content root "content" not found or not a directory
-remediation: create the content directory or pass --input=DIR
