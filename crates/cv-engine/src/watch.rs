@@ -187,9 +187,32 @@ pub(crate) fn start(
                         std::thread::sleep(Duration::from_millis(10));
                     }
                     Ok(None) => {
-                        // stderr closed but the leader lives on: unusable.
-                        c.kill_tree(Duration::ZERO);
-                        break None;
+                        // A wrapper (cmd /c on Windows) can lag a beat
+                        // behind its pipe's EOF. Give the real exit a
+                        // bounded grace before declaring the leader
+                        // outlived its stderr; a genuinely detached
+                        // leader still gets the tree kill.
+                        drop(c);
+                        let deadline =
+                            std::time::Instant::now() + Duration::from_secs(2);
+                        break loop {
+                            std::thread::sleep(Duration::from_millis(10));
+                            let mut c = child.lock().unwrap();
+                            match c.try_wait() {
+                                Ok(Some(_)) => break c.outcome(),
+                                Ok(None)
+                                    if std::time::Instant::now() < deadline =>
+                                {
+                                    drop(c);
+                                    continue;
+                                }
+                                Ok(None) => {
+                                    c.kill_tree(Duration::ZERO);
+                                    break None;
+                                }
+                                Err(_) => break None,
+                            }
+                        };
                     }
                     Err(_) => break None,
                 }
