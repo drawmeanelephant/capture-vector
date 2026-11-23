@@ -74,7 +74,11 @@ pub fn open(id: WindowId, path: &str, theme: &Theme) -> Option<WindowHandle> {
     Some(rune::open_window(
         WindowSpec::new(
             format!("editor-{}", id.0),
-            AppSpec::new("Capture Vector — editor", super::SIZE, init, super::view),
+            AppSpec {
+                poll: Some(super::poll),
+                on_key: Some(super::on_key),
+                ..AppSpec::new("Capture Vector — editor", super::SIZE, init, super::view)
+            },
         )
         .on_close(closed),
     ))
