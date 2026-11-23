@@ -63,8 +63,19 @@ pub fn open_corpus(wb: &mut Workbench, corpus: &str) -> StubEngine {
 /// one-shot build's stderr carries them (as `ProcessEngine` does).
 pub fn open_broken(wb: &mut Workbench, corpus: &str) {
     let engine = open_corpus(wb, corpus);
-    let _ = engine.run(&Verb::Build, wb.sink());
-    wb.drain();
+    // Recover stderr diagnostics only when the watch session failed
+    // without any: the one-shot build must not replace located ones.
+    if !has_watch_diagnostics(wb) {
+        let _ = engine.run(&Verb::Build, wb.sink());
+        wb.drain();
+    }
+}
+
+fn has_watch_diagnostics(wb: &Workbench) -> bool {
+    wb.registry
+        .index_of("activity")
+        .and_then(|i| wb.registry.get(i))
+        .is_some_and(|m| m.list_len(Some("diagnostics")) > 0)
 }
 
 fn show(wb: &mut Workbench, module: &str) {
