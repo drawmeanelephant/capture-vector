@@ -205,7 +205,7 @@ fn body(s: &EditorWindow) -> El {
         .on_input_change(|s: &mut EditorWindow, _| s.body_changed())
         // Plain Return submits a rune field; in a document it breaks lines.
         .on_submit(|s: &mut EditorWindow, _| {
-            let nl = if s.body.text.contains("\r\n") {
+            let nl = if s.text().contains("\r\n") {
                 "\r\n"
             } else {
                 "\n"

@@ -522,3 +522,19 @@ fn clean_close_is_reported_closed() {
     assert!(editor::host::take_reopen().is_empty());
     assert_eq!(editor::host::take_closed(), vec![WindowId(9)]);
 }
+
+#[test]
+fn return_follows_crlf_from_the_frontmatter() {
+    let ses = session();
+    let buf = ses
+        .borrow_mut()
+        .open("p.md", "---\r\ntitle: P\r\n---\r\n", None);
+    let mut rt = window(&ses, 1, buf);
+    click(&mut rt, "editor-body");
+    rt.key(cv_widgets::keys::parse("enter").remove(0));
+    settle(&mut rt);
+    assert_eq!(
+        ses.borrow().get(buf).unwrap().buffer.text(),
+        "---\r\ntitle: P\r\n---\r\n\r\n"
+    );
+}
