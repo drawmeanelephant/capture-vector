@@ -39,3 +39,17 @@ fn other_formats_degrade_instead_of_guessing() {
         Err(CompletionError::Malformed(_))
     ));
 }
+
+#[test]
+fn accept_inside_an_existing_target_replaces_its_tail() {
+    let mut b = Buffer::open("p.md", "see [[guxx]] done", None);
+    let ctx = wikilink_context(&b.text(), 8).unwrap();
+    assert_eq!(ctx.prefix, "gu");
+    let caret = accept(&mut b, &ctx, "guide").unwrap();
+    assert_eq!(b.text(), "see [[guide]] done");
+    assert_eq!(caret, 13);
+    let mut b = Buffer::open("p.md", "[[guxx|label]]", None);
+    let ctx = wikilink_context(&b.text(), 4).unwrap();
+    accept(&mut b, &ctx, "guide").unwrap();
+    assert_eq!(b.text(), "[[guide|label]]");
+}

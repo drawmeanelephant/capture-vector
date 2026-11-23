@@ -95,16 +95,23 @@ pub fn wikilink_context(text: &str, caret: usize) -> Option<WikilinkContext> {
 /// Replace the typed prefix with `id` and close the link. Returns the caret.
 pub fn accept(buf: &mut Buffer, ctx: &WikilinkContext, id: &str) -> Result<usize, EditError> {
     let text = buf.text();
-    let closed = text[ctx.range.end..].starts_with("]]");
+    // The rest of an existing target after the caret is replaced too.
+    let rest = &text[ctx.range.end..];
+    let tail = rest
+        .find(|c: char| matches!(c, ']' | '|' | '#' | '[') || c.is_whitespace())
+        .unwrap_or(rest.len());
+    let range = ctx.range.start..ctx.range.end + tail;
+    let labelled = rest[tail..].starts_with(['|', '#']);
+    let closed = labelled || rest[tail..].starts_with("]]");
     let insert = if closed {
         id.to_string()
     } else {
         format!("{id}]]")
     };
     buf.break_undo_group();
-    buf.replace(ctx.range.clone(), &insert)?;
+    buf.replace(range, &insert)?;
     buf.break_undo_group();
-    Ok(ctx.range.start + id.len() + 2)
+    Ok(ctx.range.start + id.len() + if labelled { 0 } else { 2 })
 }
 
 #[cfg(test)]
