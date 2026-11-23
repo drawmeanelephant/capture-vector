@@ -177,9 +177,10 @@ fn setup(s: &mut Workbench, w: Waker) {
     let _ = WAKE.set(w.clone());
     editor::host::set_waker(w.clone());
     s.set_waker(w);
-    // Headless exports have no `on_ready` (without `--realtime`); they
-    // render the booted state, as before.
-    if rune::is_headless() && !BOOTED.swap(true, Ordering::Relaxed) {
+    // Headless exports have no `on_ready` unless `--realtime`; they render
+    // the booted state, as before.
+    let realtime = std::env::args().any(|a| a == "--realtime");
+    if rune::is_headless() && !realtime && !BOOTED.swap(true, Ordering::Relaxed) {
         run_boot(s);
     }
 }
