@@ -89,7 +89,8 @@ done
 # manifest: sha256 of every captured artifact + engine version + commands
 ( cd "$FIX" && {
   echo 'schema_version = 1'
-  echo "engine_version = \"$(head -1 engine-version.txt)\""
+  # engine-version.txt is JSON — a TOML literal string keeps it valid
+  echo "engine_version = '$(head -1 engine-version.txt)'"
   echo "capture_command = \"scripts/capture-fixtures.sh $CORPUS_SRC\""
   echo "captured = \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\""
   echo ""

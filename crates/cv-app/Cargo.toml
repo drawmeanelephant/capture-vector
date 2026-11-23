@@ -1,0 +1,15 @@
+[package]
+name = "cv-app"
+version = "0.0.0"
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+description = "Composition root + rune shell wiring. Integrator-owned."
+
+[dependencies]
+cv-core.workspace = true
+cv-model.workspace = true
+cv-widgets.workspace = true
+
+[dev-dependencies]
+cv-fixtures.workspace = true
