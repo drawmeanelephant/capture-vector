@@ -797,11 +797,11 @@ fn percent_decode(s: &str) -> String {
     let mut out = Vec::with_capacity(b.len());
     let mut i = 0;
     while i < b.len() {
+        let hex = |k: usize| b.get(k).and_then(|&c| (c as char).to_digit(16));
         if b[i] == b'%'
-            && i + 2 < b.len()
-            && let Ok(v) = u8::from_str_radix(&s[i + 1..i + 3], 16)
+            && let (Some(hi), Some(lo)) = (hex(i + 1), hex(i + 2))
         {
-            out.push(v);
+            out.push((hi * 16 + lo) as u8);
             i += 3;
         } else {
             out.push(b[i]);
@@ -945,5 +945,8 @@ mod tests {
             None
         );
         assert_eq!(percent_encode("a b/c.html"), "a%20b/c.html");
+        assert_eq!(percent_decode("a%20b"), "a b");
+        assert_eq!(percent_decode("a%\u{e9}x"), "a%\u{e9}x");
+        assert_eq!(percent_decode("%2"), "%2");
     }
 }
