@@ -63,6 +63,9 @@ publishing Boris content. Outlook-style mailboxes over a graph compiler.
 - Heuristic SEO/AEO findings can never block publishing
   (`authority_tier`).
 - Secrets: never in argv, env, logs, events, or persisted state.
+  GH repo secrets exist for opt-in live-publish smoke only:
+  `CV_BSKY_HANDLE`, `CV_BSKY_APP_PASSWORD`, `CV_NOSTR_NSEC` — ordinary
+  CI/tests use a mock secret backend, never these.
 - Element-tree/layout JSON is the cross-OS UI gate; PNG goldens only on
   one canonical rasterizer config.
 - Windows/Linux behavior is UNPROVEN — don't claim it until run there.
