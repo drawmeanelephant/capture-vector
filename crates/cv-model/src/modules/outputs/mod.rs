@@ -267,6 +267,10 @@ impl Module for OutputsModule {
         })
     }
 
+    fn contains(&self, key: &str) -> bool {
+        self.by_path.contains_key(key)
+    }
+
     fn link(&self, key: &str) -> Option<Link> {
         let src = self.sources.get(key)?.first()?;
         Some(Link {

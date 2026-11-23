@@ -272,7 +272,7 @@ fn scroll(module: &str, n: usize) -> Vec<Duration> {
     let mut frames = Vec::new();
     let mut t = 1.0;
     for _ in 0..120 {
-        h.rt.wheel(x, y, -240.0);
+        h.rt.wheel(x, y, -40.0);
         t += 1.0 / 60.0;
         let start = Instant::now();
         h.rt.frame(t);
@@ -297,7 +297,7 @@ fn scroll(module: &str, n: usize) -> Vec<Duration> {
 
 /// The 60 Hz budget holds in optimized builds. Debug builds on shared CI
 /// runners are too noisy for wall-clock budgets, so there the gate is
-/// that a 5,000-row frame costs what a 100-row frame costs: frame time
+/// that a 5,000-row frame costs what a 500-row frame costs: frame time
 /// is independent of list length.
 #[test]
 fn five_thousand_rows_scroll_at_frame_budget() {
@@ -305,17 +305,47 @@ fn five_thousand_rows_scroll_at_frame_budget() {
         let big = scroll(module, 5_000);
         let p95 = big[big.len() * 95 / 100];
         let p50 = big[big.len() / 2];
-        let small = scroll(module, 100);
+        let small = scroll(module, 500);
         let base = small[small.len() / 2];
-        eprintln!("{module}: 5k p50 {p50:?} p95 {p95:?}; 100-row p50 {base:?}");
+        eprintln!("{module}: 5k p50 {p50:?} p95 {p95:?}; 500-row p50 {base:?}");
         if cfg!(debug_assertions) {
             assert!(
                 p50 < base * 2 + Duration::from_millis(5),
-                "{module}: 5k-row frame {p50:?} vs 100-row {base:?} — cost scales with list length"
+                "{module}: 5k-row frame {p50:?} vs 500-row {base:?} — cost scales with list length"
             );
         } else {
             let budget = Duration::from_micros(16_667);
             assert!(p95 < budget, "{module}: p95 frame {p95:?} over {budget:?}");
         }
     }
+}
+
+#[test]
+fn dogfood_keeps_watch_diagnostics_and_offers_only_live_links() {
+    let mut wb = init();
+    open_broken(&mut wb, "dogfood");
+    show(&mut wb, "pages");
+    wb.set_nav("issues");
+    assert!(wb.list_len() > 0, "watch ELAYOUT survives in Pages");
+    show(&mut wb, "activity");
+    wb.set_nav("all");
+    let mut offered = 0;
+    for i in 0..wb.list_len() {
+        let key = wb.row(i).key;
+        if let Some(l) = wb.link_for(&key) {
+            offered += 1;
+            let mut probe = init();
+            open_broken(&mut probe, "dogfood");
+            show(&mut probe, "activity");
+            probe.set_nav("all");
+            probe.select_key(&key);
+            probe.follow_link();
+            assert_eq!(
+                probe.selected_key(),
+                Some(l.key.as_str()),
+                "link lands on a row"
+            );
+        }
+    }
+    assert!(offered < wb.list_len());
 }

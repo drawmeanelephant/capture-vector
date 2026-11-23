@@ -6,7 +6,7 @@
 use crate::app_state::AppState;
 use crate::cascade;
 use crate::command::{CommandSpec, Intent, Palette};
-use crate::module::{ProjectSnapshot, Registry, RowModel};
+use crate::module::{Link, ProjectSnapshot, Registry, RowModel};
 use crate::theme::{Mode, Theme};
 use crate::windows::{CloseOutcome, PRIMARY, WindowId, Windows};
 use cv_core::engine::{EventSink, WatchHandle};
@@ -183,11 +183,16 @@ impl Workbench {
         changed
     }
 
+    /// The row's click-through link, offered only when its target exists.
+    pub fn link_for(&self, key: &str) -> Option<Link> {
+        let l = self.registry.get(self.active)?.link(key)?;
+        let target = self.registry.get(self.registry.index_of(l.module)?)?;
+        target.contains(&l.key).then_some(l)
+    }
+
     /// Follow the selected row's click-through link, if any.
     pub fn follow_link(&mut self) {
-        let link = self
-            .selected_key()
-            .and_then(|k| self.registry.get(self.active).and_then(|m| m.link(k)));
+        let link = self.selected_key().and_then(|k| self.link_for(k));
         match link {
             Some(l) => self.apply(Intent::Reveal {
                 module: l.module.to_string(),

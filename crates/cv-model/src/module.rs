@@ -201,6 +201,11 @@ pub trait Module {
     fn load(&mut self, _snap: &ProjectSnapshot) -> bool {
         false
     }
+    /// Whether `key` names a row this module can reveal.
+    fn contains(&self, _key: &str) -> bool {
+        true
+    }
+
     /// Click-through target for a row, if it names a noun elsewhere.
     fn link(&self, _key: &str) -> Option<Link> {
         None

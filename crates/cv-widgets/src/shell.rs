@@ -413,7 +413,7 @@ fn inspector(s: &Workbench) -> El {
                 );
             }
         }
-        if let Some(l) = m.link(k) {
+        if let Some(l) = s.link_for(k) {
             pane = pane.child(
                 row()
                     .key("follow-link")

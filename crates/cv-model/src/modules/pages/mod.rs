@@ -457,6 +457,10 @@ impl Module for PagesModule {
         })
     }
 
+    fn contains(&self, key: &str) -> bool {
+        self.by_path.contains_key(key) || key == PROJECT_KEY
+    }
+
     fn link(&self, key: &str) -> Option<Link> {
         let p = &self.pages[*self.by_path.get(key)?];
         p.output.as_ref().map(|o| Link {
