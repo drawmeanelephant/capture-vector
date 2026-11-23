@@ -147,7 +147,8 @@ impl EditorWindow {
         }
         for (spec, edit) in SCHEMA.iter().zip(self.fields.iter_mut()) {
             let v = form.field(spec.key).map(|f| f.value.as_str()).unwrap_or("");
-            if edit.text != v {
+            // `read` trims; keep the field's own edge whitespace while typing.
+            if edit.text.trim_matches([' ', '\t']) != v {
                 edit.text = v.to_string();
                 edit.set_caret(v.len());
             }

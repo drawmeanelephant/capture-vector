@@ -68,3 +68,12 @@ fn crlf_is_preserved_and_missing_frontmatter_is_created() {
     assert_eq!(b.text(), "---\ntitle: T\n---\nbody");
     assert_eq!(body(&b.text()), "body");
 }
+
+#[test]
+fn typing_a_space_then_a_word_keeps_both() {
+    let mut b = Buffer::open("p.md", "---\ntitle: A\n---\n", None);
+    set_field(&mut b, "title", "A ").unwrap();
+    assert_eq!(read(&b.text()).field("title").unwrap().value, "A");
+    set_field(&mut b, "title", "A B").unwrap();
+    assert_eq!(b.text(), "---\ntitle: A B\n---\n");
+}

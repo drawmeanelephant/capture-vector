@@ -241,7 +241,12 @@ pub fn set_field(buf: &mut Buffer, key: &str, value: &str) -> Result<(), EditErr
     buf.break_undo_group();
     let r = match form.field(key) {
         Some(f) if value.is_empty() => buf.replace(f.line_range.clone(), ""),
-        Some(f) => buf.replace(f.value_range.clone(), value),
+        Some(f) => {
+            // Through end of line, so whitespace typed in the form lands once.
+            let line = text[f.line_range.clone()].trim_end_matches(['\n', '\r']);
+            let end = (f.line_range.start + line.len()).max(f.value_range.end);
+            buf.replace(f.value_range.start..end, value)
+        }
         None if value.is_empty() => Ok(()),
         None if form.present => buf.insert(form.close_at, &format!("{key}: {value}{nl}")),
         None => buf.insert(0, &format!("---{nl}{key}: {value}{nl}---{nl}")),
