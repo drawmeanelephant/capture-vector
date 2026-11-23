@@ -58,7 +58,10 @@ impl FakeEngine {
     fn publishes(&self) -> usize {
         self.verbs()
             .iter()
-            .filter(|v| matches!(v, Verb::Publish { .. }))
+            .filter(|v| {
+                matches!(v, Verb::Publish { .. })
+                    || matches!(v, Verb::Custom { name, .. } if name == "publish")
+            })
             .count()
     }
 }
@@ -602,9 +605,20 @@ fn run_command_goes_through_the_engine_port() {
         RunState::Complete(RunStatus::Complete)
     );
     assert_eq!(eng.publishes(), 1);
-    assert!(eng.verbs().contains(&Verb::Publish {
-        target: "nostr-nip23".into()
-    }));
+    let publish = eng
+        .verbs()
+        .into_iter()
+        .find_map(|v| match v {
+            Verb::Custom { name, args } if name == "publish" => Some(args),
+            _ => None,
+        })
+        .unwrap();
+    assert_eq!(arg(&publish, "--target"), "nostr-nip23");
+    assert_eq!(arg(&publish, "--profile"), "boris.json");
+    assert!(
+        Path::new(arg(&publish, "--html-dir")).ends_with(format!(".cv/publish/{}/site", run.0)),
+        "engine is pointed at the sealed site, not a target id alone"
+    );
     assert!(
         p.run(&run).unwrap().exports.is_none(),
         "record targets ship no site exports"
@@ -741,4 +755,62 @@ fn stdin_channel_reads_once() {
     assert!(s.get("other").is_err());
     assert_eq!(s.get("nostr-nsec").unwrap().expose(), CANARY);
     assert!(s.get("nostr-nsec").is_err(), "consumed");
+}
+
+#[test]
+fn copy_to_folder_never_clobbers_siblings() {
+    let dir = tempfile::tempdir().unwrap();
+    let dest = dir.path().join("out");
+    std::fs::create_dir_all(&dest).unwrap();
+    // Siblings that a naive `with_extension("cv-tmp")` would overwrite.
+    std::fs::write(dest.join("index.cv-tmp"), b"keep me").unwrap();
+    std::fs::write(dest.join("index.css"), b"keep me too").unwrap();
+    let files = vec![(
+        PlanFile {
+            path: "index.html".into(),
+            bytes: 2,
+            sha256: cv_publish::plan::sha256(b"hi"),
+        },
+        b"hi".to_vec(),
+    )];
+    let c = TargetConfig::new(
+        Target::StaticDist,
+        "p",
+        "https://example.test/",
+        COPY_TO_FOLDER,
+        dest.to_str().unwrap(),
+    );
+    let plan = SealedPlan {
+        target: "static-dist".into(),
+        adapter: COPY_TO_FOLDER.into(),
+        destination: c.destination.clone(),
+        site: "site".into(),
+        files: vec![files[0].0.clone()],
+    };
+    let eng = FakeEngine::new(dir.path());
+    let run = StableId("run-x".into());
+    let out = CopyToFolder::new(dir.path()).deliver(&Delivery {
+        run: &run,
+        plan: &plan,
+        files: &files,
+        site: dir.path(),
+        config: &c,
+        secrets: &NoSecrets,
+        engine: &eng,
+    });
+    assert_eq!(out.unwrap(), Delivered::Complete(RunStatus::Complete));
+    assert_eq!(std::fs::read(dest.join("index.html")).unwrap(), b"hi");
+    assert_eq!(
+        std::fs::read(dest.join("index.cv-tmp")).unwrap(),
+        b"keep me"
+    );
+    assert_eq!(
+        std::fs::read(dest.join("index.css")).unwrap(),
+        b"keep me too"
+    );
+    assert_eq!(
+        std::fs::read_dir(&dest).unwrap().count(),
+        3,
+        "no staging leftovers"
+    );
 }

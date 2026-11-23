@@ -11,12 +11,15 @@ use crate::targets::TargetConfig;
 use cv_core::engine::{Engine, ExitClass, Verb};
 use cv_core::id::StableId;
 use cv_core::publish::RunStatus;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 pub struct Delivery<'a> {
     pub run: &'a StableId,
     pub plan: &'a SealedPlan,
     pub files: &'a [(PlanFile, Vec<u8>)],
+    /// The sealed site directory the files were verified from.
+    pub site: &'a Path,
     pub config: &'a TargetConfig,
     pub secrets: &'a dyn SecretBackend,
     pub engine: &'a dyn Engine,
@@ -105,8 +108,17 @@ impl DeliveryAdapter for CopyToFolder {
                 if let Some(parent) = p.parent() {
                     std::fs::create_dir_all(parent)?;
                 }
-                let tmp = p.with_extension("cv-tmp");
-                std::fs::write(&tmp, bytes)?;
+                // Run-scoped staging name; `create_new` never clobbers a
+                // pre-existing sibling.
+                let name = p.file_name().unwrap_or_default().to_string_lossy();
+                let tmp = p.with_file_name(format!(".{name}.cv-tmp-{}", d.run.0));
+                let mut out = std::fs::OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(&tmp)?;
+                out.write_all(bytes)?;
+                out.sync_all()?;
+                drop(out);
                 std::fs::rename(&tmp, &p)
             };
             write().map_err(|e| TransportFailure::after_contact(format!("{}: {e}", f.path)))?;
@@ -139,24 +151,35 @@ impl DeliveryAdapter for CopyToFolder {
     }
 }
 
-/// Hand delivery to an engine verb (default `Verb::Publish{target}`).
-/// Process execution stays inside cv-engine behind the port.
+/// Hand delivery to an engine verb pointed at the sealed site dir
+/// (default `publish --target T --profile P --html-dir SITE`). Process
+/// execution stays inside cv-engine behind the port. After the verb
+/// returns, the site is re-verified against the seal: if its bytes
+/// changed mid-delivery, what shipped is unknowable.
 pub struct RunCommand {
-    verb: fn(&TargetConfig) -> Verb,
+    verb: fn(&TargetConfig, &Path) -> Verb,
 }
 
 impl Default for RunCommand {
     fn default() -> Self {
         Self {
-            verb: |cfg| Verb::Publish {
-                target: cfg.target.id().into(),
+            verb: |cfg, site| Verb::Custom {
+                name: "publish".into(),
+                args: vec![
+                    "--target".into(),
+                    cfg.target.id().into(),
+                    "--profile".into(),
+                    cfg.profile.clone(),
+                    "--html-dir".into(),
+                    site.to_string_lossy().into_owned(),
+                ],
             },
         }
     }
 }
 
 impl RunCommand {
-    pub fn new(verb: fn(&TargetConfig) -> Verb) -> Self {
+    pub fn new(verb: fn(&TargetConfig, &Path) -> Verb) -> Self {
         Self { verb }
     }
 }
@@ -167,14 +190,22 @@ impl DeliveryAdapter for RunCommand {
     }
 
     fn deliver(&self, d: &Delivery<'_>) -> Result<Delivered, TransportFailure> {
-        let verb = (self.verb)(d.config);
-        match d.engine.run(&verb, Box::new(|_| {})) {
+        let verb = (self.verb)(d.config, d.site);
+        let out = match d.engine.run(&verb, Box::new(|_| {})) {
             Ok(ExitClass::Ok) => Ok(Delivered::Complete(RunStatus::Complete)),
             // Rejected at argument parsing: nothing was sent.
-            Ok(ExitClass::UsageError) => Err(TransportFailure::before_contact("usage error")),
+            Ok(ExitClass::UsageError) => {
+                return Err(TransportFailure::before_contact("usage error"));
+            }
             Ok(other) => Err(TransportFailure::after_contact(format!("exit {other:?}"))),
             Err(e) => Err(TransportFailure::after_contact(format!("engine: {e}"))),
+        };
+        if crate::plan::load_sealed(d.site, d.plan).is_err() {
+            return Err(TransportFailure::after_contact(
+                "sealed site changed during delivery",
+            ));
         }
+        out
     }
 }
 

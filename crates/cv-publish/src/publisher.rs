@@ -364,6 +364,7 @@ impl<'a> Publisher<'a> {
             run,
             plan: &plan,
             files: &files,
+            site: &self.root.join(&plan.site),
             config: cfg,
             secrets: self.secrets,
             engine: self.engine,
