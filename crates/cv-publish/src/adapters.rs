@@ -108,10 +108,12 @@ impl DeliveryAdapter for CopyToFolder {
                 if let Some(parent) = p.parent() {
                     std::fs::create_dir_all(parent)?;
                 }
-                // Run-scoped staging name; `create_new` never clobbers a
-                // pre-existing sibling.
-                let name = p.file_name().unwrap_or_default().to_string_lossy();
-                let tmp = p.with_file_name(format!(".{name}.cv-tmp-{}", d.run.0));
+                // Fixed-length staging name (fits wherever the final name
+                // does), unique per run+path; `create_new` never clobbers
+                // a pre-existing sibling.
+                let tag = sha256(format!("{}\0{}", d.run.0, f.path).as_bytes());
+                let tag: String = tag.0[..8].iter().map(|b| format!("{b:02x}")).collect();
+                let tmp = p.with_file_name(format!(".cv-tmp-{tag}"));
                 let mut out = std::fs::OpenOptions::new()
                     .write(true)
                     .create_new(true)
