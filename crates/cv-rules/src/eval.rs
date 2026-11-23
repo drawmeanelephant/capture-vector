@@ -817,8 +817,9 @@ fn route_matches(u: &str, base_path: Option<&str>, route: &str) -> bool {
     let path = percent_decode(strip_query(url_path(u)));
     match base_path {
         Some(bp) => {
+            let bp = percent_decode(bp);
             let rel = path
-                .strip_prefix(bp)
+                .strip_prefix(bp.as_str())
                 .filter(|r| r.starts_with('/') || r.is_empty())
                 .unwrap_or(&path);
             let rel = rel.trim_start_matches('/');
@@ -945,6 +946,11 @@ mod tests {
             None
         );
         assert_eq!(percent_encode("a b/c.html"), "a%20b/c.html");
+        assert!(route_matches(
+            "https://a.example/my%20docs/b.html",
+            Some("/my%20docs"),
+            "b.html"
+        ));
         assert_eq!(percent_decode("a%20b"), "a b");
         assert_eq!(percent_decode("a%\u{e9}x"), "a%\u{e9}x");
         assert_eq!(percent_decode("%2"), "%2");
