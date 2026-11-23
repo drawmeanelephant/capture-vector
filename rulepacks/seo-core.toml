@@ -1,0 +1,72 @@
+# seo-core v1 — head-level search basics over final HTML.
+# Every rule cites its source; SOURCES.md is generated from these citations.
+
+[pack]
+id = "seo-core"
+version = 1
+description = "Head-level search basics checked against final HTML."
+
+[[rule]]
+id = "SEO-TITLE-SINGLE"
+severity = "Error"
+tier = "NormativeSpec"
+archetypes = ["Any"]
+remediation = "Emit exactly one <title> in the page head; remove duplicates from the layout or rendered fragments."
+check = { Count = { artifact = "Html", selector = { Html = "head title" }, op = "Le", threshold = 1 } }
+[rule.citation]
+source = "WHATWG HTML Living Standard, 4.2.2 The title element"
+url = "https://html.spec.whatwg.org/multipage/semantics.html#the-title-element"
+frozen_quote = "There must be no more than one title element per document."
+captured = "2026-11-23"
+
+[[rule]]
+id = "SEO-CANONICAL-SINGLE"
+severity = "Error"
+tier = "NormativeSpec"
+archetypes = ["Any"]
+remediation = "Declare at most one rel=\"canonical\" link per page."
+check = { Count = { artifact = "Html", selector = { Html = "link[rel~=canonical]" }, op = "Le", threshold = 1 } }
+[rule.citation]
+source = "RFC 6596 The Canonical Link Relation, section 5"
+url = "https://www.rfc-editor.org/rfc/rfc6596#section-5"
+frozen_quote = "Specify only one canonical link relation for a resource. (It would be confusing to consider/label/designate more than one IRI as authoritative.)"
+captured = "2026-11-23"
+
+[[rule]]
+id = "SEO-CANONICAL-PRESENT"
+severity = "Warning"
+tier = "Heuristic"
+archetypes = ["Any"]
+remediation = "Enable compiler-owned head metadata (target `head.enabled` + `base_url`) so every page carries a self-referential canonical."
+check = { Exists = { artifact = "Html", selector = { Html = "link[rel~=canonical]" } } }
+[rule.citation]
+source = "Google Search Central: How to specify a canonical with rel=\"canonical\""
+url = "https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls"
+frozen_quote = "Do include a rel=\"canonical\" link on the canonical page itself (also known as a self-referential canonical)."
+captured = "2026-11-23"
+
+[[rule]]
+id = "SEO-META-DESCRIPTION"
+severity = "Info"
+tier = "Heuristic"
+archetypes = ["Any"]
+remediation = "Give the page a `summary` (or a head `description` default/override) so Boris emits <meta name=\"description\">."
+check = { Exists = { artifact = "Html", selector = { Html = "meta[name=description]" } } }
+[rule.citation]
+source = "Google Search Central: How to write meta descriptions"
+url = "https://developers.google.com/search/docs/appearance/snippet"
+frozen_quote = "A meta description tag generally informs and interests users with a short, relevant summary of what a particular page is about."
+captured = "2026-11-23"
+
+[[rule]]
+id = "SEO-LIVE-X-ROBOTS-TAG"
+severity = "Warning"
+tier = "Heuristic"
+archetypes = ["Any"]
+remediation = "Verify the deployed host's response headers carry no unintended X-Robots-Tag: noindex. cv-rules never fetches, so this stays limited."
+check = { Exists = { artifact = "Html", selector = { JsonPath = "$http.headers.x-robots-tag" } } }
+[rule.citation]
+source = "Google Search Central: Block search indexing with noindex"
+url = "https://developers.google.com/search/docs/crawling-indexing/block-indexing"
+frozen_quote = "There are two ways to implement noindex: as a <meta> tag and as an HTTP response header. They have the same effect; choose the method that is more convenient for your site and appropriate for the content type."
+captured = "2026-11-23"

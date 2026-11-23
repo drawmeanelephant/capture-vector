@@ -1,0 +1,45 @@
+# a11y-content v1 — WCAG 2.2 success criteria checkable from final HTML.
+
+[pack]
+id = "a11y-content"
+version = 1
+description = "WCAG 2.2 success criteria that are checkable from final HTML alone."
+
+[[rule]]
+id = "A11Y-HTML-LANG"
+severity = "Error"
+tier = "NormativeSpec"
+archetypes = ["Any"]
+remediation = "Set `lang` on the layout's <html> element."
+check = { Exists = { artifact = "Html", selector = { Html = "html[lang]" } } }
+[rule.citation]
+source = "WCAG 2.2, Success Criterion 3.1.1 Language of Page"
+url = "https://www.w3.org/TR/WCAG22/#language-of-page"
+frozen_quote = "The default human language of each web page can be programmatically determined."
+captured = "2026-11-23"
+
+[[rule]]
+id = "A11Y-IMG-ALT"
+severity = "Error"
+tier = "NormativeSpec"
+archetypes = ["Any"]
+remediation = "Give every <img> an `alt` attribute (empty `alt=\"\"` for purely decorative images)."
+check = { Count = { artifact = "Html", selector = { Html = "img:not([alt])" }, op = "Eq", threshold = 0 } }
+[rule.citation]
+source = "WCAG 2.2, Success Criterion 1.1.1 Non-text Content"
+url = "https://www.w3.org/TR/WCAG22/#non-text-content"
+frozen_quote = "All non-text content that is presented to the user has a text alternative that serves the equivalent purpose, except for the situations listed below."
+captured = "2026-11-23"
+
+[[rule]]
+id = "A11Y-PAGE-TITLE"
+severity = "Error"
+tier = "NormativeSpec"
+archetypes = ["Any"]
+remediation = "Every page needs a <title>; keep `{{title}}` in the layout head."
+check = { Exists = { artifact = "Html", selector = { Html = "head title" } } }
+[rule.citation]
+source = "WCAG 2.2, Success Criterion 2.4.2 Page Titled"
+url = "https://www.w3.org/TR/WCAG22/#page-titled"
+frozen_quote = "Web pages have titles that describe topic or purpose."
+captured = "2026-11-23"

@@ -1,0 +1,150 @@
+# targets v1 — cross-artifact parity against the TargetDeployProfile and
+# draft/noindex leakage into machine exports. Live-HTTP facts are limited.
+
+[pack]
+id = "targets"
+version = 1
+description = "Cross-artifact parity (HTML canonical, sitemap, RSS, llms.txt, internal hrefs, deploy profile) and export leakage."
+
+[[rule]]
+id = "TGT-CANONICAL-PARITY"
+severity = "Error"
+tier = "EngineDocumented"
+archetypes = ["Any"]
+remediation = "Canonical, sitemap <loc>, RSS <link>, llms.txt links and absolute internal hrefs must all spell the deploy base + emitted route; rebuild with the target's real `base_url`."
+check = { Parity = { field = "CanonicalUrl" } }
+[rule.citation]
+source = "Boris 0.9.0 contract: Compiler-owned head metadata (docs/contracts/head-metadata.md)"
+url = "https://github.com/drawmeanelephant/boris/blob/v0.9.0/docs/contracts/head-metadata.md"
+frozen_quote = "Canonical is `normalized_base + \"/\" + percent_encoded(emitted_output_path)`, using the sitemap URL builder and the same path-byte encoding as RSS."
+captured = "2026-11-23"
+
+[[rule]]
+id = "TGT-PAGESET-PARITY"
+severity = "Error"
+tier = "EngineDocumented"
+archetypes = ["Any"]
+remediation = "Every advertised page belongs in the sitemap, and every sitemap/RSS/llms.txt entry and internal page href must resolve to an emitted page."
+check = { Parity = { field = "PageSet" } }
+[rule.citation]
+source = "Boris 0.9.0 contract: HTML output, Status gating (docs/contracts/html-output.md)"
+url = "https://github.com/drawmeanelephant/boris/blob/v0.9.0/docs/contracts/html-output.md#status-gating-on-the-default-html-target-738"
+frozen_quote = "`status` is a document fact; each projection owns its eligibility rule. On the default HTML target a `status: draft` page is **emitted but not advertised**:"
+captured = "2026-11-23"
+
+[[rule]]
+id = "TGT-LASTMOD-PARITY"
+severity = "Warning"
+tier = "Heuristic"
+archetypes = ["Any"]
+remediation = "A sitemap <lastmod> should agree with the page's article:modified_time; drop one or make them match."
+check = { Parity = { field = "LastModified" } }
+[rule.citation]
+source = "sitemaps.org Sitemap protocol, XML tag definitions"
+url = "https://www.sitemaps.org/protocol.html"
+frozen_quote = "The date of last modification of the page. This date should be in W3C Datetime format."
+captured = "2026-11-23"
+
+[[rule]]
+id = "TGT-SITEMAP-DRAFT-LEAK"
+severity = "Error"
+tier = "EngineDocumented"
+archetypes = ["Any"]
+remediation = "A draft page must not appear in sitemap.xml; publish it or keep it out of the sitemap."
+check = { NotPresent = { artifact = "Sitemap", selector = { IrNode = { kind = "*", field = "status=draft" } } } }
+[rule.citation]
+source = "Boris 0.9.0 contract: Frontmatter, status (docs/contracts/frontmatter.md)"
+url = "https://github.com/drawmeanelephant/boris/blob/v0.9.0/docs/contracts/frontmatter.md"
+frozen_quote = "Standard.site, Nostr, RSS, sitemap, and search exclude drafts; IR and RAG keep every page."
+captured = "2026-11-23"
+
+[[rule]]
+id = "TGT-RSS-DRAFT-LEAK"
+severity = "Error"
+tier = "EngineDocumented"
+archetypes = ["Any"]
+remediation = "A draft page must not appear in the RSS feed; publish it or keep it out of the feed."
+check = { NotPresent = { artifact = "Rss", selector = { IrNode = { kind = "*", field = "status=draft" } } } }
+[rule.citation]
+source = "Boris 0.9.0 contract: Frontmatter, status (docs/contracts/frontmatter.md)"
+url = "https://github.com/drawmeanelephant/boris/blob/v0.9.0/docs/contracts/frontmatter.md"
+frozen_quote = "Standard.site, Nostr, RSS, sitemap, and search exclude drafts; IR and RAG keep every page."
+captured = "2026-11-23"
+
+[[rule]]
+id = "TGT-LLMS-DRAFT-LEAK"
+severity = "Error"
+tier = "EngineDocumented"
+archetypes = ["Any"]
+remediation = "llms.txt follows the navigation tree, which prunes drafts; a draft entry means the export was hand-edited or stale."
+check = { NotPresent = { artifact = "Llms", selector = { IrNode = { kind = "*", field = "status=draft" } } } }
+[rule.citation]
+source = "Boris 0.9.0 reference: Outputs, llms.txt (content/reference/outputs.md)"
+url = "https://github.com/drawmeanelephant/boris/blob/v0.9.0/content/reference/outputs.md#llmstxt"
+frozen_quote = "Entries follow the validated navigation tree and link to the current static routes"
+captured = "2026-11-23"
+
+[[rule]]
+id = "TGT-RAG-DRAFT-LEAK"
+severity = "Error"
+tier = "EngineDocumented"
+archetypes = ["Any"]
+remediation = "Boris RAG keeps every page, drafts included; scope the export (`--scope`) or publish the draft before shipping a RAG pack."
+check = { NotPresent = { artifact = "Rag", selector = { IrNode = { kind = "*", field = "status=draft" } } } }
+[rule.citation]
+source = "Boris 0.9.0 contract: Frontmatter, status (docs/contracts/frontmatter.md)"
+url = "https://github.com/drawmeanelephant/boris/blob/v0.9.0/docs/contracts/frontmatter.md"
+frozen_quote = "Standard.site, Nostr, RSS, sitemap, and search exclude drafts; IR and RAG keep every page."
+captured = "2026-11-23"
+
+[[rule]]
+id = "TGT-SITEMAP-NOINDEX-LEAK"
+severity = "Error"
+tier = "EngineDocumented"
+archetypes = ["Any"]
+remediation = "A page that says noindex should not be advertised in the sitemap; drop one of the two signals."
+check = { NotPresent = { artifact = "Sitemap", selector = { Html = "meta[name=robots][content~=noindex]" } } }
+[rule.citation]
+source = "Google Search Central: Build and submit a sitemap"
+url = "https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap"
+frozen_quote = "Include the URLs in your sitemap that you want to see in Google's search results."
+captured = "2026-11-23"
+
+[[rule]]
+id = "TGT-ROBOTS-TXT"
+severity = "Error"
+tier = "NormativeSpec"
+archetypes = ["Any"]
+remediation = "The deploy profile expects robots.txt; emit one at the top of the target (Boris passes static files through)."
+check = { Exists = { artifact = "RobotsTxt", selector = { JsonPath = "$" } } }
+[rule.citation]
+source = "RFC 9309 Robots Exclusion Protocol, 2.3 Access Method"
+url = "https://www.rfc-editor.org/rfc/rfc9309#section-2.3"
+frozen_quote = "The rules MUST be accessible in a file named \"/robots.txt\" (all lowercase) in the top-level path of the service."
+captured = "2026-11-23"
+
+[[rule]]
+id = "TGT-ROBOTS-SITEMAP"
+severity = "Info"
+tier = "Heuristic"
+archetypes = ["Any"]
+remediation = "Add a `Sitemap: <absolute sitemap URL>` line to robots.txt."
+check = { Exists = { artifact = "RobotsTxt", selector = { JsonPath = "$.sitemaps[*]" } } }
+[rule.citation]
+source = "sitemaps.org Sitemap protocol, Specifying the Sitemap location in your robots.txt file"
+url = "https://www.sitemaps.org/protocol.html#submit_robots"
+frozen_quote = "You can specify the location of the Sitemap using a robots.txt file."
+captured = "2026-11-23"
+
+[[rule]]
+id = "TGT-LIVE-ROBOTS-SERVED"
+severity = "Warning"
+tier = "NormativeSpec"
+archetypes = ["Any"]
+remediation = "Confirm the host serves robots.txt at the origin root (a project base path like /project/ is not the top-level path). Needs live HTTP, so cv-rules reports limited."
+check = { Exists = { artifact = "RobotsTxt", selector = { JsonPath = "$http.status" } } }
+[rule.citation]
+source = "RFC 9309 Robots Exclusion Protocol, 2.3 Access Method"
+url = "https://www.rfc-editor.org/rfc/rfc9309#section-2.3"
+frozen_quote = "The rules MUST be accessible in a file named \"/robots.txt\" (all lowercase) in the top-level path of the service."
+captured = "2026-11-23"
