@@ -2,6 +2,8 @@
 //! (`cv_model::workbench`) and hands it to `cv_widgets::app::run`. No
 //! rune import here; scenes are shared by the binary and golden tests.
 
+pub mod editor;
+
 use cv_core::engine::Engine;
 use cv_core::events::shell::DegradedReason;
 use cv_fixtures::stub_engine::StubEngine;

@@ -1,0 +1,18 @@
+schema_version = 1
+engine_version = 'boris/0.9.0'
+capture_command = "scripts/capture-editor-fixtures.sh"
+captured = "2026-11-23T20:26:07Z"
+
+"captures/parity/completion.json" = "8a0a5c44d9fc1f731366cde29c6318437f7778fd1907701d55e9434601089dc3"
+"captures/parity/html-exit-code.txt" = "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+"captures/parity/html-stderr.txt" = "1df9e1e1a92762801967f385cc0f2918de345f1a5699647b91b6e0890f2c96a5"
+"captures/parity/html/guide.html" = "7546c9e05d45d923041a613f78f57c4d85d416400ae231460e88459e37af5f98"
+"captures/parity/html/index.html" = "930c3d59c6a87cc2971484e0a68f52e642795fdcbf9cbc566fc9d5c1c5bbab99"
+"captures/parity/ir-exit-code.txt" = "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+"captures/parity/ir-stderr.txt" = "0fe62fe5825c9359d23ba5c88d6b14be84770d86f9d59313a7787abdeb313bb9"
+"corpus-src/parity/boris.json" = "84602a00f88f7fe423986b177bff8aad8e69542f488f585f2b99bb953aeaa8da"
+"corpus-src/parity/content/guide.md" = "8edd0e608f1ead595f000e8f052ec0f8e47991873d99707aa3067c6be266424e"
+"corpus-src/parity/content/includes/note.md" = "d935bf5994ce73aee86b9b6d3bae24b5911bcb76e1bef7f8f1cc861595b97cb5"
+"corpus-src/parity/content/index.md" = "688e6678b569a8bdcd957c53a42ed5b55ff2ac2b478c4512b5a6f8125dc87593"
+"corpus-src/parity/themes/boris/assets/css/boris.css" = "ac4dc197bb46ade5432be1a4ed5d0a958c4834f386909577c3b5f1b74e8d219e"
+"corpus-src/parity/themes/boris/layouts/main.html" = "efd2870bd5632cb0d6097938e29f3646571c8782a11901ac1867b54f708eec3c"

@@ -1,0 +1,921 @@
+{
+  "nodes": [
+    {
+      "fill": "#0e1014ff",
+      "key": "editor",
+      "opacity": 1.0,
+      "path": "editor",
+      "rect": [
+        0.0,
+        0.0,
+        1100.0,
+        760.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "editor-main",
+      "opacity": 1.0,
+      "path": "editor/editor-main",
+      "rect": [
+        12.0,
+        12.0,
+        684.0,
+        736.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "editor-header",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-header",
+      "rect": [
+        12.0,
+        12.0,
+        684.0,
+        21.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-header/#0",
+      "rect": [
+        12.0,
+        12.0,
+        55.5,
+        21.8
+      ],
+      "role": "text",
+      "text": "page.md"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "editor-save",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-header/editor-save",
+      "rect": [
+        75.5,
+        12.0,
+        33.8,
+        21.8
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-header/editor-save/#0",
+      "rect": [
+        79.5,
+        16.0,
+        25.8,
+        13.8
+      ],
+      "role": "text",
+      "text": "Save"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "editor-undo",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-header/editor-undo",
+      "rect": [
+        117.3,
+        12.0,
+        36.2,
+        21.8
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-header/editor-undo/#0",
+      "rect": [
+        121.3,
+        16.0,
+        28.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "Undo"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "editor-redo",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-header/editor-redo",
+      "rect": [
+        161.5,
+        12.0,
+        34.9,
+        21.8
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-header/editor-redo/#0",
+      "rect": [
+        165.5,
+        16.0,
+        26.9,
+        13.8
+      ],
+      "role": "text",
+      "text": "Redo"
+    },
+    {
+      "key": "editor-form",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form",
+      "rect": [
+        12.0,
+        41.8,
+        684.0,
+        205.0
+      ],
+      "role": "group"
+    },
+    {
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#0",
+      "rect": [
+        12.0,
+        41.8,
+        684.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#0/#0",
+      "rect": [
+        12.0,
+        41.8,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "id"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "fm-id",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#0/fm-id",
+      "rect": [
+        116.0,
+        41.8,
+        416.6,
+        15.0
+      ],
+      "role": "textbox",
+      "text": "broken-link-page"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#0/#2",
+      "rect": [
+        540.6,
+        41.8,
+        155.4,
+        15.0
+      ],
+      "role": "text",
+      "text": "entity id (defaults to the path)"
+    },
+    {
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#1",
+      "rect": [
+        12.0,
+        60.8,
+        684.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#1/#0",
+      "rect": [
+        12.0,
+        60.8,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "title"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "fm-title",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#1/fm-title",
+      "rect": [
+        116.0,
+        60.8,
+        530.7,
+        15.0
+      ],
+      "role": "textbox",
+      "text": "Page with Broken Wikilink"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#1/#2",
+      "rect": [
+        654.7,
+        60.8,
+        41.3,
+        15.0
+      ],
+      "role": "text",
+      "text": "one line"
+    },
+    {
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#2",
+      "rect": [
+        12.0,
+        79.8,
+        684.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#2/#0",
+      "rect": [
+        12.0,
+        79.8,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "parent"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "fm-parent",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#2/fm-parent",
+      "rect": [
+        116.0,
+        79.8,
+        369.0,
+        15.0
+      ],
+      "role": "textbox",
+      "text": ""
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#2/#2",
+      "rect": [
+        493.0,
+        79.8,
+        203.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "parent page id — makes this a Satellite"
+    },
+    {
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#3",
+      "rect": [
+        12.0,
+        98.8,
+        684.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#3/#0",
+      "rect": [
+        12.0,
+        98.8,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "status"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "fm-status",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#3/fm-status",
+      "rect": [
+        116.0,
+        98.8,
+        430.9,
+        15.0
+      ],
+      "role": "textbox",
+      "text": ""
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#3/#2",
+      "rect": [
+        554.9,
+        98.8,
+        141.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "draft | published | archived"
+    },
+    {
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#4",
+      "rect": [
+        12.0,
+        117.8,
+        684.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#4/#0",
+      "rect": [
+        12.0,
+        117.8,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "tags"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "fm-tags",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#4/fm-tags",
+      "rect": [
+        116.0,
+        117.8,
+        544.8,
+        15.0
+      ],
+      "role": "textbox",
+      "text": ""
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#4/#2",
+      "rect": [
+        668.8,
+        117.8,
+        27.2,
+        15.0
+      ],
+      "role": "text",
+      "text": "[a, b]"
+    },
+    {
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#5",
+      "rect": [
+        12.0,
+        136.8,
+        684.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#5/#0",
+      "rect": [
+        12.0,
+        136.8,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "relations"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "fm-relations",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#5/fm-relations",
+      "rect": [
+        116.0,
+        136.8,
+        486.9,
+        15.0
+      ],
+      "role": "textbox",
+      "text": ""
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#5/#2",
+      "rect": [
+        610.9,
+        136.8,
+        85.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "[kind=target, …]"
+    },
+    {
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#6",
+      "rect": [
+        12.0,
+        155.8,
+        684.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#6/#0",
+      "rect": [
+        12.0,
+        155.8,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "published_at"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "fm-published_at",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#6/fm-published_at",
+      "rect": [
+        116.0,
+        155.8,
+        329.4,
+        15.0
+      ],
+      "role": "textbox",
+      "text": ""
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#6/#2",
+      "rect": [
+        453.4,
+        155.8,
+        242.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "YYYY-MM-DDTHH:MM:SSZ (needs summary)"
+    },
+    {
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#7",
+      "rect": [
+        12.0,
+        174.8,
+        684.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#7/#0",
+      "rect": [
+        12.0,
+        174.8,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "summary"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "fm-summary",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#7/fm-summary",
+      "rect": [
+        116.0,
+        174.8,
+        530.7,
+        15.0
+      ],
+      "role": "textbox",
+      "text": ""
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#7/#2",
+      "rect": [
+        654.7,
+        174.8,
+        41.3,
+        15.0
+      ],
+      "role": "text",
+      "text": "one line"
+    },
+    {
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#8",
+      "rect": [
+        12.0,
+        193.8,
+        684.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#8/#0",
+      "rect": [
+        12.0,
+        193.8,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "servings"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "fm-servings",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#8/fm-servings",
+      "rect": [
+        116.0,
+        193.8,
+        414.1,
+        15.0
+      ],
+      "role": "textbox",
+      "text": ""
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#8/#2",
+      "rect": [
+        538.1,
+        193.8,
+        157.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "Cooklang count, e.g. 4 people"
+    },
+    {
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#9",
+      "rect": [
+        12.0,
+        212.8,
+        684.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#9/#0",
+      "rect": [
+        12.0,
+        212.8,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "serves"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "fm-serves",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#9/fm-serves",
+      "rect": [
+        116.0,
+        212.8,
+        433.2,
+        15.0
+      ],
+      "role": "textbox",
+      "text": ""
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#9/#2",
+      "rect": [
+        557.2,
+        212.8,
+        138.8,
+        15.0
+      ],
+      "role": "text",
+      "text": "Cooklang alias of servings"
+    },
+    {
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#10",
+      "rect": [
+        12.0,
+        231.8,
+        684.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#10/#0",
+      "rect": [
+        12.0,
+        231.8,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "yield"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "fm-yield",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#10/fm-yield",
+      "rect": [
+        116.0,
+        231.8,
+        433.2,
+        15.0
+      ],
+      "role": "textbox",
+      "text": ""
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "editor/editor-main/editor-form/#10/#2",
+      "rect": [
+        557.2,
+        231.8,
+        138.8,
+        15.0
+      ],
+      "role": "text",
+      "text": "Cooklang alias of servings"
+    },
+    {
+      "opacity": 1.0,
+      "path": "editor/editor-main/#2",
+      "rect": [
+        12.0,
+        254.8,
+        684.0,
+        493.3
+      ],
+      "role": "group"
+    },
+    {
+      "opacity": 1.0,
+      "path": "editor/editor-main/#2/#0",
+      "rect": [
+        12.0,
+        254.8,
+        684.0,
+        240.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "editor-gutter",
+      "opacity": 1.0,
+      "path": "editor/editor-main/#2/#0/editor-gutter",
+      "rect": [
+        12.0,
+        254.8,
+        56.0,
+        240.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#ff3d71ff",
+      "key": "gutter-6",
+      "opacity": 1.0,
+      "path": "editor/editor-main/#2/#0/editor-gutter/gutter-6",
+      "rect": [
+        12.0,
+        254.8,
+        56.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "● 6"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "editor-body",
+      "opacity": 1.0,
+      "path": "editor/editor-main/#2/#0/editor-body",
+      "rect": [
+        72.0,
+        254.8,
+        624.0,
+        240.0
+      ],
+      "role": "textbox",
+      "text": "\nThis page links to [[non-existent-page-target]] which does not exist in the corpus.\n"
+    },
+    {
+      "key": "editor-side",
+      "opacity": 1.0,
+      "path": "editor/editor-side",
+      "rect": [
+        708.0,
+        12.0,
+        380.0,
+        736.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "problems",
+      "opacity": 1.0,
+      "path": "editor/editor-side/problems",
+      "rect": [
+        708.0,
+        12.0,
+        380.0,
+        52.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "editor/editor-side/problems/#0",
+      "rect": [
+        708.0,
+        12.0,
+        380.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Problems"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "problem-0",
+      "opacity": 1.0,
+      "path": "editor/editor-side/problems/problem-0",
+      "rect": [
+        708.0,
+        29.8,
+        380.0,
+        34.3
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#ff3d71ff",
+      "opacity": 1.0,
+      "path": "editor/editor-side/problems/problem-0/#0",
+      "rect": [
+        712.0,
+        33.8,
+        372.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "EREFERENCEMISSING:6"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "editor/editor-side/problems/problem-0/#1",
+      "rect": [
+        712.0,
+        47.5,
+        372.0,
+        12.5
+      ],
+      "role": "text",
+      "text": "wiki-link target \"non-existent-page-target\" not found in the page graph [Point the wiki-link at an existing page entity id, and if using #heading-id match a rendered heading id on that page]"
+    },
+    {
+      "key": "draft-sketch",
+      "opacity": 1.0,
+      "path": "editor/editor-side/draft-sketch",
+      "rect": [
+        708.0,
+        76.0,
+        380.0,
+        672.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#ffb020ff",
+      "key": "sketch-label",
+      "opacity": 1.0,
+      "path": "editor/editor-side/draft-sketch/sketch-label",
+      "rect": [
+        708.0,
+        76.0,
+        380.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Draft sketch — advisory"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "sketch-disclaimer",
+      "opacity": 1.0,
+      "path": "editor/editor-side/draft-sketch/sketch-disclaimer",
+      "rect": [
+        708.0,
+        93.8,
+        380.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Not Boris output. The next build is authoritative; see the site in your browser via `boris watch --serve`."
+    },
+    {
+      "key": "sketch-body",
+      "opacity": 1.0,
+      "path": "editor/editor-side/draft-sketch/sketch-body",
+      "rect": [
+        708.0,
+        111.5,
+        380.0,
+        636.5
+      ],
+      "role": "group"
+    },
+    {
+      "opacity": 1.0,
+      "path": "editor/editor-side/draft-sketch/sketch-body/#0",
+      "rect": [
+        708.0,
+        111.5,
+        380.0,
+        44.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#eff0f2ff",
+      "key": "b0",
+      "opacity": 1.0,
+      "path": "editor/editor-side/draft-sketch/sketch-body/#0/b0",
+      "rect": [
+        708.0,
+        111.5,
+        380.0,
+        44.8
+      ],
+      "role": "text",
+      "text": "This page links to ⁦[[non-existent-page-target]]⁩ which does not exist in the corpus."
+    }
+  ],
+  "schema": 1
+}
