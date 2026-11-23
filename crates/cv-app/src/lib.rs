@@ -109,6 +109,21 @@ pub fn open_workspace(
             return None;
         }
     };
+    // Editor buffers belong to the workspace they were opened from; their
+    // saves and Problems rails must not follow a switch.
+    let editors = wb
+        .windows
+        .companions
+        .iter()
+        .filter(|c| c.module == cv_widgets::editor::MODULE)
+        .count();
+    if editors > 0 {
+        wb.status = format!(
+            "close {editors} editor window(s) before opening {}",
+            root.display()
+        );
+        return None;
+    }
     let slot = live::EngineSlot::default();
     let research = cv_notes::disk::open(
         &root,
@@ -117,8 +132,17 @@ pub fn open_workspace(
     );
     let research_err = match research {
         Ok((r, _)) => {
-            let port = r.port.with_writer(Box::new(live::SlotEngine(slot.clone())));
             let input = snapshot::content_input(&root);
+            // Promotion writes under the input; one that resolves outside
+            // the workspace (a symlink) gets no writer, so promotion
+            // refuses instead of writing elsewhere.
+            let inside =
+                workspace::normalize(&root.join(&input)).map_or(true, |p| p.starts_with(&root));
+            let port = if inside {
+                r.port.with_writer(Box::new(live::SlotEngine(slot.clone())))
+            } else {
+                r.port
+            };
             cv_model::modules::research::install_in(Box::new(port), r.notebook, &input);
             None
         }

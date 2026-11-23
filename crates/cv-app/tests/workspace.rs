@@ -321,3 +321,47 @@ fn research_storage_failure_survives_the_engine_outcome() {
     );
     assert!(wb.status.contains("boris not found"), "{}", wb.status);
 }
+
+#[test]
+fn open_editors_block_a_workspace_switch() {
+    let a = workspace("happy");
+    let b = workspace("happy");
+    let cfg = tempfile::tempdir().unwrap();
+    let env = absent_env(cfg.path());
+    let mut wb = init();
+    open(&mut wb, a.path(), &env);
+    cv_app::editor::open_page(&mut wb, a.path(), "content/index.md").unwrap();
+    assert!(open_workspace(&mut wb, b.path().to_path_buf(), &env).is_none());
+    assert!(wb.status.contains("editor window"), "{}", wb.status);
+    assert!(
+        wb.workspace
+            .as_deref()
+            .unwrap()
+            .ends_with(a.path().file_name().unwrap())
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn symlinked_input_outside_the_workspace_gets_no_promotion_writer() {
+    let ws = workspace("happy");
+    let outside = tempfile::Builder::new()
+        .prefix("cv-out-")
+        .tempdir()
+        .unwrap();
+    let content = ws.path().join("content");
+    copy_tree(&content, outside.path());
+    std::fs::remove_dir_all(&content).unwrap();
+    std::os::unix::fs::symlink(outside.path(), &content).unwrap();
+    let cfg = tempfile::tempdir().unwrap();
+    let fake = Fake::new("happy", None);
+    let mut wb = init();
+    open(&mut wb, ws.path(), &fake.env(cfg.path()));
+    wait_for(&mut wb, "watch handshake", |wb| wb.app.engine.is_some());
+    wb.run_command("shell.goto.research");
+    wb.run_command("research.capture.idea");
+    wb.set_nav("all");
+    wb.select_key("note-0001");
+    wb.run_command("research.promote");
+    assert!(!outside.path().join("notes").exists(), "{}", wb.status);
+}
