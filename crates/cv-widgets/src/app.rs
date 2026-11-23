@@ -7,10 +7,13 @@ use crate::{editor, harness};
 use cv_model::module::ReadingModel;
 use cv_model::theme::Theme;
 use cv_model::windows::WindowId;
-use cv_model::workbench::Workbench;
-use rune::{AppSpec, Cx, El, Tx, Waker, WindowHandle, WindowSpec, col, row, text};
+use cv_model::workbench::{ShellRequest, Workbench};
+use rune::{
+    AppSpec, Cx, El, FileDialogOptions, Tx, Waker, WindowHandle, WindowSpec, col, row, text,
+};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, VecDeque};
+use std::path::PathBuf;
 use std::sync::OnceLock;
 
 pub type Scene = (&'static str, fn(&mut Workbench));
@@ -20,10 +23,13 @@ pub struct Launch {
     pub init: fn() -> Workbench,
     /// Runs once with the waker installed: start engine watch, etc.
     pub boot: fn(&mut Workbench),
+    /// Open a workspace root (folder dialog answer, recent entry).
+    pub open: fn(&mut Workbench, PathBuf),
     pub scenes: &'static [Scene],
 }
 
 static BOOT: OnceLock<fn(&mut Workbench)> = OnceLock::new();
+static OPEN: OnceLock<fn(&mut Workbench, PathBuf)> = OnceLock::new();
 static WAKE: OnceLock<Waker> = OnceLock::new();
 
 // All windows share one event-loop thread, so companion bookkeeping is
@@ -173,19 +179,64 @@ fn setup(s: &mut Workbench, w: Waker) {
     }
 }
 
+fn open_workspace(s: &mut Workbench, root: PathBuf) {
+    match OPEN.get() {
+        Some(open) => open(s, root),
+        None => s.status = "this build cannot open workspaces".into(),
+    }
+}
+
+/// Carry out shell requests that need the window: the native folder
+/// picker answers on a later frame through `open_workspace`.
+fn serve_requests(s: &mut Workbench, tx: &mut Tx) -> bool {
+    let reqs = std::mem::take(&mut s.requests);
+    let changed = !reqs.is_empty();
+    for r in reqs {
+        match r {
+            ShellRequest::PickWorkspace => {
+                let options = FileDialogOptions {
+                    title: "Open workspace".into(),
+                    directory: s.workspace.clone(),
+                    ..Default::default()
+                };
+                tx.open_folder(options, |s: &mut Workbench, answer, _| match answer {
+                    Ok(Some(root)) => open_workspace(s, root),
+                    Ok(None) => {}
+                    Err(e) => {
+                        s.status = format!(
+                            "folder picker unavailable ({e}); pass --project <dir> or set CV_PROJECT"
+                        )
+                    }
+                });
+            }
+            ShellRequest::OpenWorkspace(root) => open_workspace(s, root),
+        }
+    }
+    changed
+}
+
+/// Palette commands and chords can queue requests; serve them now so a
+/// dialog opens on this keypress's frame.
+fn on_key(s: &mut Workbench, ev: &rune::KeyEvent, tx: &mut Tx) -> bool {
+    let used = harness::on_key(s, ev, tx);
+    serve_requests(s, tx) || used
+}
+
 fn poll(s: &mut Workbench, t: f64, tx: &mut Tx) -> bool {
     let changed = harness::poll(s, t, tx);
-    sync_companions(s) || changed
+    let served = serve_requests(s, tx);
+    sync_companions(s) || changed || served
 }
 
 /// Boot the primary window (or a headless run, per rune's CLI flags).
 pub fn run(l: Launch) {
     let _ = BOOT.set(l.boot);
+    let _ = OPEN.set(l.open);
     rune::run(AppSpec {
         scenes: l.scenes,
         setup: Some(setup),
         poll: Some(poll),
-        on_key: Some(harness::on_key),
+        on_key: Some(on_key),
         min_size: Some((960.0, 560.0)),
         ..AppSpec::new(l.title, harness::SIZE, l.init, view)
     });

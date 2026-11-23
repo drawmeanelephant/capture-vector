@@ -142,3 +142,100 @@ pub fn page(path: &str, raw: &str) -> PageRecord {
     }
     p
 }
+
+/// Directories never walked for page sources.
+const SKIP_DIRS: &[&str] = &["themes", "node_modules", "target"];
+/// Bound on page sources read for one snapshot.
+const MAX_PAGES: usize = 20_000;
+
+/// The profile's content input: `boris.json`'s `input`, else `content/`
+/// when present, else the root.
+pub fn content_input(root: &std::path::Path) -> String {
+    std::fs::read_to_string(root.join("boris.json"))
+        .ok()
+        .and_then(|s| serde_json::from_str::<Value>(&s).ok())
+        .and_then(|v| v["input"].as_str().map(String::from))
+        .unwrap_or_else(|| {
+            if root.join("content").is_dir() {
+                "content".into()
+            } else {
+                ".".into()
+            }
+        })
+}
+
+fn walk(dir: &std::path::Path, rel: &str, html_dir: &str, out: &mut Vec<(String, String)>) {
+    let Ok(rd) = std::fs::read_dir(dir) else {
+        return;
+    };
+    let mut entries: Vec<_> = rd.flatten().collect();
+    entries.sort_by_key(|e| e.file_name());
+    for e in entries {
+        if out.len() >= MAX_PAGES {
+            return;
+        }
+        let name = e.file_name().to_string_lossy().into_owned();
+        if name.starts_with('.') {
+            continue;
+        }
+        let child = if rel.is_empty() {
+            name.clone()
+        } else {
+            format!("{rel}/{name}")
+        };
+        let Ok(ft) = e.file_type() else { continue };
+        if ft.is_dir() {
+            if !SKIP_DIRS.contains(&name.as_str()) && child != html_dir {
+                walk(&e.path(), &child, html_dir, out);
+            }
+        } else if SOURCE_EXT.iter().any(|x| name.ends_with(x)) {
+            out.push((child, std::fs::read_to_string(e.path()).unwrap_or_default()));
+        }
+    }
+}
+
+/// Project snapshot from a real workspace: page sources under the
+/// content input, output records from the last build's proof pack
+/// (`<html_dir>/_boris/proof/artifacts.json`) when one exists.
+pub fn workspace_snapshot(
+    root: &std::path::Path,
+    html_dir: &str,
+    compiler: Option<String>,
+    epoch: u64,
+) -> ProjectSnapshot {
+    let input = content_input(root);
+    let mut sources = Vec::new();
+    let base = if input == "." {
+        root.to_path_buf()
+    } else {
+        root.join(&input)
+    };
+    walk(&base, "", html_dir, &mut sources);
+    let index: Option<Value> =
+        std::fs::read_to_string(root.join(html_dir).join("_boris/proof/artifacts.json"))
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok());
+    let outputs: Vec<OutputRecord> = index
+        .as_ref()
+        .and_then(|v| v["artifacts"].as_array())
+        .into_iter()
+        .flatten()
+        .map(output)
+        .collect();
+    let mut pages: Vec<PageRecord> = sources.iter().map(|(rel, raw)| page(rel, raw)).collect();
+    for p in &mut pages {
+        let html = format!("{}.html", strip_ext(&p.path));
+        p.output = outputs.iter().any(|o| o.path == html).then_some(html);
+    }
+    ProjectSnapshot {
+        epoch,
+        compiler,
+        target: index
+            .as_ref()
+            .and_then(|v| v["target"].as_str())
+            .map(String::from),
+        pages,
+        outputs,
+        last_publish: None,
+    }
+}

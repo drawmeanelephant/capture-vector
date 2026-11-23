@@ -16,6 +16,7 @@ use cv_core::events::{AppEvent, Cursor, EventId, SessionId, SnapshotEpoch};
 use cv_core::id::{Selection, StableId, WorkspaceId};
 use cv_core::store::{Namespace, Store};
 use std::collections::BTreeSet;
+use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, Mutex};
 
@@ -23,6 +24,56 @@ use std::sync::{Arc, Mutex};
 pub type Waker = Arc<dyn Fn() + Send + Sync>;
 
 pub const JOURNAL: &str = "shell.journal";
+
+/// Something a background thread (engine boot, watch pump) hands the UI
+/// loop. One queue so a resync snapshot lands before the envelope that
+/// triggered it.
+pub enum Inbound {
+    Envelope(Envelope),
+    Snapshot(ProjectSnapshot),
+    Watch(Box<dyn WatchHandle>),
+    Degraded(DegradedReason),
+    Status(String),
+}
+
+/// `Send` handle onto the workbench queue: enqueue + wake the UI loop.
+/// Sends after `reset_project` land nowhere (the old queue is dropped).
+#[derive(Clone)]
+pub struct Inbox {
+    tx: Sender<Inbound>,
+    waker: Arc<Mutex<Option<Waker>>>,
+}
+
+impl Inbox {
+    /// False once the workbench moved on (reset or dropped).
+    pub fn send(&self, m: Inbound) -> bool {
+        let ok = self.tx.send(m).is_ok();
+        if ok
+            && let Some(w) = self
+                .waker
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .as_ref()
+        {
+            w();
+        }
+        ok
+    }
+    pub fn sink(&self) -> EventSink {
+        let me = self.clone();
+        Box::new(move |env| {
+            me.send(Inbound::Envelope(env));
+        })
+    }
+}
+
+/// Requests only the windowing layer can carry out (native dialogs) or
+/// the composition root owns (opening a workspace).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ShellRequest {
+    PickWorkspace,
+    OpenWorkspace(PathBuf),
+}
 
 /// Toolkit-neutral key input; `cv-widgets` maps rune keys onto it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -61,11 +112,17 @@ pub struct Workbench {
     pub palette: Palette,
     pub inspector_open: bool,
     pub status: String,
+    /// Root of the open workspace, if any.
+    pub workspace: Option<PathBuf>,
+    /// Recently opened workspaces, newest first (palette entries).
+    pub recent: Vec<PathBuf>,
+    /// Pending requests for the windowing layer; drained by its poll.
+    pub requests: Vec<ShellRequest>,
     seen: BTreeSet<String>,
     /// Applied but not yet journaled (store write failed); retried on replay.
     unjournaled: BTreeSet<String>,
-    tx: Sender<Envelope>,
-    rx: Receiver<Envelope>,
+    tx: Sender<Inbound>,
+    rx: Receiver<Inbound>,
     waker: Arc<Mutex<Option<Waker>>>,
     store: Option<Box<dyn Store>>,
     watch: Option<Box<dyn WatchHandle>>,
@@ -89,6 +146,9 @@ impl Workbench {
             palette: Palette::default(),
             inspector_open: true,
             status: String::new(),
+            workspace: None,
+            recent: Vec::new(),
+            requests: Vec::new(),
             seen: BTreeSet::new(),
             unjournaled: BTreeSet::new(),
             tx,
@@ -121,22 +181,57 @@ impl Workbench {
 
     /// An `EventSink` for the engine port: enqueue + wake the UI loop.
     pub fn sink(&self) -> EventSink {
-        let tx = self.tx.clone();
-        let waker = self.waker.clone();
-        Box::new(move |env| {
-            if tx.send(env).is_ok()
-                && let Some(w) = waker.lock().unwrap_or_else(|e| e.into_inner()).as_ref()
-            {
-                w();
-            }
-        })
+        self.inbox().sink()
+    }
+
+    pub fn inbox(&self) -> Inbox {
+        Inbox {
+            tx: self.tx.clone(),
+            waker: self.waker.clone(),
+        }
+    }
+
+    /// Swap in a fresh project: stop the watch, drop the old queue (late
+    /// sends from the previous workspace's threads go nowhere) and
+    /// rebuild module state. Theme, windows, waker and store survive.
+    pub fn reset_project(&mut self, registry: Registry) {
+        self.stop_watch();
+        let (tx, rx) = channel();
+        self.tx = tx;
+        self.rx = rx;
+        self.nav = registry
+            .iter()
+            .map(|m| m.nav().items.first().map(|i| i.key.clone()))
+            .collect();
+        self.registry = registry;
+        self.active = 0;
+        self.app = AppState::default();
+        self.seen.clear();
+        self.unjournaled.clear();
+        self.palette = Palette::default();
     }
 
     /// Drain pending envelopes. Returns true when visible state changed.
     pub fn drain(&mut self) -> bool {
         let mut changed = false;
-        while let Ok(env) = self.rx.try_recv() {
-            changed |= self.commit(&env);
+        while let Ok(m) = self.rx.try_recv() {
+            changed |= match m {
+                Inbound::Envelope(env) => self.commit(&env),
+                Inbound::Snapshot(snap) => self.load_snapshot(&snap),
+                Inbound::Watch(h) => {
+                    self.stop_watch();
+                    self.watch = Some(h);
+                    false
+                }
+                Inbound::Degraded(reason) => {
+                    let env = self.degraded_envelope(reason);
+                    self.commit(&env)
+                }
+                Inbound::Status(s) => {
+                    self.status = s;
+                    true
+                }
+            };
         }
         changed
     }
@@ -204,8 +299,14 @@ impl Workbench {
 
     /// Disclose a degraded state through the same commit path as engine events.
     pub fn disclose(&mut self, reason: DegradedReason) {
+        let env = self.degraded_envelope(reason);
+        let _ = self.tx.send(Inbound::Envelope(env));
+        self.drain();
+    }
+
+    fn degraded_envelope(&mut self, reason: DegradedReason) -> Envelope {
         self.local_seq += 1;
-        let env = Envelope {
+        Envelope {
             workspace: WorkspaceId("local".into()),
             snapshot_epoch: SnapshotEpoch(self.app.snapshot_epoch),
             build_id: None,
@@ -215,9 +316,7 @@ impl Workbench {
             },
             event_id: EventId(format!("shell-{}", self.local_seq)),
             payload: AppEvent::Shell(ShellEvent::Degraded { reason }),
-        };
-        let _ = self.tx.send(env);
-        self.drain();
+        }
     }
 
     // ---- theme ----
@@ -369,7 +468,14 @@ impl Workbench {
             CommandSpec::new("shell.window.close-companions", "Close companion windows"),
             CommandSpec::new("shell.degraded.dismiss", "Dismiss degraded banner"),
             CommandSpec::new("shell.follow", "Open linked noun").chord("mod+o"),
+            CommandSpec::new("shell.workspace.open", "Open workspace…").chord("mod+shift+o"),
         ];
+        for (i, p) in self.recent.iter().enumerate() {
+            out.push(CommandSpec::new(
+                format!("shell.workspace.recent.{i}"),
+                format!("Open recent workspace: {}", p.display()),
+            ));
+        }
         for (i, m) in self.registry.iter().enumerate() {
             let s = m.spec();
             let mut c =
@@ -405,7 +511,15 @@ impl Workbench {
             }
             "shell.degraded.dismiss" => self.apply(Intent::Recover),
             "shell.follow" => self.follow_link(),
+            "shell.workspace.open" => self.requests.push(ShellRequest::PickWorkspace),
             _ => {
+                if let Some(i) = id.strip_prefix("shell.workspace.recent.") {
+                    match i.parse::<usize>().ok().and_then(|i| self.recent.get(i)) {
+                        Some(p) => self.requests.push(ShellRequest::OpenWorkspace(p.clone())),
+                        None => self.status = format!("unknown command {id}"),
+                    }
+                    return;
+                }
                 if let Some(target) = id.strip_prefix("shell.goto.") {
                     if let Some(i) = self.registry.index_of(target) {
                         self.activate(i);
@@ -494,6 +608,7 @@ impl Workbench {
         match &k.key {
             KeyInput::Command('k') => self.palette.toggle(),
             KeyInput::Command('i') => self.run_command("shell.inspector.toggle"),
+            KeyInput::Command('o') if k.shift => self.run_command("shell.workspace.open"),
             KeyInput::Command('o') => self.follow_link(),
             KeyInput::Command(c) if c.is_ascii_digit() && *c != '0' => {
                 self.activate(*c as usize - '1' as usize)
