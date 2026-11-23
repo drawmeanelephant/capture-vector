@@ -167,7 +167,10 @@ impl EditorWindow {
         let off = frontmatter::read(&text).body_offset;
         let head = &text[..off];
         // A closing fence at end of file needs its line ending before a body.
-        let sep = match (head.is_empty() || head.ends_with('\n'), self.body.text.is_empty()) {
+        let sep = match (
+            head.is_empty() || head.ends_with('\n'),
+            self.body.text.is_empty(),
+        ) {
             (false, false) if text.contains("\r\n") => "\r\n",
             (false, false) => "\n",
             _ => "",

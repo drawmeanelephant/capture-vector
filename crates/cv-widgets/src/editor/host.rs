@@ -9,6 +9,10 @@
 //! `NeedsConfirm` because [`sync_dirty`] mirrors buffer dirtiness.
 
 use super::EditorWindow;
+use cv_core::diagnostic::Diagnostic;
+use cv_core::engine::EventSink;
+use cv_core::events::engine::EngineEvent;
+use cv_core::events::{AppEvent, BuildId};
 use cv_model::theme::Theme;
 use cv_model::windows::{WindowId, Windows};
 use cv_ui_editor::EditorSession;
@@ -17,7 +21,7 @@ use rune::{AppSpec, Tx, Waker, WindowHandle, WindowSpec};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, VecDeque};
 use std::rc::Rc;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 
 thread_local! {
     static SESSION: Rc<RefCell<EditorSession>> = Rc::new(RefCell::new(EditorSession::new()));
@@ -28,6 +32,8 @@ thread_local! {
 }
 
 static WAKE: OnceLock<Waker> = OnceLock::new();
+/// Finished builds from the engine thread, drained on the UI thread.
+static BUILDS: Mutex<Vec<(BuildId, Vec<Diagnostic>)>> = Mutex::new(Vec::new());
 
 /// The process-wide (UI-thread) editor session.
 pub fn session() -> Rc<RefCell<EditorSession>> {
@@ -112,4 +118,36 @@ pub fn sync_dirty_from(windows: &mut Windows, ses: &EditorSession) {
             windows.set_dirty(*id, ses.is_dirty(*buf));
         }
     });
+}
+
+/// Wrap the engine sink so finished builds also reach the editor session
+/// (handed over on the UI thread by [`ingest_builds`]).
+pub fn tee_builds(mut inner: EventSink) -> EventSink {
+    Box::new(move |env| {
+        if let (
+            Some(build),
+            AppEvent::Engine(
+                EngineEvent::BuildFinished { diagnostics, .. }
+                | EngineEvent::BuildFailed { diagnostics, .. },
+            ),
+        ) = (&env.build_id, &env.payload)
+        {
+            BUILDS
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .push((build.clone(), diagnostics.clone()));
+        }
+        inner(env);
+    })
+}
+
+/// Give every open buffer the diagnostics of builds that finished since
+/// the last call. True when any arrived.
+pub fn ingest_builds() -> bool {
+    let builds = std::mem::take(&mut *BUILDS.lock().unwrap_or_else(|e| e.into_inner()));
+    let ses = session();
+    for (build, diags) in &builds {
+        ses.borrow_mut().ingest_build(build.clone(), diags);
+    }
+    !builds.is_empty()
 }

@@ -155,6 +155,7 @@ fn sync_companions(s: &mut Workbench) -> bool {
         );
         OPENED.with(|o| o.borrow_mut().insert(c.id, handle));
     }
+    editor::host::ingest_builds();
     editor::host::sync_dirty(&mut s.windows);
     changed
 }

@@ -373,7 +373,10 @@ fn first_body_edit_after_a_fence_at_eof_keeps_the_frontmatter() {
     let mut rt = window(&ses, 1, buf);
     click(&mut rt, "editor-body");
     type_str(&mut rt, "hi");
-    assert_eq!(ses.borrow().get(buf).unwrap().buffer.text(), "---\ntitle: P\n---\nhi");
+    assert_eq!(
+        ses.borrow().get(buf).unwrap().buffer.text(),
+        "---\ntitle: P\n---\nhi"
+    );
     assert_eq!(rt.state.body.text, "hi");
 }
 
@@ -388,4 +391,34 @@ fn form_field_keeps_a_typed_space_between_words() {
         ses.borrow().get(buf).unwrap().buffer.text(),
         "---\ntitle: P\nsummary: two words\n---\n"
     );
+}
+
+#[test]
+fn engine_builds_reach_the_editor_session_through_the_tee() {
+    use cv_core::events::engine::{BuildPhase, EngineEvent};
+    use cv_core::events::{AppEvent, Cursor, Envelope, EventId, SessionId, SnapshotEpoch};
+    use cv_core::id::WorkspaceId;
+    let seen = Arc::new(Mutex::new(0));
+    let s = seen.clone();
+    let mut sink = editor::host::tee_builds(Box::new(move |_| *s.lock().unwrap() += 1));
+    sink(Envelope {
+        workspace: WorkspaceId("w".into()),
+        snapshot_epoch: SnapshotEpoch(0),
+        build_id: Some(BuildId("tee-1".into())),
+        cursor: Cursor {
+            session: SessionId("s".into()),
+            seq: 1,
+        },
+        event_id: EventId("e-1".into()),
+        payload: AppEvent::Engine(EngineEvent::BuildFailed {
+            phase: BuildPhase::Rebuild,
+            diagnostics: vec![],
+            recoverable: true,
+        }),
+    });
+    assert_eq!(*seen.lock().unwrap(), 1, "the shell still gets every event");
+    assert!(editor::host::ingest_builds());
+    let ses = editor::host::session();
+    assert_eq!(ses.borrow().current_build(), Some(&BuildId("tee-1".into())));
+    assert!(!editor::host::ingest_builds());
 }
