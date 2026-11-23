@@ -190,6 +190,9 @@ pub trait Module {
     fn noun(&self, _key: &str) -> Option<NounId> {
         None
     }
+    /// The primary selection's row key, told just before `run` (`None`
+    /// when nothing is selected) for verbs that act on the selection.
+    fn select(&mut self, _key: Option<&str>) {}
     /// Lane-owned verbs for the palette. Ids are `<module id>.<verb>`.
     fn commands(&self) -> Vec<CommandSpec> {
         Vec::new()

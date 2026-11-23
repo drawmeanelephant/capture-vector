@@ -151,3 +151,20 @@ fn light_reduced_motion_theme_is_applied() {
     assert!(h.rt.system_reduced_motion());
     assert_ne!(scene("canary").tree(), h.tree());
 }
+
+#[test]
+fn research_scenes_cover_empty_promote_and_degraded() {
+    let has = |name: &str, want: &str| {
+        let t = scene(name).texts();
+        assert!(
+            t.iter().any(|x| x.contains(want)),
+            "{name}: no {want:?} in {t:?}"
+        );
+    };
+    has("research-empty", "Inbox zero");
+    has(
+        "research-promote",
+        "promoted → field-notes-graph-first-research",
+    );
+    has("research-degraded", "no content writer attached");
+}

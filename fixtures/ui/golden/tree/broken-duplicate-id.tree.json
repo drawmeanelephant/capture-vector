@@ -67,7 +67,6 @@
     {
       "fill": "#08090cff",
       "key": "rail-research",
-      "label": "not registered",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-research",
       "rect": [
@@ -79,7 +78,7 @@
       "role": "tab"
     },
     {
-      "color": "#8a93a3ff",
+      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-research/#0",
       "rect": [

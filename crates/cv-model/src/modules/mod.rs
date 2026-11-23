@@ -6,10 +6,12 @@ pub mod activity;
 pub mod demo;
 pub mod outputs;
 pub mod pages;
+pub mod research;
 
 pub fn register_all(r: &mut crate::module::Registry) {
     activity::register(r);
     demo::register(r);
     outputs::register(r);
     pages::register(r);
+    research::register(r);
 }

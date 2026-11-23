@@ -1,0 +1,6 @@
+boris: load  scanning content
+boris: roll  parsing 4 page(s)
+boris: ignite validating graph
+boris: ignite emitting IR → .boris
+boris: reset done (4 page(s))
+ok: wrote IR under .boris (4 page(s))

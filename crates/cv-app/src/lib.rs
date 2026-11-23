@@ -14,6 +14,8 @@ use cv_model::theme::Mode;
 use cv_model::workbench::Workbench;
 use cv_widgets::app::{Launch, Scene};
 
+mod research;
+
 /// Corpus the canary replays (`fixtures/captures/<corpus>/watch/session.ndjson`).
 pub const CANARY_CORPUS: &str = "happy";
 
@@ -232,6 +234,9 @@ pub const SCENES: &[Scene] = &[
     ("pages-store-corrupt", |wb| {
         pages_degraded(DegradedReason::StoreCorrupt, wb)
     }),
+    ("research-empty", research::empty),
+    ("research-promote", research::promote),
+    ("research-degraded", research::degraded),
 ];
 
 pub fn launch() -> Launch {

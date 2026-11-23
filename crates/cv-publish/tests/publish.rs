@@ -818,3 +818,47 @@ fn copy_to_folder_never_clobbers_siblings() {
         "no staging leftovers"
     );
 }
+
+#[test]
+fn copy_to_folder_accepts_names_at_the_length_limit() {
+    let dir = tempfile::tempdir().unwrap();
+    let dest = dir.path().join("out");
+    // Near the common 255-byte component limit: staging must not add to it.
+    let name = format!("{}.html", "a".repeat(245));
+    let files = vec![(
+        PlanFile {
+            path: name.clone(),
+            bytes: 2,
+            sha256: cv_publish::plan::sha256(b"hi"),
+        },
+        b"hi".to_vec(),
+    )];
+    let c = TargetConfig::new(
+        Target::StaticDist,
+        "p",
+        "https://example.test/",
+        COPY_TO_FOLDER,
+        dest.to_str().unwrap(),
+    );
+    let plan = SealedPlan {
+        target: "static-dist".into(),
+        adapter: COPY_TO_FOLDER.into(),
+        destination: c.destination.clone(),
+        site: "site".into(),
+        files: vec![files[0].0.clone()],
+    };
+    let eng = FakeEngine::new(dir.path());
+    let run = StableId("run-with-a-long-identifier-0000000000".into());
+    let out = CopyToFolder::new(dir.path()).deliver(&Delivery {
+        run: &run,
+        plan: &plan,
+        files: &files,
+        site: dir.path(),
+        config: &c,
+        secrets: &NoSecrets,
+        engine: &eng,
+    });
+    assert_eq!(out.unwrap(), Delivered::Complete(RunStatus::Complete));
+    assert_eq!(std::fs::read(dest.join(&name)).unwrap(), b"hi");
+    assert_eq!(std::fs::read_dir(&dest).unwrap().count(), 1);
+}

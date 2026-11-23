@@ -29,6 +29,7 @@ fn replayed(corpus: &str) -> (Workbench, Arc<AtomicUsize>) {
     let engine = StubEngine::new(corpus);
     let h = engine.watch(wb.sink()).expect("stub watch");
     wb.attach_watch(h);
+    wb.run_command("shell.goto.demo");
     (wb, wakes)
 }
 
@@ -88,8 +89,8 @@ fn replay_is_idempotent_and_journaled() {
 fn rail_slots_and_keyboard_navigation() {
     let (mut wb, _) = replayed("happy");
     wb.drain();
-    let demo = wb.registry.get(wb.active).unwrap().spec();
-    assert_eq!(demo.slot, Slot::Extra);
+    let demo = wb.registry.index_of("demo").unwrap();
+    assert_eq!(wb.registry.get(demo).unwrap().spec().slot, Slot::Extra);
     assert!(press(&mut wb, KeyInput::Down));
     assert_eq!(wb.windows.primary.row.as_ref().map(|r| r.0), Some(0));
     press(&mut wb, KeyInput::Char('j'));
