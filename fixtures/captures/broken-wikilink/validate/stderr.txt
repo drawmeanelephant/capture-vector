@@ -1,0 +1,1 @@
+error: EREFERENCEMISSING: page.md:6:20: wiki-link target "non-existent-page-target" not found in the page graph [Point the wiki-link at an existing page entity id, and if using #heading-id match a rendered heading id on that page]

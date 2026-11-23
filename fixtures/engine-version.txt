@@ -1,0 +1,1 @@
+{"format": "boris-build-info", "schemaVersion": "1", "version": "boris/0.8.2", "vcsRevision": "897611b7"}
