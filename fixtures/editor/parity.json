@@ -1,0 +1,99 @@
+[
+  {
+    "constructs": [
+      {
+        "boris_only": [],
+        "diverges": true,
+        "in_source": true,
+        "name": "wikilink",
+        "raw_in_sketch": true
+      },
+      {
+        "boris_only": [],
+        "diverges": true,
+        "in_source": true,
+        "name": "include",
+        "raw_in_sketch": true
+      },
+      {
+        "boris_only": [
+          "Tip"
+        ],
+        "diverges": true,
+        "in_source": true,
+        "name": "aside",
+        "raw_in_sketch": false
+      },
+      {
+        "boris_only": [
+          "More",
+          "detail"
+        ],
+        "diverges": true,
+        "in_source": true,
+        "name": "details",
+        "raw_in_sketch": false
+      }
+    ],
+    "extra_in_sketch": [
+      "[[guide]]",
+      "[[guide|the",
+      "guide]]",
+      "includes/note.md}}",
+      "{{include"
+    ],
+    "missing_in_sketch": [
+      "Guide",
+      "Included",
+      "More",
+      "Tip",
+      "detail",
+      "fragment",
+      "guide",
+      "the"
+    ],
+    "page": "index",
+    "word_overlap_pct": 80
+  },
+  {
+    "constructs": [
+      {
+        "boris_only": [],
+        "diverges": true,
+        "in_source": true,
+        "name": "wikilink",
+        "raw_in_sketch": true
+      },
+      {
+        "boris_only": [],
+        "diverges": false,
+        "in_source": false,
+        "name": "include",
+        "raw_in_sketch": false
+      },
+      {
+        "boris_only": [],
+        "diverges": false,
+        "in_source": false,
+        "name": "aside",
+        "raw_in_sketch": false
+      },
+      {
+        "boris_only": [],
+        "diverges": false,
+        "in_source": false,
+        "name": "details",
+        "raw_in_sketch": false
+      }
+    ],
+    "extra_in_sketch": [
+      "[[index]]"
+    ],
+    "missing_in_sketch": [
+      "Parity",
+      "Probe"
+    ],
+    "page": "guide",
+    "word_overlap_pct": 60
+  }
+]

@@ -2,6 +2,7 @@
 //! (`cv_model::workbench`) and hands it to `cv_widgets::app::run`. No
 //! rune import here; scenes are shared by the binary and golden tests.
 
+pub mod editor;
 pub mod snapshot;
 
 use cv_core::engine::{Engine, Verb};
@@ -27,7 +28,7 @@ pub fn init() -> Workbench {
 /// Engine-absent is disclosed, never fatal.
 pub fn attach_engine(wb: &mut Workbench, engine: &dyn Engine) {
     match engine.locate() {
-        Ok(_) => match engine.watch(wb.sink()) {
+        Ok(_) => match engine.watch(cv_widgets::editor::host::tee_builds(wb.sink())) {
             Ok(h) => wb.attach_watch(h),
             Err(_) => wb.disclose(DegradedReason::WatchDead),
         },
@@ -51,6 +52,7 @@ pub fn boot(wb: &mut Workbench) {
     if wb.app.snapshot_epoch == 0 {
         let _ = open_corpus(wb, CANARY_CORPUS);
     }
+    editor::open_from_env(wb);
 }
 
 /// Load the corpus' page/output snapshot, then replay its watch session.

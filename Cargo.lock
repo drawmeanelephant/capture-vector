@@ -717,8 +717,10 @@ dependencies = [
  "cv-fixtures",
  "cv-model",
  "cv-notes",
+ "cv-ui-editor",
  "cv-widgets",
  "serde_json",
+ "tempfile",
 ]
 
 [[package]]
@@ -846,7 +848,12 @@ name = "cv-ui-editor"
 version = "0.0.0"
 dependencies = [
  "cv-core",
+ "cv-fixtures",
  "ropey",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
 ]
 
 [[package]]
@@ -854,11 +861,14 @@ name = "cv-widgets"
 version = "0.0.0"
 dependencies = [
  "cv-core",
+ "cv-fixtures",
  "cv-model",
+ "cv-ui-editor",
  "rune",
  "rune-kit",
  "serde",
  "serde_json",
+ "tempfile",
 ]
 
 [[package]]

@@ -1,9 +1,9 @@
 //! Native boot: one primary window + companion windows (editor popouts
 //! host). Headless runs (`--tree`, `--snap`, `--scene`) open no companions.
 
-use crate::harness;
 use crate::shell::view;
 use crate::theme::{color, font};
+use crate::{editor, harness};
 use cv_model::module::ReadingModel;
 use cv_model::theme::Theme;
 use cv_model::windows::WindowId;
@@ -100,7 +100,8 @@ fn companion_closed(s: &mut Companion, _tx: &mut Tx) {
 /// records whose window the user closed, close windows whose record went,
 /// open windows for new records.
 fn sync_companions(s: &mut Workbench) -> bool {
-    let closed: Vec<WindowId> = CLOSED.with(|c| std::mem::take(&mut *c.borrow_mut()));
+    let mut closed: Vec<WindowId> = CLOSED.with(|c| std::mem::take(&mut *c.borrow_mut()));
+    closed.extend(editor::host::take_closed());
     let mut changed = false;
     for id in closed {
         OPENED.with(|o| o.borrow_mut().remove(&id));
@@ -118,6 +119,12 @@ fn sync_companions(s: &mut Workbench) -> bool {
     });
     for c in &s.windows.companions {
         if OPENED.with(|o| o.borrow().contains_key(&c.id)) {
+            continue;
+        }
+        if c.module == editor::MODULE {
+            if let Some(handle) = editor::host::open(c.id, &c.key, &s.theme) {
+                OPENED.with(|o| o.borrow_mut().insert(c.id, handle));
+            }
             continue;
         }
         let reading = s
@@ -148,11 +155,14 @@ fn sync_companions(s: &mut Workbench) -> bool {
         );
         OPENED.with(|o| o.borrow_mut().insert(c.id, handle));
     }
+    editor::host::ingest_builds();
+    editor::host::sync_dirty(&mut s.windows);
     changed
 }
 
 fn setup(s: &mut Workbench, w: Waker) {
     let _ = WAKE.set(w.clone());
+    editor::host::set_waker(w.clone());
     s.set_waker(w);
     if let Some(boot) = BOOT.get() {
         boot(s);

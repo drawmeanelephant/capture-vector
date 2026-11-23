@@ -11,5 +11,10 @@ rune.workspace = true
 rune-kit = { workspace = true, features = ["markdown"] }
 cv-core.workspace = true
 cv-model.workspace = true
+cv-ui-editor.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+
+[dev-dependencies]
+cv-fixtures.workspace = true
+tempfile = "3"
