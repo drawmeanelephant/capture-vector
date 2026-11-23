@@ -2,6 +2,7 @@
 //! The `Stub ≡ Process` suite lives here; L1 fills the ProcessEngine side.
 
 use cv_core::engine::{Engine, Verb};
+use cv_core::events::engine::EngineEvent;
 use cv_core::store::{Namespace, Predicate, Store};
 use cv_fixtures::{Corpus, Manifest, StubEngine, StubStore, corpora, corpus, fixtures_root};
 
@@ -57,7 +58,39 @@ fn stub_engine_replays_captured_exit_codes() {
         )
         .unwrap();
     assert_eq!(exit, cv_core::engine::ExitClass::ContentFailure);
-    assert_eq!(events.lock().unwrap().len(), 1);
+    // Like ProcessEngine: the one-shot build (with its stderr diagnostics)
+    // then `VerbFinished`.
+    assert_eq!(events.lock().unwrap().len(), 2);
+    match &engine.sent()[0] {
+        EngineEvent::BuildFailed { diagnostics, .. } => {
+            assert_eq!(diagnostics.len(), 1);
+            assert_eq!(diagnostics[0].code, "EFRONTMATTER");
+            assert_eq!(diagnostics[0].span.as_ref().unwrap().path, "index.md");
+            assert!(diagnostics[0].build_version.is_some());
+        }
+        e => panic!("expected BuildFailed, got {e:?}"),
+    }
+}
+
+#[test]
+fn stub_engine_maps_watch_diagnostics() {
+    let engine = StubEngine::new("dogfood");
+    let _h = engine.replay_watch(Box::new(|_| {}));
+    let failed: Vec<_> = engine
+        .sent()
+        .into_iter()
+        .filter_map(|e| match e {
+            EngineEvent::BuildFailed { diagnostics, .. } => Some(diagnostics),
+            _ => None,
+        })
+        .collect();
+    assert!(!failed.is_empty());
+    let d = &failed[0][0];
+    assert_eq!(d.code, "ELAYOUT");
+    assert_eq!(
+        d.span.as_ref().unwrap().path,
+        "themes/boris/layouts/main.html"
+    );
 }
 
 #[test]

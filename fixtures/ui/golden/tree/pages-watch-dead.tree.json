@@ -1,0 +1,1651 @@
+{
+  "nodes": [
+    {
+      "fill": "#0e1014ff",
+      "key": "shell",
+      "opacity": 1.0,
+      "path": "shell",
+      "rect": [
+        0.0,
+        0.0,
+        1280.0,
+        800.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#3a1a24ff",
+      "key": "banner",
+      "opacity": 1.0,
+      "path": "shell/banner",
+      "rect": [
+        0.0,
+        0.0,
+        1280.0,
+        27.0
+      ],
+      "role": "alert"
+    },
+    {
+      "color": "#ff3d71ff",
+      "opacity": 1.0,
+      "path": "shell/banner/#0",
+      "rect": [
+        12.0,
+        6.0,
+        60.2,
+        15.0
+      ],
+      "role": "text",
+      "text": "DEGRADED"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/banner/#1",
+      "rect": [
+        80.2,
+        6.0,
+        400.5,
+        15.0
+      ],
+      "role": "text",
+      "text": "Watch session died — showing last snapshot; restart watch to resume."
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/banner/#2",
+      "rect": [
+        488.7,
+        6.0,
+        594.3,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/banner/#3",
+      "rect": [
+        1091.0,
+        6.0,
+        177.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "palette: Dismiss degraded banner"
+    },
+    {
+      "key": "body",
+      "opacity": 1.0,
+      "path": "shell/body",
+      "rect": [
+        0.0,
+        27.0,
+        1280.0,
+        751.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/rail",
+      "rect": [
+        0.0,
+        27.0,
+        88.0,
+        751.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#00d1ffff",
+      "key": "rail-pages",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages",
+      "rect": [
+        0.0,
+        35.0,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#001018ff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages/#0",
+      "rect": [
+        12.0,
+        41.0,
+        38.7,
+        16.3
+      ],
+      "role": "text",
+      "text": "Pages"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-research",
+      "label": "not registered",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research",
+      "rect": [
+        0.0,
+        67.3,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research/#0",
+      "rect": [
+        12.0,
+        73.3,
+        58.8,
+        16.3
+      ],
+      "role": "text",
+      "text": "Research"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-audit",
+      "label": "not registered",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit",
+      "rect": [
+        0.0,
+        99.5,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#0",
+      "rect": [
+        12.0,
+        105.5,
+        33.5,
+        16.3
+      ],
+      "role": "text",
+      "text": "Audit"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-publish",
+      "label": "not registered",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish",
+      "rect": [
+        0.0,
+        131.8,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish/#0",
+      "rect": [
+        12.0,
+        137.8,
+        46.4,
+        16.3
+      ],
+      "role": "text",
+      "text": "Publish"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-outputs",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs",
+      "rect": [
+        0.0,
+        164.0,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs/#0",
+      "rect": [
+        12.0,
+        170.0,
+        50.2,
+        16.3
+      ],
+      "role": "text",
+      "text": "Outputs"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-activity",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity",
+      "rect": [
+        0.0,
+        196.3,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity/#0",
+      "rect": [
+        12.0,
+        202.3,
+        48.4,
+        16.3
+      ],
+      "role": "text",
+      "text": "Activity"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-demo",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo",
+      "rect": [
+        0.0,
+        228.5,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo/#0",
+      "rect": [
+        12.0,
+        234.5,
+        36.7,
+        16.3
+      ],
+      "role": "text",
+      "text": "Demo"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav",
+      "opacity": 1.0,
+      "path": "shell/body/nav",
+      "rect": [
+        88.0,
+        27.0,
+        180.0,
+        751.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/#0",
+      "rect": [
+        96.0,
+        35.0,
+        164.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Pages"
+    },
+    {
+      "fill": "#00d1ff33",
+      "key": "nav-all",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-all",
+      "rect": [
+        96.0,
+        55.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-all/#0",
+      "rect": [
+        104.0,
+        59.3,
+        52.4,
+        15.0
+      ],
+      "role": "text",
+      "text": "All pages"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-all/#1",
+      "rect": [
+        156.4,
+        59.3,
+        88.7,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-all/#2",
+      "rect": [
+        245.1,
+        59.3,
+        6.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "3"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-trunks",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-trunks",
+      "rect": [
+        96.0,
+        82.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-trunks/#0",
+      "rect": [
+        104.0,
+        86.3,
+        38.7,
+        15.0
+      ],
+      "role": "text",
+      "text": "Trunks"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-trunks/#1",
+      "rect": [
+        142.7,
+        86.3,
+        104.7,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-trunks/#2",
+      "rect": [
+        247.4,
+        86.3,
+        4.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "1"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-issues",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-issues",
+      "rect": [
+        96.0,
+        109.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-issues/#0",
+      "rect": [
+        104.0,
+        113.3,
+        94.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "With diagnostics"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-issues/#1",
+      "rect": [
+        198.1,
+        113.3,
+        46.8,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-issues/#2",
+      "rect": [
+        244.9,
+        113.3,
+        7.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-orphans",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-orphans",
+      "rect": [
+        96.0,
+        136.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-orphans/#0",
+      "rect": [
+        104.0,
+        140.3,
+        83.7,
+        15.0
+      ],
+      "role": "text",
+      "text": "Missing parent"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-orphans/#1",
+      "rect": [
+        187.7,
+        140.3,
+        57.2,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-orphans/#2",
+      "rect": [
+        244.9,
+        140.3,
+        7.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-tree:index",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-tree:index",
+      "rect": [
+        96.0,
+        163.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-tree:index/#0",
+      "rect": [
+        104.0,
+        167.3,
+        74.7,
+        15.0
+      ],
+      "role": "text",
+      "text": "My Boris Site"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-tree:index/#1",
+      "rect": [
+        178.7,
+        167.3,
+        66.5,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-tree:index/#2",
+      "rect": [
+        245.2,
+        167.3,
+        6.8,
+        15.0
+      ],
+      "role": "text",
+      "text": "2"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "list-pane",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane",
+      "rect": [
+        268.0,
+        27.0,
+        320.0,
+        751.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "list-viewport",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport",
+      "rect": [
+        268.0,
+        27.0,
+        320.0,
+        751.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#00d1ff33",
+      "key": "row-index.md",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-index.md",
+      "rect": [
+        268.0,
+        27.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-index.md/#0",
+      "rect": [
+        276.0,
+        30.5,
+        74.7,
+        15.0
+      ],
+      "role": "text",
+      "text": "My Boris Site"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-index.md/#1",
+      "rect": [
+        358.7,
+        38.0,
+        99.3,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-index.md/#2",
+      "rect": [
+        466.0,
+        31.1,
+        114.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "index.md · 2 satellites"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "row-guides/getting-started.md",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fgetting-started.md",
+      "rect": [
+        268.0,
+        49.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fgetting-started.md/#0",
+      "rect": [
+        276.0,
+        52.5,
+        92.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "  Getting Started"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fgetting-started.md/#1",
+      "rect": [
+        376.6,
+        60.0,
+        56.8,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fgetting-started.md/#2",
+      "rect": [
+        441.3,
+        53.1,
+        138.7,
+        13.8
+      ],
+      "role": "text",
+      "text": "guides/getting-started.md"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "row-guides/publishing.md",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fpublishing.md",
+      "rect": [
+        268.0,
+        71.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fpublishing.md/#0",
+      "rect": [
+        276.0,
+        74.5,
+        65.5,
+        15.0
+      ],
+      "role": "text",
+      "text": "  Publishing"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fpublishing.md/#1",
+      "rect": [
+        349.5,
+        82.0,
+        108.7,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fpublishing.md/#2",
+      "rect": [
+        466.1,
+        75.1,
+        113.9,
+        13.8
+      ],
+      "role": "text",
+      "text": "guides/publishing.md"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "reading",
+      "opacity": 1.0,
+      "path": "shell/body/reading",
+      "rect": [
+        588.0,
+        27.0,
+        452.0,
+        751.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "breadcrumbs",
+      "opacity": 1.0,
+      "path": "shell/body/reading/breadcrumbs",
+      "rect": [
+        604.0,
+        43.0,
+        420.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "crumb-0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/breadcrumbs/crumb-0",
+      "rect": [
+        604.0,
+        43.0,
+        69.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "My Boris Site"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/#1",
+      "rect": [
+        604.0,
+        62.8,
+        420.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "My Boris Site"
+    },
+    {
+      "key": "line-0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-0",
+      "rect": [
+        604.0,
+        85.0,
+        420.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-0/#0",
+      "rect": [
+        604.0,
+        85.0,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "satellite"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-0/#1",
+      "rect": [
+        708.0,
+        85.0,
+        316.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "Getting Started"
+    },
+    {
+      "key": "line-1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-1",
+      "rect": [
+        604.0,
+        106.0,
+        420.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-1/#0",
+      "rect": [
+        604.0,
+        106.0,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "satellite"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-1/#1",
+      "rect": [
+        708.0,
+        106.0,
+        316.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "Publishing"
+    },
+    {
+      "key": "line-2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-2",
+      "rect": [
+        604.0,
+        127.0,
+        420.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-2/#0",
+      "rect": [
+        604.0,
+        127.0,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "tags"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-2/#1",
+      "rect": [
+        708.0,
+        127.0,
+        316.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "home"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "sketch-label",
+      "opacity": 1.0,
+      "path": "shell/body/reading/sketch-label",
+      "rect": [
+        604.0,
+        148.0,
+        420.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Draft sketch"
+    },
+    {
+      "key": "sketch",
+      "opacity": 1.0,
+      "path": "shell/body/reading/sketch",
+      "rect": [
+        604.0,
+        167.8,
+        420.0,
+        594.3
+      ],
+      "role": "group"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/reading/sketch/#0",
+      "rect": [
+        604.0,
+        167.8,
+        420.0,
+        521.6
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#eff0f2ff",
+      "key": "b0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/sketch/#0/b0",
+      "rect": [
+        604.0,
+        167.8,
+        420.0,
+        24.0
+      ],
+      "role": "heading",
+      "text": "Welcome"
+    },
+    {
+      "color": "#eff0f2ff",
+      "key": "b1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/sketch/#0/b1",
+      "rect": [
+        604.0,
+        203.8,
+        420.0,
+        67.2
+      ],
+      "role": "text",
+      "text": "This is a fresh Boris documentation site. It already has a page graph: this trunk page, two guides beneath it, wiki links between them, and one semantic relation."
+    },
+    {
+      "color": "#eff0f2ff",
+      "key": "b2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/sketch/#0/b2",
+      "rect": [
+        604.0,
+        283.0,
+        420.0,
+        22.4
+      ],
+      "role": "text",
+      "text": "Start here:"
+    },
+    {
+      "key": "b3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/sketch/#0/b3",
+      "rect": [
+        604.0,
+        317.4,
+        420.0,
+        93.6
+      ],
+      "role": "list"
+    },
+    {
+      "key": "i0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/sketch/#0/b3/i0",
+      "rect": [
+        604.0,
+        317.4,
+        420.0,
+        44.8
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#a2a5aaff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/sketch/#0/b3/i0/#0",
+      "rect": [
+        604.0,
+        317.4,
+        32.0,
+        44.8
+      ],
+      "role": "text",
+      "text": "•"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/reading/sketch/#0/b3/i0/#1",
+      "rect": [
+        636.0,
+        317.4,
+        388.0,
+        44.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#eff0f2ff",
+      "key": "b0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/sketch/#0/b3/i0/#1/b0",
+      "rect": [
+        636.0,
+        317.4,
+        388.0,
+        44.8
+      ],
+      "role": "text",
+      "text": "⁦[[guides/getting-started]]⁩ — add your own pages and watch the graph grow."
+    },
+    {
+      "key": "i1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/sketch/#0/b3/i1",
+      "rect": [
+        604.0,
+        366.2,
+        420.0,
+        44.8
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#a2a5aaff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/sketch/#0/b3/i1/#0",
+      "rect": [
+        604.0,
+        366.2,
+        32.0,
+        44.8
+      ],
+      "role": "text",
+      "text": "•"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/reading/sketch/#0/b3/i1/#1",
+      "rect": [
+        636.0,
+        366.2,
+        388.0,
+        44.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#eff0f2ff",
+      "key": "b0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/sketch/#0/b3/i1/#1/b0",
+      "rect": [
+        636.0,
+        366.2,
+        388.0,
+        44.8
+      ],
+      "role": "text",
+      "text": "⁦[[guides/publishing]]⁩ — turn the site into a verified publication."
+    },
+    {
+      "color": "#eff0f2ff",
+      "key": "b4",
+      "opacity": 1.0,
+      "path": "shell/body/reading/sketch/#0/b4",
+      "rect": [
+        604.0,
+        435.0,
+        420.0,
+        24.0
+      ],
+      "role": "heading",
+      "text": "Anatomy of this starter"
+    },
+    {
+      "color": "#eff0f2ff",
+      "key": "b5",
+      "opacity": 1.0,
+      "path": "shell/body/reading/sketch/#0/b5",
+      "rect": [
+        604.0,
+        469.0,
+        420.0,
+        22.4
+      ],
+      "role": "text",
+      "text": "The tree ⁦  ⁦boris init⁩  ⁩ created:"
+    },
+    {
+      "fill": "#121314ff",
+      "key": "b6",
+      "opacity": 1.0,
+      "path": "shell/body/reading/sketch/#0/b6",
+      "rect": [
+        604.0,
+        503.4,
+        420.0,
+        186.0
+      ],
+      "role": "code"
+    },
+    {
+      "color": "#eff0f2ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/sketch/#0/b6/#0",
+      "rect": [
+        617.0,
+        516.4,
+        394.0,
+        160.0
+      ],
+      "role": "text",
+      "text": "content/\n  index.md                    trunk page (this one)\n  guides/getting-started.md   satellite, parent: index\n  guides/publishing.md        satellite, parent: index\nthemes/boris/                 starter theme (closed layout slots)\nboris.json                    publication profile (GitHub Pages)\nstandard-site.json            Atmosphere profile (edit the fake DID/URL)"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "inspector",
+      "opacity": 1.0,
+      "path": "shell/body/inspector",
+      "rect": [
+        1040.0,
+        27.0,
+        240.0,
+        751.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/#0",
+      "rect": [
+        1048.0,
+        35.0,
+        224.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Inspector"
+    },
+    {
+      "key": "field-id",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-id",
+      "rect": [
+        1048.0,
+        55.3,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-id/#0",
+      "rect": [
+        1048.0,
+        55.3,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "id"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-id/#1",
+      "rect": [
+        1128.0,
+        55.3,
+        28.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "index"
+    },
+    {
+      "key": "field-role",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-role",
+      "rect": [
+        1048.0,
+        73.0,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-role/#0",
+      "rect": [
+        1048.0,
+        73.0,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "role"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-role/#1",
+      "rect": [
+        1128.0,
+        73.0,
+        26.8,
+        13.8
+      ],
+      "role": "text",
+      "text": "trunk"
+    },
+    {
+      "key": "field-title",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-title",
+      "rect": [
+        1048.0,
+        90.8,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-title/#0",
+      "rect": [
+        1048.0,
+        90.8,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "title"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-title/#1",
+      "rect": [
+        1128.0,
+        90.8,
+        68.5,
+        13.8
+      ],
+      "role": "text",
+      "text": "My Boris Site"
+    },
+    {
+      "key": "field-tags",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-tags",
+      "rect": [
+        1048.0,
+        108.5,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-tags/#0",
+      "rect": [
+        1048.0,
+        108.5,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "tags"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-tags/#1",
+      "rect": [
+        1128.0,
+        108.5,
+        37.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "[home]"
+    },
+    {
+      "key": "field-build",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-build",
+      "rect": [
+        1048.0,
+        126.3,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-build/#0",
+      "rect": [
+        1048.0,
+        126.3,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "build"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-build/#1",
+      "rect": [
+        1128.0,
+        126.3,
+        62.5,
+        13.8
+      ],
+      "role": "text",
+      "text": "stub-build-1"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "list-0",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-0",
+      "rect": [
+        1048.0,
+        152.0,
+        224.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Satellites (nav, breadcrumbs) (2)"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "list-0-0",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-0-0",
+      "rect": [
+        1048.0,
+        169.8,
+        224.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Publishing"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "list-0-1",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-0-1",
+      "rect": [
+        1048.0,
+        187.5,
+        224.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Getting Started"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "list-1",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-1",
+      "rect": [
+        1048.0,
+        213.3,
+        224.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Referenced by (0)"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "list-2",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-2",
+      "rect": [
+        1048.0,
+        239.0,
+        224.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Outputs (1)"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "list-2-0",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-2-0",
+      "rect": [
+        1048.0,
+        256.8,
+        224.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "index.html"
+    },
+    {
+      "fill": "#00d1ffff",
+      "key": "follow-link",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/follow-link",
+      "rect": [
+        1048.0,
+        282.5,
+        224.0,
+        23.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#001018ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/follow-link/#0",
+      "rect": [
+        1056.0,
+        286.5,
+        70.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "Open output"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/#13",
+      "rect": [
+        1048.0,
+        317.5,
+        224.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Windows"
+    },
+    {
+      "key": "field-primary",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-primary",
+      "rect": [
+        1048.0,
+        335.3,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-primary/#0",
+      "rect": [
+        1048.0,
+        335.3,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "primary"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-primary/#1",
+      "rect": [
+        1128.0,
+        335.3,
+        28.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "clean"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "status",
+      "opacity": 1.0,
+      "path": "shell/status",
+      "rect": [
+        0.0,
+        778.0,
+        1280.0,
+        22.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-0",
+      "opacity": 1.0,
+      "path": "shell/status/status-0",
+      "rect": [
+        12.0,
+        782.1,
+        57.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "boris/0.9.0"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1",
+      "opacity": 1.0,
+      "path": "shell/status/status-1",
+      "rect": [
+        81.4,
+        782.1,
+        44.8,
+        13.8
+      ],
+      "role": "text",
+      "text": "3 events"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-2",
+      "opacity": 1.0,
+      "path": "shell/status/status-2",
+      "rect": [
+        138.2,
+        782.1,
+        40.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "epoch 1"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-3",
+      "opacity": 1.0,
+      "path": "shell/status/status-3",
+      "rect": [
+        190.6,
+        782.1,
+        23.6,
+        13.8
+      ],
+      "role": "text",
+      "text": "dark"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-4",
+      "opacity": 1.0,
+      "path": "shell/status/status-4",
+      "rect": [
+        226.2,
+        782.1,
+        36.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "motion"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/status/#5",
+      "rect": [
+        274.4,
+        789.0,
+        867.5,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-msg",
+      "opacity": 1.0,
+      "path": "shell/status/status-msg",
+      "rect": [
+        1153.9,
+        782.1,
+        2.9,
+        13.8
+      ],
+      "role": "text",
+      "text": ""
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/status/#7",
+      "rect": [
+        1168.8,
+        782.1,
+        99.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "mod+K commands"
+    }
+  ],
+  "schema": 1
+}

@@ -41,7 +41,6 @@
     {
       "fill": "#08090cff",
       "key": "rail-pages",
-      "label": "not registered",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-pages",
       "rect": [
@@ -53,7 +52,7 @@
       "role": "tab"
     },
     {
-      "color": "#8a93a3ff",
+      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-pages/#0",
       "rect": [
@@ -148,10 +147,9 @@
     },
     {
       "fill": "#08090cff",
-      "key": "rail-activity",
-      "label": "not registered",
+      "key": "rail-outputs",
       "opacity": 1.0,
-      "path": "shell/body/rail/rail-activity",
+      "path": "shell/body/rail/rail-outputs",
       "rect": [
         0.0,
         137.0,
@@ -161,12 +159,38 @@
       "role": "tab"
     },
     {
-      "color": "#8a93a3ff",
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs/#0",
+      "rect": [
+        12.0,
+        143.0,
+        50.2,
+        16.3
+      ],
+      "role": "text",
+      "text": "Outputs"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-activity",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity",
+      "rect": [
+        0.0,
+        169.3,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-activity/#0",
       "rect": [
         12.0,
-        143.0,
+        175.3,
         48.4,
         16.3
       ],
@@ -180,7 +204,7 @@
       "path": "shell/body/rail/rail-demo",
       "rect": [
         0.0,
-        169.3,
+        201.5,
         88.0,
         28.3
       ],
@@ -192,7 +216,7 @@
       "path": "shell/body/rail/rail-demo/#0",
       "rect": [
         12.0,
-        175.3,
+        207.5,
         36.7,
         16.3
       ],
@@ -5784,7 +5808,7 @@
       "rect": [
         708.0,
         38.3,
-        188.7,
+        316.0,
         15.0
       ],
       "role": "text",
@@ -5809,7 +5833,7 @@
       "rect": [
         604.0,
         59.3,
-        322.9,
+        420.0,
         15.0
       ],
       "role": "text",
@@ -6017,11 +6041,11 @@
       "rect": [
         138.2,
         782.1,
-        42.9,
+        40.4,
         13.8
       ],
       "role": "text",
-      "text": "epoch 0"
+      "text": "epoch 1"
     },
     {
       "color": "#8a93a3ff",
@@ -6029,7 +6053,7 @@
       "opacity": 1.0,
       "path": "shell/status/status-3",
       "rect": [
-        193.1,
+        190.6,
         782.1,
         23.6,
         13.8
@@ -6043,7 +6067,7 @@
       "opacity": 1.0,
       "path": "shell/status/status-4",
       "rect": [
-        228.8,
+        226.2,
         782.1,
         36.2,
         13.8
@@ -6055,9 +6079,9 @@
       "opacity": 1.0,
       "path": "shell/status/#5",
       "rect": [
-        277.0,
+        274.4,
         789.0,
-        864.9,
+        795.6,
         0.0
       ],
       "role": "group"
@@ -6068,13 +6092,13 @@
       "opacity": 1.0,
       "path": "shell/status/status-msg",
       "rect": [
-        1153.9,
+        1082.0,
         782.1,
-        2.9,
+        74.8,
         13.8
       ],
       "role": "text",
-      "text": ""
+      "text": "Extra — Demo"
     },
     {
       "color": "#8a93a3ff",

@@ -6,7 +6,7 @@
 use crate::app_state::AppState;
 use crate::cascade;
 use crate::command::{CommandSpec, Intent, Palette};
-use crate::module::{Registry, RowModel};
+use crate::module::{ProjectSnapshot, Registry, RowModel};
 use crate::theme::{Mode, Theme};
 use crate::windows::{CloseOutcome, PRIMARY, WindowId, Windows};
 use cv_core::engine::{EventSink, WatchHandle};
@@ -172,6 +172,31 @@ impl Workbench {
         changed
     }
 
+    /// Fan a project snapshot out to every module (snapshot resync).
+    pub fn load_snapshot(&mut self, snap: &ProjectSnapshot) -> bool {
+        self.app.snapshot_epoch = snap.epoch;
+        let mut changed = false;
+        for m in self.registry.iter_mut() {
+            changed |= m.load(snap);
+        }
+        self.reclamp_rows();
+        changed
+    }
+
+    /// Follow the selected row's click-through link, if any.
+    pub fn follow_link(&mut self) {
+        let link = self
+            .selected_key()
+            .and_then(|k| self.registry.get(self.active).and_then(|m| m.link(k)));
+        match link {
+            Some(l) => self.apply(Intent::Reveal {
+                module: l.module.to_string(),
+                key: l.key,
+            }),
+            None => self.status = "nothing to open".into(),
+        }
+    }
+
     /// Disclose a degraded state through the same commit path as engine events.
     pub fn disclose(&mut self, reason: DegradedReason) {
         self.local_seq += 1;
@@ -323,6 +348,7 @@ impl Workbench {
             .chord("enter"),
             CommandSpec::new("shell.window.close-companions", "Close companion windows"),
             CommandSpec::new("shell.degraded.dismiss", "Dismiss degraded banner"),
+            CommandSpec::new("shell.follow", "Open linked noun").chord("mod+o"),
         ];
         for (i, m) in self.registry.iter().enumerate() {
             let s = m.spec();
@@ -358,6 +384,7 @@ impl Workbench {
                 }
             }
             "shell.degraded.dismiss" => self.apply(Intent::Recover),
+            "shell.follow" => self.follow_link(),
             _ => {
                 if let Some(target) = id.strip_prefix("shell.goto.") {
                     if let Some(i) = self.registry.index_of(target) {
@@ -397,6 +424,24 @@ impl Workbench {
                 self.windows.open_companion(module, &key, &title);
                 self.status = format!("companion: {title}");
             }
+            Intent::Reveal { module, key } => {
+                let Some(i) = self.registry.index_of(&module) else {
+                    self.status = format!("no module {module}");
+                    return;
+                };
+                self.activate(i);
+                let first = self
+                    .registry
+                    .get(i)
+                    .and_then(|m| m.nav().items.first().map(|n| n.key.clone()));
+                if let Some(nav) = first {
+                    self.set_nav(&nav);
+                }
+                self.select_key(&key);
+                if self.selected_key() != Some(key.as_str()) {
+                    self.status = format!("{key} is not in {module}");
+                }
+            }
         }
     }
 
@@ -418,6 +463,7 @@ impl Workbench {
         match &k.key {
             KeyInput::Command('k') => self.palette.toggle(),
             KeyInput::Command('i') => self.run_command("shell.inspector.toggle"),
+            KeyInput::Command('o') => self.follow_link(),
             KeyInput::Command(c) if c.is_ascii_digit() && *c != '0' => {
                 self.activate(*c as usize - '1' as usize)
             }

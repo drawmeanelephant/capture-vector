@@ -8,6 +8,7 @@
 //! - [`app`]: native window boot + companion windows.
 
 pub mod app;
+pub mod diagnostic;
 pub mod harness;
 pub mod keys;
 pub mod shell;

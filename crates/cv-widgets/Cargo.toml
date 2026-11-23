@@ -8,7 +8,7 @@ description = "The ONLY crate importing rune/rune-kit (version firewall; cargo-d
 
 [dependencies]
 rune.workspace = true
-rune-kit.workspace = true
+rune-kit = { workspace = true, features = ["markdown"] }
 cv-core.workspace = true
 cv-model.workspace = true
 serde.workspace = true

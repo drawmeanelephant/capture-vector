@@ -20,6 +20,7 @@ fn press(wb: &mut Workbench, k: KeyInput) -> bool {
 
 fn replayed(corpus: &str) -> (Workbench, Arc<AtomicUsize>) {
     let mut wb = Workbench::new(Registry::with_all()).with_store(Box::new(StubStore::new()));
+    wb.activate(wb.registry.index_of("demo").expect("demo registered"));
     let wakes = Arc::new(AtomicUsize::new(0));
     let w = wakes.clone();
     wb.set_waker(Arc::new(move || {
@@ -87,7 +88,7 @@ fn replay_is_idempotent_and_journaled() {
 fn rail_slots_and_keyboard_navigation() {
     let (mut wb, _) = replayed("happy");
     wb.drain();
-    let demo = wb.registry.get(0).unwrap().spec();
+    let demo = wb.registry.get(wb.active).unwrap().spec();
     assert_eq!(demo.slot, Slot::Extra);
     assert!(press(&mut wb, KeyInput::Down));
     assert_eq!(wb.windows.primary.row.as_ref().map(|r| r.0), Some(0));

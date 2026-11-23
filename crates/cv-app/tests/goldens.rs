@@ -19,7 +19,25 @@ fn scene(name: &str) -> Harness {
     Harness::new(wb)
 }
 
-const TREE_SCENES: &[&str] = &["canary", "pages-5k", "palette", "light"];
+const TREE_SCENES: &[&str] = &[
+    "canary",
+    "pages-5k",
+    "palette",
+    "light",
+    "pages",
+    "outputs",
+    "activity",
+    "broken-duplicate-id",
+    "broken-frontmatter",
+    "broken-parent",
+    "broken-textile",
+    "broken-wikilink",
+    "dogfood",
+    "activity-broken",
+    "empty",
+    "mid-watch",
+    "pages-watch-dead",
+];
 
 #[test]
 fn scene_goldens() {

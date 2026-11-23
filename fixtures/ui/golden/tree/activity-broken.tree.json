@@ -1,0 +1,1344 @@
+{
+  "nodes": [
+    {
+      "fill": "#0e1014ff",
+      "key": "shell",
+      "opacity": 1.0,
+      "path": "shell",
+      "rect": [
+        0.0,
+        0.0,
+        1280.0,
+        800.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "body",
+      "opacity": 1.0,
+      "path": "shell/body",
+      "rect": [
+        0.0,
+        0.0,
+        1280.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/rail",
+      "rect": [
+        0.0,
+        0.0,
+        88.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-pages",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages",
+      "rect": [
+        0.0,
+        8.0,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages/#0",
+      "rect": [
+        12.0,
+        14.0,
+        38.7,
+        16.3
+      ],
+      "role": "text",
+      "text": "Pages"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-research",
+      "label": "not registered",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research",
+      "rect": [
+        0.0,
+        40.3,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research/#0",
+      "rect": [
+        12.0,
+        46.3,
+        58.8,
+        16.3
+      ],
+      "role": "text",
+      "text": "Research"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-audit",
+      "label": "not registered",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit",
+      "rect": [
+        0.0,
+        72.5,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#0",
+      "rect": [
+        12.0,
+        78.5,
+        33.5,
+        16.3
+      ],
+      "role": "text",
+      "text": "Audit"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-publish",
+      "label": "not registered",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish",
+      "rect": [
+        0.0,
+        104.8,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish/#0",
+      "rect": [
+        12.0,
+        110.8,
+        46.4,
+        16.3
+      ],
+      "role": "text",
+      "text": "Publish"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-outputs",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs",
+      "rect": [
+        0.0,
+        137.0,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs/#0",
+      "rect": [
+        12.0,
+        143.0,
+        50.2,
+        16.3
+      ],
+      "role": "text",
+      "text": "Outputs"
+    },
+    {
+      "fill": "#00d1ffff",
+      "key": "rail-activity",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity",
+      "rect": [
+        0.0,
+        169.3,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#001018ff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity/#0",
+      "rect": [
+        12.0,
+        175.3,
+        48.4,
+        16.3
+      ],
+      "role": "text",
+      "text": "Activity"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-demo",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo",
+      "rect": [
+        0.0,
+        201.5,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo/#0",
+      "rect": [
+        12.0,
+        207.5,
+        36.7,
+        16.3
+      ],
+      "role": "text",
+      "text": "Demo"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav",
+      "opacity": 1.0,
+      "path": "shell/body/nav",
+      "rect": [
+        88.0,
+        0.0,
+        180.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/#0",
+      "rect": [
+        96.0,
+        8.0,
+        164.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Activity"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-all",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-all",
+      "rect": [
+        96.0,
+        28.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-all/#0",
+      "rect": [
+        104.0,
+        32.3,
+        58.5,
+        15.0
+      ],
+      "role": "text",
+      "text": "All activity"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-all/#1",
+      "rect": [
+        162.5,
+        32.3,
+        82.9,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-all/#2",
+      "rect": [
+        245.4,
+        32.3,
+        6.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "5"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-errors",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-errors",
+      "rect": [
+        96.0,
+        55.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-errors/#0",
+      "rect": [
+        104.0,
+        59.3,
+        34.3,
+        15.0
+      ],
+      "role": "text",
+      "text": "Errors"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-errors/#1",
+      "rect": [
+        138.3,
+        59.3,
+        106.8,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-errors/#2",
+      "rect": [
+        245.1,
+        59.3,
+        6.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "3"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-warnings",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-warnings",
+      "rect": [
+        96.0,
+        82.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-warnings/#0",
+      "rect": [
+        104.0,
+        86.3,
+        99.3,
+        15.0
+      ],
+      "role": "text",
+      "text": "Warnings & notes"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-warnings/#1",
+      "rect": [
+        203.3,
+        86.3,
+        41.5,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-warnings/#2",
+      "rect": [
+        244.9,
+        86.3,
+        7.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-builds",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-builds",
+      "rect": [
+        96.0,
+        109.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-builds/#0",
+      "rect": [
+        104.0,
+        113.3,
+        34.5,
+        15.0
+      ],
+      "role": "text",
+      "text": "Builds"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-builds/#1",
+      "rect": [
+        138.5,
+        113.3,
+        106.8,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-builds/#2",
+      "rect": [
+        245.2,
+        113.3,
+        6.8,
+        15.0
+      ],
+      "role": "text",
+      "text": "2"
+    },
+    {
+      "fill": "#00d1ff33",
+      "key": "nav-file:orphan.md",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-file:orphan.md",
+      "rect": [
+        96.0,
+        136.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-file:orphan.md/#0",
+      "rect": [
+        104.0,
+        140.3,
+        61.5,
+        15.0
+      ],
+      "role": "text",
+      "text": "orphan.md"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-file:orphan.md/#1",
+      "rect": [
+        165.5,
+        140.3,
+        81.9,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-file:orphan.md/#2",
+      "rect": [
+        247.4,
+        140.3,
+        4.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "1"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "list-pane",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane",
+      "rect": [
+        268.0,
+        0.0,
+        320.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "list-viewport",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport",
+      "rect": [
+        268.0,
+        0.0,
+        320.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#00d1ff33",
+      "key": "row-act-00003",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-act-00003",
+      "rect": [
+        268.0,
+        0.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ff3d71ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-act-00003/rail",
+      "rect": [
+        276.0,
+        4.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#ff3d71ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-act-00003/#1",
+      "rect": [
+        287.0,
+        3.5,
+        246.4,
+        15.0
+      ],
+      "role": "text",
+      "text": "EPARENTMISSING: parent \"does-not-exist\" does not exist [Create the parent document or fix the parent id]"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-act-00003/#2",
+      "rect": [
+        541.4,
+        11.0,
+        0.0,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-act-00003/#3",
+      "rect": [
+        549.4,
+        4.1,
+        30.6,
+        13.8
+      ],
+      "role": "text",
+      "text": "orphan.md:3:1"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "reading",
+      "opacity": 1.0,
+      "path": "shell/body/reading",
+      "rect": [
+        588.0,
+        0.0,
+        452.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/#0",
+      "rect": [
+        604.0,
+        16.0,
+        420.0,
+        32.5
+      ],
+      "role": "text",
+      "text": "EPARENTMISSING: parent \"does-not-exist\" does not exist [Create the parent document or fix the parent id]"
+    },
+    {
+      "key": "line-0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-0",
+      "rect": [
+        604.0,
+        54.5,
+        420.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-0/#0",
+      "rect": [
+        604.0,
+        54.5,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "severity"
+    },
+    {
+      "color": "#ff3d71ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-0/#1",
+      "rect": [
+        708.0,
+        54.5,
+        316.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "error"
+    },
+    {
+      "key": "line-1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-1",
+      "rect": [
+        604.0,
+        75.5,
+        420.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-1/#0",
+      "rect": [
+        604.0,
+        75.5,
+        96.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "code"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-1/#1",
+      "rect": [
+        708.0,
+        75.5,
+        316.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "EPARENTMISSING"
+    },
+    {
+      "key": "line-2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-2",
+      "rect": [
+        604.0,
+        95.3,
+        420.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-2/#0",
+      "rect": [
+        604.0,
+        95.3,
+        96.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "at"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-2/#1",
+      "rect": [
+        708.0,
+        95.3,
+        316.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "orphan.md:3:1"
+    },
+    {
+      "key": "line-3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-3",
+      "rect": [
+        604.0,
+        115.0,
+        420.0,
+        30.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-3/#0",
+      "rect": [
+        604.0,
+        115.0,
+        96.0,
+        30.0
+      ],
+      "role": "text",
+      "text": "message"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-3/#1",
+      "rect": [
+        708.0,
+        115.0,
+        316.0,
+        30.0
+      ],
+      "role": "text",
+      "text": "parent \"does-not-exist\" does not exist [Create the parent document or fix the parent id]"
+    },
+    {
+      "key": "line-4",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-4",
+      "rect": [
+        604.0,
+        151.0,
+        420.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-4/#0",
+      "rect": [
+        604.0,
+        151.0,
+        96.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "seen"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/line-4/#1",
+      "rect": [
+        708.0,
+        151.0,
+        316.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "stub-2 · stub-build-2"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "inspector",
+      "opacity": 1.0,
+      "path": "shell/body/inspector",
+      "rect": [
+        1040.0,
+        0.0,
+        240.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/#0",
+      "rect": [
+        1048.0,
+        8.0,
+        224.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Inspector"
+    },
+    {
+      "key": "field-entry",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-entry",
+      "rect": [
+        1048.0,
+        28.3,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-entry/#0",
+      "rect": [
+        1048.0,
+        28.3,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "entry"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-entry/#1",
+      "rect": [
+        1128.0,
+        28.3,
+        55.5,
+        13.8
+      ],
+      "role": "text",
+      "text": "act-00003"
+    },
+    {
+      "key": "field-seen",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-seen",
+      "rect": [
+        1048.0,
+        46.0,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-seen/#0",
+      "rect": [
+        1048.0,
+        46.0,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "seen"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-seen/#1",
+      "rect": [
+        1128.0,
+        46.0,
+        4.5,
+        13.8
+      ],
+      "role": "text",
+      "text": "1"
+    },
+    {
+      "key": "field-first",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-first",
+      "rect": [
+        1048.0,
+        63.8,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-first/#0",
+      "rect": [
+        1048.0,
+        63.8,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "first"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-first/#1",
+      "rect": [
+        1128.0,
+        63.8,
+        34.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "stub-2"
+    },
+    {
+      "key": "field-last",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-last",
+      "rect": [
+        1048.0,
+        81.5,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-last/#0",
+      "rect": [
+        1048.0,
+        81.5,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "last"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-last/#1",
+      "rect": [
+        1128.0,
+        81.5,
+        34.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "stub-2"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "diagnostics",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/diagnostics",
+      "rect": [
+        1048.0,
+        107.3,
+        224.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Diagnostics"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "diag-0",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/diag-0",
+      "rect": [
+        1048.0,
+        125.0,
+        224.0,
+        92.3
+      ],
+      "role": "note"
+    },
+    {
+      "fill": "#ff3d71ff",
+      "key": "diag-rail",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/diag-0/diag-rail",
+      "rect": [
+        1048.0,
+        125.0,
+        3.0,
+        92.3
+      ],
+      "role": "group"
+    },
+    {
+      "key": "diag-body",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/diag-0/diag-body",
+      "rect": [
+        1055.0,
+        125.0,
+        217.0,
+        92.3
+      ],
+      "role": "group"
+    },
+    {
+      "key": "diag-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/diag-0/diag-body/diag-head",
+      "rect": [
+        1055.0,
+        125.0,
+        217.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#ff3d71ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/diag-0/diag-body/diag-head/#0",
+      "rect": [
+        1055.0,
+        125.0,
+        25.8,
+        13.8
+      ],
+      "role": "text",
+      "text": "error"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/diag-0/diag-body/diag-head/#1",
+      "rect": [
+        1084.8,
+        125.0,
+        96.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "EPARENTMISSING"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "diag-at",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/diag-0/diag-body/diag-at",
+      "rect": [
+        1055.0,
+        140.8,
+        217.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "orphan.md:3:1"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "diag-msg",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/diag-0/diag-body/diag-msg",
+      "rect": [
+        1055.0,
+        156.5,
+        217.0,
+        45.0
+      ],
+      "role": "text",
+      "text": "parent \"does-not-exist\" does not exist [Create the parent document or fix the parent id]"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "diag-build",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/diag-0/diag-body/diag-build",
+      "rect": [
+        1055.0,
+        203.5,
+        217.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "build stub-build-2"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "list-0",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-0",
+      "rect": [
+        1048.0,
+        229.3,
+        224.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Builds (1)"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "list-0-0",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-0-0",
+      "rect": [
+        1048.0,
+        247.0,
+        224.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "stub-build-2"
+    },
+    {
+      "fill": "#00d1ffff",
+      "key": "follow-link",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/follow-link",
+      "rect": [
+        1048.0,
+        272.8,
+        224.0,
+        23.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#001018ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/follow-link/#0",
+      "rect": [
+        1056.0,
+        276.8,
+        82.5,
+        15.0
+      ],
+      "role": "text",
+      "text": "Open in Pages"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/#10",
+      "rect": [
+        1048.0,
+        307.8,
+        224.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Windows"
+    },
+    {
+      "key": "field-primary",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-primary",
+      "rect": [
+        1048.0,
+        325.5,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-primary/#0",
+      "rect": [
+        1048.0,
+        325.5,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "primary"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-primary/#1",
+      "rect": [
+        1128.0,
+        325.5,
+        28.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "clean"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "status",
+      "opacity": 1.0,
+      "path": "shell/status",
+      "rect": [
+        0.0,
+        778.0,
+        1280.0,
+        22.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-0",
+      "opacity": 1.0,
+      "path": "shell/status/status-0",
+      "rect": [
+        12.0,
+        782.1,
+        57.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "boris/0.9.0"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1",
+      "opacity": 1.0,
+      "path": "shell/status/status-1",
+      "rect": [
+        81.4,
+        782.1,
+        45.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "4 events"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-2",
+      "opacity": 1.0,
+      "path": "shell/status/status-2",
+      "rect": [
+        138.5,
+        782.1,
+        40.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "epoch 1"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-3",
+      "opacity": 1.0,
+      "path": "shell/status/status-3",
+      "rect": [
+        190.9,
+        782.1,
+        23.6,
+        13.8
+      ],
+      "role": "text",
+      "text": "dark"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-4",
+      "opacity": 1.0,
+      "path": "shell/status/status-4",
+      "rect": [
+        226.5,
+        782.1,
+        36.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "motion"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/status/#5",
+      "rect": [
+        274.8,
+        789.0,
+        773.3,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-msg",
+      "opacity": 1.0,
+      "path": "shell/status/status-msg",
+      "rect": [
+        1060.0,
+        782.1,
+        96.8,
+        13.8
+      ],
+      "role": "text",
+      "text": "Activity — Activity"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/status/#7",
+      "rect": [
+        1168.8,
+        782.1,
+        99.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "mod+K commands"
+    }
+  ],
+  "schema": 1
+}

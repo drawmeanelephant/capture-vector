@@ -2,8 +2,14 @@
 // Lanes add `modules/<lane>/mod.rs` exposing `pub fn register(&mut Registry)`
 // and rerun codegen; `scripts/check-module-registry.sh` gates drift.
 
+pub mod activity;
 pub mod demo;
+pub mod outputs;
+pub mod pages;
 
 pub fn register_all(r: &mut crate::module::Registry) {
+    activity::register(r);
     demo::register(r);
+    outputs::register(r);
+    pages::register(r);
 }
