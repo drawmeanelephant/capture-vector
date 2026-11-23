@@ -687,11 +687,24 @@ impl<'a> Ctx<'a, '_> {
             .map(|d| url_origin(&normalized_base(&d.base_url)).to_string());
         for page in &set.pages {
             for href in page.attr_values("a", "href") {
-                let Some(route) =
-                    internal_route(href, &page.route, origin.as_deref(), base.as_deref())
-                else {
-                    continue;
-                };
+                let route =
+                    match internal_route(href, &page.route, origin.as_deref(), base.as_deref()) {
+                        None => continue,
+                        Some(Link::Page(route)) => route,
+                        Some(Link::OutsideBase) => {
+                            self.emit(
+                                CheckStatus::Failed,
+                                Subject::Page(page),
+                                &format!("href:{href}"),
+                                format!(
+                                    "internal link `{href}` leaves deploy base path `{}`",
+                                    base.as_deref().unwrap_or("/")
+                                ),
+                                json!({ "href": href }),
+                            );
+                            continue;
+                        }
+                    };
                 if !routes.contains(&route.as_str()) {
                     self.emit(
                         CheckStatus::Failed,
@@ -833,22 +846,43 @@ fn route_matches(u: &str, base_path: Option<&str>, route: &str) -> bool {
     }
 }
 
-/// Resolve an `<a href>` on `from_route` to a target route, if it is an
-/// internal page link (`.html`, same origin or relative).
+/// Where an internal `<a href>` points.
+#[derive(Debug, PartialEq, Eq)]
+enum Link {
+    Page(String),
+    /// A relative or root-relative link that leaves the deploy base path
+    /// (the absolute same-origin form is canonical parity's finding).
+    OutsideBase,
+}
+
+/// Resolve an `<a href>` on `from_route`, if it is an internal page link
+/// (`.html`, same origin, scheme-relative or relative).
 fn internal_route(
     href: &str,
     from_route: &str,
     origin: Option<&str>,
     base_path: Option<&str>,
-) -> Option<String> {
+) -> Option<Link> {
     let h = strip_query(href.trim());
+    let scheme_relative;
+    let h = match h.strip_prefix("//") {
+        Some(rest) => {
+            let scheme = origin
+                .and_then(|o| o.split_once("://"))
+                .map_or("https", |(s, _)| s);
+            scheme_relative = format!("{scheme}://{rest}");
+            scheme_relative.as_str()
+        }
+        None => h,
+    };
     if h.is_empty() || h.contains(':') && !h.contains("://") {
         return None; // mailto:, tel:, javascript:, data:
     }
     if !h.ends_with(".html") {
         return None;
     }
-    let path = if h.contains("://") {
+    let absolute = h.contains("://");
+    let path = if absolute {
         if Some(url_origin(h)) != origin {
             return None;
         }
@@ -857,12 +891,20 @@ fn internal_route(
         h.to_string()
     };
     let path = percent_decode(&path);
+    let bp = percent_decode(base_path.unwrap_or(""));
+    let bp = bp.trim_matches('/');
+    let outside = || (!absolute).then_some(Link::OutsideBase);
     let joined = if let Some(abs) = path.strip_prefix('/') {
-        let bp = base_path.unwrap_or("").trim_matches('/');
         if bp.is_empty() {
             abs.to_string()
         } else {
-            abs.strip_prefix(bp)?.trim_start_matches('/').to_string()
+            match abs
+                .strip_prefix(bp)
+                .filter(|r| r.is_empty() || r.starts_with('/'))
+            {
+                Some(r) => r.trim_start_matches('/').to_string(),
+                None => return outside(),
+            }
         }
     } else {
         match from_route.rfind('/') {
@@ -874,13 +916,17 @@ fn internal_route(
     for seg in joined.split('/') {
         match seg {
             "" | "." => {}
+            // Above the site root: browsers clamp at `/`, which is only
+            // still inside the deploy when the deploy is the origin root.
             ".." => {
-                parts.pop()?;
+                if parts.pop().is_none() && !bp.is_empty() {
+                    return outside();
+                }
             }
             s => parts.push(s),
         }
     }
-    Some(parts.join("/"))
+    Some(Link::Page(parts.join("/")))
 }
 
 fn slash_violation(u: &str, policy: SlashPolicy, base: &str) -> Option<String> {
@@ -903,6 +949,13 @@ fn slash_violation(u: &str, policy: SlashPolicy, base: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn route(h: &str, from: &str, origin: Option<&str>, bp: Option<&str>) -> Option<String> {
+        internal_route(h, from, origin, bp).map(|l| match l {
+            Link::Page(p) => p,
+            Link::OutsideBase => "<outside>".into(),
+        })
+    }
 
     #[test]
     fn url_helpers() {
@@ -928,16 +981,16 @@ mod tests {
             "index.html"
         ));
         assert_eq!(
-            internal_route("../b.html#x", "g/a.html", None, None).as_deref(),
+            route("../b.html#x", "g/a.html", None, None).as_deref(),
             Some("b.html")
         );
         assert_eq!(
-            internal_route("/p/b.html", "a.html", None, Some("/p")).as_deref(),
+            route("/p/b.html", "a.html", None, Some("/p")).as_deref(),
             Some("b.html")
         );
-        assert_eq!(internal_route("mailto:x@y", "a.html", None, None), None);
+        assert_eq!(route("mailto:x@y", "a.html", None, None), None);
         assert_eq!(
-            internal_route(
+            route(
                 "https://other.example/b.html",
                 "a.html",
                 Some("https://a.example"),
@@ -946,6 +999,31 @@ mod tests {
             None
         );
         assert_eq!(percent_encode("a b/c.html"), "a%20b/c.html");
+        let o = Some("https://a.example");
+        assert_eq!(route("//cdn.example/x.html", "a.html", o, None), None);
+        assert_eq!(
+            route("//a.example/b.html", "a.html", o, None).as_deref(),
+            Some("b.html")
+        );
+        assert_eq!(
+            route("../x.html", "a.html", None, None).as_deref(),
+            Some("x.html")
+        );
+        for h in ["../x.html", "/other/x.html", "/pp/x.html"] {
+            assert_eq!(
+                route(h, "a.html", o, Some("/p")).as_deref(),
+                Some("<outside>"),
+                "{h}"
+            );
+        }
+        assert_eq!(
+            route("https://a.example/other/x.html", "a.html", o, Some("/p")),
+            None
+        );
+        assert_eq!(
+            route("/my%20docs/b.html", "a.html", o, Some("/my%20docs")).as_deref(),
+            Some("b.html")
+        );
         assert!(route_matches(
             "https://a.example/my%20docs/b.html",
             Some("/my%20docs"),
