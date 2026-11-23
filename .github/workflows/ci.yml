@@ -67,9 +67,12 @@ jobs:
           fi
       - name: no async runtime in our crates' manifests
         run: |
-          offenders=$(grep -rln -E '^[[:space:]]*(tokio|async-std)[[:space:]]*=' crates/*/Cargo.toml xtask/Cargo.toml || true)
+          offenders=$(cargo metadata --format-version 1 --no-deps \
+            | jq -r '.packages[] | .name as $n | .dependencies[]
+                     | select(.name == "tokio" or .name == "async-std")
+                     | "\($n) -> \(.name)"')
           if [ -n "$offenders" ]; then
-            echo "async runtime dep outside allowed crates:"; echo "$offenders"; exit 1
+            echo "async runtime declared by a workspace crate:"; echo "$offenders"; exit 1
           fi
       - name: no std::process outside cv-engine
         run: |
