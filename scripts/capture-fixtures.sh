@@ -19,7 +19,8 @@ for c in $CORPORA; do
   src="$CORPUS_SRC/$c"
   [ -d "$src" ] || { echo "skip $c (no corpus at $src)"; continue; }
   echo "== $c =="
-  cp -R "$src" "$FIX/corpus-src/$c"
+  mkdir -p "$FIX/corpus-src/$c"
+  cp -R "$src/." "$FIX/corpus-src/$c/"
   run="$FIX/corpus-src/$c"
   cap="$FIX/captures/$c"; mkdir -p "$cap"
 
@@ -81,8 +82,8 @@ for c in $CORPORA; do
   page=$(find "$run/content" -name '*.md' | head -1)
   [ -n "$page" ] && { sleep 1; printf '\n' >> "$page"; sleep 2; }
   kill $WPID 2>/dev/null; wait $WPID 2>/dev/null
-  # undo the touch so corpus-src stays pristine
-  git -C "$FIX/corpus-src" checkout -- . 2>/dev/null || true
+  # keep corpus-src pristine: drop build artifacts the runs produced
+  rm -rf "$run/dist" "$run/.boris-cache" "$run/content/../.boris-cache"
 done
 
 # manifest: sha256 of every captured artifact + engine version + commands

@@ -1,2 +1,1 @@
-error: EFRONTMATTER: broken-frontmatter/index.md:4:1: unsupported frontmatter key [Use only the supported keys: id, title, parent, status, tags, relations, published_at, summary, servings]
 error: EFRONTMATTER: index.md:4:1: unsupported frontmatter key [Use only the supported keys: id, title, parent, status, tags, relations, published_at, summary, servings]
