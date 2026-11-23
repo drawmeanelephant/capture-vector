@@ -1,0 +1,30 @@
+#!/bin/sh
+# fake-boris (POSIX): replays recorded Boris output from files next to
+# this script. Logs argv/env/stdin so tests can prove secret hygiene.
+D=$(cd "$(dirname "$0")" && pwd)
+printf '%s\n' "$*" >> "$D/argv.log"
+env > "$D/env.log"
+case "$1" in
+  --version) cat "$D/version.txt"; exit 0 ;;
+  --build-info) cat "$D/build-info.txt"; exit 0 ;;
+  watch)
+    if [ -f "$D/watch-refuse.txt" ]; then cat "$D/watch-refuse.txt" >&2; exit 2; fi
+    [ -f "$D/watch.ndjson" ] && cat "$D/watch.ndjson" >&2
+    if [ -f "$D/watch-hold" ]; then
+      # A grandchild holding stderr: only a group kill closes the pipe.
+      sleep 300 &
+      wait
+    fi
+    C=0; [ -f "$D/watch-exit.txt" ] && C=$(cat "$D/watch-exit.txt")
+    exit "$C" ;;
+  nostr)
+    IFS= read -r KEY
+    printf '%s' "$KEY" > "$D/stdin.txt" ;;
+esac
+V="$1"
+if [ ! -d "$D/verbs/$V" ]; then echo "usage: fake-boris has no '$V'" >&2; exit 2; fi
+[ -f "$D/verbs/$V/stdout.txt" ] && cat "$D/verbs/$V/stdout.txt"
+[ -f "$D/verbs/$V/stderr.txt" ] && cat "$D/verbs/$V/stderr.txt" >&2
+if [ -f "$D/verbs/$V/hold" ]; then sleep 300 & wait; fi
+C=0; [ -f "$D/verbs/$V/exit-code.txt" ] && C=$(cat "$D/verbs/$V/exit-code.txt")
+exit "$C"

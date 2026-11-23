@@ -1,0 +1,190 @@
+//! Fingerprinted staged writes. Compare-then-replace: the draft's base
+//! fingerprint (sha256 + mtime) must still match disk, then the body is
+//! written to a sibling `*.tmp` and atomically renamed over the target.
+//! No frontmatter validation here — `boris validate` is authoritative.
+
+use crate::error::{EngineError, Result};
+use cv_core::engine::{Fingerprint, WriteOutcome};
+use cv_core::sys::{Hash, Timestamp};
+use sha2::{Digest, Sha256};
+use std::io::Write;
+use std::path::{Component, Path, PathBuf};
+use std::time::{Duration, UNIX_EPOCH};
+
+/// Windows: antivirus/indexer handles make rename fail transiently.
+const SHARING_RETRIES: u32 = 8;
+const SHARING_BACKOFF: Duration = Duration::from_millis(25);
+
+pub fn fingerprint_bytes(bytes: &[u8], mtime: std::time::SystemTime) -> Fingerprint {
+    let digest: [u8; 32] = Sha256::digest(bytes).into();
+    let ms = mtime
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    Fingerprint {
+        sha256: Hash(digest),
+        mtime: Timestamp(ms),
+    }
+}
+
+pub fn fingerprint(path: &Path) -> std::io::Result<Option<Fingerprint>> {
+    match std::fs::read(path) {
+        Ok(bytes) => {
+            let mtime = std::fs::metadata(path)?.modified()?;
+            Ok(Some(fingerprint_bytes(&bytes, mtime)))
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+/// Resolve a workspace-relative draft path; absolute paths, `..`, and
+/// drive prefixes are refused (mirrors Boris's workspace containment).
+pub fn resolve(root: &Path, rel: &str) -> Result<PathBuf> {
+    let p = Path::new(rel);
+    let ok = !rel.is_empty()
+        && p.components()
+            .all(|c| matches!(c, Component::Normal(_) | Component::CurDir));
+    if !ok {
+        return Err(EngineError::PathEscape(rel.to_string()));
+    }
+    Ok(root.join(p))
+}
+
+/// Is this a transient Windows sharing/lock violation worth retrying?
+/// (`ERROR_ACCESS_DENIED` 5, `ERROR_SHARING_VIOLATION` 32,
+/// `ERROR_LOCK_VIOLATION` 33.) Always `false` off Windows.
+pub fn is_sharing_violation(e: &std::io::Error) -> bool {
+    cfg!(windows) && matches!(e.raw_os_error(), Some(5 | 32 | 33))
+}
+
+/// Run `op`, retrying sharing violations with linear backoff.
+pub fn retry_sharing<T>(mut op: impl FnMut() -> std::io::Result<T>) -> std::io::Result<T> {
+    let mut attempt = 0;
+    loop {
+        match op() {
+            Err(e) if is_sharing_violation(&e) && attempt < SHARING_RETRIES => {
+                attempt += 1;
+                std::thread::sleep(SHARING_BACKOFF * attempt);
+            }
+            r => return r,
+        }
+    }
+}
+
+/// `expected = None` means "create": an existing file is a stale base.
+pub fn write_staged(
+    root: &Path,
+    rel: &str,
+    body: &[u8],
+    expected: Option<Fingerprint>,
+) -> Result<WriteOutcome> {
+    let target = resolve(root, rel)?;
+    let check = |target: &Path| -> Result<Option<WriteOutcome>> {
+        match (retry_sharing(|| fingerprint(target))?, expected) {
+            (None, None) => Ok(None),
+            (Some(found), Some(base)) if found == base => Ok(None),
+            (Some(found), _) => Ok(Some(WriteOutcome::StaleBase { found })),
+            (None, Some(_)) => Err(EngineError::Refused(format!(
+                "{rel}: base fingerprint given but file no longer exists"
+            ))),
+        }
+    };
+    if let Some(stale) = check(&target)? {
+        return Ok(stale);
+    }
+    let dir = target.parent().unwrap_or(root);
+    std::fs::create_dir_all(dir)?;
+    let mut tmp = tempfile::Builder::new()
+        .prefix(".cv-write-")
+        .suffix(".tmp")
+        .tempfile_in(dir)?;
+    tmp.write_all(body)?;
+    tmp.as_file().sync_all()?;
+    // Re-check right before the swap to narrow the race with an external
+    // editor; the rename itself is atomic.
+    if let Some(stale) = check(&target)? {
+        return Ok(stale);
+    }
+    let mut tmp = Some(tmp);
+    retry_sharing(|| match tmp.take().expect("tmp present").persist(&target) {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            let err = std::io::Error::new(e.error.kind(), e.error.to_string());
+            let raw = e.error.raw_os_error();
+            tmp = Some(e.file);
+            Err(raw.map(std::io::Error::from_raw_os_error).unwrap_or(err))
+        }
+    })?;
+    let fp = retry_sharing(|| fingerprint(&target))?
+        .ok_or_else(|| EngineError::Refused(format!("{rel}: vanished after write")))?;
+    Ok(WriteOutcome::Written { fingerprint: fp })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn create_then_update_then_stale() {
+        let t = tempfile::tempdir().unwrap();
+        let WriteOutcome::Written { fingerprint: fp1 } =
+            write_staged(t.path(), "content/a.md", b"one", None).unwrap()
+        else {
+            panic!("create")
+        };
+        // Creating over an existing file is a stale base.
+        assert!(matches!(
+            write_staged(t.path(), "content/a.md", b"x", None).unwrap(),
+            WriteOutcome::StaleBase { found } if found == fp1
+        ));
+        let WriteOutcome::Written { fingerprint: fp2 } =
+            write_staged(t.path(), "content/a.md", b"two", Some(fp1)).unwrap()
+        else {
+            panic!("update")
+        };
+        assert_ne!(fp1.sha256, fp2.sha256);
+        // Someone else edits; our old base is now stale and disk is untouched.
+        std::fs::write(t.path().join("content/a.md"), b"theirs").unwrap();
+        assert!(matches!(
+            write_staged(t.path(), "content/a.md", b"mine", Some(fp2)).unwrap(),
+            WriteOutcome::StaleBase { .. }
+        ));
+        assert_eq!(
+            std::fs::read(t.path().join("content/a.md")).unwrap(),
+            b"theirs"
+        );
+        let leftovers: Vec<_> = std::fs::read_dir(t.path().join("content"))
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_name().to_string_lossy().ends_with(".tmp"))
+            .collect();
+        assert!(leftovers.is_empty());
+    }
+
+    #[test]
+    fn escapes_refused() {
+        let t = tempfile::tempdir().unwrap();
+        for bad in ["../x.md", "/etc/x", "", "a/../../b"] {
+            assert!(
+                matches!(resolve(t.path(), bad), Err(EngineError::PathEscape(_))),
+                "{bad}"
+            );
+        }
+        #[cfg(windows)]
+        assert!(resolve(t.path(), r"C:\x.md").is_err());
+    }
+
+    #[test]
+    fn sharing_violation_classification() {
+        let e = std::io::Error::from_raw_os_error(32);
+        assert_eq!(is_sharing_violation(&e), cfg!(windows));
+        let mut n = 0;
+        let r: std::io::Result<()> = retry_sharing(|| {
+            n += 1;
+            Err(std::io::Error::other("hard"))
+        });
+        assert!(r.is_err());
+        assert_eq!(n, 1);
+    }
+}
