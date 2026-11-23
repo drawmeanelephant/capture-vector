@@ -214,6 +214,14 @@ impl Buffer {
         }
     }
 
+    /// Walk history back, then forward, to the saved revision. False (and
+    /// back at the newest text) when an edit after an undo replaced it.
+    pub fn revert_to_saved(&mut self) -> bool {
+        while self.is_dirty() && self.undo() {}
+        while self.is_dirty() && self.redo() {}
+        !self.is_dirty()
+    }
+
     pub fn undo(&mut self) -> bool {
         let Some(mut step) = self.undo.pop() else {
             return false;

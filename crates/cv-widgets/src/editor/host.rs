@@ -3,10 +3,11 @@
 //! close reconciliation stays in `app::sync_companions`; this module only
 //! builds editor windows and reports their dirty state and closes.
 //!
-//! rune's `on_close` cannot veto a title-bar close, so a dirty editor
-//! closed that way keeps its buffer in the session (nothing is dropped);
-//! the model-level close path (`Windows::close(id, false)`) still answers
-//! `NeedsConfirm` because [`sync_dirty`] mirrors buffer dirtiness.
+//! rune's `on_close` cannot veto a title-bar close (it hides the window,
+//! keeping its state), so a dirty editor closed that way is shown again
+//! asking to save or discard ([`on_closed`]); the model-level close path
+//! (`Windows::close(id, false)`) answers `NeedsConfirm` because
+//! [`sync_dirty`] mirrors buffer dirtiness.
 
 use super::EditorWindow;
 use cv_core::diagnostic::Diagnostic;
@@ -28,6 +29,7 @@ thread_local! {
     static WRITER: RefCell<Option<Arc<dyn ContentWriter>>> = const { RefCell::new(None) };
     static PENDING: RefCell<VecDeque<EditorWindow>> = const { RefCell::new(VecDeque::new()) };
     static CLOSED: RefCell<Vec<WindowId>> = const { RefCell::new(Vec::new()) };
+    static REOPEN: RefCell<Vec<WindowId>> = const { RefCell::new(Vec::new()) };
     static BOUND: RefCell<BTreeMap<WindowId, cv_ui_editor::BufferId>> = const { RefCell::new(BTreeMap::new()) };
 }
 
@@ -61,9 +63,32 @@ fn init() -> EditorWindow {
 }
 
 fn closed(s: &mut EditorWindow, _tx: &mut Tx) {
+    on_closed(s);
+}
+
+/// A window closed (title bar, shortcut, `Tx::close_window`). Over unsaved
+/// edits no other window shows, it is queued to reopen asking to confirm;
+/// otherwise it is queued as closed.
+pub fn on_closed(s: &mut EditorWindow) {
     s.wait_save();
-    CLOSED.with(|c| c.borrow_mut().push(s.id));
+    let shown_elsewhere = BOUND.with(|b| {
+        b.borrow()
+            .iter()
+            .any(|(w, buf)| *w != s.id && *buf == s.buffer)
+    });
+    if s.is_dirty() && !shown_elsewhere && !rune::quitting() {
+        s.closing = super::Closing::Confirm { stuck: false };
+        REOPEN.with(|r| r.borrow_mut().push(s.id));
+    } else {
+        s.closing = super::Closing::Open;
+        CLOSED.with(|c| c.borrow_mut().push(s.id));
+    }
     wake();
+}
+
+/// Ids of editor windows closed over unsaved edits, to show again.
+pub fn take_reopen() -> Vec<WindowId> {
+    REOPEN.with(|r| std::mem::take(&mut *r.borrow_mut()))
 }
 
 /// Open a native editor window for companion `id` on buffer `path`.

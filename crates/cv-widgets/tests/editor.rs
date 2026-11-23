@@ -438,3 +438,87 @@ fn first_body_edit_closes_an_unclosed_frontmatter_block() {
         assert_eq!(rt.state.body.text, "hi");
     }
 }
+
+#[test]
+fn return_in_the_body_breaks_the_line() {
+    let ses = session();
+    let buf = ses.borrow_mut().open("p.md", "one", None);
+    let mut rt = window(&ses, 1, buf);
+    caret(&mut rt, 3);
+    rt.key(cv_widgets::keys::parse("enter").remove(0));
+    settle(&mut rt);
+    type_str(&mut rt, "two");
+    assert_eq!(ses.borrow().get(buf).unwrap().buffer.text(), "one\ntwo");
+}
+
+fn dirty_closed_window() -> (
+    Rc<RefCell<EditorSession>>,
+    BufferId,
+    Runtime<EditorWindow>,
+    tempfile::TempDir,
+) {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("p.md"), "one\n").unwrap();
+    let ses = session();
+    let base = cv_ui_editor::save::fingerprint_file(&dir.path().join("p.md")).unwrap();
+    let buf = ses.borrow_mut().open("p.md", "one\n", base);
+    let w = EditorWindow::new(WindowId(7), ses.clone(), buf, Theme::dark())
+        .with_writer(Arc::new(FsWriter::new(dir.path())));
+    let mut rt = editor::runtime(w);
+    caret(&mut rt, 3);
+    type_str(&mut rt, " two");
+    editor::host::on_closed(&mut rt.state);
+    assert_eq!(editor::host::take_reopen(), vec![WindowId(7)]);
+    assert!(editor::host::take_closed().is_empty());
+    settle(&mut rt);
+    assert!(rt.find("editor-close-prompt").is_some());
+    (ses, buf, rt, dir)
+}
+
+#[test]
+fn dirty_close_reopens_asking_and_discard_reverts_then_closes() {
+    let (ses, buf, mut rt, dir) = dirty_closed_window();
+    click(&mut rt, "editor-close-discard");
+    assert_eq!(rt.shell_request, Some(rune::Shell::Close));
+    assert!(!ses.borrow().is_dirty(buf));
+    assert_eq!(ses.borrow().get(buf).unwrap().buffer.text(), "one\n");
+    editor::host::on_closed(&mut rt.state);
+    assert_eq!(editor::host::take_closed(), vec![WindowId(7)]);
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join("p.md")).unwrap(),
+        "one\n"
+    );
+}
+
+#[test]
+fn dirty_close_save_and_close_writes_then_closes() {
+    let (ses, buf, mut rt, dir) = dirty_closed_window();
+    click(&mut rt, "editor-close-save");
+    rt.state.wait_save();
+    rt.frame(0.0);
+    assert_eq!(rt.shell_request, Some(rune::Shell::Close));
+    assert!(!ses.borrow().is_dirty(buf));
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join("p.md")).unwrap(),
+        "one two\n"
+    );
+}
+
+#[test]
+fn dirty_close_keep_editing_stays_open_and_dirty() {
+    let (ses, buf, mut rt, _dir) = dirty_closed_window();
+    click(&mut rt, "editor-close-cancel");
+    assert_eq!(rt.shell_request, None);
+    assert!(ses.borrow().is_dirty(buf));
+    assert!(rt.find("editor-close-prompt").is_none());
+}
+
+#[test]
+fn clean_close_is_reported_closed() {
+    let ses = session();
+    let buf = ses.borrow_mut().open("p.md", "one\n", None);
+    let mut rt = window(&ses, 9, buf);
+    editor::host::on_closed(&mut rt.state);
+    assert!(editor::host::take_reopen().is_empty());
+    assert_eq!(editor::host::take_closed(), vec![WindowId(9)]);
+}

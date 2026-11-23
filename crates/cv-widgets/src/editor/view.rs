@@ -1,5 +1,6 @@
 //! Editor window view. Element keys are the golden/test contract.
 
+use super::Closing;
 use super::EditorWindow;
 use crate::theme::{color, font};
 use cv_model::theme::Theme;
@@ -7,7 +8,7 @@ use cv_ui_editor::frontmatter::{self, Note, SCHEMA};
 use cv_ui_editor::problems::Freshness;
 use cv_ui_editor::save::SaveStatus;
 use cv_ui_editor::sketch;
-use rune::{Cx, El, ScrollSpec, Span, col, row, text, text_input};
+use rune::{Cx, El, ScrollSpec, Span, Tx, col, row, text, text_input};
 
 fn label(t: &Theme, s: impl Into<String>) -> El {
     text(s.into())
@@ -15,7 +16,7 @@ fn label(t: &Theme, s: impl Into<String>) -> El {
         .color(color(t.colors.text_dim))
 }
 
-fn button(t: &Theme, key: &str, s: &str, f: fn(&mut EditorWindow)) -> El {
+fn button(t: &Theme, key: &str, s: &str, f: fn(&mut EditorWindow, &mut Tx)) -> El {
     row()
         .key(key)
         .padding(t.spacing.unit)
@@ -25,7 +26,7 @@ fn button(t: &Theme, key: &str, s: &str, f: fn(&mut EditorWindow)) -> El {
                 .font(font(t.type_.label))
                 .color(color(t.colors.text)),
         )
-        .on_press(move |s: &mut EditorWindow| f(s))
+        .on_press_tx(move |s: &mut EditorWindow, tx: &mut Tx| f(s, tx))
 }
 
 fn save_text(st: &SaveStatus) -> String {
@@ -80,13 +81,51 @@ fn header(s: &EditorWindow) -> El {
     if !st.is_empty() {
         r = r.child(label(t, st).key("editor-save-status"));
     }
-    r.child(button(t, "editor-save", "Save", |s| s.save()))
-        .child(button(t, "editor-undo", "Undo", |s| {
+    r.child(button(t, "editor-save", "Save", |s, _| s.save()))
+        .child(button(t, "editor-undo", "Undo", |s, _| {
             s.undo();
         }))
-        .child(button(t, "editor-redo", "Redo", |s| {
+        .child(button(t, "editor-redo", "Redo", |s, _| {
             s.redo();
         }))
+}
+
+fn close_prompt(s: &EditorWindow) -> Option<El> {
+    let t = &s.theme;
+    let msg = match s.closing {
+        Closing::Open => return None,
+        Closing::Confirm { stuck: false } => "This page has unsaved edits. Close it?",
+        Closing::Confirm { stuck: true } => {
+            "Cannot discard: the saved text is no longer in undo history. Save or keep editing."
+        }
+        Closing::SaveThenClose => "Saving, then closing…",
+    };
+    let mut r = row()
+        .key("editor-close-prompt")
+        .gap(t.spacing.unit * 2.0)
+        .padding(t.spacing.unit)
+        .fill(color(t.colors.pane_alt))
+        .child(
+            text(msg)
+                .font(font(t.type_.body))
+                .color(color(t.colors.text)),
+        );
+    if matches!(s.closing, Closing::Confirm { .. }) {
+        r = r
+            .child(button(t, "editor-close-save", "Save and close", |s, tx| {
+                s.save_and_close(tx)
+            }))
+            .child(button(
+                t,
+                "editor-close-discard",
+                "Discard and close",
+                |s, tx| s.discard_and_close(tx),
+            ))
+            .child(button(t, "editor-close-cancel", "Keep editing", |s, _| {
+                s.closing = Closing::Open
+            }));
+    }
+    Some(r)
 }
 
 fn form(s: &EditorWindow) -> El {
@@ -164,6 +203,16 @@ fn body(s: &EditorWindow) -> El {
         .color(color(t.colors.text))
         .on_edit(|s: &mut EditorWindow| &mut s.body)
         .on_input_change(|s: &mut EditorWindow, _| s.body_changed())
+        // Plain Return submits a rune field; in a document it breaks lines.
+        .on_submit(|s: &mut EditorWindow, _| {
+            let nl = if s.body.text.contains("\r\n") {
+                "\r\n"
+            } else {
+                "\n"
+            };
+            s.body.insert(nl);
+            s.body_changed();
+        })
         .on_input_key(|s: &mut EditorWindow, ev, _| s.key(ev));
     if s.decorations {
         field = field.decorations(wikilink_spans(&s.body.text, t));
@@ -297,6 +346,7 @@ pub fn view(s: &EditorWindow, _cx: &mut Cx<EditorWindow>) -> El {
                 .min_h(0.0)
                 .gap(t.spacing.unit * 2.0)
                 .child(header(s))
+                .children(close_prompt(s))
                 .child(form(s))
                 .child(body(s)),
         )

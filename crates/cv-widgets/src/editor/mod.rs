@@ -37,6 +37,19 @@ pub const DECORATIONS: bool = true;
 
 type SaveRx = mpsc::Receiver<cv_core::Result<WriteOutcome>>;
 
+/// Closing a window over unsaved edits. A title-bar close cannot be
+/// vetoed, so the host reopens the window in `Confirm`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Closing {
+    #[default]
+    Open,
+    /// Asking: save and close, discard and close, or keep editing.
+    /// `stuck`: discard failed (the saved text left undo history).
+    Confirm { stuck: bool },
+    /// Saving; the window closes once the save lands clean.
+    SaveThenClose,
+}
+
 pub struct EditorWindow {
     pub id: WindowId,
     pub session: Rc<RefCell<EditorSession>>,
@@ -48,6 +61,9 @@ pub struct EditorWindow {
     pub decorations: bool,
     pub writer: Option<Arc<dyn ContentWriter>>,
     pub sketch: Sketch,
+    pub closing: Closing,
+    /// `closing` as last drawn: a host-side change needs a rebuild.
+    drawn_closing: Closing,
     pending: Option<(SaveTicket, SaveRx)>,
     seen: (u64, u64),
 }
@@ -73,6 +89,8 @@ impl EditorWindow {
             decorations: DECORATIONS,
             writer: None,
             sketch,
+            closing: Closing::Open,
+            drawn_closing: Closing::Open,
             pending: None,
             seen: (u64::MAX, u64::MAX),
         };
@@ -220,6 +238,41 @@ impl EditorWindow {
         done
     }
 
+    /// Undo back to what disk holds, then close.
+    pub fn discard_and_close(&mut self, tx: &mut Tx) {
+        let reverted = self
+            .session
+            .borrow_mut()
+            .get_mut(self.buffer)
+            .is_some_and(|e| e.buffer.revert_to_saved());
+        self.refresh();
+        if reverted {
+            self.closing = Closing::Open;
+            tx.close_window();
+        } else {
+            self.closing = Closing::Confirm { stuck: true };
+        }
+    }
+
+    pub fn save_and_close(&mut self, tx: &mut Tx) {
+        self.save();
+        self.closing = Closing::SaveThenClose;
+        self.step_close(tx);
+    }
+
+    /// Close once a save-to-close landed clean; ask again if it did not.
+    fn step_close(&mut self, tx: &mut Tx) {
+        if self.closing != Closing::SaveThenClose || self.pending.is_some() {
+            return;
+        }
+        if self.is_dirty() {
+            self.closing = Closing::Confirm { stuck: false };
+        } else {
+            self.closing = Closing::Open;
+            tx.close_window();
+        }
+    }
+
     /// Start a save on a worker thread (never on the UI thread).
     pub fn save(&mut self) {
         if self.pending.is_some() {
@@ -352,9 +405,11 @@ pub fn on_key(s: &mut EditorWindow, ev: &KeyEvent, _tx: &mut Tx) -> bool {
     s.key(ev)
 }
 
-pub fn poll(s: &mut EditorWindow, _t: f64, _tx: &mut Tx) -> bool {
+pub fn poll(s: &mut EditorWindow, _t: f64, tx: &mut Tx) -> bool {
     let saved = s.poll_save();
-    s.sync() || saved
+    s.step_close(tx);
+    let prompt = std::mem::replace(&mut s.drawn_closing, s.closing) != s.closing;
+    s.sync() || saved || prompt
 }
 
 pub const SIZE: (f32, f32) = (1100.0, 760.0);

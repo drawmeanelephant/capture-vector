@@ -108,6 +108,14 @@ fn sync_companions(s: &mut Workbench) -> bool {
         changed |= s.windows.companions.iter().any(|c| c.id == id);
         s.windows.close(id, true);
     }
+    for id in editor::host::take_reopen() {
+        OPENED.with(|o| {
+            if let Some(h) = o.borrow().get(&id) {
+                h.open();
+                h.focus();
+            }
+        });
+    }
     OPENED.with(|o| {
         o.borrow_mut().retain(|id, h| {
             let live = s.windows.companions.iter().any(|c| c.id == *id);
