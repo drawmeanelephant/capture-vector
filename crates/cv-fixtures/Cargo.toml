@@ -1,0 +1,14 @@
+[package]
+name = "cv-fixtures"
+version = "0.0.0"
+edition.workspace = true
+rust-version.workspace = true
+description = "Captured corpora + StubEngine + StubStore. Dev-dep of every lane."
+
+[dependencies]
+cv-core.workspace = true
+cv-contracts.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+sha2.workspace = true

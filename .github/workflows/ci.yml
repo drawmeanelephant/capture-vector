@@ -1,0 +1,74 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Vendored rune is gitignored on purpose; fetch at the pinned rev.
+      - name: fetch rune
+        shell: bash
+        run: ./scripts/fetch-rune.sh
+
+      - name: rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain-file: rust-toolchain.toml
+
+      - name: cargo cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: wgpu/vulkan deps (linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers
+
+      # Gate: no boris, no display, no net needed at test time.
+      - name: cargo test --workspace
+        run: cargo test --workspace --locked
+
+  lint:
+    name: fmt + clippy + firewall
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: fetch rune
+        shell: bash
+        run: ./scripts/fetch-rune.sh
+      - name: rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain-file: rust-toolchain.toml
+      - name: cargo cache
+        uses: Swatinem/rust-cache@v2
+      - name: fmt
+        run: cargo fmt --all -- --check
+      - name: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: rune firewall — only cv-widgets imports rune
+        run: |
+          offenders=$(grep -rln --include='Cargo.toml' -E '^(rune|rune-kit) *\=' crates | grep -v 'crates/cv-widgets/' || true)
+          if [ -n "$offenders" ]; then
+            echo "rune imported outside cv-widgets:"; echo "$offenders"; exit 1
+          fi
+      - name: no std::process outside cv-engine
+        run: |
+          offenders=$(grep -rln --include='*.rs' 'std::process::Command\|process::Command' crates | grep -v 'crates/cv-engine/' || true)
+          if [ -n "$offenders" ]; then
+            echo "process spawn outside cv-engine:"; echo "$offenders"; exit 1
+          fi
+      - name: cargo-deny
+        uses: EmbarkStudios/cargo-deny-action@v2

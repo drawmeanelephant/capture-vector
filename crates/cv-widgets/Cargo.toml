@@ -1,0 +1,10 @@
+[package]
+name = "cv-widgets"
+version = "0.0.0"
+edition.workspace = true
+rust-version.workspace = true
+description = "The ONLY crate importing rune/rune-kit (version firewall; cargo-deny enforces)."
+
+[dependencies]
+rune.workspace = true
+rune-kit.workspace = true

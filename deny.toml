@@ -1,0 +1,49 @@
+# cargo-deny config — dependency discipline for the crate map.
+# The architectural firewall (only cv-widgets imports rune; only
+# cv-engine spawns processes) is enforced by review + a workspace-lint
+# scan in CI, since cargo-deny can't see intra-crate module boundaries.
+
+[advisories]
+version = 2
+yanked = "deny"
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+deny = [
+    # No async runtime anywhere — ports are sync/channel-sink.
+    { name = "tokio" },
+    { name = "async-std" },
+    # No webview / embedded web shell — Rune or nothing (v1 non-goal).
+    { name = "tauri" },
+    { name = "wry" },
+    { name = "tao" },
+    { name = "webview2-com" },
+    # The editor must not get a second browser engine.
+    { name = "servo" },
+]
+
+[licenses]
+version = 2
+allow = [
+    "MIT",
+    "MIT-0",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "Zlib",
+    "CC0-1.0",
+    "MPL-2.0",
+]
+confidence-threshold = 0.8
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+# Vendored rune tree supplies patched crates by path, not git.
+allow-git = []
