@@ -21,6 +21,9 @@ use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
+/// How long a leader may outlive its closed stderr before we kill it.
+const EXIT_GRACE: Duration = Duration::from_secs(5);
+
 /// Read lines lossily: invalid UTF-8 must surface as a malformed line,
 /// not end the stream.
 pub(crate) fn line_reader<R: Read + Send + 'static>(r: R) -> Receiver<String> {
@@ -177,12 +180,19 @@ pub(crate) fn start(
                 };
                 emitter.emit(&mut sink, Some(&session), build.clone(), payload);
             }
-            // stderr EOF: the child (or at least its stderr) is gone.
+            // stderr EOF: the child (or at least its stderr) is gone. The
+            // leader may still be tearing down (cmd.exe on Windows lags
+            // its handle close), so give it a grace period before calling
+            // a live-but-mute leader unusable.
+            let exit_grace = std::time::Instant::now() + EXIT_GRACE;
             let outcome = loop {
                 let mut c = child.lock().unwrap();
                 match c.try_wait() {
                     Ok(Some(_)) => break c.outcome(),
-                    Ok(None) if stopped.load(Ordering::SeqCst) => {
+                    Ok(None)
+                        if stopped.load(Ordering::SeqCst)
+                            || std::time::Instant::now() < exit_grace =>
+                    {
                         drop(c);
                         std::thread::sleep(Duration::from_millis(10));
                     }
