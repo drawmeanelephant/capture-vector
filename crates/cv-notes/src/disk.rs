@@ -66,8 +66,10 @@ impl Jsonl {
             ..Scan::default()
         };
         if scan.torn_bytes > 0 {
-            file.set_len(good as u64)?;
-            file.sync_all()?;
+            // Append-only handles can't truncate on Windows.
+            let w = OpenOptions::new().write(true).open(path)?;
+            w.set_len(good as u64)?;
+            w.sync_all()?;
         }
         let mut out = Vec::new();
         for line in buf[..good].split(|b| *b == b'\n') {
