@@ -4,6 +4,23 @@ version = "0.0.0"
 publish = false
 edition.workspace = true
 rust-version.workspace = true
+description = "L6 research/notes silo: note model, link graph, triage, promotion, .cv/ provenance sidecar."
+
+[features]
+default = ["disk"]
+# JSONL truth + SQLite FTS5 index under `.cv/research/`. The pure domain
+# (model, graph, mailboxes, promotion drafts) builds without it so the
+# IO-free UI model can depend on it.
+disk = ["dep:rusqlite"]
 
 [dependencies]
 cv-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+rusqlite = { workspace = true, optional = true }
+
+[dev-dependencies]
+cv-fixtures.workspace = true
+cv-engine.workspace = true
+tempfile = "3"

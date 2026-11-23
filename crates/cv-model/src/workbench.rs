@@ -279,6 +279,21 @@ impl Workbench {
         self.app.selection = sel;
     }
 
+    /// After a module mutates its list, keep the selected key selected at
+    /// its new index, or clear the selection when the key left the list.
+    fn revalidate_selection(&mut self) {
+        let Some((i, key)) = self.windows.primary.row.clone() else {
+            return;
+        };
+        if i < self.list_len() && self.row(i).key == key {
+            return;
+        }
+        match (0..self.list_len()).find(|&j| self.row(j).key == key) {
+            Some(j) => self.select_row(j),
+            None => self.clear_selection(),
+        }
+    }
+
     pub fn select_key(&mut self, key: &str) {
         if let Some(i) = (0..self.list_len()).find(|&i| self.row(i).key == key) {
             self.select_row(i);
@@ -370,6 +385,14 @@ impl Workbench {
                     self.status = format!("unknown command {id}");
                     return;
                 };
+                // Re-resolve the selection so the module acts on what is
+                // selected now, not on a noun it resolved earlier.
+                if i == self.active {
+                    let key = self.selected_key().map(str::to_string);
+                    if let Some(m) = self.registry.get_mut(i) {
+                        m.select(key.as_deref());
+                    }
+                }
                 let intents = self
                     .registry
                     .get_mut(i)
@@ -377,6 +400,9 @@ impl Workbench {
                     .unwrap_or_default();
                 for it in intents {
                     self.apply(it);
+                }
+                if i == self.active {
+                    self.revalidate_selection();
                 }
             }
         }

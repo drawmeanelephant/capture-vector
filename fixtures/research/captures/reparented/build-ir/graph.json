@@ -1,0 +1,199 @@
+{
+  "schemaVersion": "0.3.0",
+  "frozen": true,
+  "nodes": [
+    {
+      "index": 0,
+      "id": "field-notes-graph-first-research",
+      "sourcePath": "guides/field-notes-graph-first-research.md",
+      "role": "satellite",
+      "parent": "guides/getting-started",
+      "parentIndex": 1,
+      "title": "Field notes: graph-first research",
+      "status": null,
+      "tags": ["graphs", "research"],
+      "bodyOffset": 142
+    },
+    {
+      "index": 1,
+      "id": "guides/getting-started",
+      "sourcePath": "guides/getting-started.md",
+      "role": "satellite",
+      "parent": "index",
+      "parentIndex": 3,
+      "title": "Getting Started",
+      "status": null,
+      "tags": ["guides"],
+      "bodyOffset": 60
+    },
+    {
+      "index": 2,
+      "id": "guides/publishing",
+      "sourcePath": "guides/publishing.md",
+      "role": "satellite",
+      "parent": "index",
+      "parentIndex": 3,
+      "title": "Publishing",
+      "status": null,
+      "tags": ["guides"],
+      "bodyOffset": 102
+    },
+    {
+      "index": 3,
+      "id": "index",
+      "sourcePath": "index.md",
+      "role": "trunk",
+      "parent": null,
+      "parentIndex": null,
+      "title": "My Boris Site",
+      "status": null,
+      "tags": ["home"],
+      "bodyOffset": 42
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "type": "page",
+        "value": "field-notes-graph-first-research"
+      },
+      "to": {
+        "type": "page",
+        "value": "guides/getting-started"
+      },
+      "kind": "parent"
+    },
+    {
+      "from": {
+        "type": "page",
+        "value": "field-notes-graph-first-research"
+      },
+      "to": {
+        "type": "page",
+        "value": "guides/getting-started"
+      },
+      "kind": "reference"
+    },
+    {
+      "from": {
+        "type": "page",
+        "value": "guides/getting-started"
+      },
+      "to": {
+        "type": "page",
+        "value": "index"
+      },
+      "kind": "parent"
+    },
+    {
+      "from": {
+        "type": "page",
+        "value": "guides/publishing"
+      },
+      "to": {
+        "type": "page",
+        "value": "guides/getting-started"
+      },
+      "kind": "reference"
+    },
+    {
+      "from": {
+        "type": "page",
+        "value": "guides/publishing"
+      },
+      "to": {
+        "type": "page",
+        "value": "index"
+      },
+      "kind": "parent"
+    },
+    {
+      "from": {
+        "type": "page",
+        "value": "index"
+      },
+      "to": {
+        "type": "page",
+        "value": "guides/getting-started"
+      },
+      "kind": "reference"
+    },
+    {
+      "from": {
+        "type": "page",
+        "value": "index"
+      },
+      "to": {
+        "type": "page",
+        "value": "guides/publishing"
+      },
+      "kind": "reference"
+    }
+  ],
+  "reverseIndex": [
+    {
+      "target": {
+        "type": "page",
+        "value": "guides/getting-started"
+      },
+      "incomingEdges": [0, 1, 3, 5]
+    },
+    {
+      "target": {
+        "type": "page",
+        "value": "guides/publishing"
+      },
+      "incomingEdges": [6]
+    },
+    {
+      "target": {
+        "type": "page",
+        "value": "index"
+      },
+      "incomingEdges": [2, 4]
+    }
+  ],
+  "nav": [
+    {
+      "index": 0,
+      "id": "field-notes-graph-first-research",
+      "breadcrumb": [3, 1, 0],
+      "children": [],
+      "siblings": []
+    },
+    {
+      "index": 1,
+      "id": "guides/getting-started",
+      "breadcrumb": [3, 1],
+      "children": [0],
+      "siblings": [2]
+    },
+    {
+      "index": 2,
+      "id": "guides/publishing",
+      "breadcrumb": [3, 2],
+      "children": [],
+      "siblings": [1]
+    },
+    {
+      "index": 3,
+      "id": "index",
+      "breadcrumb": [3],
+      "children": [1, 2],
+      "siblings": []
+    }
+  ],
+  "relations": [
+    {
+      "from": {
+        "type": "page",
+        "value": "guides/publishing"
+      },
+      "to": {
+        "type": "page",
+        "value": "guides/getting-started"
+      },
+      "kind": "relates_to"
+    }
+  ]
+}
