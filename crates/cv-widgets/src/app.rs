@@ -108,6 +108,10 @@ fn sync_companions(s: &mut Workbench) -> bool {
         changed |= s.windows.companions.iter().any(|c| c.id == id);
         s.windows.close(id, true);
     }
+    // Still companions in the model: the loop below opens them afresh.
+    for id in editor::host::take_reopen() {
+        OPENED.with(|o| o.borrow_mut().remove(&id));
+    }
     OPENED.with(|o| {
         o.borrow_mut().retain(|id, h| {
             let live = s.windows.companions.iter().any(|c| c.id == *id);
