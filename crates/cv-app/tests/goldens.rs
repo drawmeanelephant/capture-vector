@@ -77,9 +77,17 @@ fn virtualized_5k_pages_mount_bounded_rows() {
     }
     let sel = h.state().selected_key().unwrap().to_string();
     assert_eq!(sel, "page-0063");
+    let rect = |k: &str| {
+        h.rt.elements()
+            .into_iter()
+            .find(|e| e.key.as_deref() == Some(k))
+            .map(|e| e.rect)
+            .unwrap_or_else(|| panic!("{k} not mounted"))
+    };
+    let (row, port) = (rect(&format!("row-{sel}")), rect("list-viewport"));
     assert!(
-        h.has(&format!("row-{sel}")),
-        "selected row scrolled into view"
+        row[1] >= port[1] && row[1] + row[3] <= port[1] + port[3],
+        "selected row {row:?} visible in viewport {port:?}"
     );
     assert!(mounted(&h) < 200);
 }

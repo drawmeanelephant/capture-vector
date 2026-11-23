@@ -21,7 +21,7 @@ pub fn on_key(s: &mut Workbench, ev: &KeyEvent, tx: &mut Tx) -> bool {
     if let Some(key) = s.selected_key()
         && before.as_deref() != Some(key)
     {
-        tx.scroll_into_view_in("list", format!("row-{key}"));
+        tx.scroll_into_view_in("list-pane", format!("row-{key}"));
     }
     used
 }

@@ -252,9 +252,10 @@ fn list(s: &Workbench) -> El {
         .fill(color(t.colors.pane))
         .border(1.0, color(t.colors.border))
         .child(
-            el().key("list-viewport")
+            col()
+                .key("list-viewport")
                 .w_full()
-                .h_full()
+                .grow(1.0)
                 .min_h(0.0)
                 .scroll(ScrollSpec {
                     stick_bottom: false,
