@@ -13,6 +13,8 @@ use cv_model::theme::Mode;
 use cv_model::workbench::Workbench;
 use cv_widgets::app::{Launch, Scene};
 
+mod research;
+
 /// Corpus the canary replays (`fixtures/captures/<corpus>/watch/session.ndjson`).
 pub const CANARY_CORPUS: &str = "happy";
 
@@ -35,6 +37,8 @@ pub fn attach_engine(wb: &mut Workbench, engine: &dyn Engine) {
 
 pub fn boot(wb: &mut Workbench) {
     attach_engine(wb, &StubEngine::new(CANARY_CORPUS));
+    // Rail order puts Research ahead of the wave-0 canary; keep landing on it.
+    wb.run_command("shell.goto.demo");
     editor::open_from_env(wb);
 }
 
@@ -82,6 +86,9 @@ pub const SCENES: &[Scene] = &[
     ("store-corrupt", |wb| {
         degraded("demo.degrade.store-corrupt", wb)
     }),
+    ("research-empty", research::empty),
+    ("research-promote", research::promote),
+    ("research-degraded", research::degraded),
 ];
 
 pub fn launch() -> Launch {
