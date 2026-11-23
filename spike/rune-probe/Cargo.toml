@@ -1,0 +1,16 @@
+[package]
+name = "rune-probe"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rune = { path = "../vendor/rune/crates/rune" }
+rune-kit = { path = "../vendor/rune/crates/rune-kit", default-features = false, features = ["markdown"] }
+
+[patch.crates-io]
+wgpu-hal = { path = "../vendor/rune/vendor/wgpu-hal" }
+winit = { path = "../vendor/rune/vendor/winit" }
+sctk-adwaita = { path = "../vendor/rune/vendor/sctk-adwaita" }
+parley_engine = { path = "../vendor/rune/vendor/parley_engine" }
+accesskit_windows = { path = "../vendor/rune/vendor/accesskit_windows" }
+accesskit_macos = { path = "../vendor/rune/vendor/accesskit_macos" }

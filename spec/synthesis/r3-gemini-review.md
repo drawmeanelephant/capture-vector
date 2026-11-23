@@ -1,0 +1,80 @@
+## 1. Attack What's Left
+
+### 1.1 Broken crate DAG, sync/async contradiction, and bogus `cargo-deny` isolation
+- **Where:** [PROMPT-v2.md:51-73](/Users/tbuddy/.t3/projects/capture-vector/spec/PROMPT-v2.md:51-73), [PROMPT-v2.md:113-122](/Users/tbuddy/.t3/projects/capture-vector/spec/PROMPT-v2.md:113-122)
+- **Failure modes:**
+  - **Cyclic dependency:** `cv-app` owns `AppState` slices and the `AppEvent` bus (line 66), while `cv-ui` owns `modules/`, `companions/`, `graph/`, and `shell/` (line 65). `cv-app` must depend on `cv-ui` to render surfaces, so `cv-ui` cannot import `AppState` or `AppEvent`. Moving `AppState` into `cv-core` breaks `cv-core`'s freeze and drags `cv-contracts`, editor buffer state (`ropey`), and UI state into the zero-dep core.
+  - **`cv-core` bans async while owning async ports:** Line 54 mandates `NO IO, NO async, NO UI` for `cv-core`, yet `cv-core` owns the `Engine`/`Store`/`ContentWriter` ports and [contracts.md:45-55](/Users/tbuddy/.t3/projects/capture-vector/spec/contracts.md:45-55) defines them with `#[async_trait]` and `EngineEventStream`. Either drop async from the port layer (synchronous/channel-sink ports — actually a cleaner fit for Rune's sync reducer + `wake` drain loop) or drop the `NO async` claim. Also unspecified: whether `cv-core` depends on `cv-contracts` or vice versa.
+  - **False `cargo-deny` claim:** Line 71 asserts "`cargo-deny` bans + ownership-by-path give the same discipline" inside a single `cv-ui` crate. `cargo-deny` only checks crate-level `Cargo.toml` dependencies; it cannot stop `cv-ui/src/modules/audit` from importing `modules/publish` or bypassing `cv-widgets` to call `rune` directly.
+
+### 1.2 Zombie Oliver pipeline — two contradictory preview designs survived the merge
+- **Where:** [PROMPT-v2.md:158-174](/Users/tbuddy/.t3/projects/capture-vector/spec/PROMPT-v2.md:158-174)
+- **Failure modes:**
+  - Line 164-166 kills in-app themed preview (no webview, and round 1 killed the HTML-to-rune mapper), assigning native noun rendering to `rune_kit::Markdown` (takes Markdown) and authoritative preview to the user's browser on `boris watch --serve` (runs Boris's embedded Oliver).
+  - Yet line 169-171 still mandates debounced `OliverRender` subprocesses (~100 ms), line 172 mandates a companion preview window bound to the editor buffer, and line 167 budgets an `xtask` parity check diffing **Oliver fragments vs Boris bodies**.
+  - **Nothing consumes `OliverRender`'s HTML output.** Worse, the parity check tests the wrong pair: Boris *embeds* Oliver, so diffing Oliver vs Boris proves nothing about how `rune_kit::Markdown` diverges from Boris on `[[wikilinks]]`, `{{include}}`, `<Aside>`, and `<Details>` — which is what the user actually sees.
+
+### 1.3 Staged additive fixtures + stale v1 spec files will poison Wave 1 agents
+- **Where:** [PROMPT-v2.md:143-156](/Users/tbuddy/.t3/projects/capture-vector/spec/PROMPT-v2.md:143-156), plus the rest of `spec/`
+- **Failure modes:**
+  - Line 154-156 has L0 land only `happy/` while Wave-1 lanes contribute `broken-*` and publish corpora additively. Wave-1 lanes run with **no `boris` binary**; asking L4/L5/L7 agents to add Boris JSON fixtures guarantees hand-authored fake JSON tuned to their own decoders, turning `cv-fixtures` into self-confirming mocks until real-engine integration blows up.
+  - **Repo split-brain:** [architecture.md](/Users/tbuddy/.t3/projects/capture-vector/spec/architecture.md), [contracts.md](/Users/tbuddy/.t3/projects/capture-vector/spec/contracts.md), and every brief in `spec/lanes/` still encode the superseded v1 design: old crate names (`cv-audit`/`cv-research`/`cv-editor`), banned Rust frontmatter validation ([contracts.md:81-83](/Users/tbuddy/.t3/projects/capture-vector/spec/contracts.md:81-83)), illegal `x-capture-vector-note` frontmatter provenance that hard-fails `EFRONTMATTER` ([L6-research-notes.md:31-32](/Users/tbuddy/.t3/projects/capture-vector/spec/lanes/L6-research-notes.md:31-32)), and the killed HTML-to-rune mapper ([L7-editor-preview.md:22-26](/Users/tbuddy/.t3/projects/capture-vector/spec/lanes/L7-editor-preview.md:22-26)). Any parallel agent reading `spec/` will implement conflicting architectures unless those files are archived or regenerated before Wave 0.
+
+### 1.4 `cv-store` hot-loop IR persistence, serialized migrations, and dual-write split-brain
+- **Where:** [PROMPT-v2.md:58-59](/Users/tbuddy/.t3/projects/capture-vector/spec/PROMPT-v2.md:58-59), [PROMPT-v2.md:117](/Users/tbuddy/.t3/projects/capture-vector/spec/PROMPT-v2.md:117), [PROMPT-v2.md:136-141](/Users/tbuddy/.t3/projects/capture-vector/spec/PROMPT-v2.md:136-141), [PROMPT-v2.md:178-182](/Users/tbuddy/.t3/projects/capture-vector/spec/PROMPT-v2.md:178-182)
+- **Failure modes:**
+  - **Write-lock storm + dual truth:** Line 117 puts `build-finished → store persists IR` in the hot path while line 178 budgets 5k pages rebuilding every few seconds. Mirroring a 5k-page graph into SQLite on every save contends on the single SQLite writer against UI queries and creates a stale copy competing with `.boris/graph.json`.
+  - **Parallel migration collision:** One monotonic `schema_version` + migration chain in `cv-store` forces L4 (findings), L5 (publish runs), L6 (notes + FTS5), and smart mailboxes to serialize on migration numbers (`002`, `003`, ...).
+  - **Dual-write inconsistency & missing scope split:** Maintaining both SQLite and an append-only JSONL evidence trail inside `.cv/` with no single write authority diverges on crash. Also dropped from v2: where machine-level state lives (multi-account registry, global smart mailboxes, out-of-tree research silo) vs per-project `.cv/`.
+
+---
+
+## 2. Rulings on Locked Decisions
+
+1. **Engine boundary (`BorisEditorHost` + `RawSubprocess` behind one `trait Engine`) — DISAGREE.**
+   - These are not two interchangeable adapters; they are a split router where `RawSubprocess` owns secrets/exports/publish/init *and* serves as the fallback (including Windows, where `boris-editor` watch probes are always false per [r2-high-review.md:29](/Users/tbuddy/.t3/projects/capture-vector/spec/synthesis/r2-high-review.md:29)). Worse, `boris-editor`'s internal watch daemon and `RawSubprocess` mutating verbs will race on `.boris/` and `dist/` because `EngineScheduler` in Rust cannot lock a rebuild triggered inside the host child. Since `RawSubprocess` must already implement fingerprinted saves, event cursors, `Engine::snapshot()`, and scheduling for fallback/Windows — and `completion.json` already exists without the host — `BorisEditorHost` adds an HTTP stack, bearer-token/port/Windows-Firewall hazards, orphan-daemon cleanup, and a 2x conformance matrix for zero unique v1 capability.
+   - **Alternative:** **`RawSubprocess` only** on all 3 OSes. Steal `boris-editor`'s mechanics (SHA-256+mtime fingerprint check on save, bounded event ring + monotonic cursor inside `cv-engine`, `Engine::snapshot()` from disk artifacts). Re-evaluate `boris-editor` only if upstream supports Windows watch and all verbs.
+
+2. **Single `cv-ui` crate — DISAGREE.**
+   - Collapsing 6 parallel UI lanes into one crate breaks `cargo-deny` boundary enforcement, causes the `cv-ui`↔`cv-app` `AppState` cycle, creates `lib.rs`/`mod.rs` merge friction, and forces every module's test run to recompile and link the editor (`ropey`, syntax highlighting), graph canvas, and headless GPU stack. One broken edit in any lane breaks `cargo test -p cv-ui` for everyone.
+   - **Alternative:** Split by *privilege/compilation boundary* (~13 crates total):
+     - `cv-model` (pure Rust, zero `rune`, zero IO): `AppState` slices, `AppEvent`, cascade dispatcher, and pure `*Model` builders per lane directory — tests run in milliseconds with no GPU.
+     - `cv-widgets`: the *only* crate importing `rune`/`rune-kit` for standard surfaces (enforced by `cargo-deny`).
+     - Peel out **`cv-ui-editor`** on day 1 (not just `cv-ui-graph`): it is the highest-churn spike with unique text/highlight dependencies.
+
+3. **Branded `NounKind` — AGREE on the newtype, DISAGREE that it is complete.**
+   - `NounKind` solves view routing, not smart-mailbox queries (`field op value`). Without a `NounProvider` / uniform attribute-projection trait in `cv-core`, smart mailboxes collapse into a central `match noun.kind.as_str()` switch reaching into every lane's state — recreating the central-enum bottleneck you rejected.
+   - **Alternative:** Add a `NounAttrRow` projection contract in `cv-core`, and brand `NounId = (AccountId, NounKind, StableId)` with a hard rule that filesystem paths are never `StableId` (renames/reparents otherwise break selection, backlinks, and snoozes together).
+
+4. **`rusqlite` (bundled) + JSONL evidence trail — PARTIAL DISAGREE.**
+   - Keep bundled `rusqlite` for durable app state + FTS5, but fix three design errors:
+     1. **Do not persist Boris IR into SQLite.** Evaluate smart-mailbox conjunctions in memory over `Arc<GraphDocument>` joined with durable metadata (5k structs scan in <1 ms in Rust, zero write contention).
+     2. **Use per-namespace migration tracks** `(namespace, version)` with table prefixes (`audit_*`, `notes_*`, `publish_*`) so Wave-1 lanes migrate independently without colliding on a global integer.
+     3. **One write authority for evidence:** either immutable per-run JSON / append-only JSONL is truth and SQLite is a disposable rebuildable index (which also makes `store-corrupt` recovery trivial), or SQLite is truth and JSONL is exported on demand. Never dual-write peers. Also mandate a dedicated store actor/WAL reader pool so sync `rusqlite` never blocks the Tokio/Rune loop.
+
+5. **No-webview preview split — AGREE on no-webview, DISAGREE on the current Oliver + companion-window wiring.**
+   - **Alternative:** Remove `OliverRender` from the editor typing loop. Use Oliver strictly for (a) non-Markdown notes (Textile/Cooklang) and (b) provisional live SEO DOM fact extraction (`html5ever` → provisional `DocFacts` in the inspector). Rewrite the `xtask` parity check to compare **`rune_kit::Markdown` rendered blocks against Boris-emitted bodies** (actually measuring user-visible drift). Cut the companion Preview window from v1: an advisory `rune_kit::Markdown` window duplicates the reading pane, while the user's browser on `boris watch --serve` already is the live-reloading companion preview.
+
+6. **Contract-hardening wave (between stub-integration and real-engine integration) — DISAGREE on timing.**
+   - Deferring real-engine contract hardening until *after* stub-integration guarantees a late 7-lane rewrite for mundane realities (nullable fields, Windows backslash paths, NDJSON event ordering, diagnostic span units).
+   - **Alternative:** Run a scripted capture against the pinned real `boris` binary in **Wave 0** for *all* stunt corpora (`happy/`, `broken-*`, `check`, `plan`) before freezing `cv-contracts`, ban hand-authored Boris fixtures outright, and run `StubEngine ≡ ProcessEngine` conformance continuously from the moment L1 lands. Keep an ergonomic contract-amendment checkpoint *after the first vertical slice*, before full Wave-1 fan-out.
+
+---
+
+## 3. What All Five Prior Reviewers Missed
+
+### 3.1 Cross-OS GPU golden PNGs will poison CI — and Wave 0 skips both a Rune capability probe and a canary vertical slice
+- **The blind spot (Rust desktop + agent orchestration):** Every prior review assumed `cargo test --workspace` with "golden PNG green on 3 OSes, no display" is a clean automated gate ([PROMPT-v2.md:241-243](/Users/tbuddy/.t3/projects/capture-vector/spec/PROMPT-v2.md:241-243)). In reality, headless GPU rendering across macOS (Metal + CoreText), Windows (DX12/WARP + DirectWrite), and Linux CI without a GPU (Mesa Lavapipe/llvmpipe + FreeType) **never produces identical pixels** — font hinting, glyph fallback, and shader rounding differ across stacks, and macOS-only dev agents cannot bless Linux/Windows PNGs. Teams inevitably either disable CI on 2 OSes or crank diff thresholds so high that clipped text and overlapping panes pass silently.
+- Compounding this, Wave 0 pins a pre-release `rune` `dev` rev and fans out 6-7 lanes **without proving** (a) that the pinned rev actually supports headless multi-window companions, 5k-row virtual lists, `TextEdit::rich` decorations, and IME on 3 OSes, or (b) one real async round-trip (`StubEngine` event → background thread → bus cascade → `cv-store` write → Rune `wake` redraw). Without a live canary vertical slice in Wave 0, parallel agents invent six incompatible async/wake/error-handling patterns that compile on stubs and collide at integration.
+- **Concrete fixes before Wave 1:**
+  1. **Split structural vs visual goldens:** Make deterministic **element-tree + layout-geometry JSON** (bounds, text, roles, focus, overflow checks) the 3-OS CI gate (100% OS-independent and readable by agents in diffs). Pin PNG goldens to **one** deterministic software renderer + bundled TTF font (e.g., Linux Lavapipe in CI).
+  2. **Gate Wave 1 on a 48-hour Rune Probe + 1 Canary Vertical Slice** inside Wave 0 (proving headless 3-OS element-tree, 5k virtual list, `TextEdit::rich` decorations/IME/multi-window, plus one full `BuildFinished` diagnostic → Findings → snooze-to-SQLite → redraw loop).
+  3. **Lock two cross-OS sharp edges in Wave 0 contracts:** exact Boris diagnostic span units (byte vs UTF-8 char vs UTF-16, 0- vs 1-based, CRLF handling — otherwise `ropey` slices panic on multi-byte Unicode) and Windows atomic-save retry semantics (`std::fs::rename` fails with `ERROR_SHARING_VIOLATION` on Windows whenever `boris watch` or Defender holds a read handle on the target file).
+
+### 3.2 SEO/AEO epistemic tiers and deploy-layer blindness will break the Preflight gate's credibility
+- **The blind spot (SEO/AEO practitioner):** [PROMPT-v2.md:44,191-199](/Users/tbuddy/.t3/projects/capture-vector/spec/PROMPT-v2.md:44) pairs "cited TOML rules" with `aeo-llm (llms.txt/answer-first/JSON-LD)` and a **Preflight gate that blocks publishing on findings**. Two real-world failures lurk here:
+  1. **Folklore blocking publishes:** Classic technical SEO has normative specs (HTML, sitemaps.org, schema.org, RFC 4287); AEO "answer-first" heuristics and `llms.txt` conventions do not. Running heuristic AEO checks across essays, changelogs, or narrative pages generates hundreds of noisy false positives — either blocking valid publishes in Preflight or training users to mass-snooze the Findings mailbox until real errors get buried.
+  2. **Deploy-layer blindness violates your own honesty vocabulary:** The worst real-world SEO outages happen at the *host/deploy seam* (`X-Robots-Tag: noindex`, host-injected `robots.txt`, trailing-slash 301 loops, apex vs `www` canonical drift, subpath `base_url` prefixes), and Core Web Vitals ([vision.md:34](/Users/tbuddy/.t3/projects/capture-vector/spec/vision.md:34)) cannot be measured without a real browser. Reporting `passed` on indexability, canonicals, or performance from local `dist/` files alone is false certainty.
+- **Concrete fixes for `cv-core`/`cv-rules` in Wave 0:**
+  1. Add mandatory `authority_tier: NormativeSpec | EngineDocumented | Heuristic` and `archetype_scope` (e.g., `trunk`, `satellite`, `faq`, `article`, `changelog`) fields to every rule in TOML. **Preflight blocks only on `NormativeSpec`/`EngineDocumented` errors** (broken internal links, malformed JSON-LD, duplicate/conflicting canonicals, `draft`/`noindex` leaking into `sitemap.xml`/`rss.xml`/`llms.txt`/RAG packs, missing target-required fields); `Heuristic` rules are strictly advisory and never block publish.
+  2. Pass a **Target Deploy Profile** (canonical `base_url`, trailing-slash policy, expected `robots.txt` contract) into `ArtifactSet` so offline rules audit **cross-artifact parity** (HTML `<link rel=canonical>` ≡ `sitemap.xml` ≡ `rss.xml` ≡ `llms.txt` ≡ internal `<a href>` normalization + deterministic RAG chunk/token budgets), and explicitly emit `limited` — never `passed` — for any check depending on live HTTP headers, redirects, or browser layout (CWV).

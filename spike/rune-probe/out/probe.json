@@ -1,0 +1,249 @@
+{
+  "accessibility": {
+    "bounds": [
+      0.0,
+      0.0,
+      900.0,
+      600.0
+    ],
+    "children": [
+      {
+        "bounds": [
+          0.0,
+          0.0,
+          900.0,
+          16.3
+        ],
+        "name": "Capture Vector probe — 2 findings, 5000 rows",
+        "role": "label"
+      },
+      {
+        "bounds": [
+          0.0,
+          16.3,
+          900.0,
+          32.5
+        ],
+        "children": [
+          {
+            "bounds": [
+              0.0,
+              16.3,
+              900.0,
+              16.3
+            ],
+            "children": [
+              {
+                "bounds": [
+                  0.0,
+                  16.3,
+                  178.2,
+                  16.3
+                ],
+                "name": "EPARENTMISSING on page 7",
+                "role": "label"
+              }
+            ],
+            "key": "diag-0",
+            "role": "group"
+          },
+          {
+            "bounds": [
+              0.0,
+              32.5,
+              900.0,
+              16.3
+            ],
+            "children": [
+              {
+                "bounds": [
+                  0.0,
+                  32.5,
+                  208.3,
+                  16.3
+                ],
+                "name": "EREFERENCEMISSING on page 12",
+                "role": "label"
+              }
+            ],
+            "key": "diag-1",
+            "role": "group"
+          }
+        ],
+        "key": "mailbox",
+        "role": "group"
+      },
+      {
+        "bounds": [
+          0.0,
+          0.0,
+          1.0,
+          1.0
+        ],
+        "role": "status",
+        "states": [
+          "live-polite"
+        ]
+      }
+    ],
+    "name": "CV Probe",
+    "role": "window"
+  },
+  "anim_t": 0.0,
+  "animating": false,
+  "dark_system": true,
+  "elements": [
+    {
+      "blur": 0.0,
+      "fill": "#121314ff",
+      "focusVisible": false,
+      "focusable": false,
+      "focused": false,
+      "inert": false,
+      "loopPhase": null,
+      "opacity": 1.0,
+      "path": "#0",
+      "rect": [
+        0.0,
+        0.0,
+        900.0,
+        600.0
+      ],
+      "role": "group",
+      "scale": 1.0
+    },
+    {
+      "blur": 0.0,
+      "color": "#eff0f2ff",
+      "fill": "#00000000",
+      "focusVisible": false,
+      "focusable": false,
+      "focused": false,
+      "inert": false,
+      "loopPhase": null,
+      "opacity": 1.0,
+      "path": "#0/#0",
+      "rect": [
+        0.0,
+        0.0,
+        900.0,
+        16.25
+      ],
+      "role": "text",
+      "scale": 1.0,
+      "text": "Capture Vector probe — 2 findings, 5000 rows"
+    },
+    {
+      "blur": 0.0,
+      "fill": "#00000000",
+      "focusVisible": false,
+      "focusable": false,
+      "focused": false,
+      "inert": false,
+      "key": "mailbox",
+      "loopPhase": null,
+      "opacity": 1.0,
+      "path": "#0/mailbox",
+      "rect": [
+        0.0,
+        16.25,
+        900.0,
+        32.5
+      ],
+      "role": "group",
+      "scale": 1.0
+    },
+    {
+      "blur": 0.0,
+      "fill": "#00000000",
+      "focusVisible": false,
+      "focusable": false,
+      "focused": false,
+      "inert": false,
+      "key": "diag-0",
+      "loopPhase": null,
+      "opacity": 1.0,
+      "path": "#0/mailbox/diag-0",
+      "rect": [
+        0.0,
+        16.25,
+        900.0,
+        16.25
+      ],
+      "role": "group",
+      "scale": 1.0
+    },
+    {
+      "blur": 0.0,
+      "color": "#eff0f2ff",
+      "fill": "#00000000",
+      "focusVisible": false,
+      "focusable": false,
+      "focused": false,
+      "inert": false,
+      "loopPhase": null,
+      "opacity": 1.0,
+      "path": "#0/mailbox/diag-0/#0",
+      "rect": [
+        0.0,
+        16.25,
+        178.14,
+        16.25
+      ],
+      "role": "text",
+      "scale": 1.0,
+      "text": "EPARENTMISSING on page 7"
+    },
+    {
+      "blur": 0.0,
+      "fill": "#00000000",
+      "focusVisible": false,
+      "focusable": false,
+      "focused": false,
+      "inert": false,
+      "key": "diag-1",
+      "loopPhase": null,
+      "opacity": 1.0,
+      "path": "#0/mailbox/diag-1",
+      "rect": [
+        0.0,
+        32.5,
+        900.0,
+        16.25
+      ],
+      "role": "group",
+      "scale": 1.0
+    },
+    {
+      "blur": 0.0,
+      "color": "#eff0f2ff",
+      "fill": "#00000000",
+      "focusVisible": false,
+      "focusable": false,
+      "focused": false,
+      "inert": false,
+      "loopPhase": null,
+      "opacity": 1.0,
+      "path": "#0/mailbox/diag-1/#0",
+      "rect": [
+        0.0,
+        32.5,
+        208.27,
+        16.25
+      ],
+      "role": "text",
+      "scale": 1.0,
+      "text": "EREFERENCEMISSING on page 12"
+    }
+  ],
+  "reduced_motion": false,
+  "scale": 2.0,
+  "t": 0.0,
+  "time_scale": 1.0,
+  "title": "CV Probe",
+  "viewport": [
+    900.0,
+    600.0
+  ],
+  "warnings": []
+}
