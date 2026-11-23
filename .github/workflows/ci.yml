@@ -34,7 +34,7 @@ jobs:
 
       - name: wgpu/vulkan deps (linux)
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers
+        run: sudo apt-get update && sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers libxkbcommon-dev
 
       # Gate: no boris, no display, no net needed at test time.
       - name: cargo test --workspace

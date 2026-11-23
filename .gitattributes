@@ -1,0 +1,3 @@
+# Fixture captures are sha256-pinned byte streams (MANIFEST.toml); any
+# line-ending conversion breaks verification on Windows checkouts.
+fixtures/** -text
