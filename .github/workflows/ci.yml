@@ -27,7 +27,7 @@ jobs:
       - name: rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain-file: rust-toolchain.toml
+          toolchain: "1.99.1"
 
       - name: cargo cache
         uses: Swatinem/rust-cache@v2
@@ -51,13 +51,14 @@ jobs:
       - name: rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain-file: rust-toolchain.toml
+          toolchain: "1.99.1"
+          components: rustfmt, clippy
       - name: cargo cache
         uses: Swatinem/rust-cache@v2
       - name: fmt
         run: cargo fmt --all -- --check
       - name: clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets --no-deps -- -D warnings
       - name: rune firewall — only cv-widgets imports rune
         run: |
           offenders=$(grep -rln --include='Cargo.toml' -E '^(rune|rune-kit) *\=' crates | grep -v 'crates/cv-widgets/' || true)
