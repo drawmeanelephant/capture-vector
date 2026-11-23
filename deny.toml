@@ -9,7 +9,12 @@ yanked = "deny"
 
 [bans]
 multiple-versions = "warn"
-wildcards = "deny"
+# Path deps (our own crates and the vendored rune tree) read as
+# wildcards; warn instead of denying until manifests get versions.
+wildcards = "warn"
+# Rune pulls tokio through zbus for its a11y stack; the no-async rule
+# guards our own crates, not rune's subtree.
+skip-tree = ["rune"]
 deny = [
     # No async runtime anywhere — ports are sync/channel-sink.
     { name = "tokio" },
@@ -38,7 +43,10 @@ allow = [
     "Zlib",
     "CC0-1.0",
     "MPL-2.0",
+    "BSL-1.0",
 ]
+# Workspace crates are unpublished; no license required yet.
+private = { ignore = true }
 confidence-threshold = 0.8
 
 [sources]

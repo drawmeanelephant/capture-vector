@@ -65,20 +65,43 @@ impl StderrDiagnostic {
             return None;
         }
         let (code, loc) = rest.trim_start().split_once(':')?;
-        // Take line/col/message from the right so paths containing ':'
-        // (Windows drive letters) survive.
-        let (head, message) = loc.rsplit_once(':')?;
-        let (head, col) = head.rsplit_once(':')?;
-        let (path, line) = head.rsplit_once(':')?;
-        Some(Self {
-            level: level.to_string(),
-            code: code.trim().to_string(),
-            path: path.trim().to_string(),
-            line: line.trim().parse().ok()?,
-            col: col.trim().parse().ok()?,
-            message: message.trim().to_string(),
-        })
+        // Walk each ':' boundary left to right; the first one followed by
+        // `<digits>:<digits>:` is the path:line:col: boundary. Leftmost
+        // match keeps messages containing colon-digit text (`ratio 3:2:`)
+        // intact and tolerates ':' inside paths (Windows drive letters).
+        for (i, _) in loc.match_indices(':') {
+            let Some(line) = parse_u32_field(&loc[i + 1..]) else {
+                continue;
+            };
+            let after_line = &loc[i + 1 + digit_len(&loc[i + 1..]) + 1..];
+            let Some(col) = parse_u32_field(after_line) else {
+                continue;
+            };
+            let message = &after_line[digit_len(after_line) + 1..];
+            return Some(Self {
+                level: level.to_string(),
+                code: code.trim().to_string(),
+                path: loc[..i].trim().to_string(),
+                line,
+                col,
+                message: message.trim().to_string(),
+            });
+        }
+        None
     }
+}
+
+/// Leading run of ASCII digits as a `u32`, plus the colon that must
+/// follow it; callers step past `digit_len + 1` for the next field.
+fn digit_len(s: &str) -> usize {
+    s.bytes().take_while(u8::is_ascii_digit).count()
+}
+
+fn parse_u32_field(s: &str) -> Option<u32> {
+    let n = digit_len(s);
+    (n > 0 && s.as_bytes().get(n) == Some(&b':'))
+        .then(|| s[..n].parse().ok())
+        .flatten()
 }
 
 impl From<&StderrDiagnostic> for Diagnostic {
@@ -117,6 +140,31 @@ mod tests {
         assert_eq!(d.path, "index.md");
         assert_eq!((d.line, d.col), (4, 1));
         assert!(d.message.starts_with("unsupported frontmatter key"));
+    }
+
+    #[test]
+    fn keeps_colons_in_message() {
+        let d = StderrDiagnostic::parse("error: EFRONTMATTER: index.md:4:1: expected a:b:c got x")
+            .unwrap();
+        assert_eq!((d.line, d.col), (4, 1));
+        assert_eq!(d.message, "expected a:b:c got x");
+    }
+
+    #[test]
+    fn message_colon_digit_pattern_stays_message() {
+        let d =
+            StderrDiagnostic::parse("error: EFRONTMATTER: index.md:4:1: ratio 3:2: bad").unwrap();
+        assert_eq!(d.path, "index.md");
+        assert_eq!(d.message, "ratio 3:2: bad");
+    }
+
+    #[test]
+    fn tolerates_windows_drive_path() {
+        let d =
+            StderrDiagnostic::parse(r"error: EFRONTMATTER: C:\ws\content\index.md:4:1: bad key")
+                .unwrap();
+        assert_eq!(d.path, r"C:\ws\content\index.md");
+        assert_eq!((d.line, d.col), (4, 1));
     }
 
     #[test]

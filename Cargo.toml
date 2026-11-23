@@ -24,6 +24,7 @@ members = [
 [workspace.package]
 edition = "2024"
 rust-version = "1.99.1"
+publish = false
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
@@ -31,7 +32,8 @@ serde_json = "1"
 toml = "0.9"
 sha2 = "0.10"
 thiserror = "2"
-rusqlite = { version = "0.32", features = ["bundled"] }
+# 0.41+ bundles SQLite 3.54.1 (RUSTSEC-2026-0459).
+rusqlite = { version = "0.41", features = ["bundled"] }
 ropey = "1"
 
 # rune is vendored (git deps cannot resolve — see spec/architecture.md §0
