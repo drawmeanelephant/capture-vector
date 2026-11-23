@@ -865,8 +865,10 @@ dependencies = [
  "cv-fixtures",
  "cv-model",
  "cv-ui-editor",
+ "png 0.18.1",
  "rune",
  "rune-kit",
+ "rune-ref",
  "serde",
  "serde_json",
  "tempfile",
@@ -2948,6 +2950,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rune-fx"
+version = "0.0.1"
+dependencies = [
+ "bytemuck",
+ "rune-motion",
+ "rune-staging",
+ "wgpu",
+]
+
+[[package]]
 name = "rune-gpu"
 version = "0.0.1"
 dependencies = [
@@ -3042,6 +3054,20 @@ dependencies = [
 [[package]]
 name = "rune-motion"
 version = "0.1.0"
+
+[[package]]
+name = "rune-ref"
+version = "0.0.1"
+dependencies = [
+ "blake3",
+ "half",
+ "libm",
+ "rune",
+ "rune-fx",
+ "serde",
+ "serde_json",
+ "wgpu",
+]
 
 [[package]]
 name = "rune-spell"

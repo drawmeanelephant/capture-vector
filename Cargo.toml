@@ -40,6 +40,8 @@ ropey = "1"
 # cv-widgets; cargo-deny enforces the firewall.
 rune = { path = "vendor/rune/crates/rune" }
 rune-kit = { path = "vendor/rune/crates/rune-kit", default-features = false }
+# Scalar CPU reference renderer — test-only (cv-widgets `reference` feature).
+rune-ref = { path = "vendor/rune/crates/rune-ref", features = ["gpu"] }
 
 cv-core = { path = "crates/cv-core" }
 cv-contracts = { path = "crates/cv-contracts" }
@@ -64,3 +66,8 @@ sctk-adwaita = { path = "vendor/rune/vendor/sctk-adwaita" }
 parley_engine = { path = "vendor/rune/vendor/parley_engine" }
 accesskit_windows = { path = "vendor/rune/vendor/accesskit_windows" }
 accesskit_macos = { path = "vendor/rune/vendor/accesskit_macos" }
+
+# rune-ref's scalar oracle is ~30x slower unoptimized; its strict-f32 + soft-libm
+# design keeps bytes identical across opt levels (vendor research/24).
+[profile.dev.package.rune-ref]
+opt-level = 3

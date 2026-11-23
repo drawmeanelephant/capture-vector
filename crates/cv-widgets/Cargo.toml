@@ -16,6 +16,13 @@ cv-model.workspace = true
 cv-ui-editor.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+# Test-only: replay the headless frame on rune-ref's CPU oracle (issue #26
+# probe). Never enabled in the shipped app.
+rune-ref = { workspace = true, optional = true }
+png = { version = "0.18", optional = true }
+
+[features]
+reference = ["dep:rune-ref", "dep:png"]
 
 [dev-dependencies]
 cv-fixtures.workspace = true
