@@ -12,13 +12,10 @@ multiple-versions = "warn"
 # Path deps (our own crates and the vendored rune tree) read as
 # wildcards; warn instead of denying until manifests get versions.
 wildcards = "warn"
-# Rune pulls tokio through zbus for its a11y stack; the no-async rule
-# guards our own crates, not rune's subtree.
-skip-tree = ["rune"]
+# The no-async-runtime rule guards our own crates' manifests — enforced
+# by the lint job's grep over crates/*/Cargo.toml, not here: rune pulls
+# tokio through wasm-bindgen-futures/zbus for its a11y and web stacks.
 deny = [
-    # No async runtime anywhere — ports are sync/channel-sink.
-    { name = "tokio" },
-    { name = "async-std" },
     # No webview / embedded web shell — Rune or nothing (v1 non-goal).
     { name = "tauri" },
     { name = "wry" },

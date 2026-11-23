@@ -1,6 +1,7 @@
 [package]
 name = "cv-contracts"
 version = "0.0.0"
+publish = false
 edition.workspace = true
 rust-version.workspace = true
 description = "Serde mirrors of Boris JSON contracts, version-keyed. Fixture-decode tests only."

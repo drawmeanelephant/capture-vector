@@ -65,6 +65,12 @@ jobs:
           if [ -n "$offenders" ]; then
             echo "rune imported outside cv-widgets:"; echo "$offenders"; exit 1
           fi
+      - name: no async runtime in our crates' manifests
+        run: |
+          offenders=$(grep -rln -E '^[[:space:]]*(tokio|async-std)[[:space:]]*=' crates/*/Cargo.toml xtask/Cargo.toml || true)
+          if [ -n "$offenders" ]; then
+            echo "async runtime dep outside allowed crates:"; echo "$offenders"; exit 1
+          fi
       - name: no std::process outside cv-engine
         run: |
           offenders=$(grep -rln --include='*.rs' 'Command::new\|process::exit\|Command::spawn' crates | grep -v 'crates/cv-engine/' || true)
