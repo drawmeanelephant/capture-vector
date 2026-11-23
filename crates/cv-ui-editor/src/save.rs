@@ -233,20 +233,36 @@ impl ContentWriter for FsWriter {
             let _ = std::fs::remove_file(&tmp);
             return Err(io(rel, "stage", e));
         }
-        match check(&target) {
-            Ok(None) => {}
-            other => {
-                let _ = std::fs::remove_file(&tmp);
-                return other.map(|s| s.expect("stale outcome"));
-            }
-        }
-        if let Err(e) = retry_pinned(
-            || std::fs::rename(&tmp, &target),
+        // Re-check the base on every attempt: a writer holding the file
+        // during a retry may have changed it before releasing.
+        let landed = retry_pinned(
+            || -> std::io::Result<Option<WriteOutcome>> {
+                match (fingerprint_file(&target)?, draft.base) {
+                    (None, None) => {}
+                    (Some(found), Some(base)) if found == base => {}
+                    (Some(found), _) => return Ok(Some(WriteOutcome::StaleBase { found })),
+                    (None, Some(_)) => {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::NotFound,
+                            "the file was removed since it was opened",
+                        ));
+                    }
+                }
+                std::fs::rename(&tmp, &target).map(|()| None)
+            },
             is_sharing_violation,
             std::thread::sleep,
-        ) {
-            let _ = std::fs::remove_file(&tmp);
-            return Err(io(rel, "rename", e));
+        );
+        match landed {
+            Ok(None) => {}
+            Ok(Some(stale)) => {
+                let _ = std::fs::remove_file(&tmp);
+                return Ok(stale);
+            }
+            Err(e) => {
+                let _ = std::fs::remove_file(&tmp);
+                return Err(io(rel, "rename", e));
+            }
         }
         let fingerprint = fingerprint_file(&target)
             .map_err(|e| io(rel, "fingerprint", e))?
