@@ -1,0 +1,20 @@
+{
+  "format": "boris-rendered-search-index",
+  "schema_version": 1,
+  "documents": [
+    {
+      "path": "guides/intro.html",
+      "title": "Introduction · My Boris Site",
+      "sections": [
+        {"level": 2, "heading": "Introduction", "fragment": "introduction", "text": "This satellite keeps the existing Trunk/Satellite graph. The home page links back to the trunk. A flat list keeps the adapter happy: one two three", "code": ""}
+      ]
+    },
+    {
+      "path": "index.html",
+      "title": "Textile Tribute",
+      "sections": [
+        {"level": 1, "heading": "Textile Tribute", "fragment": "textile-tribute", "text": "A strong and careful paragraph with inserted and deleted text, , and an official reference. Literal comparison: 5 < 7 & 8 > 3. A small language can leave a long shadow. Start with the Introduction. Load Roll Then continue in order. Ignite Reset", "code": "code"}
+      ]
+    }
+  ]
+}

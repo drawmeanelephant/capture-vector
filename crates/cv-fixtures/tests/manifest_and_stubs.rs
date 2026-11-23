@@ -129,3 +129,33 @@ fn stub_store_roundtrip_and_query() {
     };
     assert_eq!(store.query(&ns, &pred).unwrap().len(), 1);
 }
+
+#[test]
+fn mode_flag_corpora_have_green_captures() {
+    for name in ["happy-textile", "cook-one"] {
+        let c = corpus(name);
+        for verb in ["build-modeflag", "validate-modeflag"] {
+            assert_eq!(
+                c.file_str(&format!("{verb}/exit-code.txt")).trim(),
+                "0",
+                "{name}/{verb} should be a green capture"
+            );
+        }
+        assert!(
+            c.file_str("dist-modeflag/dist/_boris/proof/proof-pack.json")
+                .contains("\"boris-publication-proof-pack\""),
+            "{name} should carry a mode-flag proof pack"
+        );
+    }
+    // the mode flag is required: without it the build fails mode selection
+    assert_eq!(
+        corpus("happy-textile")
+            .file_str("build/exit-code.txt")
+            .trim(),
+        "1"
+    );
+    assert_eq!(
+        corpus("cook-one").file_str("build/exit-code.txt").trim(),
+        "1"
+    );
+}

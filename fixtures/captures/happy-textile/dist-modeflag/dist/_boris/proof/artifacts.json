@@ -1,0 +1,59 @@
+{
+  "format": "boris-publication-artifacts",
+  "schema_version": 1,
+  "target": "default",
+  "artifacts": [
+    {
+      "path": "_boris/search/search-index.json",
+      "kind": "rendered-search",
+      "producer": "rendered-search",
+      "required": true,
+      "status": "committed",
+      "bytes": 917,
+      "sha256": "3c915fdb053bd6279c126d7e9de405bb9f22648fc6aa5e03762065f40e3737fe",
+      "format_version": "1",
+      "dimensions": null,
+      "semantics": null,
+      "advertised": null
+    },
+    {
+      "path": "assets/css/boris.css",
+      "kind": "theme-asset",
+      "producer": "theme-assets",
+      "required": true,
+      "status": "committed",
+      "bytes": 1483,
+      "sha256": "ac4dc197bb46ade5432be1a4ed5d0a958c4834f386909577c3b5f1b74e8d219e",
+      "format_version": null,
+      "dimensions": null,
+      "semantics": "static",
+      "advertised": null
+    },
+    {
+      "path": "guides/intro.html",
+      "kind": "html-page",
+      "producer": "html-render",
+      "required": true,
+      "status": "committed",
+      "bytes": 1403,
+      "sha256": "09ecf6b35a01d49e4710ddfcfcad8c45def53086e422f98ae41217e532428762",
+      "format_version": null,
+      "dimensions": null,
+      "semantics": null,
+      "advertised": true
+    },
+    {
+      "path": "index.html",
+      "kind": "html-page",
+      "producer": "html-render",
+      "required": true,
+      "status": "committed",
+      "bytes": 1644,
+      "sha256": "bb1c573816ebb23a80e1ffc814084b43c83a974d6ede72c63a085c2bf10c587f",
+      "format_version": null,
+      "dimensions": null,
+      "semantics": null,
+      "advertised": true
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "format": "boris-rendered-search-index",
+  "schema_version": 1,
+  "documents": [
+    {
+      "path": "soup.html",
+      "title": "Soup · My Boris Site",
+      "sections": [
+        {"level": 2, "heading": "Ingredients", "fragment": "ingredients", "text": "water — 2 cups salt — 1 pinch", "code": ""},
+        {"level": 2, "heading": "Method", "fragment": "method", "text": "Mix water and salt.", "code": ""}
+      ]
+    }
+  ]
+}

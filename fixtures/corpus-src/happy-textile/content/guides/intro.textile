@@ -6,7 +6,7 @@ tags: [guide]
 ---
 h2. Introduction
 
-p. This satellite keeps the existing Trunk/Satellite graph. The "home page":./index links back to the trunk.
+p. This satellite keeps the existing Trunk/Satellite graph. The "home page":../index.html links back to the trunk.
 
 p. A flat list keeps the adapter happy:
 

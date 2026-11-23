@@ -1,1 +1,4 @@
-error: ECOOKLANG: content root mixes Cooklang and non-Cooklang page extensions, or uses the wrong explicit input mode [Use a .cook-only tree with --cooklang, or drop --cooklang for Markdown input]
+  wrote dist/soup.html
+ok: wrote HTML for 1 target(s):
+  target default: out=dist layout=themes/boris/layouts/main.html rules=0
+  checks: 3/3 passed

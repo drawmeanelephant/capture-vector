@@ -10,8 +10,8 @@ FIX="$ROOT/fixtures"
 rm -rf "$FIX/corpus-src" "$FIX/captures"
 mkdir -p "$FIX/corpus-src" "$FIX/captures"
 
-"$BORIS" --version > "$FIX/engine-version.txt" 2>&1
-"$BORIS" --build-info >> "$FIX/engine-version.txt" 2>&1 || true
+# one line of build-info JSON (version + vcs revision) is the pinned identity
+"$BORIS" --build-info > "$FIX/engine-version.txt" 2>&1 || "$BORIS" --version > "$FIX/engine-version.txt" 2>&1
 
 CORPORA="happy happy-textile cook-one dogfood broken-duplicate-id broken-frontmatter broken-parent broken-textile broken-wikilink"
 
@@ -42,6 +42,18 @@ for c in $CORPORA; do
     RUNV() { "$BORIS" "$@" --input "$run"; }
   fi
 
+  # harvest emitted machine artifacts from the build, if any
+  if [ -d "$run/dist" ]; then
+    ( cd "$run" && find dist -name '*.json' -type f ) | while read -r f; do
+      mkdir -p "$cap/dist/$(dirname "$f")"
+      cp "$run/$f" "$cap/dist/$f"
+    done
+  fi
+
+  # the mode pass starts from a clean output tree so dist/ and
+  # dist-modeflag/ each hold only their own pass's artifacts
+  rm -rf "$run/dist" "$run/.boris-cache"
+
   # format-flagged corpora get a second pass with their declared mode
   EXTRA=""
   case "$c" in
@@ -66,22 +78,17 @@ for c in $CORPORA; do
     fi
   fi
 
-  # harvest emitted machine artifacts from the build, if any
-  if [ -d "$run/dist" ]; then
-    ( cd "$run" && find dist -name '*.json' -type f ) | while read -r f; do
-      mkdir -p "$cap/dist/$(dirname "$f")"
-      cp "$run/$f" "$cap/dist/$f"
-    done
-  fi
-
   # watch session: NDJSON on stderr; touch a page to force one rebuild event
   mkdir -p "$cap/watch"
-  ( cd "$run" && "$BORIS" watch --watch-json ) > "$cap/watch/stdout.txt" 2> "$cap/watch/session.ndjson" &
+  # exec so the kill below reaches boris itself (it then emits watch-stopped)
+  # instead of orphaning it behind a subshell
+  ( cd "$run" && exec "$BORIS" watch --watch-json ) > "$cap/watch/stdout.txt" 2> "$cap/watch/session.ndjson" &
   WPID=$!
   sleep 2
   page=$(find "$run/content" -name '*.md' | head -1)
   [ -n "$page" ] && { sleep 1; printf '\n' >> "$page"; sleep 2; }
   kill $WPID 2>/dev/null; wait $WPID 2>/dev/null
+  [ -n "$page" ] && cp "$src/${page#"$run"/}" "$page"
   # keep corpus-src pristine: drop build artifacts the runs produced
   rm -rf "$run/dist" "$run/.boris-cache" "$run/content/../.boris-cache"
 done

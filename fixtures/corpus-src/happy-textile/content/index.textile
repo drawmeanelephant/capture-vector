@@ -12,7 +12,7 @@ Literal comparison: 5 < 7 & 8 > 3.
 
 bq. A small language can leave a long shadow.
 
-Start with the "Introduction":./guides/intro.
+Start with the "Introduction":./guides/intro.html.
 
 * Load
 * Roll
