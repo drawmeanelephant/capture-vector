@@ -203,8 +203,10 @@ fn serve_requests(s: &mut Workbench, tx: &mut Tx) -> bool {
                     Ok(Some(root)) => open_workspace(s, root),
                     Ok(None) => {}
                     Err(e) => {
+                        // The hint first: the error text can be long (raw D-Bus).
+                        let e: String = e.to_string().chars().take(60).collect();
                         s.status = format!(
-                            "folder picker unavailable ({e}); pass --project <dir> or set CV_PROJECT"
+                            "No folder picker — launch with --project <dir> or set CV_PROJECT ({e})"
                         )
                     }
                 });
@@ -222,6 +224,12 @@ fn on_key(s: &mut Workbench, ev: &rune::KeyEvent, tx: &mut Tx) -> bool {
     serve_requests(s, tx) || used
 }
 
+/// Quit or primary-window close: stop the engine watch so no `boris
+/// watch` child outlives the app (it runs in its own process group).
+fn shutdown(s: &mut Workbench, _: &mut Tx) {
+    s.stop_watch();
+}
+
 fn poll(s: &mut Workbench, t: f64, tx: &mut Tx) -> bool {
     let changed = harness::poll(s, t, tx);
     let served = serve_requests(s, tx);
@@ -232,12 +240,16 @@ fn poll(s: &mut Workbench, t: f64, tx: &mut Tx) -> bool {
 pub fn run(l: Launch) {
     let _ = BOOT.set(l.boot);
     let _ = OPEN.set(l.open);
-    rune::run(AppSpec {
+    // `rune::run` without the hooks: quitting must stop the engine watch.
+    rune::App::new(AppSpec {
         scenes: l.scenes,
         setup: Some(setup),
         poll: Some(poll),
         on_key: Some(on_key),
         min_size: Some((960.0, 560.0)),
         ..AppSpec::new(l.title, harness::SIZE, l.init, view)
-    });
+    })
+    .on_quit(shutdown)
+    .on_close(shutdown)
+    .run();
 }
