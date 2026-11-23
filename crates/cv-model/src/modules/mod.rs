@@ -3,7 +3,9 @@
 // and rerun codegen; `scripts/check-module-registry.sh` gates drift.
 
 pub mod demo;
+pub mod research;
 
 pub fn register_all(r: &mut crate::module::Registry) {
     demo::register(r);
+    research::register(r);
 }

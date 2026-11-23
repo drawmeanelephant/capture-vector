@@ -68,7 +68,6 @@
     {
       "fill": "#08090cff",
       "key": "rail-research",
-      "label": "not registered",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-research",
       "rect": [
@@ -80,7 +79,7 @@
       "role": "tab"
     },
     {
-      "color": "#8a93a3ff",
+      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-research/#0",
       "rect": [
@@ -731,7 +730,7 @@
       "rect": [
         277.0,
         789.0,
-        864.9,
+        793.0,
         0.0
       ],
       "role": "group"
@@ -742,13 +741,13 @@
       "opacity": 1.0,
       "path": "shell/status/status-msg",
       "rect": [
-        1153.9,
+        1082.0,
         782.1,
-        2.9,
+        74.8,
         13.8
       ],
       "role": "text",
-      "text": ""
+      "text": "Extra — Demo"
     },
     {
       "color": "#8a93a3ff",
@@ -1063,7 +1062,7 @@
         13.8
       ],
       "role": "text",
-      "text": "5 of 13 commands"
+      "text": "5 of 25 commands"
     }
   ],
   "schema": 1

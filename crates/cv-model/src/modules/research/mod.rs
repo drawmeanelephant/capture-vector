@@ -1,0 +1,423 @@
+//! Research module (L6): inbox, notebooks, smart mailboxes over the
+//! `cv-notes` session. Pure: all persistence and page writes go through
+//! the injected `ResearchPort`; this file never touches disk or spawns.
+
+mod filter;
+
+use crate::command::{CommandSpec, Intent};
+use crate::module::{
+    InspectorModel, Module, ModuleSpec, NavItem, NavModel, ReadingLine, ReadingModel, Registry,
+    RowModel, Slot, Tone,
+};
+use cv_core::engine::WriteOutcome;
+use cv_core::events::engine::EngineEvent;
+use cv_core::events::{AppEvent, Envelope};
+use cv_core::id::{NounId, StableId};
+use cv_notes::{
+    Capture, MemoryPort, Note, Notebook, PromoteSpec, Research, ResearchPort, Target, Triage,
+};
+use filter::Filter;
+use std::cell::RefCell;
+
+pub const ID: &str = "research";
+/// Profile input the default promotion plan writes under.
+pub const CONTENT_DIR: &str = "content";
+
+thread_local! {
+    static SEED: RefCell<Option<(Box<dyn ResearchPort>, Notebook)>> = const { RefCell::new(None) };
+}
+
+/// Composition-root hook: the next `register` (i.e. `Registry::with_all`)
+/// on this thread uses `port` + the notebook replayed from its truth.
+pub fn install(port: Box<dyn ResearchPort>, notebook: Notebook) {
+    SEED.with(|s| *s.borrow_mut() = Some((port, notebook)));
+}
+
+pub fn register(r: &mut Registry) {
+    let (port, nb) = SEED
+        .with(|s| s.borrow_mut().take())
+        .unwrap_or_else(|| (Box::new(MemoryPort::default()), Notebook::default()));
+    r.register(Box::new(ResearchModule::new(Research::new(nb, port))))
+        .expect("research module id is unique");
+}
+
+pub struct ResearchModule {
+    session: Research<Box<dyn ResearchPort>>,
+    /// Last note the shell resolved a noun for (the selection) and last
+    /// nav listed — commands act on these; the module grammar passes no key.
+    focus: RefCell<Option<StableId>>,
+    nav: RefCell<Option<String>>,
+    filter: Filter,
+    promote_error: Option<(StableId, String)>,
+    last_build: Option<(String, Tone)>,
+}
+
+const EMPTY: &str = "research-empty";
+
+impl ResearchModule {
+    pub fn new(session: Research<Box<dyn ResearchPort>>) -> Self {
+        Self {
+            session,
+            focus: RefCell::new(None),
+            nav: RefCell::new(None),
+            filter: Filter::default(),
+            promote_error: None,
+            last_build: None,
+        }
+    }
+
+    fn nb(&self) -> &Notebook {
+        &self.session.notebook
+    }
+
+    fn notes(&self, nav: Option<&str>) -> Vec<&Note> {
+        let nb = self.nb();
+        match nav.unwrap_or("inbox") {
+            "inbox" => nb.inbox(),
+            "all" => nb.all(),
+            "filter" => nb.select(&self.filter.predicate()),
+            k => {
+                if let Some(name) = k.strip_prefix("nb:") {
+                    nb.in_notebook(name)
+                } else if let Some(v) = k.strip_prefix("view:") {
+                    nb.view(&StableId(v.into()))
+                        .map(|v| nb.select(&v.predicate))
+                        .unwrap_or_default()
+                } else {
+                    Vec::new()
+                }
+            }
+        }
+    }
+
+    fn target(&self) -> Option<StableId> {
+        let focus = self.focus.borrow().clone();
+        focus.filter(|f| self.nb().note(f).is_some()).or_else(|| {
+            let nav = self.nav.borrow().clone();
+            self.notes(nav.as_deref()).first().map(|n| n.id.clone())
+        })
+    }
+
+    fn title_of(&self, id: &StableId) -> String {
+        self.nb()
+            .note(id)
+            .map(|n| n.title.clone())
+            .unwrap_or_else(|| id.0.clone())
+    }
+
+    fn with_target(
+        &mut self,
+        f: impl FnOnce(&mut Self, StableId) -> Result<String, String>,
+    ) -> Vec<Intent> {
+        let Some(id) = self.target() else {
+            return vec![Intent::Status("research: no note selected".into())];
+        };
+        let msg = f(self, id).unwrap_or_else(|e| format!("research: {e}"));
+        vec![Intent::Status(msg)]
+    }
+
+    fn promote(&mut self, id: StableId) -> Result<String, String> {
+        let note = self.nb().note(&id).ok_or("unknown note")?;
+        let spec = PromoteSpec::for_note(note, CONTENT_DIR);
+        match self.session.promote(&id, &spec) {
+            Ok(p) => match p.outcome {
+                WriteOutcome::Written { .. } => {
+                    self.promote_error = None;
+                    Ok(format!(
+                        "promoted → {} ({}); boris validate judges it",
+                        spec.page.0, p.draft.path
+                    ))
+                }
+                WriteOutcome::StaleBase { .. } => {
+                    let e = format!("{} changed on disk; not overwritten", p.draft.path);
+                    self.promote_error = Some((id, e.clone()));
+                    Err(e)
+                }
+            },
+            Err(e) => {
+                let e = format!("promote unavailable: {e}");
+                self.promote_error = Some((id, e.clone()));
+                Err(e)
+            }
+        }
+    }
+}
+
+fn line(label: &str, text: impl Into<String>, tone: Tone) -> ReadingLine {
+    ReadingLine {
+        label: (!label.is_empty()).then(|| label.to_string()),
+        text: text.into(),
+        tone,
+        mono: false,
+    }
+}
+
+impl Module for ResearchModule {
+    fn spec(&self) -> ModuleSpec {
+        ModuleSpec {
+            id: ID,
+            title: "Research",
+            slot: Slot::Research,
+        }
+    }
+
+    fn ingest(&mut self, env: &Envelope) -> bool {
+        let AppEvent::Engine(ev) = &env.payload else {
+            return false;
+        };
+        self.last_build = match ev {
+            EngineEvent::BuildFinished { pages_written, .. } => {
+                Some((format!("ok ({pages_written} pages)"), Tone::Ok))
+            }
+            EngineEvent::BuildFailed { diagnostics, .. } => {
+                let codes: Vec<&str> = diagnostics.iter().map(|d| d.code.as_str()).collect();
+                Some((format!("failed {}", codes.join(" ")), Tone::Error))
+            }
+            _ => return false,
+        };
+        self.nb().provenance_map().next().is_some()
+    }
+
+    fn nav(&self) -> NavModel {
+        let nb = self.nb();
+        let item = |key: String, label: String, count: usize| NavItem {
+            key,
+            label,
+            count: Some(count as u64),
+        };
+        let mut items = vec![
+            item("inbox".into(), "Inbox".into(), nb.inbox().len()),
+            item("all".into(), "All notes".into(), nb.len()),
+        ];
+        for (name, n) in nb.notebooks() {
+            items.push(item(format!("nb:{name}"), format!("Notebook · {name}"), n));
+        }
+        for v in nb.views() {
+            items.push(item(
+                format!("view:{}", v.id.0),
+                format!("Saved · {}", v.name),
+                nb.select(&v.predicate).len(),
+            ));
+        }
+        items.push(item(
+            "filter".into(),
+            format!("Filter · {}", self.filter.label()),
+            self.notes(Some("filter")).len(),
+        ));
+        NavModel { items }
+    }
+
+    fn list_len(&self, nav: Option<&str>) -> usize {
+        *self.nav.borrow_mut() = nav.map(str::to_string);
+        match self.notes(nav).len() {
+            0 if nav.unwrap_or("inbox") == "inbox" => 1,
+            n => n,
+        }
+    }
+
+    fn row(&self, nav: Option<&str>, index: usize) -> RowModel {
+        let notes = self.notes(nav);
+        let Some(n) = notes.get(index) else {
+            return RowModel {
+                key: EMPTY.into(),
+                title: "Inbox zero".into(),
+                detail: "Capture with Research: Capture idea (palette)".into(),
+                badge: None,
+                tone: Tone::Dim,
+            };
+        };
+        let promoted = self.nb().provenance(&n.id).is_some();
+        let kind = n.captures.first().map(Capture::kind).unwrap_or("note");
+        let badge = if promoted {
+            "promoted".to_string()
+        } else {
+            match &n.triage {
+                Triage::Filed { notebook } => notebook.clone(),
+                t => t.label().to_string(),
+            }
+        };
+        RowModel {
+            key: n.id.0.clone(),
+            title: n.title.clone(),
+            detail: format!(
+                "{kind} · {}",
+                n.body_md
+                    .lines()
+                    .find(|l| !l.trim().is_empty())
+                    .unwrap_or("")
+            ),
+            badge: Some(badge),
+            tone: if promoted { Tone::Ok } else { Tone::Normal },
+        }
+    }
+
+    fn reading(&self, key: &str) -> ReadingModel {
+        let nb = self.nb();
+        let Some(n) = nb.note(&StableId(key.into())) else {
+            return ReadingModel {
+                title: "Inbox zero".into(),
+                lines: vec![line(
+                    "",
+                    "Nothing to triage. Captures land here first.",
+                    Tone::Dim,
+                )],
+            };
+        };
+        let mut lines: Vec<ReadingLine> = n
+            .body_md
+            .lines()
+            .map(|l| line("", l, Tone::Normal))
+            .collect();
+        for c in &n.captures {
+            lines.push(line(
+                "capture",
+                format!("{} · {}", c.kind(), c.summary()),
+                Tone::Dim,
+            ));
+        }
+        for l in nb.outgoing(&n.id) {
+            let to = match &l.to {
+                Target::Note(t) => format!("note · {}", self.title_of(t)),
+                t => format!("{} · {}", t.kind(), t.id().0),
+            };
+            lines.push(line("link", to, Tone::Normal));
+        }
+        for l in nb.backlinks(&Target::Note(n.id.clone())) {
+            lines.push(line("backlink", self.title_of(&l.from), Tone::Normal));
+        }
+        if let Some(p) = nb.provenance(&n.id) {
+            lines.push(line(
+                "promoted",
+                format!("page {} ({})", p.page.0, p.path),
+                Tone::Ok,
+            ));
+            for other in nb
+                .page_backlinks(&p.page)
+                .into_iter()
+                .filter(|o| o != &n.id)
+            {
+                lines.push(line("page backlink", self.title_of(&other), Tone::Normal));
+            }
+        }
+        ReadingModel {
+            title: n.title.clone(),
+            lines,
+        }
+    }
+
+    fn inspector(&self, key: &str) -> InspectorModel {
+        let nb = self.nb();
+        let Some(n) = nb.note(&StableId(key.into())) else {
+            return InspectorModel {
+                fields: vec![("store".into(), self.session.port.describe())],
+            };
+        };
+        let tags: Vec<&str> = n.tags.iter().map(String::as_str).collect();
+        let promotion = match (nb.provenance(&n.id), &self.promote_error) {
+            (Some(p), _) => format!("page {}", p.page.0),
+            (None, Some((id, e))) if id == &n.id => e.clone(),
+            _ => "not promoted".into(),
+        };
+        let mut fields = vec![
+            ("id".into(), n.id.0.clone()),
+            ("triage".into(), n.triage.label().into()),
+            ("format".into(), n.format.oliver_from().into()),
+            ("tags".into(), tags.join(", ")),
+            ("captures".into(), n.captures.len().to_string()),
+            ("links".into(), n.links.len().to_string()),
+            (
+                "backlinks".into(),
+                nb.backlinks(&Target::Note(n.id.clone())).len().to_string(),
+            ),
+            ("promotion".into(), promotion),
+        ];
+        if let Triage::Filed { notebook } = &n.triage {
+            fields.insert(2, ("notebook".into(), notebook.clone()));
+        }
+        if let Some(s) = &n.source_uri {
+            fields.push(("source".into(), s.clone()));
+        }
+        if let (Some(_), Some((b, _))) = (nb.provenance(&n.id), &self.last_build) {
+            fields.push(("last build".into(), b.clone()));
+        }
+        fields.push(("store".into(), self.session.port.describe()));
+        InspectorModel { fields }
+    }
+
+    fn noun(&self, key: &str) -> Option<NounId> {
+        let id = StableId(key.into());
+        self.nb().note(&id)?;
+        *self.focus.borrow_mut() = Some(id.clone());
+        Some(self.nb().noun(&id))
+    }
+
+    fn commands(&self) -> Vec<CommandSpec> {
+        let mut v = vec![
+            CommandSpec::new("research.capture.idea", "Research: Capture idea"),
+            CommandSpec::new("research.triage.file", "Research: File note (first tag)"),
+            CommandSpec::new("research.triage.archive", "Research: Archive note"),
+            CommandSpec::new(
+                "research.link.recent",
+                "Research: Link note to most recent note",
+            ),
+            CommandSpec::new("research.promote", "Research: Promote note to page"),
+        ];
+        v.extend(filter::commands());
+        v
+    }
+
+    fn run(&mut self, command: &str) -> Vec<Intent> {
+        let verb = command.strip_prefix("research.").unwrap_or(command);
+        if let Some(f) = verb.strip_prefix("filter.") {
+            let msg = self.filter.run(f, &mut self.session);
+            return vec![Intent::Status(msg)];
+        }
+        match verb {
+            "capture.idea" => {
+                let n = self.nb().len() + 1;
+                let r = self.session.capture(
+                    Capture::Idea {
+                        text: format!("Idea {n}"),
+                    },
+                    None,
+                );
+                vec![Intent::Status(match r {
+                    Ok(id) => {
+                        *self.focus.borrow_mut() = Some(id.clone());
+                        format!("captured {} to inbox", id.0)
+                    }
+                    Err(e) => format!("research: {e}"),
+                })]
+            }
+            "triage.file" => self.with_target(|m, id| {
+                let nb = m.nb().note(&id).and_then(|n| n.tags.iter().next().cloned());
+                let nb = nb.unwrap_or_else(|| "unsorted".into());
+                m.session.file(&id, &nb).map_err(|e| e.to_string())?;
+                Ok(format!("filed {} → {nb}", id.0))
+            }),
+            "triage.archive" => self.with_target(|m, id| {
+                m.session.archive(&id).map_err(|e| e.to_string())?;
+                Ok(format!("archived {}", id.0))
+            }),
+            "link.recent" => self.with_target(|m, id| {
+                let other = m
+                    .nb()
+                    .all()
+                    .into_iter()
+                    .find(|n| n.id != id)
+                    .map(|n| n.id.clone());
+                let other = other.ok_or("no other note to link")?;
+                let l = m
+                    .session
+                    .link(&id, Target::Note(other.clone()))
+                    .map_err(|e| e.to_string())?;
+                Ok(format!("linked {} → {} ({})", id.0, other.0, l.0))
+            }),
+            "promote" => self.with_target(Self::promote),
+            _ => vec![Intent::Status(format!("unknown command {command}"))],
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests;
