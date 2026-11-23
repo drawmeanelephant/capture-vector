@@ -67,7 +67,7 @@ jobs:
           fi
       - name: no std::process outside cv-engine
         run: |
-          offenders=$(grep -rln --include='*.rs' 'std::process::Command\|process::Command' crates | grep -v 'crates/cv-engine/' || true)
+          offenders=$(grep -rln --include='*.rs' 'Command::new\|process::exit\|Command::spawn' crates | grep -v 'crates/cv-engine/' || true)
           if [ -n "$offenders" ]; then
             echo "process spawn outside cv-engine:"; echo "$offenders"; exit 1
           fi
