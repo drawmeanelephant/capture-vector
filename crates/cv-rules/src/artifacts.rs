@@ -204,10 +204,7 @@ impl HtmlPage {
     }
 
     pub fn is_noindex(&self) -> bool {
-        self.meta("name", "robots").is_some_and(|c| {
-            c.split(|ch: char| ch == ',' || ch.is_ascii_whitespace())
-                .any(|t| t.eq_ignore_ascii_case("noindex") || t.eq_ignore_ascii_case("none"))
-        })
+        self.doc.elements.iter().any(crate::html::is_robots_noindex)
     }
 }
 

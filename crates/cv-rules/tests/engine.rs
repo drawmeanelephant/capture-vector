@@ -584,3 +584,29 @@ fn ir_declared_missing_limits_draft_checks_even_if_supplied() {
             .any(|f| f.finding.evidence.summary.contains("absent from"))
     );
 }
+
+#[test]
+fn robots_none_uppercase_names_and_mixed_case_jsonld_are_recognised() {
+    for meta in [
+        r#"<meta name="ROBOTS" content="noindex">"#,
+        r#"<meta name="robots" content="none">"#,
+    ] {
+        let html = page_html("guides/intro.html", "Intro", meta, "");
+        let set = clean()
+            .page(page("guides/intro", "guides/intro.html", &html))
+            .build();
+        let r = eval(&set, &Ruleset::v1());
+        assert!(
+            r.failed()
+                .any(|f| f.finding.code == "TGT-SITEMAP-NOINDEX-LEAK"),
+            "{meta}"
+        );
+    }
+    let bad = r#"<script type="Application/LD+JSON">{not json</script>"#;
+    let html = page_html("guides/intro.html", "Intro", bad, "");
+    let set = clean()
+        .page(page("guides/intro", "guides/intro.html", &html))
+        .build();
+    let r = eval(&set, &Ruleset::v1());
+    assert!(r.failed().any(|f| f.finding.code == "AEO-JSONLD-VALID"));
+}

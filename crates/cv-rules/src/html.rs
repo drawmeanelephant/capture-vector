@@ -3,9 +3,11 @@
 //! start/end tags (void and raw-text elements handled), which is enough to
 //! answer head-level and structural questions deterministically.
 //!
-//! Selector subset: `tag` / `*`, `[a]`, `[a=v]`, `[a~=v]` (ASCII
-//! case-insensitive token match), `[a^=v]`, `:not(<simple>)`,
-//! `:invalid-json` (raw text that fails to parse as JSON), combined with
+//! Selector subset: `tag` / `*`, `[a]`, `[a=v]`, `[a~=v]` (token match),
+//! `[a^=v]` — value matches are ASCII case-insensitive, as HTML treats the
+//! enumerated values these rules inspect (`rel`, `name`, `type`) —
+//! `:not(<simple>)`, `:invalid-json` (raw text that fails to parse as
+//! JSON), `:robots-noindex` (a robots meta saying `noindex` or `none`), combined with
 //! descendant (` `), child (`>`) and adjacent-sibling (`+`) combinators.
 
 use crate::Error;
@@ -239,6 +241,7 @@ struct Compound {
     attrs: Vec<(String, AttrOp)>,
     nots: Vec<Compound>,
     invalid_json: bool,
+    robots_noindex: bool,
 }
 
 impl Compound {
@@ -250,17 +253,23 @@ impl Compound {
             let Some(v) = e.attr(k) else { return false };
             let ok = match op {
                 AttrOp::Has => true,
-                AttrOp::Eq(x) => v == x,
+                AttrOp::Eq(x) => v.trim().eq_ignore_ascii_case(x),
                 AttrOp::Token(x) => v
                     .split(|c: char| c.is_ascii_whitespace() || c == ',')
                     .any(|t| t.eq_ignore_ascii_case(x)),
-                AttrOp::Prefix(x) => v.starts_with(x.as_str()),
+                AttrOp::Prefix(x) => v
+                    .as_bytes()
+                    .get(..x.len())
+                    .is_some_and(|p| p.eq_ignore_ascii_case(x.as_bytes())),
             };
             if !ok {
                 return false;
             }
         }
         if self.nots.iter().any(|n| n.matches(e)) {
+            return false;
+        }
+        if self.robots_noindex && !is_robots_noindex(e) {
             return false;
         }
         if self.invalid_json && serde_json::from_str::<serde_json::Value>(&e.text).is_ok() {
@@ -319,6 +328,17 @@ impl CssSelector {
     }
 }
 
+/// `<meta name="robots">` whose content carries `noindex` or `none`.
+pub fn is_robots_noindex(e: &Element) -> bool {
+    e.name == "meta"
+        && e.attr("name")
+            .is_some_and(|n| n.trim().eq_ignore_ascii_case("robots"))
+        && e.attr("content").is_some_and(|c| {
+            c.split(|ch: char| ch == ',' || ch.is_ascii_whitespace())
+                .any(|t| t.eq_ignore_ascii_case("noindex") || t.eq_ignore_ascii_case("none"))
+        })
+}
+
 fn parse_compound(c: &[char], mut i: usize) -> Result<(Compound, usize), String> {
     let mut out = Compound::default();
     let start = i;
@@ -359,6 +379,9 @@ fn parse_compound(c: &[char], mut i: usize) -> Result<(Compound, usize), String>
                     }
                     out.nots.push(inner);
                     i = next + 1;
+                } else if rest.starts_with(":robots-noindex") {
+                    out.robots_noindex = true;
+                    i += ":robots-noindex".len();
                 } else if rest.starts_with(":invalid-json") {
                     out.invalid_json = true;
                     i += ":invalid-json".len();
