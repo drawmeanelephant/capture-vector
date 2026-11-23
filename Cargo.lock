@@ -761,7 +761,15 @@ dependencies = [
 name = "cv-ledger"
 version = "0.0.0"
 dependencies = [
+ "cv-contracts",
  "cv-core",
+ "cv-fixtures",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -786,6 +794,11 @@ version = "0.0.0"
 dependencies = [
  "cv-core",
  "cv-ledger",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

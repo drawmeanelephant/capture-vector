@@ -1,0 +1,744 @@
+use cv_core::engine::{
+    Engine, EngineCaps, EngineInfo, EventSink, ExitClass, Fingerprint, PageDraft, Verb,
+    WatchHandle, WriteOutcome,
+};
+use cv_core::id::StableId;
+use cv_core::publish::{RunState, RunStatus};
+use cv_core::rules::ArtifactSet;
+use cv_core::sys::{FixedClock, Hash, SeqIdGen, Timestamp};
+use cv_ledger::LedgerIndex;
+use cv_ledger::journal::Entry;
+use cv_publish::adapters::{
+    COPY_TO_FOLDER, CopyToFolder, Delivered, Delivery, DeliveryAdapter, HTTP_POST, HttpPost,
+    HttpTransport, RUN_COMMAND, RunCommand, TransportFailure,
+};
+use cv_publish::exports;
+use cv_publish::plan::{PlanFile, SealedPlan};
+use cv_publish::secrets::{MockKeychain, NoSecrets, Secret, SecretBackend, StdinSecret};
+use cv_publish::{
+    Observation, PreflightOutcome, PreflightRequest, PublishError, Publisher, Ruleset,
+    RulesetVerdict, Target, TargetConfig, registry,
+};
+use std::cell::{Cell, RefCell};
+use std::path::{Path, PathBuf};
+use std::sync::Mutex;
+
+// ── test doubles ─────────────────────────────────────────────────────
+
+/// Fake engine: "builds" plain site files into the `--html-dir` it is
+/// handed and records every verb. No Boris JSON is authored here.
+struct FakeEngine {
+    root: PathBuf,
+    version: Mutex<String>,
+    check_exit: ExitClass,
+    pages: Vec<(&'static str, &'static str)>,
+    verbs: Mutex<Vec<Verb>>,
+}
+
+impl FakeEngine {
+    fn new(root: &Path) -> Self {
+        Self {
+            root: root.into(),
+            version: Mutex::new("boris/0.9.0".into()),
+            check_exit: ExitClass::Ok,
+            pages: vec![
+                ("index.html", "<h1>home</h1>"),
+                ("guides/a.html", "<h1>a</h1>"),
+                ("sitemap.xml", "<urlset/>"),
+                ("feed.xml", "<rss/>"),
+                ("llms.txt", "# site"),
+                ("context/index.md", "ctx"),
+            ],
+            verbs: Mutex::new(vec![]),
+        }
+    }
+    fn verbs(&self) -> Vec<Verb> {
+        self.verbs.lock().unwrap().clone()
+    }
+    fn publishes(&self) -> usize {
+        self.verbs()
+            .iter()
+            .filter(|v| matches!(v, Verb::Publish { .. }))
+            .count()
+    }
+}
+
+fn arg<'a>(args: &'a [String], flag: &str) -> &'a str {
+    let i = args.iter().position(|a| a == flag).unwrap();
+    &args[i + 1]
+}
+
+impl Engine for FakeEngine {
+    fn locate(&self) -> cv_core::Result<EngineInfo> {
+        Ok(EngineInfo {
+            version: self.version.lock().unwrap().clone(),
+            vcs_revision: None,
+            caps: self.capabilities(),
+        })
+    }
+    fn capabilities(&self) -> EngineCaps {
+        EngineCaps {
+            watch: false,
+            serve: false,
+            authoring: false,
+            writes: false,
+        }
+    }
+    fn snapshot(&self) -> cv_core::Result<ArtifactSet> {
+        Err(cv_core::Error::Engine("unused".into()))
+    }
+    fn watch(&self, _: EventSink) -> cv_core::Result<Box<dyn WatchHandle>> {
+        Err(cv_core::Error::Engine("unused".into()))
+    }
+    fn run(&self, cmd: &Verb, _: EventSink) -> cv_core::Result<ExitClass> {
+        self.verbs.lock().unwrap().push(cmd.clone());
+        match cmd {
+            Verb::Custom { name, args } if name == "build" => {
+                let site = self.root.join(arg(args, "--html-dir"));
+                for (p, body) in &self.pages {
+                    let f = site.join(p);
+                    std::fs::create_dir_all(f.parent().unwrap()).unwrap();
+                    std::fs::write(f, body).unwrap();
+                }
+                Ok(ExitClass::Ok)
+            }
+            Verb::Custom { name, args } if name == "graph" => {
+                std::fs::write(self.root.join(arg(args, "--out")), "graph TD; a-->b").unwrap();
+                Ok(ExitClass::Ok)
+            }
+            Verb::Custom { name, .. } if name == "check" => Ok(self.check_exit),
+            _ => Ok(ExitClass::Ok),
+        }
+    }
+    fn write_content(
+        &self,
+        _: &PageDraft,
+        _: Option<Fingerprint>,
+    ) -> cv_core::Result<WriteOutcome> {
+        Err(cv_core::Error::Engine("unused".into()))
+    }
+}
+
+struct Rules(Cell<u8>, Vec<String>);
+
+impl Rules {
+    fn ok() -> Self {
+        Self(Cell::new(1), vec![])
+    }
+}
+
+impl Ruleset for Rules {
+    fn hash(&self) -> Hash {
+        Hash([self.0.get(); 32])
+    }
+    fn evaluate(&self, _: &Path, _: &[PlanFile]) -> RulesetVerdict {
+        RulesetVerdict {
+            blocking: self.1.clone(),
+            advisory: vec!["heuristic: meta description short".into()],
+        }
+    }
+}
+
+/// Counts deliveries; can panic mid-delivery after touching the target.
+struct Flaky {
+    inner: CopyToFolder,
+    calls: Cell<usize>,
+    crash_after: Option<usize>,
+    fail: Option<TransportFailure>,
+}
+
+impl DeliveryAdapter for Flaky {
+    fn id(&self) -> &str {
+        COPY_TO_FOLDER
+    }
+    fn deliver(&self, d: &Delivery<'_>) -> Result<Delivered, TransportFailure> {
+        self.calls.set(self.calls.get() + 1);
+        if let Some(f) = &self.fail {
+            return Err(f.clone());
+        }
+        if let Some(n) = self.crash_after {
+            let partial: Vec<_> = d.files.iter().take(n).cloned().collect();
+            let _ = self.inner.deliver(&Delivery {
+                files: &partial,
+                ..*d
+            });
+            panic!("simulated crash after contact");
+        }
+        self.inner.deliver(d)
+    }
+    fn can_read_back(&self) -> bool {
+        true
+    }
+    fn read_back(&self, cfg: &TargetConfig, path: &str) -> Option<Vec<u8>> {
+        self.inner.read_back(cfg, path)
+    }
+    fn probe(&self, plan: &SealedPlan, cfg: &TargetConfig) -> Option<Observation> {
+        self.inner.probe(plan, cfg)
+    }
+}
+
+fn flaky(root: &Path) -> Flaky {
+    Flaky {
+        inner: CopyToFolder::new(root),
+        calls: Cell::new(0),
+        crash_after: None,
+        fail: None,
+    }
+}
+
+fn cfg() -> TargetConfig {
+    TargetConfig::new(
+        Target::StaticDist,
+        "boris.json",
+        "https://example.test/",
+        COPY_TO_FOLDER,
+        "deployed",
+    )
+}
+
+fn granted(o: PreflightOutcome) -> StableId {
+    match o {
+        PreflightOutcome::Granted { run, .. } => run,
+        PreflightOutcome::Blocked { blocks, .. } => panic!("blocked: {blocks:?}"),
+    }
+}
+
+const CLOCK: FixedClock = FixedClock(Timestamp(1_700_000_000_000));
+
+fn ids(prefix: &str) -> SeqIdGen {
+    SeqIdGen::new(prefix)
+}
+
+// ── registry ─────────────────────────────────────────────────────────
+
+#[test]
+fn registry_labels_match_boris() {
+    let r = registry();
+    let labels: Vec<_> = r.iter().map(|t| (t.id(), t.verification_label())).collect();
+    assert_eq!(
+        labels,
+        vec![
+            ("github-pages", "verified"),
+            ("standard-site", "verified"),
+            ("nostr-nip23", "unverified"),
+            ("static-dist", "unverified"),
+        ]
+    );
+    for t in r {
+        assert_eq!(Target::from_id(t.id()), Some(t));
+        assert_eq!(t.spec().verified, t.verified());
+        assert_eq!(
+            t.deploy_profile("https://x.test/").base_url,
+            "https://x.test/"
+        );
+        assert_eq!(t.hosts_html(), !t.default_exports().is_empty());
+    }
+    assert!(Target::GithubPages.deploy_profile("u").expects_robots_txt);
+    assert_eq!(Target::NostrNip23.secret_name(), Some("nostr-nsec"));
+    assert!(!TargetConfig::new(Target::NostrNip23, "p", "u", "a", "d").verified);
+}
+
+// ── sealed grant ─────────────────────────────────────────────────────
+
+fn seal_case(
+    tamper: impl FnOnce(&Path, &FakeEngine, &Rules, &mut TargetConfig),
+) -> Vec<&'static str> {
+    let dir = tempfile::tempdir().unwrap();
+    let eng = FakeEngine::new(dir.path());
+    let rules = Rules::ok();
+    let mut c = cfg();
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets)
+        .unwrap()
+        .with_adapter(flaky(dir.path()));
+    let run = granted(
+        p.preflight(
+            &PreflightRequest { config: c.clone() },
+            &rules,
+            &mut ids("run"),
+        )
+        .unwrap(),
+    );
+    p.approve(&run, "tester").unwrap();
+    tamper(dir.path(), &eng, &rules, &mut c);
+    let err = p.publish(&run, &c, &rules).unwrap_err();
+    let PublishError::SealBroken(broken) = err else {
+        panic!("expected SealBroken, got {err:?}")
+    };
+    let v = p.run(&run).unwrap();
+    assert!(v.history.is_empty(), "refused runs never reach Dispatching");
+    assert!(v.refusals.iter().any(|r| r.starts_with("seal broken")));
+    assert!(!dir.path().join("deployed").exists(), "nothing delivered");
+    broken
+}
+
+#[test]
+fn hash_mismatch_refuses_publish() {
+    let site = ".cv/publish/run-000000/site";
+    assert_eq!(
+        seal_case(|root, _, _, _| std::fs::write(
+            root.join(site).join("index.html"),
+            "<h1>pwned</h1>"
+        )
+        .unwrap()),
+        vec!["artifact_set", "plan"]
+    );
+    assert_eq!(
+        seal_case(|root, _, _, _| std::fs::write(root.join(site).join("extra.js"), "x").unwrap()),
+        vec!["artifact_set", "plan"]
+    );
+    assert_eq!(
+        seal_case(|root, _, _, _| std::fs::write(
+            root.join(".cv/publish/run-000000/graph.mmd"),
+            "changed"
+        )
+        .unwrap()),
+        vec!["graph"]
+    );
+    assert_eq!(seal_case(|_, _, r, _| r.0.set(9)), vec!["ruleset"]);
+    assert_eq!(
+        seal_case(|_, e, _, _| *e.version.lock().unwrap() = "boris/0.9.1".into()),
+        vec!["boris_version"]
+    );
+    assert_eq!(
+        seal_case(|_, _, _, c| c.deploy.base_url = "https://evil.test/".into()),
+        vec!["target_cfg"]
+    );
+}
+
+#[test]
+fn publish_requires_persisted_approval() {
+    let dir = tempfile::tempdir().unwrap();
+    let eng = FakeEngine::new(dir.path());
+    let rules = Rules::ok();
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets)
+        .unwrap()
+        .with_adapter(flaky(dir.path()));
+    let run = granted(
+        p.preflight(&PreflightRequest { config: cfg() }, &rules, &mut ids("run"))
+            .unwrap(),
+    );
+    assert!(
+        matches!(p.publish(&run, &cfg(), &rules), Err(PublishError::Refused(r)) if r == "not approved")
+    );
+    p.approve(&run, "tester").unwrap();
+    // Approval is in the durable journal before any dispatch record.
+    let recs = p.journal().records();
+    let approved = recs
+        .iter()
+        .position(|r| matches!(r.entry, Entry::Approved { .. }))
+        .unwrap();
+    assert!(
+        !recs
+            .iter()
+            .any(|r| matches!(r.entry, Entry::RunState { .. }))
+    );
+    assert_eq!(
+        p.publish(&run, &cfg(), &rules).unwrap(),
+        RunState::Complete(RunStatus::Complete)
+    );
+    let recs = p.journal().records();
+    let dispatching = recs
+        .iter()
+        .position(|r| {
+            matches!(
+                &r.entry,
+                Entry::RunState {
+                    state: RunState::Dispatching,
+                    ..
+                }
+            )
+        })
+        .unwrap();
+    assert!(approved < dispatching);
+}
+
+#[test]
+fn preflight_blocks_on_check_or_ruleset() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = FakeEngine::new(dir.path());
+    eng.check_exit = ExitClass::ContentFailure;
+    let rules = Rules(Cell::new(1), vec!["ECANONICAL: canonical mismatch".into()]);
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+    let out = p
+        .preflight(&PreflightRequest { config: cfg() }, &rules, &mut ids("run"))
+        .unwrap();
+    let PreflightOutcome::Blocked { run, blocks } = out else {
+        panic!("expected blocked")
+    };
+    assert_eq!(blocks, vec!["check: ContentFailure"]);
+    assert_eq!(p.run(&run).unwrap().phase().as_str(), "preflight-blocked");
+    assert!(p.approve(&run, "tester").is_err());
+    drop(p);
+
+    eng.check_exit = ExitClass::Ok;
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+    let out = p
+        .preflight(&PreflightRequest { config: cfg() }, &rules, &mut ids("r2"))
+        .unwrap();
+    assert!(
+        matches!(out, PreflightOutcome::Blocked { blocks, .. } if blocks == vec!["ruleset: ECANONICAL: canonical mismatch"])
+    );
+    // The preflight built into its own per-run dir, never the watch build.
+    for v in eng.verbs() {
+        if let Verb::Custom { name, args } = v
+            && name == "build"
+        {
+            assert!(arg(&args, "--html-dir").starts_with(".cv/publish/"));
+        }
+    }
+}
+
+// ── happy path + ship-the-outputs ────────────────────────────────────
+
+#[test]
+fn complete_run_ships_exact_bytes_and_machine_exports() {
+    let dir = tempfile::tempdir().unwrap();
+    let eng = FakeEngine::new(dir.path());
+    let rules = Rules::ok();
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets)
+        .unwrap()
+        .with_adapter(CopyToFolder::new(dir.path()));
+    let run = granted(
+        p.preflight(&PreflightRequest { config: cfg() }, &rules, &mut ids("run"))
+            .unwrap(),
+    );
+    p.approve(&run, "tester").unwrap();
+    assert_eq!(
+        p.publish(&run, &cfg(), &rules).unwrap(),
+        RunState::Complete(RunStatus::Complete)
+    );
+    for (path, body) in &eng.pages {
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("deployed").join(path)).unwrap(),
+            *body
+        );
+    }
+    let v = p.run(&run).unwrap();
+    let ev = v.exports.unwrap();
+    assert_eq!(ev.len(), 4);
+    assert!(exports::all_shipped(&ev), "{ev:?}");
+    assert_eq!(
+        v.history,
+        vec![
+            RunState::Dispatching,
+            RunState::Complete(RunStatus::Complete)
+        ]
+    );
+    let events = p.take_events();
+    assert_eq!(events.len(), 3, "grant + dispatching + complete");
+
+    let idx = LedgerIndex::open(dir.path(), p.journal()).unwrap();
+    assert_eq!(idx.run_phase(&run.0).unwrap().as_deref(), Some("complete"));
+    assert_eq!(idx.nouns("delivery", &run.0).unwrap().len(), 1);
+}
+
+#[test]
+fn unshipped_or_stale_exports_are_flagged() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = FakeEngine::new(dir.path());
+    eng.pages.retain(|(p, _)| *p != "llms.txt");
+    let rules = Rules::ok();
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets)
+        .unwrap()
+        .with_adapter(CopyToFolder::new(dir.path()));
+    let run = granted(
+        p.preflight(&PreflightRequest { config: cfg() }, &rules, &mut ids("run"))
+            .unwrap(),
+    );
+    p.approve(&run, "tester").unwrap();
+    p.publish(&run, &cfg(), &rules).unwrap();
+    let v = p.run(&run).unwrap();
+    let ev = v.exports.unwrap();
+    let llms = ev.iter().find(|e| e.kind == "llms").unwrap();
+    assert_eq!(llms.status, exports::MISSING);
+    assert!(!exports::all_shipped(&ev));
+
+    // Stale at the destination after delivery.
+    let plan: SealedPlan = serde_json::from_value(v.plan.unwrap()).unwrap();
+    std::fs::write(dir.path().join("deployed/sitemap.xml"), "old").unwrap();
+    let read = |path: &str| std::fs::read(dir.path().join("deployed").join(path)).ok();
+    let ev = exports::check(&plan, &cfg().exports, Some(&read));
+    assert_eq!(
+        ev.iter().find(|e| e.kind == "sitemap").unwrap().status,
+        exports::STALE
+    );
+    assert!(
+        exports::check(&plan, &cfg().exports, None)
+            .iter()
+            .all(|e| e.status == exports::UNCONFIRMED || e.status == exports::MISSING)
+    );
+}
+
+// ── crash-after-contact ──────────────────────────────────────────────
+
+#[test]
+fn crash_after_contact_is_unknown_reconciles_and_never_retries() {
+    let dir = tempfile::tempdir().unwrap();
+    let eng = FakeEngine::new(dir.path());
+    let rules = Rules::ok();
+    let mut run_ids = ids("run");
+    let run = {
+        let mut a = flaky(dir.path());
+        a.crash_after = Some(2);
+        let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets)
+            .unwrap()
+            .with_adapter(a);
+        let run = granted(
+            p.preflight(&PreflightRequest { config: cfg() }, &rules, &mut run_ids)
+                .unwrap(),
+        );
+        p.approve(&run, "tester").unwrap();
+        let crashed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            p.publish(&run, &cfg(), &rules)
+        }));
+        assert!(crashed.is_err());
+        run
+        // process "dies": publisher dropped without recording an outcome
+    };
+
+    let retry = flaky(dir.path());
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets)
+        .unwrap()
+        .with_adapter(retry);
+    let v = p.run(&run).unwrap();
+    assert_eq!(
+        v.state,
+        Some(RunState::Unknown),
+        "recovered to unknown, not retried"
+    );
+    assert_eq!(v.history, vec![RunState::Dispatching, RunState::Unknown]);
+
+    // The same run can never be dispatched again.
+    assert!(
+        matches!(p.publish(&run, &cfg(), &rules), Err(PublishError::Refused(r)) if r.contains("never retried"))
+    );
+    // A fresh run on the same target is blocked until reconciliation.
+    let run2 = granted(
+        p.preflight(&PreflightRequest { config: cfg() }, &rules, &mut run_ids)
+            .unwrap(),
+    );
+    p.approve(&run2, "tester").unwrap();
+    assert!(
+        matches!(p.publish(&run2, &cfg(), &rules), Err(PublishError::Refused(r)) if r.contains("unresolved"))
+    );
+    assert!(p.run(&run2).unwrap().history.is_empty());
+
+    // Read-only probe sees the two files that landed before the crash.
+    assert_eq!(
+        p.reconcile_by_probe(&run, &cfg()).unwrap(),
+        Some(RunState::Complete(RunStatus::Partial))
+    );
+    let v = p.run(&run).unwrap();
+    assert_eq!(v.reconciliations.len(), 1);
+    assert!(
+        p.reconcile(&run, Observation::NotDelivered, "tester")
+            .is_err(),
+        "terminal"
+    );
+
+    // Now the target is free; run2 delivers. run1 was never re-delivered.
+    assert_eq!(
+        p.publish(&run2, &cfg(), &rules).unwrap(),
+        RunState::Complete(RunStatus::Complete)
+    );
+    assert_eq!(p.run(&run).unwrap().history.len(), 3);
+}
+
+#[test]
+fn transport_failure_classifies_by_contact() {
+    for (contacted, want) in [
+        (true, RunState::Unknown),
+        (false, RunState::Complete(RunStatus::Failed)),
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let eng = FakeEngine::new(dir.path());
+        let rules = Rules::ok();
+        let mut a = flaky(dir.path());
+        a.fail = Some(TransportFailure {
+            contacted,
+            message: "connection reset".into(),
+        });
+        let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets)
+            .unwrap()
+            .with_adapter(a);
+        let run = granted(
+            p.preflight(&PreflightRequest { config: cfg() }, &rules, &mut ids("run"))
+                .unwrap(),
+        );
+        p.approve(&run, "tester").unwrap();
+        assert_eq!(p.publish(&run, &cfg(), &rules).unwrap(), want);
+        assert!(p.publish(&run, &cfg(), &rules).is_err(), "never retried");
+    }
+}
+
+// ── adapters ─────────────────────────────────────────────────────────
+
+#[test]
+fn run_command_goes_through_the_engine_port() {
+    let dir = tempfile::tempdir().unwrap();
+    let eng = FakeEngine::new(dir.path());
+    let rules = Rules::ok();
+    let c = TargetConfig::new(
+        Target::NostrNip23,
+        "boris.json",
+        "https://example.test/",
+        RUN_COMMAND,
+        "relays",
+    );
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets)
+        .unwrap()
+        .with_adapter(RunCommand::default());
+    let run = granted(
+        p.preflight(
+            &PreflightRequest { config: c.clone() },
+            &rules,
+            &mut ids("run"),
+        )
+        .unwrap(),
+    );
+    p.approve(&run, "tester").unwrap();
+    assert_eq!(
+        p.publish(&run, &c, &rules).unwrap(),
+        RunState::Complete(RunStatus::Complete)
+    );
+    assert_eq!(eng.publishes(), 1);
+    assert!(eng.verbs().contains(&Verb::Publish {
+        target: "nostr-nip23".into()
+    }));
+    assert!(
+        p.run(&run).unwrap().exports.is_none(),
+        "record targets ship no site exports"
+    );
+}
+
+struct MockHttp {
+    status: u16,
+    seen: RefCell<Vec<(String, Option<String>, String)>>,
+}
+
+impl HttpTransport for &MockHttp {
+    fn post(
+        &self,
+        url: &str,
+        auth: Option<&Secret>,
+        _: &str,
+        body: &[u8],
+    ) -> Result<u16, TransportFailure> {
+        self.seen.borrow_mut().push((
+            url.into(),
+            auth.map(|s| s.expose().to_string()),
+            String::from_utf8(body.to_vec()).unwrap(),
+        ));
+        Ok(self.status)
+    }
+}
+
+fn http_run(status: u16, keychain: &MockKeychain) -> (tempfile::TempDir, MockHttp, Vec<String>) {
+    let dir = tempfile::tempdir().unwrap();
+    let http = MockHttp {
+        status,
+        seen: RefCell::new(vec![]),
+    };
+    let mut trail = Vec::new();
+    {
+        let eng = FakeEngine::new(dir.path());
+        let rules = Rules::ok();
+        let mut c = TargetConfig::new(
+            Target::GithubPages,
+            "boris.json",
+            "https://example.test/",
+            HTTP_POST,
+            "https://indexnow.test/ping",
+        );
+        c.exports.clear();
+        let mut p = Publisher::open(dir.path(), &eng, &CLOCK, keychain)
+            .unwrap()
+            .with_adapter(HttpPost {
+                transport: &http,
+                secret: Some("indexnow-key".into()),
+            });
+        let run = granted(
+            p.preflight(
+                &PreflightRequest { config: c.clone() },
+                &rules,
+                &mut ids("run"),
+            )
+            .unwrap(),
+        );
+        p.approve(&run, "tester").unwrap();
+        let st = p.publish(&run, &c, &rules);
+        trail.push(format!("{st:?}"));
+        if st.as_ref().is_ok_and(|s| *s == RunState::Submitted) {
+            let r = p
+                .reconcile(&run, Observation::Delivered(RunStatus::Complete), "tester")
+                .unwrap();
+            trail.push(format!("{r:?}"));
+        }
+        trail.push(format!("{:?}", p.take_events()));
+        trail.push(format!("{:?}", p.runs()));
+        trail.extend(eng.verbs().iter().map(|v| format!("{v:?}")));
+    }
+    (dir, http, trail)
+}
+
+#[test]
+fn http_post_maps_status_to_state() {
+    let kc = MockKeychain::default().with("indexnow-key", "k");
+    let (_d, http, trail) = http_run(202, &kc);
+    assert!(trail[0].contains("Submitted"));
+    assert!(trail[1].contains("Complete(Complete)"));
+    let (url, _, body) = &http.seen.borrow()[0];
+    assert_eq!(url, "https://indexnow.test/ping");
+    assert!(body.contains("https://example.test/guides/a.html"));
+    assert!(body.contains(r#""host":"example.test""#));
+    assert!(http_run(403, &kc).2[0].contains("Complete(Failed)"));
+    assert!(http_run(503, &kc).2[0].contains("Unknown"));
+    // Missing secret refuses before contact.
+    let (_d, http, trail) = http_run(200, &MockKeychain::default());
+    assert!(trail[0].contains("Complete(Failed)"));
+    assert!(http.seen.borrow().is_empty());
+}
+
+// ── secrets ──────────────────────────────────────────────────────────
+
+const CANARY: &str = "CANARY-7f3a9c-do-not-log";
+
+#[test]
+fn secret_canary_never_reaches_logs_events_or_ledger() {
+    let kc = MockKeychain::default().with("indexnow-key", CANARY);
+    let (dir, http, trail) = http_run(200, &kc);
+    // It *was* delivered to the transport boundary…
+    assert_eq!(http.seen.borrow()[0].1.as_deref(), Some(CANARY));
+    assert!(!http.seen.borrow()[0].2.contains(CANARY), "not in the body");
+    // …and nowhere else: events, run views, engine argv, every file on disk.
+    for t in &trail {
+        assert!(!t.contains(CANARY), "leaked: {t}");
+    }
+    fn scan(p: &Path) {
+        for e in std::fs::read_dir(p).unwrap() {
+            let p = e.unwrap().path();
+            if p.is_dir() {
+                scan(&p);
+            } else {
+                let b = std::fs::read(&p).unwrap();
+                assert!(
+                    !b.windows(CANARY.len()).any(|w| w == CANARY.as_bytes()),
+                    "canary persisted in {p:?}"
+                );
+            }
+        }
+    }
+    scan(dir.path());
+    assert_eq!(
+        format!("{:?}", kc.get("indexnow-key").unwrap()),
+        "Secret(<redacted>)"
+    );
+}
+
+#[test]
+fn stdin_channel_reads_once() {
+    let s = StdinSecret::new("nostr-nsec", std::io::Cursor::new(format!("{CANARY}\n")));
+    assert!(s.get("other").is_err());
+    assert_eq!(s.get("nostr-nsec").unwrap().expose(), CANARY);
+    assert!(s.get("nostr-nsec").is_err(), "consumed");
+}
