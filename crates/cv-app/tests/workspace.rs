@@ -257,7 +257,9 @@ fn open_and_recent_commands_queue_requests() {
 #[test]
 #[ignore = "needs a real pinned boris via CV_BORIS_BIN"]
 fn live_boris_workspace_boot() {
-    let ws = workspace("broken-parent");
+    // A profile root: bare content roots can't build in place (Boris
+    // rejects an output dir nested in the content root).
+    let ws = workspace("dogfood");
     let cfg = tempfile::tempdir().unwrap();
     let env = WorkspaceEnv {
         locator: None,
