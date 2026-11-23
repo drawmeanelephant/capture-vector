@@ -177,6 +177,17 @@ fn setup(s: &mut Workbench, w: Waker) {
     let _ = WAKE.set(w.clone());
     editor::host::set_waker(w.clone());
     s.set_waker(w);
+    // Headless exports have no `on_ready` (without `--realtime`); they
+    // render the booted state, as before.
+    if rune::is_headless() && !BOOTED.swap(true, Ordering::Relaxed) {
+        run_boot(s);
+    }
+}
+
+fn run_boot(s: &mut Workbench) {
+    if let Some(boot) = BOOT.get() {
+        boot(s);
+    }
 }
 
 /// Boot lands after the first frame, without motion, so launch shows the
@@ -184,9 +195,7 @@ fn setup(s: &mut Workbench, w: Waker) {
 /// when the native window is recreated; boot does not.
 fn boot(s: &mut Workbench, tx: &mut Tx) {
     tx.instant();
-    if let Some(boot) = BOOT.get() {
-        boot(s);
-    }
+    run_boot(s);
 }
 
 fn open_workspace(s: &mut Workbench, root: PathBuf) {
