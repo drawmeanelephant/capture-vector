@@ -3,9 +3,9 @@
 //! close reconciliation stays in `app::sync_companions`; this module only
 //! builds editor windows and reports their dirty state and closes.
 //!
-//! rune's `on_close` cannot veto a title-bar close (it hides the window,
-//! keeping its state), so a dirty editor closed that way is shown again
-//! asking to save or discard ([`on_closed`]); the model-level close path
+//! rune's `on_close` cannot veto a title-bar close (the native window is
+//! destroyed), so a dirty editor closed that way is opened again over the
+//! same session buffer, asking to save or discard ([`on_closed`]); the model-level close path
 //! (`Windows::close(id, false)`) answers `NeedsConfirm` because
 //! [`sync_dirty`] mirrors buffer dirtiness.
 
@@ -30,6 +30,8 @@ thread_local! {
     static PENDING: RefCell<VecDeque<EditorWindow>> = const { RefCell::new(VecDeque::new()) };
     static CLOSED: RefCell<Vec<WindowId>> = const { RefCell::new(Vec::new()) };
     static REOPEN: RefCell<Vec<WindowId>> = const { RefCell::new(Vec::new()) };
+    static ASK: RefCell<Vec<WindowId>> = const { RefCell::new(Vec::new()) };
+    static OPENS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
     static BOUND: RefCell<BTreeMap<WindowId, cv_ui_editor::BufferId>> = const { RefCell::new(BTreeMap::new()) };
 }
 
@@ -79,6 +81,7 @@ pub fn on_closed(s: &mut EditorWindow) {
     if s.is_dirty() && !shown_elsewhere && !rune::quitting() {
         s.closing = super::Closing::Confirm { stuck: false };
         REOPEN.with(|r| r.borrow_mut().push(s.id));
+        ASK.with(|a| a.borrow_mut().push(s.id));
     } else {
         s.closing = super::Closing::Open;
         CLOSED.with(|c| c.borrow_mut().push(s.id));
@@ -86,7 +89,8 @@ pub fn on_closed(s: &mut EditorWindow) {
     wake();
 }
 
-/// Ids of editor windows closed over unsaved edits, to show again.
+/// Ids of editor windows closed over unsaved edits. Their native window is
+/// gone; the next [`open`] for the id asks to save or discard.
 pub fn take_reopen() -> Vec<WindowId> {
     REOPEN.with(|r| std::mem::take(&mut *r.borrow_mut()))
 }
@@ -100,11 +104,24 @@ pub fn open(id: WindowId, path: &str, theme: &Theme) -> Option<WindowHandle> {
     if let Some(writer) = WRITER.with(|c| c.borrow().clone()) {
         w = w.with_writer(writer);
     }
+    if ASK.with(|a| {
+        let mut a = a.borrow_mut();
+        let ask = a.contains(&id);
+        a.retain(|x| *x != id);
+        ask
+    }) {
+        w.closing = super::Closing::Confirm { stuck: false };
+    }
+    // A closed window's host may still be going; never reuse its key.
+    let n = OPENS.with(|c| {
+        c.set(c.get() + 1);
+        c.get()
+    });
     bind(id, buffer);
     PENDING.with(|p| p.borrow_mut().push_back(w));
     Some(rune::open_window(
         WindowSpec::new(
-            format!("editor-{}", id.0),
+            format!("editor-{}-{n}", id.0),
             AppSpec {
                 poll: Some(super::poll),
                 on_key: Some(super::on_key),
