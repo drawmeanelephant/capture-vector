@@ -164,18 +164,25 @@ impl EditorWindow {
     /// Fold the body field back into the buffer.
     pub fn body_changed(&mut self) {
         let text = self.text();
-        let off = frontmatter::read(&text).body_offset;
-        let head = &text[..off];
-        // A closing fence at end of file needs its line ending before a body.
-        let sep = match (
-            head.is_empty() || head.ends_with('\n'),
-            self.body.text.is_empty(),
-        ) {
-            (false, false) if text.contains("\r\n") => "\r\n",
-            (false, false) => "\n",
-            _ => "",
-        };
-        let next = format!("{head}{sep}{}", self.body.text);
+        let form = frontmatter::read(&text);
+        let mut next = text[..form.body_offset].to_string();
+        if !self.body.text.is_empty() {
+            let nl = if text.contains("\r\n") { "\r\n" } else { "\n" };
+            // A fence at end of file needs its line ending, and an unclosed
+            // block its closing fence, or the typed body would vanish into it.
+            if !next.is_empty() && !next.ends_with('\n') {
+                next.push_str(nl);
+            }
+            if form
+                .notes
+                .iter()
+                .any(|n| matches!(n, frontmatter::Note::Unclosed))
+            {
+                next.push_str("---");
+                next.push_str(nl);
+            }
+        }
+        next.push_str(&self.body.text);
         if let Some(e) = self.session.borrow_mut().get_mut(self.buffer) {
             let _ = e.buffer.set_text(&next);
         }

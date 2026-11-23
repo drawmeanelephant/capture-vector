@@ -422,3 +422,19 @@ fn engine_builds_reach_the_editor_session_through_the_tee() {
     assert_eq!(ses.borrow().current_build(), Some(&BuildId("tee-1".into())));
     assert!(!editor::host::ingest_builds());
 }
+
+#[test]
+fn first_body_edit_closes_an_unclosed_frontmatter_block() {
+    for (open, want) in [
+        ("---", "---\n---\nhi"),
+        ("---\ntitle: P\n", "---\ntitle: P\n---\nhi"),
+    ] {
+        let ses = session();
+        let buf = ses.borrow_mut().open("p.md", open, None);
+        let mut rt = window(&ses, 1, buf);
+        click(&mut rt, "editor-body");
+        type_str(&mut rt, "hi");
+        assert_eq!(ses.borrow().get(buf).unwrap().buffer.text(), want);
+        assert_eq!(rt.state.body.text, "hi");
+    }
+}
