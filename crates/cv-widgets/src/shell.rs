@@ -7,7 +7,7 @@ use cv_core::events::shell::DegradedReason;
 use cv_model::module::{ReadingModel, RowModel, Slot, Tone};
 use cv_model::theme::Theme;
 use cv_model::workbench::Workbench;
-use rune::{Color, Cx, El, GrowthSpec, ScrollSpec, col, el, row, spacer, text};
+use rune::{Color, Cx, El, GrowthSpec, ScrollSpec, col, row, spacer, text};
 use std::borrow::Cow;
 
 fn tone(t: &Theme, tone: Tone) -> Color {
