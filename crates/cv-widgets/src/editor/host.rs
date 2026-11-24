@@ -61,7 +61,22 @@ pub(crate) fn wake() {
 fn init() -> EditorWindow {
     PENDING
         .with(|p| p.borrow_mut().pop_front())
-        .expect("editor window queued before open")
+        .unwrap_or_else(unqueued)
+}
+
+/// `open` queues exactly one editor per native window, so this is never
+/// expected; if it happens the window says so instead of panicking. It
+/// gets its own empty session so it cannot touch the user's buffers.
+fn unqueued() -> EditorWindow {
+    let ses = Rc::new(RefCell::new(EditorSession::new()));
+    let mut w = EditorWindow::new(
+        WindowId(u32::MAX),
+        ses,
+        cv_ui_editor::BufferId(u32::MAX),
+        Theme::dark(),
+    );
+    w.fault = Some(super::EditorError::NotQueued);
+    w
 }
 
 fn closed(s: &mut EditorWindow, _tx: &mut Tx) {
@@ -192,4 +207,16 @@ pub fn ingest_builds() -> bool {
         ses.borrow_mut().ingest_build(build.clone(), diags);
     }
     !builds.is_empty()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_unqueued_native_editor_window_reports_it_instead_of_panicking() {
+        let w = init();
+        assert_eq!(w.error(), Some(super::super::EditorError::NotQueued));
+        assert!(w.text().is_empty());
+    }
 }

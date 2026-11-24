@@ -575,3 +575,24 @@ fn return_follows_crlf_from_the_frontmatter() {
         "---\r\ntitle: P\r\n---\r\n\r\n"
     );
 }
+
+#[test]
+fn window_over_a_buffer_that_is_not_open_shows_why_in_its_header() {
+    let ses = session();
+    let mut rt = window(&ses, 1, BufferId(42));
+    settle(&mut rt);
+    let err = editor::EditorError::BufferClosed(BufferId(42));
+    assert_eq!(rt.state.error(), Some(err));
+    assert!(rt.find("editor-error").is_some());
+    assert!(texts(&rt).contains(&err.to_string()));
+}
+
+#[test]
+fn window_over_an_open_buffer_shows_no_error() {
+    let ses = session();
+    let buf = ses.borrow_mut().open("p.md", "one\n", None);
+    let mut rt = window(&ses, 1, buf);
+    settle(&mut rt);
+    assert_eq!(rt.state.error(), None);
+    assert!(rt.find("editor-error").is_none());
+}

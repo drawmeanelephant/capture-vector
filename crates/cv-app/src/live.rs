@@ -171,11 +171,35 @@ fn finish(
     }
 }
 
-pub fn spawn(b: EngineBoot) -> JoinHandle<()> {
-    std::thread::Builder::new()
+/// Start the engine boot thread. `None` when the OS refuses one; the
+/// failure is then disclosed like any engine that never started.
+pub fn spawn(b: EngineBoot) -> Option<JoinHandle<()>> {
+    let inbox = b.inbox.clone();
+    let warning = b.warning.clone();
+    let root = b.cfg.root.clone();
+    match std::thread::Builder::new()
         .name("cv-engine-boot".into())
         .spawn(move || run(b))
-        .expect("spawn engine boot thread")
+    {
+        Ok(handle) => Some(handle),
+        Err(e) => {
+            boot_thread_failed(&inbox, &warning, &root, &e);
+            None
+        }
+    }
+}
+
+fn boot_thread_failed(
+    inbox: &Inbox,
+    warning: &Option<String>,
+    root: &std::path::Path,
+    e: &std::io::Error,
+) {
+    let status = format!(
+        "{}: engine boot thread failed to start: {e}",
+        root.display()
+    );
+    finish(inbox, warning, Some(DegradedReason::EngineAbsent), status);
 }
 
 #[derive(Clone)]
@@ -718,6 +742,21 @@ mod tests {
         assert_eq!(
             degraded_reason(&EngineError::OverrideMissing("x".into())),
             DegradedReason::EngineAbsent
+        );
+    }
+
+    #[test]
+    fn boot_thread_failure_is_disclosed_as_engine_absent() {
+        let mut wb = Workbench::new(Registry::with_all());
+        let refused = std::io::Error::other("no threads left");
+        boot_thread_failed(&wb.inbox(), &None, Path::new("/ws"), &refused);
+        wb.drain();
+        assert_eq!(wb.app.degraded, Some(DegradedReason::EngineAbsent));
+        assert!(
+            wb.status
+                .contains("engine boot thread failed to start: no threads left"),
+            "{}",
+            wb.status
         );
     }
 
