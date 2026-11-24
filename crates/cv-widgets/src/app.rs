@@ -15,13 +15,15 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 pub type Scene = (&'static str, fn(&mut Workbench));
 
 pub struct Launch {
     pub title: &'static str,
     pub init: fn() -> Workbench,
-    /// Runs once with the waker installed: start engine watch, etc.
+    /// Runs once after the first frame (`on_ready`), with the waker
+    /// installed: open the workspace, start the engine watch, etc.
     pub boot: fn(&mut Workbench),
     /// Open a workspace root (folder dialog answer, recent entry).
     pub open: fn(&mut Workbench, PathBuf),
@@ -31,6 +33,7 @@ pub struct Launch {
 static BOOT: OnceLock<fn(&mut Workbench)> = OnceLock::new();
 static OPEN: OnceLock<fn(&mut Workbench, PathBuf)> = OnceLock::new();
 static WAKE: OnceLock<Waker> = OnceLock::new();
+static BOOTED: AtomicBool = AtomicBool::new(false);
 
 // All windows share one event-loop thread, so companion bookkeeping is
 // thread-local: native handles by id, specs awaiting `init`, and ids whose
@@ -174,9 +177,26 @@ fn setup(s: &mut Workbench, w: Waker) {
     let _ = WAKE.set(w.clone());
     editor::host::set_waker(w.clone());
     s.set_waker(w);
+    // Headless exports have no `on_ready` unless `--realtime`; they render
+    // the booted state, as before.
+    let realtime = std::env::args().any(|a| a == "--realtime");
+    if rune::is_headless() && !realtime && !BOOTED.swap(true, Ordering::Relaxed) {
+        run_boot(s);
+    }
+}
+
+fn run_boot(s: &mut Workbench) {
     if let Some(boot) = BOOT.get() {
         boot(s);
     }
+}
+
+/// Boot lands after the first frame, without motion, so launch shows the
+/// window at once and the first second stays still. `on_ready` runs again
+/// when the native window is recreated; boot does not.
+fn boot(s: &mut Workbench, tx: &mut Tx) {
+    tx.instant();
+    run_boot(s);
 }
 
 fn open_workspace(s: &mut Workbench, root: PathBuf) {
@@ -241,15 +261,21 @@ pub fn run(l: Launch) {
     let _ = BOOT.set(l.boot);
     let _ = OPEN.set(l.open);
     // `rune::run` without the hooks: quitting must stop the engine watch.
-    rune::App::new(AppSpec {
+    let app = rune::App::new(AppSpec {
         scenes: l.scenes,
         setup: Some(setup),
         poll: Some(poll),
         on_key: Some(on_key),
         min_size: Some((960.0, 560.0)),
         ..AppSpec::new(l.title, harness::SIZE, l.init, view)
-    })
-    .on_quit(shutdown)
-    .on_close(shutdown)
-    .run();
+    });
+    let handle = app.handle();
+    app.on_quit(shutdown)
+        .on_close(shutdown)
+        .on_ready(move |_| {
+            if !BOOTED.swap(true, Ordering::Relaxed) {
+                handle.update(boot);
+            }
+        })
+        .run();
 }
