@@ -106,6 +106,29 @@ and IME remain unproven on that OS. No app or vendored Rune behavior changed
 on the basis of these probes.
 The [manual IME and Windows VM checklist](macos-probe/README.md) covers the remaining checks.
 
+### 2026-11-24 — complementary lane: `rune --window-script` on real macOS windows
+
+Same host, same pin, a different mechanism: `--window KEY --window-script`
+replays scripted input on the wall clock into one real window (window keys:
+`main`, `editor-<id>-<n>`; transcript:
+`spike/macos-probe/window-script-transcript.log`).
+
+- **Boot companion — PASS.** `CV_EDIT` produced two real windows
+  (CGWindowList: main 1280x800, editor 1100x760).
+- **Independent editor input — PASS.** Scripted tap on `editor-body`, typed
+  text and cmd+S; the exact bytes landed in the corpus file on disk.
+- **Post-boot companion — PASS.** Tap a Pages row + Enter opened a 560x640
+  reading companion mid-run.
+- **Palette "Close companion windows" — PASS.** The companion was retired.
+- **Clean quit — PASS.** `NSRunningApplication.terminate()` exited the
+  process; no `boris watch` orphans (none was spawned: PATH boris 0.8.2
+  hits the version gate here).
+- Scripted `{"type":"ime"}` events DO land (`core.ime()` runs on real
+  windows — `Kind::Ime` is in `script_input`), but that only exercises the
+  app's side; the OS input-method path still needs real keys, which is why
+  `macos-probe/run.py` is the authoritative IME lane on macOS.
+- A11y warnings reproduce identically on macOS (fm-* fields, editor-body).
+
 ## 2026-11-24 — issue #26 multi-window probe (Linux, real windows)
 
 Driven on a live X desktop (`DISPLAY=:0`, debug cv-app, `CV_PROJECT=<happy

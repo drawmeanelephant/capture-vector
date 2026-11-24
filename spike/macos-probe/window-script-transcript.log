@@ -1,0 +1,65 @@
+# 2026-11-24 macOS multi-window probe — transcript
+# Host: macOS (aarch64), real winit windows, no accessibility/screen-recording grants.
+# Driven by rune --window-script (replays input on the wall clock into real windows).
+# Window evidence: CGWindowListCopyWindowInfo via swift (no permissions needed).
+
+## Run A: boot companion + scripted input into the editor window
+$ CV_PROJECT=fixtures/corpus-src/happy CV_EDIT=content/guides/getting-started.md \
+    ./target/debug/cv-app --window editor-1-1 --window-script /tmp/cv-probe/editor.json
+
+CGWindowList after boot (2 real windows):
+  win=12757 main      bounds 1280x800 @ 260,109
+  win=12764 editor    bounds 1100x760 @ 350,119
+
+stdout:
+  rune-script-window editor-1-1
+  rune: a focusable text field has no name a screen reader can say ... fm-id
+  rune: a focusable text field has no name a screen reader can say ... fm-title
+  rune: a focusable text field has no name a screen reader can say ... fm-parent
+  rune: a focusable text field has no name a screen reader can say ... fm-status
+  rune: a focusable text field has no name a screen reader can say ... fm-tags
+  rune: a focusable text field has no name a screen reader can say ... fm-relations
+  rune: a focusable text field has no name a screen reader can say ... fm-published_at
+  rune: a focusable text field has no name a screen reader can say ... fm-summary
+  rune: a focusable text field has no name a screen reader can say ... fm-servings
+  rune: a focusable text field has no name a screen reader can say ... fm-serves
+  rune: a focusable text field has no name a screen reader can say ... fm-yield
+  rune: a focusable text field has no name a screen reader can say ... editor-body
+  rune-mark saved 3.6 3.600
+  rune-mark dirty 4.4 4.401
+  rune-script-done 4.4 4.401
+
+Script (editor.json): tap "editor-body", type "probe: macOS scripted input line",
+cmd+s at t=2.4, then "dirty tail" typed unsaved.
+Result: fixtures/.../getting-started.md gained the probe line on disk
+(diff verified), proving keystrokes -> buffer -> save worker -> disk on a
+real editor companion window. (File restored after; .cv/ sidecar cleaned.)
+
+## Run B: post-boot companion from the list
+$ CV_PROJECT=fixtures/corpus-src/happy ./target/debug/cv-app --window-script /tmp/cv-probe/main2.json
+  rune-script-window main
+  rune-mark companion-requested 2.4 2.401
+  rune-script-done 2.4 2.401
+
+Script: tap "row-index.md", Enter.
+CGWindowList at +3s:
+  win=12792 main        bounds 1280x800 @ 260,109
+  win=12800 companion   bounds  560x640 @ 620,149   <- reader companion opened mid-run
+
+## Run C: palette "Close companion windows" retires it
+$ CV_PROJECT=fixtures/corpus-src/happy ./target/debug/cv-app --window-script /tmp/cv-probe/main3.json
+Script: tap row -> Enter (open), cmd+k -> type "close companion" -> Enter.
+CGWindowList at +4s and +8s: main window only; companion opened at ~1.2s
+was gone by +4s. rune-mark close-requested 4.4; script done, no errors.
+
+## Gotchas
+- Palette filter: typing "companion" alone can highlight
+  "Close companion windows" instead of "Open selection in companion
+  window" (run order matters); a first attempt no-opped that way.
+- Scripted "ime"/"menu"/"shortcut" kinds do NOT replay on real windows
+  (window_script step only lands canvas input: move/down/up/tap/drag,
+  keys, wheel). IME still needs a real OS input method.
+- No assistive access or screen recording on this host: no AppleScript
+  keystrokes, no window titles (CGWindowList reports names only with
+  Screen Recording), no screencapture. Dirty-close (native close button)
+  and clean-quit-via-window-close remain OS-gesture-only here.
