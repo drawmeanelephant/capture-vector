@@ -107,6 +107,29 @@ mod tests {
         assert!(wb.windows.companions.is_empty());
     }
 
+    /// Directory links only: a Windows directory symlink or junction and a
+    /// Unix symlink all carry the reparse bit `is_link` checks. std has no
+    /// cross-platform link API, so the tests share one helper.
+    #[cfg(unix)]
+    fn link_dir(target: &std::path::Path, link: &std::path::Path) -> std::io::Result<()> {
+        std::os::unix::fs::symlink(target, link)
+    }
+
+    #[cfg(windows)]
+    fn link_dir(target: &std::path::Path, link: &std::path::Path) -> std::io::Result<()> {
+        std::os::windows::fs::symlink_dir(target, link)
+    }
+
+    #[cfg(unix)]
+    fn link_file(target: &std::path::Path, link: &std::path::Path) -> std::io::Result<()> {
+        std::os::unix::fs::symlink(target, link)
+    }
+
+    #[cfg(windows)]
+    fn link_file(target: &std::path::Path, link: &std::path::Path) -> std::io::Result<()> {
+        std::os::windows::fs::symlink_file(target, link)
+    }
+
     #[test]
     fn open_page_refuses_parent_directory_traversal() {
         let (_dir, root) = root_beside_a_secret();
@@ -118,23 +141,20 @@ mod tests {
         }
     }
 
-    #[cfg(unix)]
     #[test]
     fn open_page_refuses_a_linked_page_that_escapes_the_root() {
         let (dir, root) = root_beside_a_secret();
-        std::os::unix::fs::symlink(dir.path().join("secret.md"), root.join("content/p.md"))
-            .unwrap();
+        link_file(&dir.path().join("secret.md"), &root.join("content/p.md")).unwrap();
         let mut wb = crate::init();
         let err = open_page(&mut wb, &root, "content/p.md").unwrap_err();
         assert_refused(&wb, err);
         assert!(host::session().borrow().find("content/p.md").is_none());
     }
 
-    #[cfg(unix)]
     #[test]
     fn open_page_refuses_a_page_under_a_linked_directory() {
         let (dir, root) = root_beside_a_secret();
-        std::os::unix::fs::symlink(dir.path(), root.join("content/out")).unwrap();
+        link_dir(dir.path(), &root.join("content/out")).unwrap();
         let mut wb = crate::init();
         let err = open_page(&mut wb, &root, "content/out/secret.md").unwrap_err();
         assert_refused(&wb, err);
