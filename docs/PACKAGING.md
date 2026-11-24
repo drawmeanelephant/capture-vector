@@ -61,8 +61,9 @@ the resolution error.
 
 `CV_BORIS_BIN` → bundled → `PATH` → sibling checkout (`CV_BORIS_SIBLING=1`
 only). Bundled means `<exe dir>/engines/`, then the macOS `.app`
-`Contents/Resources/engines/`, then `<exe dir>`. Every candidate must pass
-the version gate; a mismatched engine is skipped, not trusted.
+`Contents/Resources/engines/`, then `<exe dir>`. The first executable
+candidate must pass the version gate. A mismatch fails discovery rather
+than falling through to a different engine.
 
 ## `.cv/` sidecar schema
 
