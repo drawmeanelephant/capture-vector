@@ -13,7 +13,7 @@ use cv_core::engine::{
 };
 use cv_core::events::engine::EngineEvent;
 use cv_core::events::shell::DegradedReason;
-use cv_core::events::{AppEvent, SessionId};
+use cv_core::events::{AppEvent, Envelope, SessionId};
 use cv_core::rules::ArtifactSet;
 use cv_engine::cursor::{CursorTracker, Observation};
 use cv_engine::probe::WatchMode;
@@ -186,6 +186,39 @@ pub fn spawn(b: EngineBoot) -> JoinHandle<()> {
 /// Boris's watch reports a fatal initial build with no diagnostics (they
 /// only reach the one-shot build's stderr), so that failure triggers one
 /// `build` through the scheduler, as the fixture path does.
+///
+/// A build that keeps failing in that shape would loop build → fail →
+/// build forever, so retries are capped: past [`MAX_AUTO_REBUILDS`] the
+/// app discloses `EngineBuildFailing` and stops rescheduling. Any other
+/// event (a success, a diagnosable failure, a new session) resets the
+/// count.
+const MAX_AUTO_REBUILDS: u32 = 3;
+
+#[derive(Default)]
+struct RebuildLatch(u32);
+
+impl RebuildLatch {
+    /// `Some(true)`: schedule one more build. `Some(false)`: the cap
+    /// tripped — disclose `EngineBuildFailing`. `None`: not the
+    /// retriable failure shape (and the count reset).
+    fn should_retry(&mut self, env: &Envelope) -> Option<bool> {
+        let retriable = matches!(
+            &env.payload,
+            AppEvent::Engine(EngineEvent::BuildFailed {
+                diagnostics,
+                recoverable: false,
+                ..
+            }) if diagnostics.is_empty()
+        );
+        if !retriable {
+            self.0 = 0;
+            return None;
+        }
+        self.0 += 1;
+        Some(self.0 <= MAX_AUTO_REBUILDS)
+    }
+}
+
 fn resync_sink(
     engine: Arc<ProcessEngine>,
     sched: Weak<Scheduler>,
@@ -194,6 +227,7 @@ fn resync_sink(
     compiler: String,
 ) -> EventSink {
     let mut tracker = CursorTracker::new();
+    let mut latch = RebuildLatch::default();
     let (root, html) = (engine.root().to_path_buf(), html_dir());
     // Finished builds also reach open editor buffers' Problems rails.
     let mut deliver = cv_widgets::editor::host::tee_builds(inbox.sink());
@@ -219,24 +253,28 @@ fn resync_sink(
                 n,
             )));
         }
-        let recover = matches!(
-            &env.payload,
-            AppEvent::Engine(EngineEvent::BuildFailed { diagnostics, recoverable: false, .. })
-                if diagnostics.is_empty()
-        );
+        let retry = latch.should_retry(&env);
         deliver(env);
-        if recover && let Some(s) = sched.upgrade() {
-            let sink = resync_sink(
-                engine.clone(),
-                Weak::new(),
-                inbox.clone(),
-                epoch.clone(),
-                compiler.clone(),
-            );
-            // Off the pump thread: the build stops the watch, which joins it.
-            std::thread::spawn(move || {
-                let _ = s.run(&Verb::Build, sink);
-            });
+        match retry {
+            Some(true) => {
+                if let Some(s) = sched.upgrade() {
+                    let sink = resync_sink(
+                        engine.clone(),
+                        Weak::new(),
+                        inbox.clone(),
+                        epoch.clone(),
+                        compiler.clone(),
+                    );
+                    // Off the pump thread: the build stops the watch, which joins it.
+                    std::thread::spawn(move || {
+                        let _ = s.run(&Verb::Build, sink);
+                    });
+                }
+            }
+            Some(false) => {
+                inbox.send(Inbound::Degraded(DegradedReason::EngineBuildFailing));
+            }
+            None => {}
         }
     })
 }
@@ -354,5 +392,55 @@ mod tests {
         assert!(e.locate().is_err());
         assert!(e.run(&Verb::Build, Box::new(|_| {})).is_err());
         assert!(!e.capabilities().watch && !e.capabilities().writes);
+    }
+
+    #[test]
+    fn rebuild_latch_retries_then_discloses() {
+        use cv_core::diagnostic::Diagnostic;
+        use cv_core::events::engine::BuildPhase;
+        use cv_core::events::{Cursor, EventId, SnapshotEpoch};
+        use cv_core::id::WorkspaceId;
+
+        let env = |diagnostics: Vec<Diagnostic>, recoverable: bool| Envelope {
+            workspace: WorkspaceId("t".into()),
+            snapshot_epoch: SnapshotEpoch(0),
+            build_id: None,
+            cursor: Cursor {
+                session: SessionId("s".into()),
+                seq: 0,
+            },
+            event_id: EventId("e".into()),
+            payload: AppEvent::Engine(EngineEvent::BuildFailed {
+                phase: BuildPhase::Rebuild,
+                diagnostics,
+                recoverable,
+            }),
+        };
+        let fatal = || env(vec![], false);
+        let diagnosable = || {
+            env(
+                vec![Diagnostic {
+                    code: "EFRONTMATTER".into(),
+                    severity: cv_core::diagnostic::Severity::Error,
+                    span: None,
+                    message: "x".into(),
+                    build_version: None,
+                }],
+                false,
+            )
+        };
+
+        let mut latch = RebuildLatch::default();
+        assert_eq!(latch.should_retry(&fatal()), Some(true));
+        assert_eq!(latch.should_retry(&fatal()), Some(true));
+        assert_eq!(latch.should_retry(&fatal()), Some(true));
+        assert_eq!(latch.should_retry(&fatal()), Some(false));
+        assert_eq!(latch.should_retry(&fatal()), Some(false));
+
+        let mut latch = RebuildLatch::default();
+        assert_eq!(latch.should_retry(&diagnosable()), None);
+        assert_eq!(latch.should_retry(&fatal()), Some(true));
+        assert_eq!(latch.should_retry(&env(vec![], true)), None);
+        assert_eq!(latch.should_retry(&fatal()), Some(true));
     }
 }

@@ -18,7 +18,12 @@ pub enum ShellEvent {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DegradedReason {
     EngineAbsent,
-    EngineVersionMismatch { found: String, want: String },
+    EngineVersionMismatch {
+        found: String,
+        want: String,
+    },
+    /// Non-recoverable builds kept failing past the auto-retry cap.
+    EngineBuildFailing,
     WatchDead,
     StoreCorrupt,
 }

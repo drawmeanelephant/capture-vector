@@ -33,7 +33,10 @@ pub fn dispatch(state: &mut AppState, env: &Envelope) -> bool {
                     found: found.into(),
                     want: WANT_ENGINE.into(),
                 });
-            } else if matches!(state.degraded, Some(DegradedReason::WatchDead)) {
+            } else if matches!(
+                state.degraded,
+                Some(DegradedReason::WatchDead) | Some(DegradedReason::EngineBuildFailing)
+            ) {
                 state.degraded = None;
             }
         }
