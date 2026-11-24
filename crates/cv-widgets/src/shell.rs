@@ -35,9 +35,7 @@ pub fn degraded_text(r: &DegradedReason) -> String {
         DegradedReason::EngineBuildFailing => {
             "Engine build failed after one retry. Fix the build, then reopen the workspace.".into()
         }
-        DegradedReason::WatchDead => {
-            "Watch session died — showing last snapshot; restart watch to resume.".into()
-        }
+        DegradedReason::WatchDead => "Watch session died — showing last snapshot.".into(),
         DegradedReason::StoreCorrupt => {
             "Store corrupt — journal writes failing; changes are not persisted.".into()
         }
@@ -122,6 +120,15 @@ fn banner(s: &Workbench) -> Option<El> {
                     .color(color(t.colors.text)),
             )
             .child(spacer())
+            .children((*r == DegradedReason::WatchDead).then(|| {
+                controls::button(
+                    t,
+                    "banner-restart",
+                    "Restart watch",
+                    controls::Variant::Neutral,
+                    |s: &mut Workbench| s.run_command("shell.watch.restart"),
+                )
+            }))
             .child(controls::button(
                 t,
                 "banner-dismiss",

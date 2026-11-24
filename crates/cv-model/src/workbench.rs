@@ -561,6 +561,7 @@ impl Workbench {
             .chord("enter"),
             CommandSpec::new("shell.window.close-companions", "Close companion windows"),
             CommandSpec::new("shell.degraded.dismiss", "Dismiss degraded banner"),
+            CommandSpec::new("shell.watch.restart", "Restart watch (reopen workspace)"),
             CommandSpec::new("shell.follow", "Open linked noun").chord("mod+o"),
             CommandSpec::new("shell.workspace.open", "Open workspace…").chord("mod+shift+o"),
         ];
@@ -606,6 +607,11 @@ impl Workbench {
             "shell.degraded.dismiss" => self.apply(Intent::Recover),
             "shell.follow" => self.follow_link(),
             "shell.workspace.open" => self.requests.push(ShellRequest::PickWorkspace),
+            // Reopening the open workspace starts a new watch and rearms recovery.
+            "shell.watch.restart" => match self.workspace.clone() {
+                Some(root) => self.requests.push(ShellRequest::OpenWorkspace(root)),
+                None => self.status = "no workspace is open; open one to start a watch".into(),
+            },
             _ => {
                 if let Some(i) = id.strip_prefix("shell.workspace.recent.") {
                     match i.parse::<usize>().ok().and_then(|i| self.recent.get(i)) {

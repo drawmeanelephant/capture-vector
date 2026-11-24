@@ -306,3 +306,22 @@ fn held_buttons_shrink_until_the_motion_toggle_reduces_motion() {
     );
     assert!(held["press"].as_f64().unwrap_or(0.0) > 0.0, "{held}");
 }
+
+#[test]
+fn watch_dead_banner_offers_a_restart_that_reports_when_nothing_is_open() {
+    let mut h = scene("watch-dead");
+    assert!(h.state().workspace.is_none());
+    assert!(h.has("banner-restart"));
+    h.script(&["click:banner-restart"]);
+    assert!(h.state().requests.is_empty());
+    assert!(
+        h.state().status.contains("no workspace is open"),
+        "{}",
+        h.state().status
+    );
+    assert!(h.has("banner"), "restart does not dismiss the banner");
+    assert!(
+        !scene("store-corrupt").has("banner-restart"),
+        "only a dead watch offers it"
+    );
+}
