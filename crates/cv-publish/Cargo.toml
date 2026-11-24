@@ -15,4 +15,4 @@ thiserror.workspace = true
 
 [dev-dependencies]
 cv-rules.workspace = true
-tempfile = "3"
+tempfile.workspace = true

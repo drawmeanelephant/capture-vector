@@ -1,0 +1,67 @@
+name: Bug report
+description: Something broke or behaved unexpectedly.
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Remove secrets and personal data before pasting logs. Publish
+        secrets belong in the environment, never in an issue.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Include the exact command and the status line.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Linux
+        - Windows
+    validations:
+      required: true
+  - type: input
+    id: revision
+    attributes:
+      label: Revision and toolchain
+      description: Output of `git rev-parse --short HEAD` and `rustc --version`.
+      placeholder: "24dbcdd / rustc 1.99.1"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Structured logs
+      description: Output from `CV_LOG=debug CV_LOG_FILE=/tmp/cv.log`.
+      render: text
+  - type: textarea
+    id: ui-evidence
+    attributes:
+      label: UI grounding (UI bugs only)
+      description: >-
+        The `--scene` name plus the `--tree`/`--layout` JSON dump or a
+        screenshot. Element-tree JSON is the cross-OS gate — a dump beats a
+        screenshot because reviewers can diff it against
+        `fixtures/ui/golden/tree/`.
+      placeholder: "cargo run -p cv-app -- --scene canary --tree out.json"
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before filing
+      options:
+        - label: I removed secrets and personal data from logs and fixtures.
+          required: true
+        - label: I searched existing issues and the runbook.
+          required: true

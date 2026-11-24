@@ -1,0 +1,4 @@
+# Quality thresholds enforced by scripts/lint.sh and the CI lint job.
+# 30 leaves headroom above the current maximum (26) while still catching
+# genuinely tangled functions.
+cognitive-complexity-threshold = 30

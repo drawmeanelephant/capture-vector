@@ -14,4 +14,4 @@ sha2.workspace = true
 
 [dev-dependencies]
 cv-fixtures.workspace = true
-tempfile = "3"
+tempfile.workspace = true

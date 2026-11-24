@@ -56,8 +56,18 @@ pub fn open_from_env(wb: &mut Workbench) {
         .clone()
         .or_else(crate::workspace::project_env)
         .unwrap_or_else(|| ".".into());
-    if let Err(e) = open_page(wb, &root, &rel) {
-        wb.status = format!("cannot open {rel} for editing: {e}");
+    match open_page(wb, &root, &rel) {
+        Ok(_) => crate::logging::info("editor_open", &[("page", serde_json::json!(&rel))]),
+        Err(e) => {
+            crate::logging::warn(
+                "editor_open_failed",
+                &[
+                    ("page", serde_json::json!(&rel)),
+                    ("error", serde_json::json!(e.to_string())),
+                ],
+            );
+            wb.status = format!("cannot open {rel} for editing: {e}");
+        }
     }
 }
 

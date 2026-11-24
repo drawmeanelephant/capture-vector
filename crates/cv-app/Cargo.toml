@@ -22,4 +22,4 @@ serde_json.workspace = true
 
 [dev-dependencies]
 cv-widgets = { workspace = true, features = ["reference"] }
-tempfile = "3"
+tempfile.workspace = true

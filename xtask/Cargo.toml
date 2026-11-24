@@ -9,7 +9,7 @@ description = "fetch-engines, fixtures refresh, codegen, parity checks, release.
 [dependencies]
 cv-core.workspace = true
 cv-engine.workspace = true
-png = "0.18"
+png.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 toml.workspace = true

@@ -2,3 +2,20 @@ target/
 vendor/
 spike/vendor/
 .DS_Store
+
+# Local environment and secrets (the template is tracked).
+.env
+.env.*
+!.env.example
+
+# Editor and IDE state.
+.idea/
+.vscode/
+*.iml
+
+# Runtime sidecars and logs.
+.cv/
+*.log
+
+# Windows/macOS noise.
+Thumbs.db

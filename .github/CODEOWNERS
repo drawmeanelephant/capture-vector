@@ -1,0 +1,6 @@
+# Default owner for every path. Lane ownership is documented in
+# spec/architecture.md; this file makes review routing explicit.
+#
+# Raise branch-protection required reviews to 1 once a second maintainer
+# (or an approving bot) can review, so the owner is never a deadlock.
+* @drawmeanelephant

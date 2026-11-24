@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/drawmeanelephant/capture-vector/security/advisories/new
+    about: Report vulnerabilities privately. Never file secrets, tokens, or exploit details in a public issue.
+  - name: Runbook and QA path
+    url: https://github.com/drawmeanelephant/capture-vector/blob/main/docs/runbooks/desktop-app.md
+    about: Check the runbook first — many "bugs" are disclosed degraded states by design.
+  - name: Spec kit
+    url: https://github.com/drawmeanelephant/capture-vector/tree/main/spec
+    about: Normative behavior lives here. A contradiction with the spec is a bug; a preference is a feature request.

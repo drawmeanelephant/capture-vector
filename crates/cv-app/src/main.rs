@@ -3,6 +3,7 @@
 //! `--version` / `--build-info` print and exit without opening a window.
 
 fn main() {
+    cv_app::logging::init_from_env();
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|a| a == "--version") {
         println!("{}", cv_app::build_info::version_line());
@@ -13,5 +14,15 @@ fn main() {
         println!("{}", cv_app::build_info::current(&cwd));
         return;
     }
+    let headless = args
+        .iter()
+        .any(|arg| matches!(arg.as_str(), "--scene" | "--tree" | "--snap" | "--script"));
+    cv_app::logging::info(
+        "app_start",
+        &[
+            ("argc", serde_json::json!(args.len())),
+            ("headless", serde_json::json!(headless)),
+        ],
+    );
     cv_widgets::app::run(cv_app::launch());
 }

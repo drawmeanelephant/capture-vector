@@ -67,7 +67,11 @@ jobs:
       - name: fmt
         run: cargo fmt --package cv-core --package cv-contracts --package cv-fixtures --package cv-engine --package cv-store --package cv-rules --package cv-ledger --package cv-publish --package cv-notes --package cv-model --package cv-widgets --package cv-ui-editor --package cv-app --package xtask -- --check
       - name: clippy
-        run: cargo clippy --workspace --all-targets --no-deps -- -D warnings
+        run: cargo clippy --workspace --all-targets --no-deps -- -D warnings -D clippy::cognitive_complexity
+      - name: unused dependencies
+        run: ./scripts/check-unused-deps.sh
+      - name: repo hygiene
+        run: ./scripts/check-hygiene.sh
       - name: rune firewall — only cv-widgets imports rune
         run: |
           offenders=$(grep -rln --include='Cargo.toml' -E '^(rune|rune-kit) *\=' crates | grep -v 'crates/cv-widgets/' || true)

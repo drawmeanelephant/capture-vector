@@ -6,6 +6,7 @@ pub mod audit;
 pub mod build_info;
 pub mod editor;
 pub mod live;
+pub mod logging;
 pub mod snapshot;
 pub mod workspace;
 
@@ -106,8 +107,21 @@ pub fn open_workspace(
     env: &WorkspaceEnv,
 ) -> Option<JoinHandle<()>> {
     let root = match workspace::normalize(&root) {
-        Ok(r) if r.is_dir() => r,
+        Ok(r) if r.is_dir() => {
+            logging::info(
+                "workspace_open",
+                &[("root", serde_json::json!(r.display().to_string()))],
+            );
+            r
+        }
         _ => {
+            logging::warn(
+                "workspace_rejected",
+                &[
+                    ("root", serde_json::json!(root.display().to_string())),
+                    ("reason", serde_json::json!("not a folder")),
+                ],
+            );
             wb.status = format!("cannot open workspace {}: not a folder", root.display());
             return None;
         }
@@ -121,6 +135,10 @@ pub fn open_workspace(
         .filter(|c| c.module == cv_widgets::editor::MODULE)
         .count();
     if editors > 0 {
+        logging::warn(
+            "workspace_switch_blocked",
+            &[("editors", serde_json::json!(editors))],
+        );
         wb.status = format!(
             "close {editors} editor window(s) before opening {}",
             root.display()
@@ -177,7 +195,12 @@ pub fn open_workspace(
     }
     let mut recent = env.recent();
     recent.push(&root);
-    let _ = recent.save();
+    if let Err(e) = recent.save() {
+        logging::warn(
+            "recent_save_failed",
+            &[("error", serde_json::json!(e.to_string()))],
+        );
+    }
     wb.recent = recent.entries;
 
     let mut cfg = cv_engine::EngineConfig::new(&root);
@@ -213,7 +236,10 @@ pub fn native_boot(wb: &mut Workbench) {
             Some(root) => {
                 open_workspace(wb, root, &env);
             }
-            None => boot_without_workspace(wb, demo_available()),
+            None => {
+                logging::info("workspace_none", &[]);
+                boot_without_workspace(wb, demo_available());
+            }
         }
     }
     editor::open_from_env(wb);
