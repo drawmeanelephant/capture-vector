@@ -154,7 +154,7 @@ pub fn open_workspace(
         Box::new(SystemClock),
     );
     let research_err = match research {
-        Ok((r, _)) => {
+        Ok((r, report)) => {
             let input = snapshot::content_input(&root);
             // Promotion writes under the input; one that resolves outside
             // the workspace (a symlink) gets no writer, so promotion
@@ -167,9 +167,12 @@ pub fn open_workspace(
                 r.port
             };
             cv_model::modules::research::install_in(Box::new(port), r.notebook, &input);
-            None
+            // Undecodable journal lines stay on disk but load as nothing;
+            // disclose that instead of opening cleanly.
+            let bad = report.notes.undecodable + report.provenance.undecodable;
+            (bad > 0).then(|| format!("research journal skipped {bad} undecodable line(s)"))
         }
-        Err(e) => Some(e.to_string()),
+        Err(e) => Some(format!("research notes not persisted: {e}")),
     };
     let audit_err = match audit::DiskPort::open(&root) {
         Ok(p) => {
@@ -184,9 +187,8 @@ pub fn open_workspace(
     wb.reset_project(Registry::with_all());
     wb.workspace = Some(root.clone());
     show(wb, "pages");
-    let warning = research_err
-        .map(|e| format!("research notes not persisted: {e}"))
-        .or_else(|| audit_err.map(|e| format!("finding snoozes not persisted: {e}")));
+    let warning =
+        research_err.or_else(|| audit_err.map(|e| format!("finding snoozes not persisted: {e}")));
     if let Some(w) = &warning {
         wb.disclose(DegradedReason::StoreCorrupt);
         wb.status = w.clone();

@@ -16,6 +16,10 @@ pub struct LedgerIndex {
     path: PathBuf,
 }
 
+/// Bump when the table layout or fill rules change: an index written
+/// under another version is rebuilt, never trusted.
+const INDEX_SCHEMA_VERSION: u64 = 1;
+
 const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS nouns (
@@ -44,7 +48,9 @@ impl LedgerIndex {
                 Self::connect(&path)?
             }
         };
-        if idx.indexed_len()? != Some(journal.records().len() as u64) {
+        if idx.schema_version()? != Some(INDEX_SCHEMA_VERSION)
+            || idx.indexed_len()? != Some(journal.records().len() as u64)
+        {
             idx.rebuild(journal.records())?;
         }
         Ok(idx)
@@ -57,6 +63,16 @@ impl LedgerIndex {
             conn,
             path: path.to_path_buf(),
         })
+    }
+
+    fn schema_version(&self) -> Result<Option<u64>> {
+        Ok(self
+            .conn
+            .query_row("SELECT v FROM meta WHERE k = 'index_schema'", [], |r| {
+                r.get::<_, i64>(0)
+            })
+            .optional()?
+            .map(|v| v as u64))
     }
 
     fn indexed_len(&self) -> Result<Option<u64>> {
@@ -117,8 +133,8 @@ impl LedgerIndex {
             )?;
         }
         tx.execute(
-            "INSERT INTO meta (k, v) VALUES ('journal_len', ?1)",
-            params![records.len() as i64],
+            "INSERT INTO meta (k, v) VALUES ('journal_len', ?1), ('index_schema', ?2)",
+            params![records.len() as i64, INDEX_SCHEMA_VERSION as i64],
         )?;
         tx.commit()?;
         Ok(())
