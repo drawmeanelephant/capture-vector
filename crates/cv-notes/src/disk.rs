@@ -1,6 +1,7 @@
 //! `.cv/research/` on disk: `notes.jsonl` + `provenance.jsonl` are truth
 //! (append-only, fsync'd, torn tail dropped on open); `index.sqlite` is a
 //! FTS5 index rebuilt from them whenever it is missing, corrupt or stale.
+//! One writer lock covers both journals and the index.
 
 use crate::notebook::Notebook;
 use crate::port::ResearchPort;
@@ -13,7 +14,7 @@ use cv_store::sidecar::{self, Namespace, SidecarError};
 use rusqlite::{Connection, params};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
-use std::fs::{File, OpenOptions};
+use std::fs::{File, OpenOptions, TryLockError};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
@@ -21,6 +22,7 @@ pub const DIR: &str = ".cv/research";
 pub const NOTES: &str = "notes.jsonl";
 pub const PROVENANCE: &str = "provenance.jsonl";
 pub const INDEX: &str = "index.sqlite";
+const WRITER_LOCK: &str = ".cv/research.writer.lock";
 const INDEX_SCHEMA: i64 = 1;
 
 /// `.cv/research/` sidecar schema. v1 = `notes.jsonl` + `provenance.jsonl`
@@ -42,15 +44,17 @@ pub enum DiskError {
     Json(#[from] serde_json::Error),
     #[error("schema: {0}")]
     Schema(#[from] SidecarError),
+    #[error("research silo already open (writer lock at {0:?})")]
+    Locked(PathBuf),
 }
 
 /// Append-only JSONL file.
-pub struct Jsonl {
+struct Jsonl {
     file: File,
     lines: u64,
 }
 
-/// What [`Jsonl::open`] found.
+/// What a journal scan found on open.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Scan {
     pub lines: u64,
@@ -61,7 +65,7 @@ pub struct Scan {
 }
 
 impl Jsonl {
-    pub fn open<T: DeserializeOwned>(path: &Path) -> Result<(Self, Vec<T>, Scan), DiskError> {
+    fn open<T: DeserializeOwned>(path: &Path) -> Result<(Self, Vec<T>, Scan), DiskError> {
         if let Some(d) = path.parent() {
             std::fs::create_dir_all(d)?;
         }
@@ -104,7 +108,7 @@ impl Jsonl {
         ))
     }
 
-    pub fn append<T: Serialize>(&mut self, v: &T) -> Result<(), DiskError> {
+    fn append<T: Serialize>(&mut self, v: &T) -> Result<(), DiskError> {
         let mut line = serde_json::to_vec(v)?;
         line.push(b'\n');
         self.file.write_all(&line)?;
@@ -113,7 +117,7 @@ impl Jsonl {
         Ok(())
     }
 
-    pub fn lines(&self) -> u64 {
+    fn lines(&self) -> u64 {
         self.lines
     }
 }
@@ -254,6 +258,9 @@ pub struct DiskPort {
     index: FtsIndex,
     clock: Box<dyn Clock + Send>,
     writer: Option<Box<dyn Engine>>,
+    // Drop after the journals and index. Leave the lock file in place:
+    // unlinking it would let an opener lock a different file.
+    _writer_lock: WriterLock,
 }
 
 impl DiskPort {
@@ -267,13 +274,53 @@ impl DiskPort {
     }
 }
 
-/// Replay `.cv/research/` under `root` into a session.
+struct WriterLock(File);
+
+impl Drop for WriterLock {
+    fn drop(&mut self) {
+        // Do not wait for a forked subprocess to close any inherited handle.
+        let _ = self.0.unlock();
+    }
+}
+
+fn lock_writer(root: &Path) -> Result<WriterLock, DiskError> {
+    let path = root.join(WRITER_LOCK);
+    match std::fs::symlink_metadata(&path) {
+        Ok(m) if m.file_type().is_symlink() => {
+            return Err(SidecarError::Escapes {
+                namespace: SIDECAR.name,
+                path,
+            }
+            .into());
+        }
+        Ok(_) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(e.into()),
+    }
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&path)?;
+    match file.try_lock() {
+        Ok(()) => Ok(WriterLock(file)),
+        Err(TryLockError::WouldBlock) => Err(DiskError::Locked(path)),
+        Err(TryLockError::Error(e)) => Err(e.into()),
+    }
+}
+
+/// Replay `.cv/research/` under `root` into a session, holding the
+/// exclusive writer lock until the disk port is dropped.
 pub fn open(
     root: &Path,
     account: AccountId,
     clock: Box<dyn Clock + Send>,
 ) -> Result<(Research<DiskPort>, OpenReport), DiskError> {
+    // Stamping uses a separate schema lock and does not touch the journals
+    // or index. Reject unsupported schemas before creating the writer lock.
     let schema = sidecar::ensure(root, &SIDECAR)?;
+    let writer_lock = lock_writer(root)?;
     let dir = root.join(DIR);
     let (notes, recs, notes_scan) = Jsonl::open::<Record>(&dir.join(NOTES))?;
     let (provenance, provs, prov_scan) = Jsonl::open::<Provenance>(&dir.join(PROVENANCE))?;
@@ -307,6 +354,7 @@ pub fn open(
         index,
         clock,
         writer: None,
+        _writer_lock: writer_lock,
     };
     Ok((Research::new(nb, port), report))
 }
