@@ -229,3 +229,56 @@ fn research_scenes_cover_empty_promote_and_degraded() {
     );
     has("research-degraded", "no content writer attached");
 }
+
+fn node(h: &Harness, key: &str) -> serde_json::Value {
+    h.tree()["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|n| n["key"] == key)
+        .cloned()
+        .unwrap_or_else(|| panic!("no node keyed {key}"))
+}
+
+#[test]
+fn hovered_list_row_shows_hover_in_the_tree() {
+    let mut h = scene("pages");
+    let row = "row-index.md";
+    assert!(node(&h, row).get("hover").is_none(), "rest has no hover");
+    assert!(h.hover(row));
+    let hover = node(&h, row)["hover"].as_f64().unwrap_or(0.0);
+    assert!(hover > 0.0, "hovered row reports hover {hover}");
+}
+
+#[test]
+fn held_press_shows_press_in_the_tree_until_release() {
+    for (name, item) in [("pages", "index.md"), ("light", "ev-stub-1")] {
+        let row = format!("row-{item}");
+        let mut h = scene(name);
+        assert!(h.hold(&row), "{name}: no {row}");
+        let held = node(&h, &row);
+        assert!(
+            held["press"].as_f64().unwrap_or(0.0) > 0.0,
+            "{name}: {held}"
+        );
+        assert!(
+            held.get("scale").is_none_or(|s| s.as_f64().unwrap() <= 1.0),
+            "{name}: a press never grows the row: {held}"
+        );
+        if h.state().theme.motion.reduced {
+            assert!(held.get("scale").is_none(), "reduced motion keeps scale 1");
+        }
+        let (x, y) = h.rt.find(&row).unwrap();
+        h.rt.pointer_up(x, y);
+        // The press track springs back over a few frames; `settle` lands layout, not paint.
+        for _ in 0..60 {
+            h.rt.frame(1.0 / 60.0);
+        }
+        let after = node(&h, &row);
+        assert!(
+            after.get("press").is_none(),
+            "{name}: release clears press: {after}"
+        );
+        assert_eq!(h.state().selected_key(), Some(item));
+    }
+}

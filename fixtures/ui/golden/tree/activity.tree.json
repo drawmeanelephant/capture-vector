@@ -1063,6 +1063,7 @@
       "key": "status-0",
       "opacity": 1.0,
       "path": "shell/status/status-0",
+      "radius": 999.0,
       "rect": [
         8.0,
         780.0,
@@ -1076,6 +1077,7 @@
       "key": "status-dot",
       "opacity": 1.0,
       "path": "shell/status/status-0/status-dot",
+      "radius": 999.0,
       "rect": [
         16.0,
         786.0,
@@ -1228,6 +1230,7 @@
       "key": "status-2",
       "opacity": 1.0,
       "path": "shell/status/status-2",
+      "radius": 2.0,
       "rect": [
         162.2,
         782.1,
@@ -1274,10 +1277,12 @@
       "text": "mod+K commands"
     },
     {
+      "help": "Switch to light theme",
       "key": "status-3",
       "label": "Switch to light theme",
       "opacity": 1.0,
       "path": "shell/status/status-3",
+      "radius": 4.0,
       "rect": [
         1220.0,
         779.0,
@@ -1300,10 +1305,12 @@
       "role": "icon"
     },
     {
+      "help": "Motion on — reduce motion",
       "key": "status-4",
       "label": "Motion on — reduce motion",
       "opacity": 1.0,
       "path": "shell/status/status-4",
+      "radius": 4.0,
       "rect": [
         1252.0,
         779.0,
@@ -1326,5 +1333,5 @@
       "role": "icon"
     }
   ],
-  "schema": 1
+  "schema": 2
 }

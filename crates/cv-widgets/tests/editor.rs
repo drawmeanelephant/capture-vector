@@ -393,7 +393,7 @@ fn editor_goldens() {
     let els = rt.elements();
     let mut errs = vec![];
     for (name, v) in [
-        ("broken-wikilink.tree", cv_widgets::tree::element_tree(&els)),
+        ("broken-wikilink.tree", cv_widgets::tree::element_tree(&rt)),
         ("broken-wikilink.layout", cv_widgets::tree::layout(&els)),
     ] {
         if let Err(e) = cv_widgets::harness::check_golden(&dir, name, &v) {
