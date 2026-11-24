@@ -51,7 +51,12 @@ pub fn eval(set: &ArtifactSet, rules: &Ruleset) -> Report {
 enum Subject<'a> {
     Page(&'a HtmlPage),
     Entity(&'a str),
+    /// Fixed synthetic subject ("ruleset", "live-http", …) — never a
+    /// filesystem path. Real artifact locations go through
+    /// `Subject::Artifact` so a rename can't churn `DedupKey.subject`
+    /// (`StableId` is never a filesystem path).
     Output(&'a str),
+    Artifact(ArtifactKind),
 }
 
 /// Predicate a check applies to an observed count.
@@ -112,7 +117,8 @@ impl<'a> Ctx<'a, '_> {
                 p.entity_id.clone().unwrap_or_else(|| p.route.clone()),
             ),
             Subject::Entity(id) => (noun_kind::PAGE, id.to_string()),
-            Subject::Output(path) => (noun_kind::OUTPUT, path.to_string()),
+            Subject::Output(label) => (noun_kind::OUTPUT, label.to_string()),
+            Subject::Artifact(k) => (noun_kind::OUTPUT, kind_name(k)),
         };
         let subject = NounId {
             account: self.set.account.clone(),
@@ -337,7 +343,7 @@ impl<'a> Ctx<'a, '_> {
                 } else {
                     let n = matched.len() as u64;
                     self.verdict(
-                        Subject::Output(path),
+                        Subject::Artifact(ArtifactKind::Ir),
                         path,
                         &format!("IR {kind} {field:?}"),
                         n,
@@ -346,7 +352,13 @@ impl<'a> Ctx<'a, '_> {
                 }
             }
             Selector::JsonPath(p) => match JsonPath::parse(p) {
-                Ok(jp) => self.verdict(Subject::Output(path), path, p, jp.count(&ir.raw), pred),
+                Ok(jp) => self.verdict(
+                    Subject::Artifact(ArtifactKind::Ir),
+                    path,
+                    p,
+                    jp.count(&ir.raw),
+                    pred,
+                ),
                 Err(_) => self.limited(
                     Subject::Output("ruleset"),
                     p,
@@ -377,7 +389,7 @@ impl<'a> Ctx<'a, '_> {
             Selector::JsonPath(p) => match JsonPath::parse(p) {
                 Ok(jp) => {
                     let n = export.map_or(0, |e| jp.count(&e.model));
-                    self.verdict(Subject::Output(&path), &path, p, n, pred);
+                    self.verdict(Subject::Artifact(kind), &path, p, n, pred);
                 }
                 Err(_) => self.limited(
                     Subject::Output("ruleset"),
@@ -568,7 +580,7 @@ impl<'a> Ctx<'a, '_> {
                     }
                     fail(
                         self,
-                        Subject::Output(&e.path),
+                        Subject::Artifact(kind),
                         u,
                         format!("{} URL `{u}` is not absolute", kind_name(kind)),
                         u,
@@ -583,7 +595,7 @@ impl<'a> Ctx<'a, '_> {
                 {
                     fail(
                         self,
-                        Subject::Output(&e.path),
+                        Subject::Artifact(kind),
                         u,
                         format!(
                             "{} URL `{u}` is outside deploy base `{base}`",
@@ -606,14 +618,14 @@ impl<'a> Ctx<'a, '_> {
                                 "{} URL `{u}` disagrees with page canonical `{c}`",
                                 kind_name(kind)
                             );
-                            fail(self, Subject::Output(&e.path), u, msg, u, c);
+                            fail(self, Subject::Artifact(kind), u, msg, u, c);
                         }
                     }
                 }
                 if let Some(msg) = slash_violation(u, policy, &base) {
                     fail(
                         self,
-                        Subject::Output(&e.path),
+                        Subject::Artifact(kind),
                         &format!("slash:{u}"),
                         msg,
                         u,
@@ -680,7 +692,7 @@ impl<'a> Ctx<'a, '_> {
                 if !routes.iter().any(|r| route_matches(u, base.as_deref(), r)) {
                     self.emit(
                         CheckStatus::Failed,
-                        Subject::Output(&e.path),
+                        Subject::Artifact(kind),
                         &format!("dangling:{u}"),
                         format!(
                             "{} entry `{u}` resolves to no emitted page",

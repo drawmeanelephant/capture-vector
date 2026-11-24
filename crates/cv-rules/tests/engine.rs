@@ -668,3 +668,31 @@ fn robots_none_uppercase_names_and_mixed_case_jsonld_are_recognised() {
     let r = eval(&set, &Ruleset::v1());
     assert!(r.failed().any(|f| f.finding.code == "AEO-JSONLD-VALID"));
 }
+
+#[test]
+fn export_subjects_survive_a_rename() {
+    // `StableId` is never a filesystem path: the same artifact at a
+    // renamed location must keep the same `DedupKey.subject`, so a
+    // finding can't orphan/duplicate on output moves.
+    let dangling = |path: &str| {
+        let xml = "<urlset><url><loc>index.html</loc></url>                   <url><loc>guides/intro.html</loc></url>                   <url><loc>ghost.html</loc></url></urlset>";
+        let set = clean()
+            .export(Export::sitemap_xml(path, xml.as_bytes()).unwrap())
+            .build();
+        eval(&set, &Ruleset::v1())
+    };
+    let at = |r: &Report| {
+        r.findings
+            .iter()
+            .find(|f| f.finding.code == "TGT-PAGESET-PARITY")
+            .map(|f| f.finding.key.subject.clone())
+            .expect("no pageset parity finding")
+    };
+    let a = at(&dangling("sitemap.xml"));
+    let b = at(&dangling("dist/feeds/sm.xml"));
+    assert_eq!(a, b, "rename changed the dedup subject");
+    assert_eq!(
+        a.stable.0, "Sitemap",
+        "subject is the artifact slot, not the path"
+    );
+}
