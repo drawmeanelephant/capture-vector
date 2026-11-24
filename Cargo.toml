@@ -35,6 +35,20 @@ thiserror = "2"
 rusqlite = { version = "0.41", features = ["bundled"] }
 ropey = "1"
 
+# Platform/process control, secret wiping, and test/golden helpers. Keep
+# these here so a bump lands once and scripts/check-version-drift.py can
+# compare every member's requirement.
+tempfile = "3"
+zeroize = "1"
+libc = "0.2"
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_JobObjects",
+    "Win32_System_Threading",
+] }
+png = "0.18"
+
 # rune is vendored (git deps cannot resolve — see spec/architecture.md §0
 # and scripts/fetch-rune.sh). The ONLY crate allowed to depend on these is
 # cv-widgets; cargo-deny enforces the firewall.
@@ -47,11 +61,10 @@ cv-core = { path = "crates/cv-core" }
 cv-contracts = { path = "crates/cv-contracts" }
 cv-fixtures = { path = "crates/cv-fixtures" }
 cv-engine = { path = "crates/cv-engine" }
-cv-store = { path = "crates/cv-store" }
-cv-rules = { path = "crates/cv-rules" }
 cv-ledger = { path = "crates/cv-ledger" }
-cv-publish = { path = "crates/cv-publish" }
 cv-notes = { path = "crates/cv-notes" }
+cv-rules = { path = "crates/cv-rules" }
+cv-store = { path = "crates/cv-store" }
 cv-model = { path = "crates/cv-model" }
 cv-widgets = { path = "crates/cv-widgets" }
 cv-ui-editor = { path = "crates/cv-ui-editor" }

@@ -150,6 +150,13 @@ fn finish(
     degraded: Option<DegradedReason>,
     status: String,
 ) {
+    crate::logging::info(
+        "engine_status",
+        &[
+            ("status", serde_json::json!(&status)),
+            ("degraded", serde_json::json!(degraded.is_some())),
+        ],
+    );
     if let Some(r) = degraded {
         inbox.send(Inbound::Degraded(r));
     }

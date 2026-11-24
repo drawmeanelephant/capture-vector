@@ -2,9 +2,130 @@
 
 # CAPTURE-VECTOR
 
+Outlook-style mailboxes for authoring, auditing, and publishing Boris
+content. A native Rust desktop app: rune for the UI, Boris and Oliver as
+subprocess engines.
+
+**Status:** pre-release. macOS and Linux window/IME behavior is proven;
+Windows is unproven (see [`spike/FINDINGS.md`](spike/FINDINGS.md)). The
+normative work order is [`spec/PROMPT-v3.md`](spec/PROMPT-v3.md); the full
+spec kit lives in [`spec/`](spec/README.md). Packaging and release:
+[`docs/PACKAGING.md`](docs/PACKAGING.md).
+
+## Prerequisites
+
+- Rust 1.99.1 — [`rust-toolchain.toml`](rust-toolchain.toml) pins it;
+  rustup selects it automatically.
+- `git` (the pinned rune checkout is vendored by script).
+- A Boris `0.9.0` binary is optional at launch. Without one the app still
+  browses a workspace and discloses `engine absent` in the status line.
+- Linux: `libvulkan-dev`, `mesa-vulkan-drivers`, `libxkbcommon-dev`.
+- macOS: Xcode command line tools.
+
+## Quick start — one command
+
+```sh
+./scripts/demo.sh
+```
+
+`scripts/demo.sh` copies `fixtures/corpus-src/happy` to a throwaway
+directory and launches `cv-app` against it. `scripts/dev.sh` vendors rune
+at the pinned rev when `vendor/rune` is missing, then runs the app. The
+first run fetches rune and compiles the workspace; later runs are
+incremental.
+
+## Build
+
+```sh
+./scripts/fetch-rune.sh     # once per clone; vendor/ is gitignored
+cargo build --workspace
+```
+
+## Run
+
+```sh
+cargo run -p cv-app -- --project <workspace-dir>
+# or
+CV_PROJECT=<workspace-dir> cargo run -p cv-app
+```
+
+`--project` wins over `CV_PROJECT`; with neither, the most recent
+workspace reopens, then the fixture demo. `mod+shift+O` opens the native
+folder picker.
+
+Headless exports (no window, no click):
+
+```sh
+cargo run -p cv-app -- --scene canary --tree target/canary.tree.json
+cargo run -p cv-app -- --scene canary --snap target/canary.png
+```
+
+`--tree` is the cross-OS UI gate. `--snap` needs a GPU and is only
+canonical on Linux with Lavapipe.
+
+## Test
+
+```sh
+cargo test --workspace --locked
+cargo test -p cv-app --test goldens          # element-tree/layout goldens
+cargo test -p cv-engine --test conformance   # stub == process engine
+```
+
+The suite needs no Boris binary, display, GPU, or network.
+
+## Interactive QA
+
+The app has no login gate and no external service. This path works on
+macOS (proven) and should work on Linux/Windows once the UI is verified
+there.
+
+1. Launch against a throwaway copy of the happy corpus:
+
+   ```sh
+   CV_EDIT=content/index.md ./scripts/demo.sh
+   ```
+
+2. Expect a native window titled **Capture Vector** with the Pages
+   mailbox selected and `index.md` listed. The status line names the
+   workspace. Without a Boris binary it also says the engine is absent;
+   browsing still works.
+
+3. Drive at least one interaction:
+   - `mod+K` opens the command palette; run **Go to Outputs**.
+   - `mod+1` … `mod+9` switch the first nine mailboxes.
+   - `mod+O` follows the selected linked noun.
+   - Click a row or press `Enter` to open it in a companion window.
+   - With `CV_EDIT`, type in the editor and press `mod+S`; the status
+     line confirms the save.
+
+4. Headless fallback (no display): skip step 1 and run
+   `cargo run -p cv-app -- --scene canary --tree target/qa.tree.json`,
+   then confirm the JSON contains the shell tree.
+
+Environment variables are documented in [`.env.example`](.env.example).
+Runbooks live in [`docs/runbooks/desktop-app.md`](docs/runbooks/desktop-app.md).
+
+## Repository map
+
+| Path | What it is |
+|---|---|
+| `crates/cv-core` | Domain types and sync ports; no I/O, async, or UI |
+| `crates/cv-contracts` | Serde mirrors of Boris contracts |
+| `crates/cv-engine` | The only process owner (Boris adapter) |
+| `crates/cv-app` | Composition root and native shell |
+| `crates/cv-widgets` | The only crate importing rune |
+| `crates/cv-model`, `cv-ui-editor`, `cv-notes` | State, editor, research |
+| `crates/cv-ledger`, `cv-publish`, `cv-rules`, `cv-store` | Publish and audit lanes |
+| `fixtures/` | Real Boris captures, hash-pinned |
+| `spec/` | Normative spec and lane work orders |
+| `spike/` | Proven Rune capabilities and probes |
+| `scripts/` | Setup, fixture capture, goldens, hooks |
+| `xtask/` | Codegen, parity, release helpers |
+
+## Contributing
+
+Read [`AGENTS.md`](AGENTS.md) first. Install the local quality hooks with
+`./scripts/install-hooks.sh`. CI runs `cargo test --workspace`,
+`cargo fmt --check`, `cargo clippy -D warnings`, and `cargo-deny`.
+
 Created in [T3 Code](https://t3.codes).
-
-Currently in spec phase — see [`spec/`](spec/README.md) for the spec kit:
-the groundwork prompt, architecture, contracts, and parallel lane briefs.
-
-Packaging and release: [`docs/PACKAGING.md`](docs/PACKAGING.md).

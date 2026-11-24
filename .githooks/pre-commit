@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# pre-commit — fast repository checks. Install with scripts/install-hooks.sh.
+#
+# CV_HOOK_SLOW=1 also runs clippy, cargo-deny, and the unused-dependency
+# scan (scripts/lint.sh). The default hook stays under a few seconds.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+scripts/check-hygiene.sh
+
+# Format only the Rust files in this commit. CI checks the whole workspace;
+# this keeps vendored rune and unrelated local scratch files out of the hook.
+staged_rs=()
+while IFS= read -r f; do staged_rs+=("$f"); done < <(
+  git diff --cached --name-only --diff-filter=ACMR -- '*.rs'
+)
+if [ "${#staged_rs[@]}" -gt 0 ]; then
+  rustfmt --check --edition 2024 "${staged_rs[@]}"
+fi
+
+if [ "${CV_HOOK_SLOW:-0}" = "1" ]; then
+  scripts/lint.sh
+fi

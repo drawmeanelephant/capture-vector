@@ -16,6 +16,55 @@ publishing Boris content. Outlook-style mailboxes over a graph compiler.
    current verified state.
 5. [`spike/FINDINGS.md`](spike/FINDINGS.md) — what is proven vs unproven.
 
+## Build, run, and QA
+
+- Setup + build: `./scripts/fetch-rune.sh && cargo build --workspace`.
+- Launch: `./scripts/dev.sh --project <dir>` (vendors rune on first use).
+- Demo/QA: `./scripts/demo.sh` copies `fixtures/corpus-src/happy` to a
+  temp dir and launches against it. `CV_EDIT=content/index.md
+  ./scripts/demo.sh` opens the editor on the trunk page.
+- Headless gate: `cargo run -p cv-app -- --scene canary --tree
+  target/canary.tree.json`.
+- Tests: `cargo test --workspace --locked`.
+- The full agent-followable QA path (dependencies, no auth gate, drive
+  steps) is in `README.md` under "Interactive QA".
+
+Test layout and naming:
+- Unit tests live beside the code in `#[cfg(test)] mod tests`.
+- Integration tests live in `crates/<crate>/tests/<area>.rs`; shared
+  helpers go in a `support/` or `common/` module under that `tests/` dir.
+- Test functions are `snake_case` sentences describing the behavior
+  (`gate_failures_map_to_disclosed_states`), one behavior per test.
+- Goldens: `crates/cv-app/tests/goldens.rs`; PNGs only on the canonical
+  Lavapipe config.
+
+Local quality hooks:
+- `./scripts/install-hooks.sh` sets `core.hooksPath=.githooks`.
+- The hook runs fmt, secret/large-file/TODO/doc-link scans, and the
+  version-drift check. `CV_HOOK_SLOW=1 git commit …` also runs clippy.
+- `./scripts/lint.sh` is the full local gate (fmt + clippy + cargo-deny
+  + unused-dependency scan).
+
+Dependency policy:
+- All versions live in `[workspace.dependencies]`; members use
+  `workspace = true`.
+- Wait at least 7 days after a dependency release before merging a bump.
+  Dependabot enforces this with `cooldown`; do not bypass it.
+- No wildcard/`*` versions and no git dependencies. Rune is the only
+  vendored path dependency.
+
+Structured logs:
+- `CV_LOG=info` emits JSONL to stderr; `CV_LOG_FILE=<path>` writes to a
+  file. Levels: `error|warn|info|debug|trace`.
+- Fields whose key looks like a secret (`secret`, `password`, `token`,
+  `nsec`, …) are dropped. Never log argv, env values, or page bodies.
+
+Release notes: `scripts/release-notes.sh [range]` groups conventional
+commits; set `CV_NOTES_OUT=<file>` to write instead of printing.
+
+Runbook: `docs/runbooks/desktop-app.md`.
+Tech-debt ledger: `docs/tech-debt.md`.
+
 ## Proven facts (build on these)
 
 - rune `dev` @ `2a59b0f95b82972478a497c42151dbcb3ca5c69f` works headless:
@@ -29,7 +78,7 @@ publishing Boris content. Outlook-style mailboxes over a graph compiler.
 
 | Component | Pin |
 |---|---|
-| Rust | 1.99.1 floor (CI `rust-toolchain.toml` when it lands) |
+| Rust | 1.99.1 — pinned by `rust-toolchain.toml` |
 | rune | `dev` @ `2a59b0f95b82972478a497c42151dbcb3ca5c69f`, vendored |
 | boris | **0.9.0** (vcs `66efcfb`) — built w/ zig 0.17.x; 0.8.2 lacks native Windows support |
 | oliver | 1.3.0 (`967bfdf`) |

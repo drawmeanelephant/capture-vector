@@ -19,11 +19,11 @@ serde_json.workspace = true
 # Test-only: replay the headless frame on rune-ref's CPU oracle (issue #26
 # probe). Never enabled in the shipped app.
 rune-ref = { workspace = true, optional = true }
-png = { version = "0.18", optional = true }
+png = { workspace = true, optional = true }
 
 [features]
 reference = ["dep:rune-ref", "dep:png"]
 
 [dev-dependencies]
 cv-fixtures.workspace = true
-tempfile = "3"
+tempfile.workspace = true
