@@ -1,6 +1,6 @@
 schema_version = 1
 engine_version = '{"format": "boris-build-info", "schemaVersion": "1", "version": "boris/0.9.0", "vcsRevision": "66efcfb"}'
-capture_command = "scripts/capture-fixtures.sh /tmp/corpus-src"
+capture_command = "scripts/capture-fixtures.sh <corpus-src>"
 captured = "2026-11-23T23:53:19Z"
 
 "captures/broken-duplicate-id/build/exit-code.txt" = "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
