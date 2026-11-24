@@ -36,8 +36,8 @@ lanes and CI don't each improvise the checkout.
 
 - `rune_kit::markdown::Markdown` — **PROVEN 2026-11-23 (Linux)**, see below.
 - Multi-window — **PROVEN 2026-11-24 (Linux, real winit windows)**, see below.
-- IME composition — lives in rune-edit state machines; needs a per-OS real-window
-  pass; cannot be probed headless meaningfully.
+- IME composition — **PROVEN 2026-11-24 (Linux X11, ibus/anthy over XIM)**,
+  see below. macOS/Windows still need a per-OS pass.
 - Windows/Linux — all results above are macOS-only. Nothing here can be claimed
   for the other two OSes until run there.
 - `TextEdit::rich` decorations — rune-edit compiles with `typing_tests`; a typed
@@ -45,8 +45,8 @@ lanes and CI don't each improvise the checkout.
 - `rune-ref` — **PROBED 2026-11-23 (Linux)**: works headless and reproducibly, but is
   not a drop-in Lavapipe replacement. See below.
 
-IME stays open: it needs a real OS input method, which the
-Linux VM and headless harness can't give (issue #26).
+IME stays open on macOS/Windows: the Linux portion is proven below
+(issue #26); the other OSes still need a real OS input method.
 
 ## 2026-11-24 — issue #26 multi-window probe (Linux, real windows)
 
@@ -77,6 +77,43 @@ fields with no screen-reader name (`El::label`/`labelled_by` missing).
 Unproven on this OS: native portal folder dialog (GTK portal was present but
 unexercised), IME, and the Windows/macOS window behaviors (per-OS surface
 creation, WARP second-surface race).
+
+## 2026-11-24 — issue #26 IME probe (Linux X11, ibus/anthy)
+
+Probe: `spike/rune-probe/src/bin/ime_probe.rs`, a real rune window with a focused
+`text_input`, logging every `TextEdit` state change and app-level `Ime` event to
+`out/ime-probe.log`. Driven on the live X desktop (`DISPLAY=:0`) with
+`XMODIFIERS=@im=ibus`, `ibus-daemon -x`, engine `anthy` (hiragana mode); keys sent
+by `xdotool`. Screenshots: `out/ime-preedit.png`, `out/ime-committed.png`.
+
+- **IME enable roundtrip — PASS.** Focusing the field fired `Ime::Disabled` then
+  `Ime::Enabled` once the window had OS focus (`set_ime_allowed(true)` through
+  XIM). The field never became editable to IME while unfocused.
+- **Preedit — PASS.** Every keystroke arrived as `Preedit` with text + caret byte
+  range + clause ranges: `n` → `に` → `にほ` → `にほんご`. Committed text never
+  appeared during composition — the buffer stayed empty until commit.
+- **Conversion — PASS.** Space rewrote the preedit in place (`にほんご` → `日本語`),
+  still flagged `target: false` over the whole range. Clause granularity did not
+  follow anthy's segments (one clause per event via XIM).
+- **Commit — PASS.** Return inserted the composed text at the caret:
+  `text="日本語お"`, `anchor=focus=12` (UTF-8 byte offsets, not chars).
+- **Cancel — PASS.** Escape cleared the preedit (`preedit=""`, buffer untouched);
+  an `Ime::Disabled` followed as the field re-armed the input context.
+- **Keys during composition — PASS.** The IM consumed every key first; no raw
+  ASCII leaked into the buffer mid-composition.
+
+Environment gotchas (not rune defects, worth a setup note):
+
+- A fresh XIM context's anthy engine started in direct (Latin) input mode, so the
+  first `nihongo` committed as raw ASCII. Hiragana needed
+  `gsettings set org.freedesktop.ibus.engine.anthy.common input-mode 0`
+  (or Ctrl+J inside the field). Check the engine's mode before judging the app.
+- ibus's engine scripts exec `python3`; the box's PATH python3 (3.12, no `gi`)
+  silently kills engine startup — spawn the daemon with system python on PATH.
+- **Committed CJK text renders as tofu (□).** The bundled font set has no CJK
+  glyphs on this Linux box; the buffer is correct (log proves the codepoints) but
+  the field and status line show boxes. Font fallback for CJK is unproven on
+  Linux — flag for follow-up, alongside the a11y-name warnings noted earlier.
 
 ## 2026-11-23 — issue #26 Linux probes
 
