@@ -331,11 +331,22 @@ impl Workbench {
     // ---- theme ----
 
     pub fn set_mode(&mut self, mode: Mode) {
-        self.theme = Theme::for_mode(mode, self.theme.motion.reduced);
+        self.rebuild_theme(mode, self.theme.motion.reduced);
     }
 
     pub fn set_reduced_motion(&mut self, reduced: bool) {
-        self.theme = Theme::for_mode(self.theme.mode, reduced);
+        self.rebuild_theme(self.theme.mode, reduced);
+    }
+
+    /// Opt in to (or out of) the signature effects; kept across toggles.
+    pub fn set_effects(&mut self, on: bool) {
+        self.theme.effects = on;
+    }
+
+    fn rebuild_theme(&mut self, mode: Mode, reduced: bool) {
+        let effects = self.theme.effects;
+        self.theme = Theme::for_mode(mode, reduced);
+        self.theme.effects = effects;
     }
 
     // ---- navigation & selection ----

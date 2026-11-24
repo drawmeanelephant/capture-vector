@@ -305,7 +305,6 @@ fn problems(s: &EditorWindow) -> El {
 
 fn draft_sketch(s: &EditorWindow) -> El {
     let t = &s.theme;
-    let dark = t.mode == cv_model::theme::Mode::Dark;
     col()
         .key("draft-sketch")
         .grow(1.0)
@@ -328,7 +327,7 @@ fn draft_sketch(s: &EditorWindow) -> El {
                 })
                 .child(
                     rune_kit::Markdown::new(s.sketch.source.clone())
-                        .build(&rune_kit::Kit::neutral(dark)),
+                        .render(&crate::theme::markdown(t)),
                 ),
         )
 }

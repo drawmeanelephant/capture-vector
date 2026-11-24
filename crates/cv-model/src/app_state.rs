@@ -18,4 +18,10 @@ pub struct AppState {
     pub engine: Option<String>,
     /// Envelopes committed (idempotent: replays don't count).
     pub committed: u64,
+    /// A watch session is running (hello seen, no end yet).
+    #[serde(default)]
+    pub watch_live: bool,
+    /// Builds that finished (watch rebuilds and one-shot builds).
+    #[serde(default)]
+    pub builds_finished: u64,
 }

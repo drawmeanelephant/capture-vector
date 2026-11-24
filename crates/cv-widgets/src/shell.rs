@@ -3,13 +3,13 @@
 //! `*Model` data only — no lane logic, no IO.
 
 use crate::diagnostic;
-use crate::theme::{color, font};
+use crate::theme::{self, Level, Size, Styled, color, font};
 use cv_core::events::shell::DegradedReason;
 use cv_model::module::{ReadingModel, RowModel, Slot, Tone};
-use cv_model::theme::{Mode, Theme};
+use cv_model::theme::Theme;
 use cv_model::workbench::Workbench;
 use rune::{Color, Cx, El, GrowthSpec, ScrollSpec, col, row, spacer, text};
-use rune_kit::{Markdown, MarkdownStyle};
+use rune_kit::Markdown;
 use std::borrow::Cow;
 
 pub(crate) fn tone(t: &Theme, tone: Tone) -> Color {
@@ -123,13 +123,17 @@ fn rail(s: &Workbench) -> El {
                 t.colors.accent
             } else {
                 t.colors.rail
-            }))
-            .child(
-                text(title)
-                    .font(font(t.type_.title))
-                    .color(color(fg))
-                    .single_line(),
-            );
+            }));
+        if active {
+            let g = t.gradients.rail_active;
+            item = item.gradient(color(g.start), color(g.end));
+        }
+        item = item.child(
+            text(title)
+                .font(font(t.type_.title))
+                .color(color(fg))
+                .single_line(),
+        );
         if let Some(n) = idx
             .and_then(|i| s.registry.get(i))
             .and_then(|m| m.badge())
@@ -145,7 +149,7 @@ fn rail(s: &Workbench) -> El {
         }
         if let Some(i) = idx {
             item = item
-                .hover(color(t.colors.pane_alt))
+                .states(t)
                 .on_press(move |s: &mut Workbench| s.activate(i));
         } else {
             item = item.label("not registered");
@@ -188,7 +192,7 @@ fn nav(s: &Workbench) -> El {
                 } else {
                     t.colors.pane_alt
                 }))
-                .hover(color(t.colors.selection))
+                .states(t)
                 .on_press(move |s: &mut Workbench| s.set_nav(&key))
                 .child(
                     text(item.label)
@@ -232,7 +236,7 @@ fn list_row(s: &Workbench, i: usize) -> El {
         } else {
             t.colors.pane
         }))
-        .hover(color(t.colors.pane_alt))
+        .states(t)
         .on_press(move |s: &mut Workbench| s.select_key(&k));
     if let Some(rt) = rl {
         r = r.child(
@@ -371,7 +375,7 @@ fn reading(s: &Workbench) -> El {
                 .scroll(ScrollSpec {
                     stick_bottom: false,
                 })
-                .child(Markdown::new(md).render(&MarkdownStyle::neutral(t.mode == Mode::Dark))),
+                .child(Markdown::new(md).render(&theme::markdown(t))),
         );
     }
     pane
@@ -548,6 +552,8 @@ fn palette(s: &Workbench, width: f32) -> El {
         .gap(t.spacing.unit * 2.0)
         .fill(color(t.colors.pane))
         .border(1.0, color(t.colors.accent))
+        .rounded(t, Size::Md)
+        .elevated(t, Level::Overlay)
         .child(
             text(format!("> {}", s.palette.query))
                 .key("palette-query")

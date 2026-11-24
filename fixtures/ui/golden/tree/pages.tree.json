@@ -890,7 +890,7 @@
       "role": "group"
     },
     {
-      "color": "#eff0f2ff",
+      "color": "#e6e9efff",
       "key": "b0",
       "opacity": 1.0,
       "path": "shell/body/reading/sketch/#0/b0",
@@ -904,7 +904,7 @@
       "text": "Publishing"
     },
     {
-      "color": "#eff0f2ff",
+      "color": "#e6e9efff",
       "key": "b1",
       "opacity": 1.0,
       "path": "shell/body/reading/sketch/#0/b1",
@@ -918,7 +918,7 @@
       "text": "Boris treats the deployment URL as publication truth, not an incidental detail. The starter profile declares one public HTML target:"
     },
     {
-      "fill": "#121314ff",
+      "fill": "#1a1e26ff",
       "key": "b2",
       "opacity": 1.0,
       "path": "shell/body/reading/sketch/#0/b2",
@@ -931,7 +931,7 @@
       "role": "code"
     },
     {
-      "color": "#eff0f2ff",
+      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/reading/sketch/#0/b2/#0",
       "rect": [
@@ -944,7 +944,7 @@
       "text": "{\n  \"format\": \"boris-publication-profile\",\n  \"schema_version\": 1,\n  \"input\": \"content\",\n  \"targets\": [\n    { \"name\": \"public\", \"output\": \"dist\", \"public\": true, \"theme\": \"themes/boris\" }\n  ]\n}"
     },
     {
-      "color": "#eff0f2ff",
+      "color": "#e6e9efff",
       "key": "b3",
       "opacity": 1.0,
       "path": "shell/body/reading/sketch/#0/b3",
@@ -958,7 +958,7 @@
       "text": "Inspect the normalized plan before publishing:"
     },
     {
-      "fill": "#121314ff",
+      "fill": "#1a1e26ff",
       "key": "b4",
       "opacity": 1.0,
       "path": "shell/body/reading/sketch/#0/b4",
@@ -971,7 +971,7 @@
       "role": "code"
     },
     {
-      "color": "#eff0f2ff",
+      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/reading/sketch/#0/b4/#0",
       "rect": [
@@ -984,7 +984,7 @@
       "text": "boris plan --profile boris.json\nboris standard-site plan --profile standard-site.json"
     },
     {
-      "color": "#eff0f2ff",
+      "color": "#e6e9efff",
       "key": "b5",
       "opacity": 1.0,
       "path": "shell/body/reading/sketch/#0/b5",
