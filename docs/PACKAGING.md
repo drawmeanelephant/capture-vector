@@ -18,8 +18,9 @@ cargo run -p xtask -- fetch-boris            # clones into vendor/boris
 cargo run -p xtask -- fetch-boris --src DIR  # or use an existing checkout
 ```
 
-Checks out tag `v0.9.0`, refuses any HEAD that is not `66efcfb`, refuses a
-non-0.17 Zig, then runs
+Checks out tag `v0.9.0`, refuses any HEAD that is not `66efcfb` or a tree
+with local changes (the explicit `-Dvcs-revision` would otherwise hide
+them), refuses a non-0.17 Zig, then runs
 
 ```sh
 zig build --release=safe -Dcpu=baseline -Dvcs-revision=66efcfb
@@ -74,6 +75,10 @@ and migrates independently (`cv_store::sidecar`):
 - older stamp → each migration step runs in order, the stamp advances
   after every successful step; a missing step fails before anything runs;
 - newer stamp, foreign/malformed stamp → typed error, files untouched.
+- a symlinked `.cv/`, namespace dir, stamp, or lock → refused (`.cv/`
+  ships inside cloned projects; nothing is written outside the workspace);
+- stamping and migration run under `.cv/<ns>.schema.lock`, so concurrent
+  opens stamp once.
 
 A newer `research` schema does not block opening the `ledger`, and vice
 versa.
