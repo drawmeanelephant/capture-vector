@@ -1,6 +1,6 @@
 use cv_core::id::StableId;
 use cv_core::publish::{RunState, RunStatus};
-use cv_core::sys::Timestamp;
+use cv_core::sys::{Hash, Timestamp};
 use cv_ledger::ingest;
 use cv_ledger::journal::Entry;
 use cv_ledger::nouns::kind;
@@ -131,6 +131,33 @@ fn corrupt_committed_line_fails_loudly() {
     let path = Journal::open(dir.path()).unwrap().path().to_path_buf();
     std::fs::write(path, b"{garbage}\n").unwrap();
     assert!(Journal::open(dir.path()).is_err());
+}
+
+#[test]
+fn multibyte_hash_in_committed_line_is_corrupt_not_a_panic() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut j = Journal::open(dir.path()).unwrap();
+    j.append(
+        Timestamp(1),
+        Entry::Approved {
+            run: run(),
+            by: "me".into(),
+            grant_digest: Hash([0; 32]),
+        },
+    )
+    .unwrap();
+    let path = j.path().to_path_buf();
+    drop(j);
+    // 64 bytes with a two-byte char straddling the first hex pair.
+    let tampered = format!("a\u{e9}{}", "a".repeat(61));
+    assert_eq!(tampered.len(), 64);
+    let line = std::fs::read_to_string(&path).unwrap();
+    let line = line.replacen(&"0".repeat(64), &tampered, 1);
+    std::fs::write(&path, line).unwrap();
+    assert!(matches!(
+        Journal::open(dir.path()),
+        Err(cv_ledger::LedgerError::Corrupt { line: 1, .. })
+    ));
 }
 
 #[test]
