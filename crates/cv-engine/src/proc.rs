@@ -396,6 +396,66 @@ mod tests {
     }
 
     #[test]
+    fn capture_stops_reading_an_endless_stream_after_the_limit() {
+        struct Endless(Arc<std::sync::atomic::AtomicUsize>);
+        impl Read for Endless {
+            fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+                buf.fill(b'x');
+                self.0.fetch_add(buf.len(), Ordering::SeqCst);
+                Ok(buf.len())
+            }
+        }
+        let pulled = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let result = capture(Endless(pulled.clone()), "stdout", 1024)
+            .join()
+            .unwrap();
+        assert!(matches!(
+            result,
+            Err(EngineError::OutputLimitExceeded {
+                stream: "stdout",
+                limit: 1024
+            })
+        ));
+        // One read chunk past the limit is the most that is ever pulled.
+        assert!(pulled.load(Ordering::SeqCst) <= 1024 + 8192);
+    }
+
+    #[cfg(unix)]
+    const ENDLESS: [(&str, &str); 2] = [("exec yes", "stdout"), ("exec yes 1>&2", "stderr")];
+    // cmd /C passes inner quotes through to powershell, which would echo the
+    // script as a string literal — no quoting around the -Command script.
+    #[cfg(windows)]
+    const ENDLESS: [(&str, &str); 2] = [
+        ("powershell -NoProfile -Command while($true){'x'}", "stdout"),
+        (
+            "powershell -NoProfile -Command while($true){[Console]::Error.WriteLine('x')}",
+            "stderr",
+        ),
+    ];
+
+    #[test]
+    fn endless_child_output_fails_at_the_limit_instead_of_hanging() {
+        for (script, expected_stream) in ENDLESS {
+            let start = Instant::now();
+            let result =
+                run_captured_with_limit(shell_command(script), None, &CancelToken::new(), 1024);
+            assert!(
+                matches!(
+                    result,
+                    Err(EngineError::OutputLimitExceeded { stream, limit: 1024 })
+                        if stream == expected_stream
+                ),
+                "got {}",
+                result
+                    .map(|_| "Ok".to_string())
+                    .unwrap_or_else(|e| format!("{e}"))
+            );
+            // The writer is killed rather than left blocked on a full pipe.
+            assert!(start.elapsed() < Duration::from_secs(10));
+        }
+    }
+
+    #[test]
     fn cancel_kills_the_tree() {
         #[cfg(unix)]
         let script = "sleep 30 & sleep 30; wait";
@@ -416,7 +476,6 @@ mod tests {
         assert!(start.elapsed() < Duration::from_secs(10));
     }
 
-    #[cfg(unix)]
     #[test]
     fn cancellation_still_applies_while_draining_after_leader_exit() {
         let cancel = CancelToken::new();
@@ -427,7 +486,12 @@ mod tests {
         });
         // The leader exits normally while a finite background task still
         // holds the pipes. Capture must not stop observing cancellation.
-        let result = run_captured(shell_command("sleep 2 & exit 0"), None, &cancel);
+        // Windows: `start /b` leaves a grandchild holding the pipe handles.
+        #[cfg(unix)]
+        let script = "sleep 2 & exit 0";
+        #[cfg(windows)]
+        let script = "start /b ping -n 5 127.0.0.1 & exit 0";
+        let result = run_captured(shell_command(script), None, &cancel);
         t.join().unwrap();
         assert!(matches!(result, Err(EngineError::Cancelled)));
     }

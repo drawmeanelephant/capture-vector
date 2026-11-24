@@ -375,6 +375,49 @@ mod tests {
         ));
     }
 
+    /// A newline-free source that never ends, counting what was pulled.
+    struct Endless(Arc<AtomicUsize>);
+    impl Read for Endless {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            buf.fill(b'a');
+            self.0.fetch_add(buf.len(), Ordering::SeqCst);
+            Ok(buf.len())
+        }
+    }
+
+    #[test]
+    fn oversized_frame_is_rejected_without_reading_to_the_next_newline() {
+        let pulled = Arc::new(AtomicUsize::new(0));
+        let mut r = BufReader::with_capacity(64, Endless(pulled.clone()));
+        assert!(matches!(
+            read_frame(&mut r, 1024),
+            Err(FrameFault::TooLong { limit: 1024 })
+        ));
+        assert!(pulled.load(Ordering::SeqCst) <= 1024 + 64);
+    }
+
+    #[test]
+    fn line_reader_ends_on_an_endless_line_after_reading_only_the_limit() {
+        let pulled = Arc::new(AtomicUsize::new(0));
+        let (rx, reader) = line_reader(Endless(pulled.clone()), 1024);
+        let frame = rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert!(matches!(
+            frame,
+            Frame::Fault(FrameFault::TooLong { limit: 1024 })
+        ));
+        reader.join().unwrap();
+        assert!(rx.recv().is_err());
+        // BufReader's default capacity is the only read-ahead allowed.
+        assert!(pulled.load(Ordering::SeqCst) <= 1024 + 8 * 1024);
+    }
+
+    #[test]
+    fn multibyte_utf8_split_across_buffer_chunks_still_decodes() {
+        let mut r = BufReader::with_capacity(2, "\u{20ac}\u{20ac}\n".as_bytes());
+        let bytes = read_frame(&mut r, 6).unwrap().unwrap();
+        assert_eq!(String::from_utf8(bytes).unwrap(), "\u{20ac}\u{20ac}");
+    }
+
     #[test]
     fn reader_backpressures_and_unblocks_when_receiver_is_dropped() {
         struct OneLinePerRead(Arc<AtomicUsize>);

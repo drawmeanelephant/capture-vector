@@ -255,6 +255,51 @@ mod tests {
     }
 
     #[test]
+    fn stored_bytes_stay_within_the_budget_under_a_stream_of_large_events() {
+        let budget = 4 * 1024;
+        let ring = EventRing::with_byte_capacity(1024, budget);
+        for seq in 0..200u64 {
+            let raw = "r".repeat(100 + (seq as usize * 37) % 2000);
+            ring.record(&event("s", seq, raw));
+            let s = ring.state.lock().unwrap();
+            assert!(s.bytes + "s".len() <= budget);
+            assert_eq!(s.bytes, s.entries.iter().map(Entry::bytes).sum::<usize>());
+            assert_eq!(s.entries.back().map(|e| e.seq), Some(seq));
+        }
+    }
+
+    #[test]
+    fn oversized_event_encoding_stops_at_the_budget() {
+        let huge = event("s", 0, "x".repeat(1024 * 1024));
+        let mut encoded = EncodeWithin {
+            data: Vec::new(),
+            limit: 4 * 1024,
+        };
+        assert!(serde_json::to_writer(&mut encoded, &huge).is_err());
+        assert!(encoded.data.capacity() <= 4 * 1024);
+    }
+
+    #[test]
+    fn oversized_event_does_not_wedge_the_ring() {
+        let ring = EventRing::with_byte_capacity(1024, 4 * 1024);
+        let small = event("s", 0, "a".into());
+        let huge = event("s", 1, "x".repeat(1024 * 1024));
+        let next = event("s", 2, "b".into());
+        ring.record(&small);
+        ring.record(&huge);
+        assert!(ring.is_empty());
+        ring.record(&next);
+        assert!(matches!(
+            ring.since(&huge.cursor, &huge.cursor.session),
+            Resume::Replay(v) if v.len() == 1 && v[0].cursor == next.cursor
+        ));
+        assert!(matches!(
+            ring.since(&small.cursor, &small.cursor.session),
+            Resume::Resync
+        ));
+    }
+
+    #[test]
     fn session_rotation_and_max_sequence_do_not_replay_old_records() {
         let a = event("old", 0, "a".into());
         let b = event("new", u64::MAX, "b".into());
