@@ -318,7 +318,7 @@ fn polling_fallback_rebuilds_on_edits_without_an_automatic_retry() {
 }
 
 #[test]
-fn research_notes_persist_across_reopen() {
+fn research_notes_are_exclusive_and_persist_across_reopen() {
     let ws = workspace("happy");
     let cfg = tempfile::tempdir().unwrap();
     let env = absent_env(cfg.path());
@@ -332,6 +332,20 @@ fn research_notes_persist_across_reopen() {
 
     let mut again = init();
     open(&mut again, ws.path(), &env);
+    assert!(
+        again.status.contains("research notes not persisted:"),
+        "{}",
+        again.status
+    );
+    assert_eq!(module_len(&again, "research", Some("all")), 0);
+
+    drop(wb);
+    open(&mut again, ws.path(), &env);
+    assert!(
+        !again.status.contains("research notes not persisted:"),
+        "{}",
+        again.status
+    );
     assert_eq!(module_len(&again, "research", Some("all")), 2);
     // A promotion without a gated engine refuses rather than writing.
     assert!(!ws.path().join("content/idea-1.md").exists());
