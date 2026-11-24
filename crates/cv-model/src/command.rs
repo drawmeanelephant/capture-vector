@@ -76,6 +76,10 @@ fn score(query: &str, c: &CommandSpec) -> Option<usize> {
 }
 
 impl Palette {
+    /// Maximum hits the shell palette overlay renders; the cursor is
+    /// confined to this window so it can never point past the visible rows.
+    pub const VISIBLE: usize = 12;
+
     pub fn toggle(&mut self) {
         self.open = !self.open;
         self.query.clear();
@@ -101,7 +105,12 @@ impl Palette {
         self.query.pop();
         self.cursor = 0;
     }
+    /// The hits the shell renders: `matches` clamped to `VISIBLE`.
+    pub fn visible<'a>(&self, cmds: &'a [CommandSpec]) -> Vec<&'a CommandSpec> {
+        self.matches(cmds).into_iter().take(Self::VISIBLE).collect()
+    }
     pub fn move_cursor(&mut self, delta: isize, len: usize) {
+        let len = len.min(Self::VISIBLE);
         if len == 0 {
             self.cursor = 0;
             return;
@@ -109,7 +118,7 @@ impl Palette {
         self.cursor = (self.cursor as isize + delta).rem_euclid(len as isize) as usize;
     }
     pub fn selected<'a>(&self, cmds: &'a [CommandSpec]) -> Option<&'a CommandSpec> {
-        self.matches(cmds).get(self.cursor).copied()
+        self.visible(cmds).get(self.cursor).copied()
     }
 }
 
@@ -145,5 +154,19 @@ mod tests {
         assert_eq!(p.cursor, 2);
         p.move_cursor(1, 3);
         assert_eq!(p.cursor, 0);
+    }
+
+    #[test]
+    fn cursor_stays_inside_rendered_window() {
+        let cmds: Vec<CommandSpec> = (0..20)
+            .map(|i| CommandSpec::new(format!("m.{i}"), format!("cmd {i}")))
+            .collect();
+        let mut p = Palette::default();
+        for _ in 0..Palette::VISIBLE + 5 {
+            p.move_cursor(1, p.matches(&cmds).len());
+        }
+        assert!(p.cursor < Palette::VISIBLE);
+        assert!(p.visible(&cmds).len() == Palette::VISIBLE);
+        assert!(p.selected(&cmds).is_some());
     }
 }
