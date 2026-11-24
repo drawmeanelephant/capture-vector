@@ -11,8 +11,8 @@ use cv_model::module::{OutputRecord, PageRecord, ProjectSnapshot};
 use cv_store::paths::{confined, confined_file, is_link};
 use serde_json::Value;
 use std::collections::HashSet;
-use std::fs::{self, File, Metadata};
-use std::io::Read;
+use std::fs::{self, File, Metadata, OpenOptions};
+use std::io::{self, Read};
 use std::path::{Component, Path, PathBuf};
 
 const ARTIFACTS: &str = "dist/dist/_boris/proof/artifacts.json";
@@ -196,12 +196,33 @@ fn bounded_text(reader: impl Read, max_bytes: u64, bytes_left: &mut u64) -> Opti
     String::from_utf8(bytes).ok()
 }
 
+/// Opens without following a final link and without blocking, so an
+/// entry replaced by a link, FIFO, or device after its type check is
+/// refused here or by the caller's check on the opened handle.
+fn open_unfollowed(path: &Path) -> io::Result<File> {
+    let mut options = OpenOptions::new();
+    options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_NOCTTY);
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x0020_0000;
+        options.custom_flags(FILE_FLAG_OPEN_REPARSE_POINT);
+    }
+    options.open(path)
+}
+
 fn regular_text(path: &Path, meta: &Metadata, limit: u64, bytes_left: &mut u64) -> Option<String> {
     if !meta.is_file() || is_link(meta) || meta.len() > limit.min(*bytes_left) {
         return None;
     }
-    let file = File::open(path).ok()?;
-    if !file.metadata().ok()?.is_file() {
+    let file = open_unfollowed(path).ok()?;
+    let opened = file.metadata().ok()?;
+    if !opened.is_file() || is_link(&opened) {
         return None;
     }
     bounded_text(file, limit, bytes_left)
@@ -337,7 +358,9 @@ impl<'a> Scan<'a> {
 /// content input, output records from the last build's proof pack
 /// (`<html_dir>/_boris/proof/artifacts.json`) when one exists.
 /// Unreadable or oversized files are omitted. The walk checks the tree
-/// as found; these checks are not atomic against concurrent replacement.
+/// as found; directory checks are not atomic against concurrent
+/// replacement, but a page open refuses a link, FIFO, or device swapped
+/// in after its type check.
 pub fn workspace_snapshot(
     root: &Path,
     html_dir: &str,
@@ -584,5 +607,142 @@ mod tests {
         write(root, "boris.json", r#"{"input":"content/nested"}"#);
         let explicit = workspace_snapshot(root, "dist", None, 2);
         assert!(explicit.pages.is_empty());
+    }
+
+    #[test]
+    fn scan_skips_a_sparse_page_over_the_size_cap_without_reading_it() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        File::create(root.join("a-huge.md"))
+            .unwrap()
+            .set_len(MAX_SOURCE_BYTES + 1)
+            .unwrap();
+        write(root, "b-page.md", "Body");
+
+        let mut scan = Scan::new("dist");
+        scan.walk(root, "", 0);
+        assert_eq!(paths(&scan.pages), ["b-page.md"]);
+        assert_eq!(scan.bytes_left, MAX_TOTAL_SOURCE_BYTES - 4);
+    }
+
+    #[test]
+    fn scan_stops_descending_past_the_default_depth_cap() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        let deepest = vec!["d"; MAX_DEPTH].join("/");
+        write(root, &format!("{deepest}/in.md"), "Body");
+        write(root, &format!("{deepest}/d/out.md"), "Body");
+        write(root, "top.md", "Body");
+
+        let mut scan = Scan::new("dist");
+        scan.walk(root, "", 0);
+        assert_eq!(
+            paths(&scan.pages),
+            [format!("{deepest}/in.md").as_str(), "top.md"]
+        );
+    }
+
+    /// A regression that blocks in `open` fails here instead of hanging
+    /// the test run; the stuck thread is abandoned.
+    #[cfg(unix)]
+    fn before_deadline<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> T {
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = tx.send(f());
+        });
+        rx.recv_timeout(std::time::Duration::from_secs(5))
+            .expect("reading the workspace blocked")
+    }
+
+    #[cfg(unix)]
+    fn mkfifo(path: &Path) {
+        use std::os::unix::ffi::OsStrExt;
+        let c = std::ffi::CString::new(path.as_os_str().as_bytes()).unwrap();
+        assert_eq!(unsafe { libc::mkfifo(c.as_ptr(), 0o600) }, 0, "mkfifo");
+    }
+
+    #[cfg(unix)]
+    fn scan_pages(root: &Path) -> Vec<String> {
+        let root = root.to_path_buf();
+        before_deadline(move || {
+            let mut scan = Scan::new("dist");
+            scan.walk(&root, "", 0);
+            scan.pages.into_iter().map(|p| p.path).collect()
+        })
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn scan_skips_a_fifo_named_like_a_page_without_blocking() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        mkfifo(&root.join("a-pipe.md"));
+        write(root, "b-page.md", "Body");
+
+        assert_eq!(scan_pages(root), ["b-page.md"]);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn scan_skips_a_link_to_a_device_named_like_a_page() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        std::os::unix::fs::symlink("/dev/zero", root.join("a-zero.md")).unwrap();
+        write(root, "b-page.md", "Body");
+
+        assert_eq!(scan_pages(root), ["b-page.md"]);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn scan_skips_a_link_to_a_page_outside_the_root() {
+        let outside = tempfile::tempdir().unwrap();
+        write(outside.path(), "secret.md", "Outside");
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        std::os::unix::fs::symlink(outside.path().join("secret.md"), root.join("a-link.md"))
+            .unwrap();
+        write(root, "b-page.md", "Body");
+
+        assert_eq!(scan_pages(root), ["b-page.md"]);
+    }
+
+    /// Stands in for an entry replaced between the type check and the open.
+    #[cfg(unix)]
+    fn read_swapped(swapped_in: PathBuf, checked: Metadata) -> Option<String> {
+        before_deadline(move || {
+            let mut left = MAX_TOTAL_SOURCE_BYTES;
+            regular_text(&swapped_in, &checked, MAX_SOURCE_BYTES, &mut left)
+        })
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn regular_text_does_not_block_on_a_fifo_swapped_in_after_the_type_check() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        write(root, "page.md", "Body");
+        mkfifo(&root.join("pipe.md"));
+        let checked = fs::symlink_metadata(root.join("page.md")).unwrap();
+
+        assert_eq!(read_swapped(root.join("pipe.md"), checked), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn regular_text_does_not_follow_a_link_swapped_in_after_the_type_check() {
+        let outside = tempfile::tempdir().unwrap();
+        write(outside.path(), "secret.md", "Outside");
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        write(root, "page.md", "Body");
+        std::os::unix::fs::symlink(outside.path().join("secret.md"), root.join("link.md")).unwrap();
+        let checked = fs::symlink_metadata(root.join("page.md")).unwrap();
+
+        assert_eq!(read_swapped(root.join("link.md"), checked.clone()), None);
+        assert_eq!(
+            read_swapped(root.join("page.md"), checked).as_deref(),
+            Some("Body")
+        );
     }
 }
