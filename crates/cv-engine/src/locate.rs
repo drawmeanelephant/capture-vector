@@ -196,7 +196,7 @@ pub fn gate(source: EngineSource, path: &Path, cwd: &Path, pin: Pin) -> Result<E
     v.arg("--version");
     let out = run_captured(v, None, &never)?;
     if !matches!(out.outcome, ExitOutcome::Exited { code: 0 }) {
-        return Err(EngineError::Abnormal(out.outcome).into());
+        return Err(EngineError::Abnormal(out.outcome));
     }
     let version = String::from_utf8_lossy(&out.stdout)
         .lines()
@@ -209,7 +209,7 @@ pub fn gate(source: EngineSource, path: &Path, cwd: &Path, pin: Pin) -> Result<E
     b.arg("--build-info");
     let bi = run_captured(b, None, &never)?;
     if !matches!(bi.outcome, ExitOutcome::Exited { code: 0 }) {
-        return Err(EngineError::Abnormal(bi.outcome).into());
+        return Err(EngineError::Abnormal(bi.outcome));
     }
     let raw = String::from_utf8_lossy(&bi.stdout).trim().to_string();
     let info: Option<BuildInfo> = serde_json::from_str(&raw).ok().filter(BuildInfo::is_boris);
