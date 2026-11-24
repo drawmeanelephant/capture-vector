@@ -2,4 +2,4 @@ boris: load  scanning content
 boris: roll  parsing 4 page(s)
 boris: ignite validating graph
 boris: content validation failed (1 error(s))
-error: EPARENTMISSING: notes/field-notes-graph-first-research.md:4:1: parent "no-such-page" does not exist [Create the parent document or fix the parent id]
+error: EPARENTMISSING: notes/field-notes-graph-first-research.md:1:1: parent "no-such-page" does not exist [Create the parent document or fix the parent id]
