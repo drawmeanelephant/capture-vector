@@ -51,6 +51,25 @@ pub struct Locator {
     pub sibling_dirs: Vec<PathBuf>,
 }
 
+/// Bundled engines live in `<exe dir>/engines/` — the layout
+/// `cargo run -p xtask -- release` produces.
+pub const BUNDLED_DIR: &str = "engines";
+
+/// Bundled search dirs for an app binary at `exe`, in order:
+/// `<dir>/engines`, the macOS `.app` `Contents/Resources/engines`, then
+/// `<dir>` itself.
+pub fn bundled_dirs(exe: &Path) -> Vec<PathBuf> {
+    let Some(dir) = exe.parent() else {
+        return vec![];
+    };
+    vec![
+        dir.join(BUNDLED_DIR),
+        // macOS .app: Contents/MacOS/<exe> → Contents/Resources/engines
+        dir.join("..").join("Resources").join(BUNDLED_DIR),
+        dir.to_path_buf(),
+    ]
+}
+
 pub fn exe_name() -> String {
     format!("boris{}", std::env::consts::EXE_SUFFIX)
 }
@@ -58,16 +77,9 @@ pub fn exe_name() -> String {
 impl Locator {
     /// The production search space for a workspace rooted at `root`.
     pub fn from_env(root: &Path) -> Self {
-        let mut bundled_dirs = Vec::new();
-        if let Some(dir) = std::env::current_exe()
-            .ok()
-            .and_then(|p| p.parent().map(Path::to_path_buf))
-        {
-            bundled_dirs.push(dir.join("engines"));
-            // macOS .app: Contents/MacOS/<exe> → Contents/Resources/engines
-            bundled_dirs.push(dir.join("..").join("Resources").join("engines"));
-            bundled_dirs.push(dir);
-        }
+        let bundled_dirs = std::env::current_exe()
+            .map(|exe| bundled_dirs(&exe))
+            .unwrap_or_default();
         let sibling_dirs = sibling_dirs(
             root,
             std::env::var_os(ENV_SIBLING).is_some_and(|v| v == "1"),
@@ -251,6 +263,81 @@ mod tests {
         assert_eq!(loc.find().unwrap().0, EngineSource::Path);
         touch_exe(&b);
         assert_eq!(loc.find().unwrap().0, EngineSource::Bundled);
+    }
+
+    /// Every level populated: each one shadows everything after it.
+    #[test]
+    fn each_level_wins_over_the_ones_after_it() {
+        let t = tempfile::tempdir().unwrap();
+        let exe = t.path().join("app").join("cv-app");
+        let [bundled, _, exe_dir] = bundled_dirs(&exe).try_into().unwrap();
+        let (env, pa, sib) = (t.path().join("env"), t.path().join("p"), t.path().join("s"));
+        let env_bin = touch_exe(&env);
+        let bundled_bin = touch_exe(&bundled);
+        let exe_dir_bin = touch_exe(&exe_dir);
+        let path_bin = touch_exe(&pa);
+        let sib_bin = touch_exe(&sib);
+        let mut loc = Locator {
+            env_override: Some(env_bin.clone()),
+            bundled_dirs: bundled_dirs(&exe),
+            path_var: Some(std::env::join_paths([&pa]).unwrap()),
+            sibling_dirs: vec![sib],
+        };
+        // CV_BORIS_BIN wins over bundled, PATH and sibling.
+        assert_eq!(loc.find().unwrap(), (EngineSource::EnvOverride, env_bin));
+        // Unset: bundled `engines/` wins over the exe dir, PATH, sibling.
+        loc.env_override = None;
+        assert_eq!(
+            loc.find().unwrap(),
+            (EngineSource::Bundled, bundled_bin.clone())
+        );
+        std::fs::remove_file(&bundled_bin).unwrap();
+        assert_eq!(
+            loc.find().unwrap(),
+            (EngineSource::Bundled, exe_dir_bin.clone())
+        );
+        // No bundled engine: PATH wins over the sibling checkout.
+        std::fs::remove_file(&exe_dir_bin).unwrap();
+        assert_eq!(loc.find().unwrap(), (EngineSource::Path, path_bin.clone()));
+        std::fs::remove_file(&path_bin).unwrap();
+        assert_eq!(
+            loc.find().unwrap(),
+            (EngineSource::SiblingCheckout, sib_bin)
+        );
+    }
+
+    #[test]
+    fn release_layout_bundles_into_engines_next_to_the_app() {
+        let exe = Path::new("dist").join("cv").join("cv-app");
+        let dirs = bundled_dirs(&exe);
+        assert_eq!(dirs[0], Path::new("dist").join("cv").join(BUNDLED_DIR));
+        assert_eq!(
+            dirs[1],
+            Path::new("dist")
+                .join("cv")
+                .join("..")
+                .join("Resources")
+                .join(BUNDLED_DIR)
+        );
+        assert_eq!(dirs[2], Path::new("dist").join("cv"));
+        assert!(bundled_dirs(Path::new("")).is_empty());
+    }
+
+    /// A non-executable file in a bundled slot is not an engine.
+    #[cfg(unix)]
+    #[test]
+    fn non_executable_bundled_file_is_skipped() {
+        let t = tempfile::tempdir().unwrap();
+        let (b, pa) = (t.path().join("b"), t.path().join("p"));
+        std::fs::create_dir_all(&b).unwrap();
+        std::fs::write(b.join(exe_name()), b"").unwrap();
+        let path_bin = touch_exe(&pa);
+        let loc = Locator {
+            bundled_dirs: vec![b],
+            path_var: Some(std::env::join_paths([&pa]).unwrap()),
+            ..Locator::default()
+        };
+        assert_eq!(loc.find().unwrap(), (EngineSource::Path, path_bin));
     }
 
     #[test]

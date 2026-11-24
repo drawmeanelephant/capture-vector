@@ -47,7 +47,14 @@ impl CancelToken {
 
 /// Builds a Boris invocation with the crate-wide hygiene applied.
 pub(crate) fn boris_command(bin: &Path, cwd: &Path) -> Command {
-    let mut cmd = Command::new(bin);
+    // A relative path with a directory part would resolve against `cwd`
+    // in the child; anchor it to ours. A bare name still searches PATH.
+    let bin = if bin.is_relative() && bin.parent().is_some_and(|p| !p.as_os_str().is_empty()) {
+        std::path::absolute(bin).unwrap_or_else(|_| bin.to_path_buf())
+    } else {
+        bin.to_path_buf()
+    };
+    let mut cmd = Command::new(&bin);
     cmd.current_dir(cwd);
     for k in SCRUBBED_ENV {
         cmd.env_remove(k);
@@ -274,5 +281,21 @@ mod tests {
         }
         let c = run_captured(cmd, None, &CancelToken::new()).unwrap();
         assert!(!String::from_utf8_lossy(&c.stdout).contains("nsec1shouldnotleak"));
+    }
+}
+
+#[cfg(test)]
+mod command_tests {
+    use super::*;
+
+    #[test]
+    fn relative_bin_is_anchored_before_the_child_cwd_changes() {
+        let cmd = boris_command(Path::new("zig-out/bin/boris"), Path::new("/elsewhere"));
+        assert_eq!(
+            Path::new(cmd.get_program()),
+            std::env::current_dir().unwrap().join("zig-out/bin/boris")
+        );
+        let bare = boris_command(Path::new("boris"), Path::new("/elsewhere"));
+        assert_eq!(bare.get_program(), "boris");
     }
 }
