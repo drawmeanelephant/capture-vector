@@ -45,6 +45,17 @@ body:
       label: Structured logs
       description: Output from `CV_LOG=debug CV_LOG_FILE=/tmp/cv.log`.
       render: text
+  - type: textarea
+    id: ui-evidence
+    attributes:
+      label: UI grounding (UI bugs only)
+      description: >-
+        The `--scene` name plus the `--tree`/`--layout` JSON dump or a
+        screenshot. Element-tree JSON is the cross-OS gate — a dump beats a
+        screenshot because reviewers can diff it against
+        `fixtures/ui/golden/tree/`.
+      placeholder: "cargo run -p cv-app -- --scene canary --tree out.json"
+      render: text
   - type: checkboxes
     id: checks
     attributes:
