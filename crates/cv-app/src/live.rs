@@ -22,7 +22,7 @@ use cv_model::cascade::WANT_ENGINE;
 use cv_model::workbench::{Inbound, Inbox};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, OnceLock, Weak};
+use std::sync::{Arc, OnceLock};
 use std::thread::JoinHandle;
 
 pub type Scheduler = EngineScheduler<ProcessEngine>;
@@ -178,71 +178,108 @@ pub fn spawn(b: EngineBoot) -> JoinHandle<()> {
         .expect("spawn engine boot thread")
 }
 
-/// Envelopes pass through a `CursorTracker`: a new session or a seq gap
-/// rereads disk truth and lands a fresh snapshot before the envelope;
-/// replay overlap is dropped. A finished build also refreshes the page
-/// list (files may have appeared), still ahead of its own envelope.
-///
-/// Boris's watch reports a fatal initial build with no diagnostics (they
-/// only reach the one-shot build's stderr), so that failure triggers one
-/// `build` through the scheduler, as the fixture path does.
-fn resync_sink(
+#[derive(Clone)]
+struct LiveDelivery {
     engine: Arc<ProcessEngine>,
-    sched: Weak<Scheduler>,
     inbox: Inbox,
     epoch: Arc<AtomicU64>,
-    compiler: String,
-) -> EventSink {
-    let mut tracker = CursorTracker::new();
-    let (root, html) = (engine.root().to_path_buf(), html_dir());
-    // Finished builds also reach open editor buffers' Problems rails.
-    let mut deliver = cv_widgets::editor::host::tee_builds(inbox.sink());
-    Box::new(move |env| {
-        let obs = tracker.observe(&env.cursor);
-        if obs == Observation::Duplicate {
-            return;
-        }
-        let built = matches!(
-            env.payload,
-            AppEvent::Engine(EngineEvent::BuildFinished { .. } | EngineEvent::BuildFailed { .. })
-        );
-        if matches!(obs, Observation::Resync(_)) || built {
-            // Disk truth through the engine (bumps its snapshot epoch).
-            // Not via the scheduler: the session-start envelope arrives
-            // while `start_watch` holds its writer lock.
-            let _ = engine.disk_truth();
-            let n = epoch.fetch_add(1, Ordering::SeqCst) + 1;
-            inbox.send(Inbound::Snapshot(workspace_snapshot(
-                &root,
-                &html,
-                Some(compiler.clone()),
-                n,
-            )));
-        }
-        let recover = matches!(
-            &env.payload,
-            AppEvent::Engine(EngineEvent::BuildFailed { diagnostics, recoverable: false, .. })
-                if diagnostics.is_empty()
-        );
-        deliver(env);
-        if recover && let Some(s) = sched.upgrade() {
-            let sink = resync_sink(
-                engine.clone(),
-                Weak::new(),
-                inbox.clone(),
-                epoch.clone(),
-                compiler.clone(),
-            );
-            // Off the pump thread: the build stops the watch, which joins it.
-            std::thread::spawn(move || {
-                let _ = s.run(&Verb::Build, sink);
-            });
-        }
-    })
 }
 
-fn html_dir() -> String {
-    "dist".into()
+impl LiveDelivery {
+    fn identity(&self) -> String {
+        let id = self.engine.identity();
+        format!(
+            "{} · {} ({:?})",
+            self.engine.root().display(),
+            id.version,
+            id.source
+        )
+    }
+
+    /// A new session, cursor gap or build result refreshes disk truth
+    /// before forwarding the envelope. Replay overlap is dropped.
+    fn resync_sink(&self, mut on_fatal: impl FnMut() + Send + 'static) -> EventSink {
+        let Self {
+            engine,
+            inbox,
+            epoch,
+        } = self.clone();
+        let mut tracker = CursorTracker::new();
+        // Build results also reach open editors' Problems rails.
+        let mut deliver = cv_widgets::editor::host::tee_builds(inbox.sink());
+        Box::new(move |env| {
+            let obs = tracker.observe(&env.cursor);
+            if obs == Observation::Duplicate {
+                return;
+            }
+            let built = matches!(
+                env.payload,
+                AppEvent::Engine(
+                    EngineEvent::BuildFinished { .. } | EngineEvent::BuildFailed { .. }
+                )
+            );
+            if matches!(obs, Observation::Resync(_)) || built {
+                // Not via the scheduler: starting a watch emits its
+                // first envelope while holding the writer lock.
+                let _ = engine.disk_truth();
+                let n = epoch.fetch_add(1, Ordering::SeqCst) + 1;
+                inbox.send(Inbound::Snapshot(workspace_snapshot(
+                    engine.root(),
+                    "dist",
+                    Some(engine.identity().version.clone()),
+                    n,
+                )));
+            }
+            let fatal = matches!(
+                &env.payload,
+                AppEvent::Engine(EngineEvent::BuildFailed { diagnostics, recoverable: false, .. })
+                    if diagnostics.is_empty()
+            );
+            deliver(env);
+            if fatal {
+                on_fatal();
+            }
+        })
+    }
+}
+
+fn recover_build(sched: &Scheduler, delivery: &LiveDelivery, warning: &Option<String>) {
+    // Join the watch before the diagnostic build, so its session-end
+    // event cannot overwrite the disclosure about the build outcome.
+    if sched.stop_watch().is_none() {
+        return;
+    }
+    let inbox = &delivery.inbox;
+    if !inbox.send(Inbound::Status(
+        "Boris watch stopped · running one build for diagnostics…".into(),
+    )) {
+        return;
+    }
+    // A diagnostic build is terminal for this watch. Its own failure
+    // never schedules another retry.
+    let (reason, status) = match sched.run(&Verb::Build, delivery.resync_sink(|| {})) {
+        Ok(r) if r.exit == ExitClass::Ok => (
+            DegradedReason::WatchDead,
+            "Boris diagnostic build succeeded".into(),
+        ),
+        Ok(r) => (
+            DegradedReason::EngineBuildFailing,
+            format!("Boris diagnostic build failed ({:?})", r.exit),
+        ),
+        Err(e) => (
+            DegradedReason::EngineBuildFailing,
+            format!("Boris diagnostic build failed: {e}"),
+        ),
+    };
+    finish(
+        inbox,
+        warning,
+        Some(reason),
+        format!(
+            "{status} · reopen workspace to resume watching · {}",
+            delivery.identity()
+        ),
+    );
 }
 
 fn run(b: EngineBoot) {
@@ -271,36 +308,68 @@ fn run(b: EngineBoot) {
             return;
         }
     };
-    let id = engine.identity().clone();
-    let mode = match engine.report().watch_mode {
+    let sched = Arc::new(EngineScheduler::new(engine.clone(), SeatPolicy::StopWatch));
+    let _ = slot.0.set(sched.clone());
+    start_watch(
+        sched,
+        LiveDelivery {
+            engine,
+            inbox,
+            epoch,
+        },
+        warning,
+    );
+}
+
+fn start_watch(sched: Arc<Scheduler>, delivery: LiveDelivery, warning: Option<String>) {
+    let mode = delivery.engine.report().watch_mode;
+    let label = match mode {
         WatchMode::Native => "watch",
         WatchMode::OneShotFallback => "one-shot rebuilds",
     };
-    let sched = Arc::new(EngineScheduler::new(engine.clone(), SeatPolicy::StopWatch));
-    let _ = slot.0.set(sched.clone());
-    let sink = resync_sink(
-        engine,
-        Arc::downgrade(&sched),
-        inbox.clone(),
-        epoch,
-        id.version.clone(),
-    );
-    match sched.start_watch(sink) {
+    let ready = Arc::new(OnceLock::new());
+    let published = ready.clone();
+    let recovery_sched = Arc::downgrade(&sched);
+    let recovery_delivery = delivery.clone();
+    let recovery_warning = warning.clone();
+    // The native watcher may report a fatal failure with diagnostics
+    // only available from a one-shot build. Allow one attempt per open.
+    // Polling already runs one-shot builds on edits.
+    let mut recover = (mode == WatchMode::Native).then_some(move || {
+        // Wait off the pump thread. An initial failure can arrive
+        // before start_watch publishes the handle and boot status.
+        std::thread::spawn(move || {
+            if *published.wait()
+                && let Some(sched) = recovery_sched.upgrade()
+            {
+                recover_build(&sched, &recovery_delivery, &recovery_warning);
+            }
+        });
+    });
+    let sink = delivery.resync_sink(move || {
+        if let Some(recover) = recover.take() {
+            recover();
+        }
+    });
+    let inbox = &delivery.inbox;
+    let started = match sched.start_watch(sink) {
         Ok(session) => {
-            inbox.send(Inbound::Watch(Box::new(SessionWatch { sched, session })));
-            let status = format!(
-                "{} · {} ({:?}) · {mode}",
-                root.display(),
-                id.version,
-                id.source
+            let sent = inbox.send(Inbound::Watch(Box::new(SessionWatch { sched, session })));
+            finish(
+                inbox,
+                &warning,
+                None,
+                format!("{} · {label}", delivery.identity()),
             );
-            finish(&inbox, &warning, None, status);
+            sent
         }
         Err(e) => {
-            let status = format!("{}: {e}", root.display());
-            finish(&inbox, &warning, Some(DegradedReason::WatchDead), status);
+            let status = format!("{}: {e}", delivery.engine.root().display());
+            finish(inbox, &warning, Some(DegradedReason::WatchDead), status);
+            false
         }
-    }
+    };
+    let _ = ready.set(started);
 }
 
 #[cfg(test)]

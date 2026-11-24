@@ -38,6 +38,9 @@ pub fn degraded_text(r: &DegradedReason) -> String {
         DegradedReason::EngineVersionMismatch { found, want } => {
             format!("Engine version mismatch — found boris {found}, want {want}.")
         }
+        DegradedReason::EngineBuildFailing => {
+            "Engine build failed after one retry. Fix the build, then reopen the workspace.".into()
+        }
         DegradedReason::WatchDead => {
             "Watch session died — showing last snapshot; restart watch to resume.".into()
         }

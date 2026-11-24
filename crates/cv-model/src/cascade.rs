@@ -37,6 +37,7 @@ pub fn dispatch(state: &mut AppState, env: &Envelope) -> bool {
                 state.degraded,
                 Some(DegradedReason::EngineAbsent)
                     | Some(DegradedReason::EngineVersionMismatch { .. })
+                    | Some(DegradedReason::EngineBuildFailing)
                     | Some(DegradedReason::WatchDead)
             ) {
                 state.degraded = None;
@@ -93,6 +94,7 @@ mod tests {
                 found: "0.8.2".into(),
                 want: WANT_ENGINE.into(),
             },
+            DegradedReason::EngineBuildFailing,
             DegradedReason::WatchDead,
         ] {
             let mut state = AppState {
