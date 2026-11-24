@@ -32,10 +32,13 @@ pub fn corpus_snapshot(name: &str) -> ProjectSnapshot {
         })
         .collect();
     let artifacts_key = format!("captures/{name}/{ARTIFACTS}");
+    // Same as the workspace index: a malformed one yields no output
+    // records rather than a panic.
     let index: Option<Value> = manifest
         .pinned_files()
         .any(|(k, _)| *k == artifacts_key)
-        .then(|| serde_json::from_str(&c.file_str(ARTIFACTS)).expect("artifacts.json"));
+        .then(|| c.file(ARTIFACTS))
+        .and_then(|raw| serde_json::from_slice(&raw).ok());
     let mut outputs: Vec<OutputRecord> = index
         .as_ref()
         .and_then(|v| v["artifacts"].as_array())
@@ -466,6 +469,31 @@ mod tests {
         assert_eq!(snap.pages[2].title, "Home");
         assert_eq!(snap.pages[2].body, "Hello");
         assert_eq!(snap.pages[2].output.as_deref(), Some("index.html"));
+    }
+
+    #[test]
+    fn workspace_snapshot_keeps_pages_when_the_artifact_index_is_malformed() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        write(root, "content/index.md", "Hello");
+        write(
+            root,
+            "dist/_boris/proof/artifacts.json",
+            "{\"artifacts\": [",
+        );
+
+        let snap = workspace_snapshot(root, "dist", None, 1);
+        assert_eq!(paths(&snap.pages), ["index.md"]);
+        assert!(snap.outputs.is_empty());
+        assert!(snap.target.is_none());
+        assert!(snap.pages[0].output.is_none());
+    }
+
+    #[test]
+    fn corpus_snapshot_reads_the_captured_artifact_index() {
+        let snap = corpus_snapshot("happy");
+        assert_eq!(snap.target.as_deref(), Some("default"));
+        assert!(snap.outputs.iter().any(|o| o.path == "index.html"));
     }
 
     #[test]

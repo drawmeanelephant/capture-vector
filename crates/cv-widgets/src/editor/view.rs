@@ -74,6 +74,9 @@ fn header(s: &EditorWindow) -> El {
             .font(font(t.type_.title))
             .color(color(t.colors.text)),
     );
+    if let Some(e) = s.error() {
+        r = r.child(label(t, e.to_string()).key("editor-error"));
+    }
     if s.is_dirty() {
         r = r.child(label(t, "● unsaved").key("editor-dirty"));
     }

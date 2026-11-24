@@ -99,7 +99,8 @@ impl cv_core::sys::Clock for SystemClock {
 
 /// Open `root` as the workspace: Research persists under `root/.cv/`,
 /// module state resets, the recent list is updated, and the engine boots
-/// on a worker thread (returned so tests can join it). Runs on a
+/// on a worker thread (returned so tests can join it; `None` when the
+/// root does not open or the thread cannot start). Runs on a
 /// boot/command path, never inside a frame.
 pub fn open_workspace(
     wb: &mut Workbench,
@@ -214,12 +215,12 @@ pub fn open_workspace(
     if !root.join("boris.json").is_file() && input != "." {
         cfg.watch_args = vec!["--input".into(), input];
     }
-    Some(live::spawn(live::EngineBoot {
+    live::spawn(live::EngineBoot {
         cfg,
         slot,
         inbox: wb.inbox(),
         warning,
-    }))
+    })
 }
 
 /// Native boot: `--project` → `CV_PROJECT` → most recent workspace. With

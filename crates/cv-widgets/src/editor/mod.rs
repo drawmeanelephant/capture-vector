@@ -37,6 +37,30 @@ pub const DECORATIONS: bool = true;
 
 type SaveRx = mpsc::Receiver<cv_core::Result<WriteOutcome>>;
 
+/// Why an editor window has no page to edit. Shown in its header.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EditorError {
+    /// The window's buffer is not open in its session.
+    BufferClosed(BufferId),
+    /// A native editor window started with no editor queued for it.
+    NotQueued,
+}
+
+impl std::fmt::Display for EditorError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::BufferClosed(_) => {
+                f.write_str("This page is no longer open for editing. Close this window and open the page again.")
+            }
+            Self::NotQueued => {
+                f.write_str("This editor window has no page. Close it and open the page again.")
+            }
+        }
+    }
+}
+
+impl std::error::Error for EditorError {}
+
 /// Closing a window over unsaved edits. A title-bar close cannot be
 /// vetoed, so the host reopens the window in `Confirm`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -66,6 +90,7 @@ pub struct EditorWindow {
     drawn_closing: Closing,
     pending: Option<(SaveTicket, SaveRx)>,
     seen: (u64, u64),
+    fault: Option<EditorError>,
 }
 
 impl EditorWindow {
@@ -77,7 +102,13 @@ impl EditorWindow {
     ) -> Self {
         let sketch = {
             let s = session.borrow();
-            Sketch::of(&s.get(buffer).expect("buffer is open").buffer)
+            match s.get(buffer) {
+                Some(e) => Sketch::of(&e.buffer),
+                None => Sketch {
+                    revision: 0,
+                    source: String::new(),
+                },
+            }
         };
         let mut w = Self {
             id,
@@ -93,9 +124,21 @@ impl EditorWindow {
             drawn_closing: Closing::Open,
             pending: None,
             seen: (u64::MAX, u64::MAX),
+            fault: None,
         };
         w.refresh();
         w
+    }
+
+    /// Why this window has no page to edit, if it has none.
+    pub fn error(&self) -> Option<EditorError> {
+        self.fault.or_else(|| {
+            self.session
+                .borrow()
+                .get(self.buffer)
+                .is_none()
+                .then_some(EditorError::BufferClosed(self.buffer))
+        })
     }
 
     pub fn with_writer(mut self, writer: Arc<dyn ContentWriter>) -> Self {
