@@ -1,8 +1,8 @@
 //! The publish loop over the ledger. Every decision reads durable
 //! journal state; every transition is fsynced before the next step.
 
-use crate::adapters::{COPY_TO_FOLDER, Delivered, Delivery, DeliveryAdapter};
-use crate::plan::{SealedPlan, hash_json, inventory, load_sealed, safe_rel_path, sha256};
+use crate::adapters::{COPY_TO_FOLDER, Delivered, Delivery, DeliveryAdapter, copy_destination};
+use crate::plan::{SealedPlan, hash_json, inventory, load_sealed, sha256};
 use crate::preflight::{
     PreflightOutcome, PreflightRequest, Ruleset, graph_file, run_dir, site_dir, verbs,
 };
@@ -148,13 +148,16 @@ impl<'a> Publisher<'a> {
         // An IdGen can restart when the app restarts. The durable sequence
         // distinguishes later sessions without sacrificing deterministic IDs.
         let run = StableId(format!("{}-{}", seed.0, self.journal.records().len()));
+        let run_rel = run_dir(&run)?;
         if self.run(&run).is_some() {
             return Err(PublishError::Refused("publish run already recorded".into()));
         }
         let target = cfg.target.id().to_string();
         let publish = confined(&self.root, Path::new(".cv/publish"))?;
         std::fs::create_dir_all(&publish)?;
-        let dir = publish.join(&run.0);
+        let dir = confined(&self.root, Path::new(&run_rel))?;
+        // Never replace an existing run directory: it may be the only
+        // evidence of an earlier, possibly unresolved, run.
         match std::fs::create_dir(&dir) {
             Err(e) if e.kind() == ErrorKind::AlreadyExists => {
                 return Err(PublishError::Refused(
@@ -516,7 +519,11 @@ fn decode_shipment(
 
 fn validate_destination(adapter: &str, destination: &str) -> Result<()> {
     if adapter == COPY_TO_FOLDER {
-        safe_rel_path(destination)?;
+        copy_destination(destination).map_err(|_| {
+            PublishError::Refused(format!(
+                "invalid copy-to-folder destination: {destination:?}"
+            ))
+        })?;
     }
     Ok(())
 }
