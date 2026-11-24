@@ -195,3 +195,53 @@ fn five_thousand_entries_stay_indexed() {
         "every file group stays addressable"
     );
 }
+
+/// `index_of_key` agrees with the first-match row scan in every mailbox
+/// (plus the unfiltered and an unknown one), for row keys and `extra`.
+pub(crate) fn assert_index_matches_scan(m: &dyn Module, extra: &[&str]) {
+    let mut navs: Vec<Option<String>> = m.nav().items.into_iter().map(|i| Some(i.key)).collect();
+    navs.extend([None, Some("no-such-mailbox".into())]);
+    for nav in navs.iter().map(Option::as_deref) {
+        let keys: Vec<String> = (0..m.list_len(nav)).map(|i| m.row(nav, i).key).collect();
+        for k in keys.iter().map(String::as_str).chain(extra.iter().copied()) {
+            let scan = keys.iter().position(|x| x == k);
+            assert_eq!(m.index_of_key(nav, k), scan, "{nav:?} / {k:?}");
+        }
+    }
+}
+
+#[test]
+fn index_of_key_matches_the_row_scan_newest_first() {
+    let mut m = ActivityModule::default();
+    m.ingest(&env(
+        0,
+        EngineEvent::WatchSessionStarted {
+            schema: 1,
+            compiler: "boris/0.9.0".into(),
+        },
+    ));
+    m.ingest(&failed(1, BuildPhase::Initial, vec![diag("E1", "a.md", 1)]));
+    m.ingest(&failed(2, BuildPhase::Rebuild, vec![diag("E2", "b.md", 2)]));
+    m.ingest(&failed(3, BuildPhase::Rebuild, vec![diag("E2", "b.md", 3)]));
+    m.ingest(&ok(4, BuildPhase::Rebuild));
+    assert_index_matches_scan(&m, &["act-0", "act-+0", "act-00099", "act-", "", "x"]);
+    assert_eq!(m.index_of_key(None, &m.row(None, 0).key), Some(0));
+}
+
+#[test]
+fn nav_cache_refreshes_when_an_entry_lands() {
+    let all = |n: &NavModel| n.items.iter().find(|i| i.key == ALL).unwrap().count;
+    let mut m = ActivityModule::default();
+    m.ingest(&failed(1, BuildPhase::Initial, vec![diag("E1", "a.md", 1)]));
+    let before = m.nav();
+    assert_eq!(all(&before), Some(2));
+    m.ingest(&failed(2, BuildPhase::Rebuild, vec![diag("E2", "b.md", 2)]));
+    let after = m.nav();
+    assert_eq!(all(&after), Some(4));
+    assert!(after.items.iter().any(|i| i.key == "file:b.md"));
+    assert_eq!(after, m.build_nav());
+    // A folding rebuild changes no mailbox; the cached model still holds.
+    m.ingest(&failed(3, BuildPhase::Rebuild, vec![diag("E2", "b.md", 3)]));
+    assert_eq!(m.nav(), after);
+    assert_eq!(m.nav(), m.build_nav());
+}

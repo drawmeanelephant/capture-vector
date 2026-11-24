@@ -128,7 +128,16 @@ impl Module for OutputsModule {
     }
 
     fn load(&mut self, snap: &ProjectSnapshot) -> bool {
-        self.snap = snap.clone();
+        // Pages are only read below, for `sources`: don't copy their bodies.
+        self.snap = ProjectSnapshot {
+            epoch: snap.epoch,
+            compiler: snap.compiler.clone(),
+            target: snap.target.clone(),
+            pages: Vec::new(),
+            outputs: snap.outputs.clone(),
+            last_publish: snap.last_publish.clone(),
+            artifact_root: snap.artifact_root.clone(),
+        };
         self.by_class.clear();
         self.by_path.clear();
         self.sources.clear();
@@ -188,6 +197,14 @@ impl Module for OutputsModule {
             },
             rail: None,
         }
+    }
+
+    fn index_of_key(&self, nav: Option<&str>, key: &str) -> Option<usize> {
+        // `load` fills every view in path order.
+        let v = self.view(nav);
+        let path = |j: usize| self.snap.outputs[j].path.as_str();
+        let i = v.partition_point(|&j| path(j) < key);
+        v.get(i).is_some_and(|&j| path(j) == key).then_some(i)
     }
 
     fn reading(&self, key: &str) -> ReadingModel {

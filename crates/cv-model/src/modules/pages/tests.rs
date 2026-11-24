@@ -1,5 +1,5 @@
 use super::*;
-use crate::modules::activity::tests::{diag, env};
+use crate::modules::activity::tests::{assert_index_matches_scan, diag, env};
 use cv_core::events::engine::BuildPhase;
 
 pub(crate) fn page(path: &str, id: &str, parent: Option<&str>) -> PageRecord {
@@ -157,4 +157,61 @@ fn parent_cycles_are_listed_not_dropped() {
     });
     assert_eq!(m.list_len(None), 2);
     assert_eq!(m.reading("x.md").breadcrumbs, ["Y", "X"]);
+}
+
+fn diags_for(seq: u64, paths: &[Option<&str>]) -> Envelope {
+    let diagnostics = paths
+        .iter()
+        .map(|p| {
+            let mut d = diag("E", p.unwrap_or_default(), seq);
+            if p.is_none() {
+                d.span = None;
+            }
+            d
+        })
+        .collect();
+    env(
+        seq,
+        EngineEvent::BuildFailed {
+            phase: BuildPhase::Rebuild,
+            diagnostics,
+            recoverable: true,
+        },
+    )
+}
+
+#[test]
+fn index_of_key_matches_the_row_scan_in_every_mailbox() {
+    let extra = [PROJECT_KEY, "missing.md", ""];
+    let mut m = loaded();
+    assert_index_matches_scan(&m, &extra);
+    // Located, unlocated and unknown-path diagnostics: the project row.
+    m.ingest(&diags_for(1, &[Some("guides/a.md"), None, Some("gone.md")]));
+    assert_eq!(m.index_of_key(Some(ISSUES), PROJECT_KEY), Some(1));
+    assert_index_matches_scan(&m, &extra);
+    // A page whose path is the project key, and a duplicated path.
+    let mut s = snap();
+    s.pages.push(page(PROJECT_KEY, "proj", None));
+    s.pages.push(page("guides/a.md", "a2", Some("index")));
+    m.load(&s);
+    assert_index_matches_scan(&m, &extra);
+}
+
+#[test]
+fn nav_cache_refreshes_on_load_and_ingest() {
+    let count =
+        |m: &PagesModule, k: &str| m.nav().items.iter().find(|i| i.key == k).map(|i| i.count);
+    let mut m = loaded();
+    assert_eq!(count(&m, ISSUES), Some(Some(0)));
+    m.ingest(&diags_for(1, &[Some("orphan.md")]));
+    assert_eq!(count(&m, ISSUES), Some(Some(1)));
+    assert_eq!(m.nav(), m.build_nav());
+    let mut s = snap();
+    s.pages.push(page("guides/c.md", "c", Some("guides")));
+    s.pages.push(page("c/child.md", "c-child", Some("c")));
+    m.load(&s);
+    assert_eq!(count(&m, ALL), Some(Some(7)));
+    assert_eq!(count(&m, "tree:guides"), Some(Some(3)));
+    assert_eq!(count(&m, "tree:c"), Some(Some(1)));
+    assert_eq!(m.nav(), m.build_nav());
 }

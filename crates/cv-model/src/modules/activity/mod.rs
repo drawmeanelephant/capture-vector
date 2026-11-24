@@ -5,8 +5,8 @@
 //! `Diagnostic` value — the Pages inspector shows the very same value.
 
 use crate::module::{
-    InspectorModel, Link, Module, ModuleSpec, NavItem, NavModel, ReadingLine, ReadingModel,
-    Registry, RowModel, Slot, Tone,
+    InspectorModel, Link, Module, ModuleSpec, NavCache, NavItem, NavModel, ReadingLine,
+    ReadingModel, Registry, RowModel, Slot, Tone,
 };
 use cv_core::diagnostic::{Diagnostic, Severity};
 use cv_core::events::engine::{BuildPhase, EngineEvent, WatchEndReason};
@@ -169,6 +169,8 @@ pub struct ActivityModule {
     open: BTreeMap<DiagIdentity, usize>,
     /// The burst a further rebuild of the same outcome folds into.
     last_build: Option<usize>,
+    /// Built from `views` only, so `push` is its one invalidation point.
+    nav_cache: NavCache,
 }
 
 impl ActivityModule {
@@ -223,12 +225,64 @@ impl ActivityModule {
         for v in views {
             self.views.entry(v).or_default().push(i);
         }
+        self.nav_cache.invalidate();
         self.entries.push(Entry {
             key: format!("act-{i:05}"),
             kind,
             occurrences: vec![occ],
         });
         i
+    }
+
+    fn build_nav(&self) -> NavModel {
+        let count = |k: &str| Some(self.view(Some(k)).len() as u64);
+        let mut items = vec![
+            NavItem {
+                key: ALL.into(),
+                label: "All activity".into(),
+                count: count(ALL),
+            },
+            NavItem {
+                key: ERRORS.into(),
+                label: "Errors".into(),
+                count: count(ERRORS),
+            },
+            NavItem {
+                key: WARNINGS.into(),
+                label: "Warnings & notes".into(),
+                count: count(WARNINGS),
+            },
+            NavItem {
+                key: BUILDS.into(),
+                label: "Builds".into(),
+                count: count(BUILDS),
+            },
+        ];
+        let mut files: Vec<(&String, usize)> = self
+            .views
+            .range(FILE.to_string()..)
+            .take_while(|(k, _)| k.starts_with(FILE))
+            .map(|(k, v)| (k, v.len()))
+            .collect();
+        // Busiest files first; the mailbox list stays bounded and every
+        // diagnostic remains reachable through "All diagnostics".
+        files.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(b.0)));
+        let more = files.len().saturating_sub(MAX_FILE_GROUPS);
+        for (k, n) in files.into_iter().take(MAX_FILE_GROUPS) {
+            items.push(NavItem {
+                key: k.clone(),
+                label: k[FILE.len()..].into(),
+                count: Some(n as u64),
+            });
+        }
+        if more > 0 {
+            items.push(NavItem {
+                key: DIAGNOSTICS.into(),
+                label: format!("All diagnostics (+{more} files)"),
+                count: count(DIAGNOSTICS),
+            });
+        }
+        NavModel { items }
     }
 
     fn ingest_build(
@@ -353,54 +407,7 @@ impl Module for ActivityModule {
     }
 
     fn nav(&self) -> NavModel {
-        let count = |k: &str| Some(self.view(Some(k)).len() as u64);
-        let mut items = vec![
-            NavItem {
-                key: ALL.into(),
-                label: "All activity".into(),
-                count: count(ALL),
-            },
-            NavItem {
-                key: ERRORS.into(),
-                label: "Errors".into(),
-                count: count(ERRORS),
-            },
-            NavItem {
-                key: WARNINGS.into(),
-                label: "Warnings & notes".into(),
-                count: count(WARNINGS),
-            },
-            NavItem {
-                key: BUILDS.into(),
-                label: "Builds".into(),
-                count: count(BUILDS),
-            },
-        ];
-        let mut files: Vec<(&String, usize)> = self
-            .views
-            .range(FILE.to_string()..)
-            .take_while(|(k, _)| k.starts_with(FILE))
-            .map(|(k, v)| (k, v.len()))
-            .collect();
-        // Busiest files first; the mailbox list stays bounded and every
-        // diagnostic remains reachable through "All diagnostics".
-        files.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(b.0)));
-        let more = files.len().saturating_sub(MAX_FILE_GROUPS);
-        for (k, n) in files.into_iter().take(MAX_FILE_GROUPS) {
-            items.push(NavItem {
-                key: k.clone(),
-                label: k[FILE.len()..].into(),
-                count: Some(n as u64),
-            });
-        }
-        if more > 0 {
-            items.push(NavItem {
-                key: DIAGNOSTICS.into(),
-                label: format!("All diagnostics (+{more} files)"),
-                count: count(DIAGNOSTICS),
-            });
-        }
-        NavModel { items }
+        self.nav_cache.get_or_build(|| self.build_nav())
     }
 
     fn list_len(&self, nav: Option<&str>) -> usize {
@@ -427,6 +434,17 @@ impl Module for ActivityModule {
             tone: sev.map_or(Tone::Normal, severity_tone),
             rail: Some(sev.map_or(Tone::Ok, severity_tone)),
         }
+    }
+
+    fn index_of_key(&self, nav: Option<&str>, key: &str) -> Option<usize> {
+        let n: usize = key.strip_prefix("act-")?.parse().ok()?;
+        if self.entries.get(n)?.key != key {
+            return None;
+        }
+        // `push` appends each entry once per view, in entry order.
+        let v = self.view(nav);
+        let j = v.binary_search(&n).ok()?;
+        Some(v.len() - 1 - j)
     }
 
     fn reading(&self, key: &str) -> ReadingModel {
