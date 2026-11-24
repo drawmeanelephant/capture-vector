@@ -197,6 +197,34 @@ fn unreadable_artifacts_degrade_to_not_checked() {
 }
 
 #[test]
+fn unreadable_rebuild_keeps_previous_findings_unresolved() {
+    let mut m = module(vec![]);
+    m.ingest(&built(1));
+    let before = m.open_count();
+    let key = first_open(&m);
+    m.select(Some(&key));
+    m.run("audit.snooze");
+    let mut unavailable = snap();
+    unavailable.artifact_root = None;
+    m.load(&unavailable);
+    m.ingest(&built(2));
+    assert_eq!(m.list_len(Some("fixed")), 0);
+    assert_eq!(m.open_count(), before - 1);
+    assert_eq!(m.entry(&key).unwrap().state, FindingLifecycle::Ignored);
+    assert!(m.list_len(Some("limited")) > 0);
+    assert!(
+        m.reading(&key)
+            .lines
+            .iter()
+            .any(|l| l.text.contains("last good build"))
+    );
+    m.load(&snap());
+    m.ingest(&built(3));
+    assert_eq!(m.entry(&key).unwrap().state, FindingLifecycle::Ignored);
+    assert_eq!(m.open_count(), before - 1);
+}
+
+#[test]
 fn failed_build_marks_findings_stale() {
     let mut m = module(vec![]);
     m.ingest(&built(1));

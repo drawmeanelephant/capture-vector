@@ -4,6 +4,7 @@
 use cv_core::rules::{DedupKey, FindingLifecycle};
 use cv_model::modules::audit::AuditPort;
 use cv_store::audit::{DIR, LIFECYCLE, LifecycleLog};
+use std::io::Read;
 use std::path::{Component, Path};
 
 /// Rendered artifacts larger than this are reported unreadable.
@@ -38,15 +39,34 @@ impl AuditPort for DiskPort {
         if !p.components().all(|c| matches!(c, Component::Normal(_))) {
             return Err(format!("{rel}: path escapes the artifact root"));
         }
-        let path = Path::new(root).join(p);
+        let root = Path::new(root)
+            .canonicalize()
+            .map_err(|e| format!("{rel}: {e}"))?;
+        let path = root
+            .join(p)
+            .canonicalize()
+            .map_err(|e| format!("{rel}: {e}"))?;
+        if !path.starts_with(&root) {
+            return Err(format!("{rel}: path escapes the artifact root"));
+        }
         let meta = std::fs::metadata(&path).map_err(|e| format!("{rel}: {e}"))?;
+        if !meta.is_file() {
+            return Err(format!("{rel}: artifact is not a regular file"));
+        }
         if meta.len() > MAX_ARTIFACT_BYTES {
             return Err(format!(
                 "{rel}: {} bytes exceeds the audit limit",
                 meta.len()
             ));
         }
-        std::fs::read(&path).map_err(|e| format!("{rel}: {e}"))
+        let mut bytes = Vec::new();
+        std::fs::File::open(&path)
+            .and_then(|f| f.take(MAX_ARTIFACT_BYTES + 1).read_to_end(&mut bytes))
+            .map_err(|e| format!("{rel}: {e}"))?;
+        if bytes.len() as u64 > MAX_ARTIFACT_BYTES {
+            return Err(format!("{rel}: artifact exceeds the audit limit"));
+        }
+        Ok(bytes)
     }
 
     fn lifecycle(&mut self) -> Result<Vec<(DedupKey, FindingLifecycle)>, String> {
@@ -65,5 +85,25 @@ impl AuditPort for DiskPort {
             Some(_) => format!("{DIR}/{LIFECYCLE}"),
             None => "session only (no workspace)".into(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn artifact_symlinks_cannot_escape_the_build_root() {
+        let root = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let victim = outside.path().join("page.html");
+        std::fs::write(&victim, "outside").unwrap();
+        std::os::unix::fs::symlink(&victim, root.path().join("page.html")).unwrap();
+        let port = DiskPort::ephemeral();
+        assert!(
+            port.read(root.path().to_str().unwrap(), "page.html")
+                .is_err()
+        );
     }
 }

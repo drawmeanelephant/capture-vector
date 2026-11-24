@@ -126,6 +126,8 @@ pub fn open_workspace(
         );
         return None;
     }
+    wb.stop_watch();
+    wb.registry = Registry::default();
     let slot = live::EngineSlot::default();
     let research = cv_notes::disk::open(
         &root,

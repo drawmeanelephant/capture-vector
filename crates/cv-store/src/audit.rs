@@ -104,6 +104,7 @@ impl LifecycleLog {
             .append(true)
             .create(true)
             .open(&path)?;
+        file.try_lock().map_err(std::io::Error::other)?;
         let mut buf = Vec::new();
         file.read_to_end(&mut buf)?;
         let good = buf.iter().rposition(|b| *b == b'\n').map_or(0, |i| i + 1);
@@ -199,6 +200,20 @@ mod tests {
                 (key("B", "y"), FindingLifecycle::Wontfix)
             ]
         );
+    }
+
+    #[test]
+    fn a_second_writer_cannot_recover_the_active_journal() {
+        let root = tempfile::tempdir().unwrap();
+        let (mut log, _, _) = LifecycleLog::open(root.path()).unwrap();
+        log.append(&key("A", "x"), FindingLifecycle::Ignored)
+            .unwrap();
+        let before = std::fs::read(log.path()).unwrap();
+        assert!(LifecycleLog::open(root.path()).is_err());
+        assert_eq!(std::fs::read(log.path()).unwrap(), before);
+        drop(log);
+        let (_, records, _) = LifecycleLog::open(root.path()).unwrap();
+        assert_eq!(records, vec![(key("A", "x"), FindingLifecycle::Ignored)]);
     }
 
     #[test]

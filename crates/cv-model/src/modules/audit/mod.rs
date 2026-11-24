@@ -23,7 +23,7 @@ use cv_core::rules::{
 use cv_core::sys::Hash;
 use cv_rules::{ArtifactSet, AuditFinding, Export, HtmlPage, IrGraph, Ruleset};
 use std::cell::RefCell;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub const ID: &str = "audit";
 
@@ -143,6 +143,10 @@ pub struct Entry {
 impl Entry {
     fn failed(&self) -> bool {
         self.af.finding.status == CheckStatus::Failed
+    }
+
+    fn blocks_publish(&self) -> bool {
+        self.state != FindingLifecycle::Fixed && self.af.blocks_publish()
     }
 }
 
@@ -344,6 +348,8 @@ impl AuditModule {
     fn evaluate(&mut self) {
         let (set, errs) = self.artifact_set();
         let report = cv_rules::eval(&set, &self.rules);
+        let limited: BTreeSet<String> =
+            report.limited().map(|af| af.finding.code.clone()).collect();
         self.unreadable = errs;
         self.stale = false;
         self.hashes = Some((report.artifact_set_hash, report.ruleset_hash));
@@ -371,6 +377,14 @@ impl AuditModule {
         }
         for (_, mut e) in prev {
             if !e.failed() {
+                continue;
+            }
+            if limited.contains(&e.af.finding.code) {
+                self.stale = true;
+                if e.state != FindingLifecycle::Fixed {
+                    r.carried += 1;
+                }
+                next.push(e);
                 continue;
             }
             if e.state != FindingLifecycle::Fixed {
@@ -414,7 +428,7 @@ impl AuditModule {
                 FindingLifecycle::Open => {
                     push("open".into());
                     push(severity_label(e.af.severity).into());
-                    if e.af.blocks_publish() {
+                    if e.blocks_publish() {
                         push("blocking".into());
                     }
                 }
@@ -493,7 +507,7 @@ impl AuditModule {
         let mut out = Vec::new();
         if self.stale {
             out.push(warn(
-                "latest build failed — findings are from the last good build".into(),
+                "findings include results from the last good build".into(),
             ));
         }
         if !self.unreadable.is_empty() {
@@ -626,12 +640,12 @@ impl Module for AuditModule {
             line("authority", tier_label(f.tier).into(), false),
             ReadingLine {
                 label: Some("publish".into()),
-                text: if e.af.blocks_publish() {
+                text: if e.blocks_publish() {
                     "blocks publishing".into()
                 } else {
                     "advisory — does not block publishing".into()
                 },
-                tone: if e.af.blocks_publish() {
+                tone: if e.blocks_publish() {
                     Tone::Error
                 } else {
                     Tone::Normal
@@ -686,7 +700,7 @@ impl Module for AuditModule {
                     .into(),
                 ),
                 ("tier".into(), tier_label(f.tier).into()),
-                ("blocks".into(), e.af.blocks_publish().to_string()),
+                ("blocks".into(), e.blocks_publish().to_string()),
                 ("artifacts".into(), set),
                 ("ruleset".into(), rules),
                 ("packs".into(), DEFAULT_PACKS.join(", ")),

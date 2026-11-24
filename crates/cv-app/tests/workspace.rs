@@ -15,6 +15,46 @@ use std::time::{Duration, Instant};
 const SHIM_SH: &str = include_str!("../../cv-engine/tests/fake-boris/boris");
 const SHIM_BAT: &str = include_str!("../../cv-engine/tests/fake-boris/boris.bat");
 
+#[test]
+fn reopening_workspace_releases_and_reloads_the_findings_journal() {
+    let project = workspace("happy");
+    let recent = tempfile::tempdir().unwrap();
+    let fake = Fake::new("happy", None);
+    let env = fake.env(recent.path());
+    let mut wb = init();
+    for n in 0..2 {
+        open_workspace(&mut wb, project.path().into(), &env)
+            .unwrap()
+            .join()
+            .unwrap();
+        wb.drain();
+        assert!(
+            !wb.status.contains("finding snoozes not persisted"),
+            "{}",
+            wb.status
+        );
+        cv_app::open_corpus(&mut wb, cv_app::CANARY_CORPUS);
+        wb.drain();
+        let audit = wb.registry.index_of("audit").unwrap();
+        let module = wb.registry.get(audit).unwrap();
+        if n == 0 {
+            wb.active = audit;
+            wb.select_row(0);
+            wb.run_command("audit.snooze");
+            assert!(wb.status.ends_with("snoozed"), "{}", wb.status);
+        } else {
+            assert_eq!(module.list_len(Some("snoozed")), 1);
+            let row = module.row(Some("snoozed"), 0);
+            assert!(
+                module
+                    .inspector(&row.key)
+                    .fields
+                    .contains(&("sidecar".into(), ".cv/audit/lifecycle.jsonl".into()))
+            );
+        }
+    }
+}
+
 fn copy_tree(from: &Path, to: &Path) {
     std::fs::create_dir_all(to).unwrap();
     for e in std::fs::read_dir(from).unwrap().flatten() {
