@@ -31,7 +31,7 @@ or changed lines:
 | `fill`, `color` | Fill and text colour as `#rrggbbaa`, when not transparent (schema 1). |
 | `radius` | Corner radius in points, when not 0. |
 | `shadows` | `El::box_shadow` layers at their presented geometry: `[x, y, blur, spread, "#rrggbbaa", inset]`. Only on keyed nodes whose keyed path segments are unique, since Rune looks poses up by key. |
-| `scale` | Effective uniform scale, when not 1 (press scale, presence). |
+| `scale` | Effective uniform scale to 0.01, when not 1 (press scale, presence). |
 | `hover`, `press` | Hover and press track amounts, when above 0. Resting goldens never have them; harness tests use `Harness::hover` and `Harness::hold`. |
 | `focused`, `focus_visible` | Keyboard focus, and whether its ring shows. |
 | `selected` | A selected list, tree or table item (`El::focus_selected`). |

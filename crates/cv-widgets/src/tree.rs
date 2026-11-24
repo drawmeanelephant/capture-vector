@@ -16,6 +16,11 @@ fn r(v: f32) -> Value {
     json!(((v as f64) * 10.0).round() / 10.0)
 }
 
+/// Scale to 0.01: a press scale such as 0.97 must not round to 1.
+fn r2(v: f32) -> Value {
+    json!(((v as f64) * 100.0).round() / 100.0)
+}
+
 fn rect(a: [f32; 4]) -> Value {
     Value::Array(a.iter().map(|v| r(*v)).collect())
 }
@@ -89,8 +94,8 @@ fn node<S: 'static>(rt: &Runtime<S>, e: &ElementInfo, unique: bool) -> Value {
     if let Some(s) = unique.then(|| shadows(rt, &selector(&e.path))).flatten() {
         m.insert("shadows".into(), s);
     }
-    if r(e.scale) != json!(1.0) {
-        m.insert("scale".into(), r(e.scale));
+    if r2(e.scale) != json!(1.0) {
+        m.insert("scale".into(), r2(e.scale));
     }
     if e.hover > 0.0 {
         m.insert("hover".into(), r(e.hover));
@@ -175,6 +180,7 @@ mod tests {
             .child(col().child(card("dup", 1.0)))
             .child(col().child(card("dup", 3.0)))
             .child(col().key("plain").w(10.0).h(10.0))
+            .child(col().key("pressed").w(10.0).h(10.0).scale(0.97))
     }
 
     fn nodes() -> Vec<Value> {
@@ -217,6 +223,12 @@ mod tests {
         let dups = keyed(&ns, "dup");
         assert_eq!(dups.len(), 2);
         assert!(dups.iter().all(|n| n.get("shadows").is_none()));
+    }
+
+    #[test]
+    fn a_press_sized_scale_is_not_rounded_away() {
+        let ns = nodes();
+        assert_eq!(keyed(&ns, "pressed")[0]["scale"], json!(0.97));
     }
 
     #[test]
