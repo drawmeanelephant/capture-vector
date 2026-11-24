@@ -264,6 +264,16 @@ impl Module for ResearchModule {
         }
     }
 
+    /// One `notes` query instead of one per row.
+    fn index_of_key(&self, nav: Option<&str>, key: &str) -> Option<usize> {
+        let notes = self.notes(nav);
+        let empty_inbox = notes.is_empty() && nav.unwrap_or("inbox") == "inbox";
+        match notes.iter().position(|n| n.id.0 == key) {
+            None if empty_inbox && key == EMPTY => Some(0),
+            found => found,
+        }
+    }
+
     fn reading(&self, key: &str) -> ReadingModel {
         let nb = self.nb();
         let Some(n) = nb.note(&StableId(key.into())) else {

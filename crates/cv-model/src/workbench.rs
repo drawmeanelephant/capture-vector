@@ -27,7 +27,8 @@ pub const JOURNAL: &str = "shell.journal";
 
 /// Something a background thread (engine boot, watch pump) hands the UI
 /// loop. One queue so a resync snapshot lands before the envelope that
-/// triggered it.
+/// triggered it. Snapshots not yet drained coalesce to the latest: see
+/// `Inbox::send`.
 pub enum Inbound {
     Envelope(Envelope),
     Snapshot(ProjectSnapshot),
@@ -38,18 +39,71 @@ pub enum Inbound {
     Status(String),
 }
 
+/// What the queue carries. A snapshot waits in the `SnapshotSlot`; the
+/// queue holds a marker where the first undrained one was sent.
+#[allow(clippy::large_enum_variant)] // every message was an unboxed `Inbound` before the marker existed
+enum Queued {
+    Msg(Inbound),
+    Snapshot,
+}
+
+/// The latest snapshot not yet drained.
+#[derive(Default)]
+struct SnapshotSlot {
+    latest: Option<ProjectSnapshot>,
+    /// Set when the workbench resets or drops this queue.
+    closed: bool,
+}
+
+type Slot = Arc<Mutex<SnapshotSlot>>;
+
+fn lock(slot: &Slot) -> std::sync::MutexGuard<'_, SnapshotSlot> {
+    slot.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+fn close(slot: &Slot) {
+    let mut s = lock(slot);
+    s.closed = true;
+    s.latest = None;
+}
+
 /// `Send` handle onto the workbench queue: enqueue + wake the UI loop.
 /// Sends after `reset_project` land nowhere (the old queue is dropped).
 #[derive(Clone)]
 pub struct Inbox {
-    tx: Sender<Inbound>,
+    tx: Sender<Queued>,
+    snapshot: Slot,
     waker: Arc<Mutex<Option<Waker>>>,
 }
 
 impl Inbox {
     /// False once the workbench moved on (reset or dropped).
+    ///
+    /// A snapshot sent while an earlier one is still undrained replaces it
+    /// and takes its place in the queue. Every other message is queued
+    /// FIFO as sent, so their relative order is untouched, and whatever
+    /// was sent after a snapshot drains after one at least that new.
     pub fn send(&self, m: Inbound) -> bool {
-        let ok = self.tx.send(m).is_ok();
+        let ok = match m {
+            Inbound::Snapshot(snap) => {
+                let mut slot = lock(&self.snapshot);
+                if slot.closed {
+                    return false;
+                }
+                if slot.latest.replace(snap).is_some() {
+                    // The pending marker is queued and its wake delivered.
+                    return true;
+                }
+                // Queued under the slot lock, so no other sender can fill
+                // the slot and queue messages ahead of this marker.
+                let ok = self.tx.send(Queued::Snapshot).is_ok();
+                if !ok {
+                    slot.latest = None;
+                }
+                ok
+            }
+            m => self.tx.send(Queued::Msg(m)).is_ok(),
+        };
         if ok
             && let Some(w) = self
                 .waker
@@ -124,8 +178,9 @@ pub struct Workbench {
     seen: BTreeSet<(String, u64)>,
     /// Applied but not yet journaled (store write failed); retried on replay.
     unjournaled: BTreeSet<String>,
-    tx: Sender<Inbound>,
-    rx: Receiver<Inbound>,
+    tx: Sender<Queued>,
+    rx: Receiver<Queued>,
+    snapshot: Slot,
     waker: Arc<Mutex<Option<Waker>>>,
     store: Option<Box<dyn Store>>,
     watch: Option<Box<dyn WatchHandle>>,
@@ -156,6 +211,7 @@ impl Workbench {
             unjournaled: BTreeSet::new(),
             tx,
             rx,
+            snapshot: Slot::default(),
             waker: Arc::new(Mutex::new(None)),
             store: None,
             watch: None,
@@ -190,6 +246,7 @@ impl Workbench {
     pub fn inbox(&self) -> Inbox {
         Inbox {
             tx: self.tx.clone(),
+            snapshot: self.snapshot.clone(),
             waker: self.waker.clone(),
         }
     }
@@ -202,6 +259,8 @@ impl Workbench {
         let (tx, rx) = channel();
         self.tx = tx;
         self.rx = rx;
+        close(&self.snapshot);
+        self.snapshot = Slot::default();
         self.nav = registry
             .iter()
             .map(|m| m.nav().items.first().map(|i| i.key.clone()))
@@ -217,7 +276,14 @@ impl Workbench {
     /// Drain pending envelopes. Returns true when visible state changed.
     pub fn drain(&mut self) -> bool {
         let mut changed = false;
-        while let Ok(m) = self.rx.try_recv() {
+        while let Ok(q) = self.rx.try_recv() {
+            let m = match q {
+                Queued::Msg(m) => m,
+                Queued::Snapshot => match lock(&self.snapshot).latest.take() {
+                    Some(snap) => Inbound::Snapshot(snap),
+                    None => continue,
+                },
+            };
             changed |= match m {
                 Inbound::Envelope(env) => self.commit(&env),
                 Inbound::Snapshot(snap) => self.load_snapshot(&snap),
@@ -309,7 +375,7 @@ impl Workbench {
     /// Disclose a degraded state through the same commit path as engine events.
     pub fn disclose(&mut self, reason: DegradedReason) {
         let env = self.degraded_envelope(reason);
-        let _ = self.tx.send(Inbound::Envelope(env));
+        let _ = self.tx.send(Queued::Msg(Inbound::Envelope(env)));
         self.drain();
     }
 
@@ -426,16 +492,23 @@ impl Workbench {
         if i < self.list_len() && self.row(i).key == key {
             return;
         }
-        match (0..self.list_len()).find(|&j| self.row(j).key == key) {
+        match self.row_index(&key) {
             Some(j) => self.select_row(j),
             None => self.clear_selection(),
         }
     }
 
     pub fn select_key(&mut self, key: &str) {
-        if let Some(i) = (0..self.list_len()).find(|&i| self.row(i).key == key) {
+        if let Some(i) = self.row_index(key) {
             self.select_row(i);
         }
+    }
+
+    /// The first row of the active mailbox whose key is `key`.
+    fn row_index(&self, key: &str) -> Option<usize> {
+        self.registry
+            .get(self.active)?
+            .index_of_key(self.active_nav(), key)
     }
 
     fn move_row(&mut self, delta: isize) {
@@ -452,12 +525,16 @@ impl Workbench {
     }
 
     fn reclamp_rows(&mut self) {
-        if let Some((_, key)) = self.windows.primary.row.clone() {
-            let len = self.list_len();
-            match (0..len).find(|&i| self.row(i).key == key) {
-                Some(i) => self.windows.primary.row = Some((i, key)),
-                None => self.clear_selection(),
+        let Some((_, key)) = &self.windows.primary.row else {
+            return;
+        };
+        match self.row_index(key) {
+            Some(i) => {
+                if let Some(row) = &mut self.windows.primary.row {
+                    row.0 = i;
+                }
             }
+            None => self.clear_selection(),
         }
     }
 
@@ -670,6 +747,7 @@ fn digest(env: &Envelope) -> u64 {
 
 impl Drop for Workbench {
     fn drop(&mut self) {
+        close(&self.snapshot);
         self.stop_watch();
     }
 }

@@ -238,6 +238,17 @@ impl Module for DemoModule {
         }
     }
 
+    fn index_of_key(&self, nav: Option<&str>, key: &str) -> Option<usize> {
+        match nav {
+            Some("pages") => {
+                let n: usize = key.strip_prefix("page-")?.parse().ok()?;
+                let i = n.checked_sub(1)?;
+                (i < SYNTHETIC_PAGES && page_key(i) == key).then_some(i)
+            }
+            _ => self.events.iter().position(|e| e.key == key),
+        }
+    }
+
     fn reading(&self, key: &str) -> ReadingModel {
         if let Some(e) = self.events.iter().find(|e| e.key == key) {
             return ReadingModel {

@@ -115,6 +115,22 @@ pub struct InspectorModel {
     pub lists: Vec<(String, Vec<String>)>,
 }
 
+/// A module's `nav()` result, built on first read after a change. The
+/// owner calls `invalidate` on every `&mut self` path that can change
+/// its mailboxes, labels or counts; reads take `&self`, so no read can
+/// interleave with a mutation and see a stale model.
+#[derive(Debug, Default)]
+pub struct NavCache(std::sync::OnceLock<NavModel>);
+
+impl NavCache {
+    pub fn get_or_build(&self, build: impl FnOnce() -> NavModel) -> NavModel {
+        self.0.get_or_init(build).clone()
+    }
+    pub fn invalidate(&mut self) {
+        self.0.take();
+    }
+}
+
 /// Click-through target: a row key in another module's list.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Link {
@@ -186,6 +202,11 @@ pub trait Module {
     fn nav(&self) -> NavModel;
     fn list_len(&self, nav: Option<&str>) -> usize;
     fn row(&self, nav: Option<&str>, index: usize) -> RowModel;
+    /// Index of the first row in `nav` whose key is `key`. The default
+    /// builds every row; modules with large lists answer from an index.
+    fn index_of_key(&self, nav: Option<&str>, key: &str) -> Option<usize> {
+        (0..self.list_len(nav)).find(|&i| self.row(nav, i).key == key)
+    }
     fn reading(&self, key: &str) -> ReadingModel;
     fn inspector(&self, _key: &str) -> InspectorModel {
         InspectorModel::default()

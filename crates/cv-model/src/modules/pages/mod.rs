@@ -5,8 +5,8 @@
 
 use super::activity::severity_tone;
 use crate::module::{
-    InspectorModel, Link, Module, ModuleSpec, NavItem, NavModel, PageRecord, ProjectSnapshot,
-    ReadingLine, ReadingModel, Registry, RowModel, Slot, Tone,
+    InspectorModel, Link, Module, ModuleSpec, NavCache, NavItem, NavModel, PageRecord,
+    ProjectSnapshot, ReadingLine, ReadingModel, Registry, RowModel, Slot, Tone,
 };
 use cv_core::diagnostic::{Diagnostic, Severity};
 use cv_core::events::engine::EngineEvent;
@@ -37,6 +37,8 @@ pub struct PagesModule {
     children: BTreeMap<String, Vec<usize>>,
     /// Depth-first tree order (trunks, then their satellites).
     order: Vec<usize>,
+    /// Each page's position in `order`.
+    order_pos: Vec<usize>,
     depth: Vec<usize>,
     trunks: Vec<usize>,
     orphans: Vec<usize>,
@@ -45,6 +47,8 @@ pub struct PagesModule {
     /// The latest build's diagnostics, verbatim.
     diagnostics: Vec<Diagnostic>,
     build: Option<String>,
+    /// Invalidated by `load` and `ingest`, the only mutators.
+    nav_cache: NavCache,
 }
 
 impl PagesModule {
@@ -132,6 +136,10 @@ impl PagesModule {
             self.orphans.push(i);
             self.order.push(i);
         }
+        self.order_pos = vec![0; self.pages.len()];
+        for (pos, &i) in self.order.iter().enumerate() {
+            self.order_pos[i] = pos;
+        }
     }
 
     fn view(&self, nav: Option<&str>) -> &[usize] {
@@ -168,6 +176,43 @@ impl PagesModule {
                 }
             })
             .collect();
+    }
+
+    fn build_nav(&self) -> NavModel {
+        let n = |v: usize| Some(v as u64);
+        let mut items = vec![
+            NavItem {
+                key: ALL.into(),
+                label: "All pages".into(),
+                count: n(self.order.len()),
+            },
+            NavItem {
+                key: TRUNKS.into(),
+                label: "Trunks".into(),
+                count: n(self.trunks.len()),
+            },
+            NavItem {
+                key: ISSUES.into(),
+                label: "With diagnostics".into(),
+                count: n(self.list_len(Some(ISSUES))),
+            },
+            NavItem {
+                key: ORPHANS.into(),
+                label: "Missing parent".into(),
+                count: n(self.orphans.len()),
+            },
+        ];
+        for &i in &self.order {
+            let p = &self.pages[i];
+            if let Some(kids) = self.children.get(&p.id) {
+                items.push(NavItem {
+                    key: format!("{TREE}{}", p.id),
+                    label: format!("{}{}", "  ".repeat(self.depth[i]), p.title),
+                    count: n(kids.len()),
+                });
+            }
+        }
+        NavModel { items }
     }
 
     fn ancestors(&self, i: usize) -> Vec<usize> {
@@ -246,6 +291,7 @@ impl Module for PagesModule {
         self.diagnostics = diags.clone();
         self.build = env.build_id.as_ref().map(|b| b.0.clone());
         self.reindex_issues();
+        self.nav_cache.invalidate();
         true
     }
 
@@ -253,44 +299,12 @@ impl Module for PagesModule {
         self.pages = snap.pages.clone();
         self.rebuild();
         self.reindex_issues();
+        self.nav_cache.invalidate();
         true
     }
 
     fn nav(&self) -> NavModel {
-        let n = |v: usize| Some(v as u64);
-        let mut items = vec![
-            NavItem {
-                key: ALL.into(),
-                label: "All pages".into(),
-                count: n(self.order.len()),
-            },
-            NavItem {
-                key: TRUNKS.into(),
-                label: "Trunks".into(),
-                count: n(self.trunks.len()),
-            },
-            NavItem {
-                key: ISSUES.into(),
-                label: "With diagnostics".into(),
-                count: n(self.list_len(Some(ISSUES))),
-            },
-            NavItem {
-                key: ORPHANS.into(),
-                label: "Missing parent".into(),
-                count: n(self.orphans.len()),
-            },
-        ];
-        for &i in &self.order {
-            let p = &self.pages[i];
-            if let Some(kids) = self.children.get(&p.id) {
-                items.push(NavItem {
-                    key: format!("{TREE}{}", p.id),
-                    label: format!("{}{}", "  ".repeat(self.depth[i]), p.title),
-                    count: n(kids.len()),
-                });
-            }
-        }
-        NavModel { items }
+        self.nav_cache.get_or_build(|| self.build_nav())
     }
 
     fn list_len(&self, nav: Option<&str>) -> usize {
@@ -344,6 +358,22 @@ impl Module for PagesModule {
             },
             rail: self.worst(&p.path).map(severity_tone),
         }
+    }
+
+    fn index_of_key(&self, nav: Option<&str>, key: &str) -> Option<usize> {
+        let v = self.view(nav);
+        let page = match self.by_path.get(key) {
+            // `by_path` keeps the last page per path, so it names the only
+            // candidate just when paths are unique.
+            Some(&pi) if self.by_path.len() == self.pages.len() => match nav.unwrap_or(ALL) {
+                ALL => self.order_pos.get(pi).copied(),
+                _ => v.iter().position(|&x| x == pi),
+            },
+            Some(_) => v.iter().position(|&x| self.pages[x].path == key),
+            None => None,
+        };
+        let project = key == PROJECT_KEY && nav == Some(ISSUES) && self.unattached();
+        page.or(project.then_some(v.len()))
     }
 
     fn reading(&self, key: &str) -> ReadingModel {

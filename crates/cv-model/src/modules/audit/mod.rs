@@ -609,6 +609,12 @@ impl Module for AuditModule {
         }
     }
 
+    fn index_of_key(&self, nav: Option<&str>, key: &str) -> Option<usize> {
+        self.view(nav)
+            .iter()
+            .position(|&j| self.entries[j].id == key)
+    }
+
     fn reading(&self, key: &str) -> ReadingModel {
         let Some(e) = self.entry(key) else {
             return ReadingModel {

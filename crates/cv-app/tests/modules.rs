@@ -418,3 +418,43 @@ fn dogfood_keeps_watch_diagnostics_and_offers_only_live_links() {
     }
     assert!(offered < wb.list_len());
 }
+
+/// Every module's `index_of_key` agrees with the first-match row scan it
+/// replaces, in every mailbox, over every scene and broken corpus.
+#[test]
+fn index_of_key_matches_the_row_scan_in_every_module_and_mailbox() {
+    let mut cases: Vec<(String, Workbench)> = SCENES
+        .iter()
+        .map(|(name, f)| {
+            let mut wb = init();
+            f(&mut wb);
+            (format!("scene {name}"), wb)
+        })
+        .collect();
+    for corpus in BROKEN.iter().chain(&["dogfood"]) {
+        let mut wb = init();
+        open_broken(&mut wb, corpus);
+        cases.push((format!("corpus {corpus}"), wb));
+    }
+    cases.push(("300-page river".into(), big(300)));
+    for (case, wb) in &cases {
+        for m in wb.registry.iter() {
+            let id = m.spec().id;
+            let mut navs: Vec<Option<String>> =
+                m.nav().items.into_iter().map(|i| Some(i.key)).collect();
+            navs.push(None);
+            for nav in navs.iter().map(Option::as_deref) {
+                let mut first = std::collections::HashMap::new();
+                for i in 0..m.list_len(nav) {
+                    first.entry(m.row(nav, i).key).or_insert(i);
+                }
+                for (k, &i) in &first {
+                    assert_eq!(m.index_of_key(nav, k), Some(i), "{case}: {id} {nav:?} {k}");
+                }
+                if !first.contains_key("no/such-row.md") {
+                    assert_eq!(m.index_of_key(nav, "no/such-row.md"), None, "{case}: {id}");
+                }
+            }
+        }
+    }
+}
