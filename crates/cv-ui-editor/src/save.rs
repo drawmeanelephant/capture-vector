@@ -14,7 +14,7 @@
 use crate::buffer::Buffer;
 use cv_core::engine::{Engine, Fingerprint, PageDraft, WriteOutcome};
 use cv_core::sys::{Hash, Timestamp};
-use cv_store::paths::confined_file;
+use cv_store::paths::{confined_file, confirm_confined_file, create_confined_parent};
 use sha2::{Digest, Sha256};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -178,8 +178,8 @@ fn io(rel: &str, what: &str, e: std::io::Error) -> cv_core::Error {
 impl ContentWriter for FsWriter {
     fn write(&self, draft: &PageDraft) -> cv_core::Result<WriteOutcome> {
         let rel = draft.path.as_str();
-        let resolve = || confined_file(&self.root, Path::new(rel));
-        let target = resolve().map_err(|e| io(rel, "resolve", e))?;
+        let target =
+            confined_file(&self.root, Path::new(rel)).map_err(|e| io(rel, "resolve", e))?;
         let check = |target: &Path| -> cv_core::Result<Option<WriteOutcome>> {
             let found = retry_pinned(
                 || fingerprint_file(target),
@@ -199,8 +199,9 @@ impl ContentWriter for FsWriter {
         if let Some(stale) = check(&target)? {
             return Ok(stale);
         }
+        let target = create_confined_parent(&self.root, Path::new(rel))
+            .map_err(|e| io(rel, "create dir", e))?;
         let dir = target.parent().unwrap_or(&self.root);
-        std::fs::create_dir_all(dir).map_err(|e| io(rel, "create dir", e))?;
         let mut tmp = tempfile::Builder::new()
             .prefix(".cv-write-")
             .suffix(".tmp")
@@ -211,10 +212,11 @@ impl ContentWriter for FsWriter {
             .map_err(|e| io(rel, "stage", e))?;
         let mut tmp = Some(tmp);
         // Re-check the base on every attempt: a writer holding the file
-        // during a retry may have changed it before releasing.
+        // during a retry may have changed it before releasing, and a
+        // directory may have been swapped for a link.
         let stale = retry_pinned(
             || -> std::io::Result<Option<WriteOutcome>> {
-                let target = resolve()?;
+                let target = confirm_confined_file(&self.root, Path::new(rel))?;
                 match (fingerprint_file(&target)?, draft.base) {
                     (None, None) => {}
                     (Some(found), Some(base)) if found == base => {}

@@ -1,4 +1,8 @@
 //! Resolve paths from project data without following links below the root.
+//!
+//! Policy: every component below the root must be an ordinary directory or
+//! file; a symlink or reparse point is refused even when it points back
+//! inside the root. The root itself may be reached through a link.
 
 use std::fs::{self, Metadata};
 use std::io::{self, ErrorKind};
@@ -65,6 +69,53 @@ fn resolve(root: &Path, relative: &Path, file: bool) -> io::Result<PathBuf> {
         return Err(refused());
     }
     Ok(resolved)
+}
+
+/// Resolve a staged-write target like [`confined_file`] and create its
+/// missing parent directories one level at a time, checking each level is
+/// a real directory before descending into it, so nothing is created
+/// through a link. Ends with [`confirm_confined_file`]. A missing root is
+/// created as before; the root is trusted and may be a link.
+pub fn create_confined_parent(root: &Path, relative: &Path) -> io::Result<PathBuf> {
+    let target = confined_file(root, relative)?;
+    let mut dir = std::path::absolute(root)?;
+    let below_root = target
+        .parent()
+        .and_then(|parent| parent.strip_prefix(&dir).ok())
+        .ok_or_else(refused)?;
+    fs::create_dir_all(&dir)?;
+    for name in below_root.components() {
+        dir.push(name);
+        // `create_dir` never follows a link at the last component: an
+        // existing link or file reports `AlreadyExists` and is refused below.
+        match fs::create_dir(&dir) {
+            Ok(()) => {}
+            Err(e) if e.kind() == ErrorKind::AlreadyExists => {}
+            Err(e) => return Err(e),
+        }
+        let meta = fs::symlink_metadata(&dir)?;
+        if is_link(&meta) || !meta.is_dir() {
+            return Err(refused());
+        }
+    }
+    confirm_confined_file(root, relative)
+}
+
+/// Re-check a staged-write target right before staging or renaming: it
+/// must still resolve per [`confined_file`], and the canonical form of its
+/// parent must lie under the canonical root.
+///
+/// std offers no directory handles (`openat`/`O_NOFOLLOW`), so a process
+/// that swaps an already checked directory for a link between this check
+/// and the next create, stage, or rename can still redirect that single
+/// operation. Callers re-check before each step to keep the window small.
+pub fn confirm_confined_file(root: &Path, relative: &Path) -> io::Result<PathBuf> {
+    let target = confined_file(root, relative)?;
+    let parent = target.parent().ok_or_else(refused)?;
+    if !fs::canonicalize(parent)?.starts_with(fs::canonicalize(root)?) {
+        return Err(refused());
+    }
+    Ok(target)
 }
 
 /// Base for rebuildable indexes: OS app-data, `CV_APP_DATA` overriding
@@ -181,6 +232,18 @@ fn portable_name(name: &str) -> bool {
 mod tests {
     use super::*;
 
+    /// Directory links only: a Windows directory symlink or junction and a
+    /// Unix symlink all carry the reparse bit `is_link` checks. std has no
+    /// cross-platform link API, so the tests share one helper.
+    #[cfg(unix)]
+    fn link_dir(target: &Path, link: &Path) -> io::Result<()> {
+        std::os::unix::fs::symlink(target, link)
+    }
+    #[cfg(windows)]
+    fn link_dir(target: &Path, link: &Path) -> io::Result<()> {
+        std::os::windows::fs::symlink_dir(target, link)
+    }
+
     #[test]
     fn paths_have_the_same_interpretation_across_platforms() {
         for path in ["content/index.html", "posts/東京.html", ".cv/publish"] {
@@ -201,7 +264,6 @@ mod tests {
         }
     }
 
-    #[cfg(unix)]
     #[test]
     fn project_index_dir_stays_outside_cv_and_is_keyed_per_project() {
         let a = tempfile::tempdir().unwrap();
@@ -229,15 +291,58 @@ mod tests {
         }
     }
 
-    #[cfg(unix)]
     #[test]
     fn project_path_validation_refuses_linked_directories() {
         let root = tempfile::tempdir().unwrap();
         let other = tempfile::tempdir().unwrap();
-        std::os::unix::fs::symlink(other.path(), root.path().join("linked")).unwrap();
+        link_dir(other.path(), &root.path().join("linked")).unwrap();
 
         assert!(confined_file(root.path(), Path::new("linked/nested/page.md")).is_err());
         assert_eq!(std::fs::read_dir(other.path()).unwrap().count(), 0);
         assert!(confined_file(root.path(), Path::new("real/nested/page.md")).is_ok());
+    }
+
+    #[test]
+    fn staged_parent_creation_builds_missing_directories_inside_the_root() {
+        let root = tempfile::tempdir().unwrap();
+        let target = create_confined_parent(root.path(), Path::new("a/b/c/page.md")).unwrap();
+        assert_eq!(target, root.path().join("a/b/c/page.md"));
+        assert!(root.path().join("a/b/c").is_dir());
+        assert!(!target.exists());
+    }
+
+    #[test]
+    fn staged_parent_creation_refuses_a_linked_directory_without_creating_outside() {
+        let root = tempfile::tempdir().unwrap();
+        let other = tempfile::tempdir().unwrap();
+        link_dir(other.path(), &root.path().join("linked")).unwrap();
+
+        let err = create_confined_parent(root.path(), Path::new("linked/new/deeper/page.md"))
+            .unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::InvalidInput);
+        assert_eq!(std::fs::read_dir(other.path()).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn staged_parent_creation_works_when_the_root_is_reached_through_a_link() {
+        let real = tempfile::tempdir().unwrap();
+        let holder = tempfile::tempdir().unwrap();
+        let root = holder.path().join("workspace");
+        link_dir(real.path(), &root).unwrap();
+
+        create_confined_parent(&root, Path::new("content/new/page.md")).unwrap();
+        assert!(real.path().join("content/new").is_dir());
+    }
+
+    #[test]
+    fn confirmation_refuses_a_directory_swapped_for_a_link_after_creation() {
+        let root = tempfile::tempdir().unwrap();
+        let other = tempfile::tempdir().unwrap();
+        create_confined_parent(root.path(), Path::new("content/page.md")).unwrap();
+        std::fs::rename(root.path().join("content"), root.path().join("moved")).unwrap();
+        link_dir(other.path(), &root.path().join("content")).unwrap();
+
+        let err = confirm_confined_file(root.path(), Path::new("content/page.md")).unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::InvalidInput);
     }
 }

@@ -6,7 +6,7 @@
 use crate::error::{EngineError, Result};
 use cv_core::engine::{Fingerprint, WriteOutcome};
 use cv_core::sys::{Hash, Timestamp};
-use cv_store::paths::confined_file;
+use cv_store::paths::{confined_file, confirm_confined_file, create_confined_parent};
 use sha2::{Digest, Sha256};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -41,7 +41,11 @@ pub fn fingerprint(path: &Path) -> std::io::Result<Option<Fingerprint>> {
 
 /// Resolve a workspace-relative draft path without following links.
 pub fn resolve(root: &Path, rel: &str) -> Result<PathBuf> {
-    confined_file(root, Path::new(rel)).map_err(|e| match e.kind() {
+    confine(rel, confined_file(root, Path::new(rel)))
+}
+
+fn confine(rel: &str, resolved: std::io::Result<PathBuf>) -> Result<PathBuf> {
+    resolved.map_err(|e| match e.kind() {
         std::io::ErrorKind::InvalidInput => EngineError::PathEscape(rel.to_string()),
         _ => EngineError::Io(e),
     })
@@ -89,8 +93,8 @@ pub fn write_staged(
     if let Some(stale) = check(&target)? {
         return Ok(stale);
     }
+    let target = confine(rel, create_confined_parent(root, Path::new(rel)))?;
     let dir = target.parent().unwrap_or(root);
-    std::fs::create_dir_all(dir)?;
     let mut tmp = tempfile::Builder::new()
         .prefix(".cv-write-")
         .suffix(".tmp")
@@ -98,8 +102,8 @@ pub fn write_staged(
     tmp.write_all(body)?;
     tmp.as_file().sync_all()?;
     // Re-check right before the swap to narrow the race with an external
-    // editor; the rename itself is atomic.
-    let target = resolve(root, rel)?;
+    // editor or a swapped directory; the rename itself is atomic.
+    let target = confine(rel, confirm_confined_file(root, Path::new(rel)))?;
     if let Some(stale) = check(&target)? {
         return Ok(stale);
     }
@@ -121,6 +125,25 @@ pub fn write_staged(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A planted link below the root: a Unix symlink or a Windows directory
+    /// symlink/junction — all carry the reparse attribute `is_link` checks.
+    #[cfg(unix)]
+    fn link_dir(target: &Path, link: &Path) -> std::io::Result<()> {
+        std::os::unix::fs::symlink(target, link)
+    }
+    #[cfg(windows)]
+    fn link_dir(target: &Path, link: &Path) -> std::io::Result<()> {
+        std::os::windows::fs::symlink_dir(target, link)
+    }
+    #[cfg(unix)]
+    fn link_file(target: &Path, link: &Path) -> std::io::Result<()> {
+        std::os::unix::fs::symlink(target, link)
+    }
+    #[cfg(windows)]
+    fn link_file(target: &Path, link: &Path) -> std::io::Result<()> {
+        std::os::windows::fs::symlink_file(target, link)
+    }
 
     #[test]
     fn create_then_update_then_stale() {
@@ -172,18 +195,130 @@ mod tests {
         assert!(resolve(t.path(), r"C:\x.md").is_err());
     }
 
-    #[cfg(unix)]
     #[test]
     fn staged_write_refuses_linked_parent_before_creating_directories() {
         let root = tempfile::tempdir().unwrap();
         let other = tempfile::tempdir().unwrap();
-        std::os::unix::fs::symlink(other.path(), root.path().join("linked")).unwrap();
+        link_dir(other.path(), &root.path().join("linked")).unwrap();
 
         assert!(matches!(
             write_staged(root.path(), "linked/new/page.md", b"draft", None),
             Err(EngineError::PathEscape(_))
         ));
         assert_eq!(std::fs::read_dir(other.path()).unwrap().count(), 0);
+    }
+
+    /// Every entry under `dir` with file contents, for "unchanged" checks.
+    fn tree(dir: &Path) -> Vec<(PathBuf, Option<Vec<u8>>)> {
+        let mut out = Vec::new();
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            let meta = std::fs::symlink_metadata(&path).unwrap();
+            if meta.is_dir() {
+                out.push((path.clone(), None));
+                out.extend(tree(&path));
+            } else {
+                out.push((path.clone(), Some(std::fs::read(&path).unwrap())));
+            }
+        }
+        out.sort();
+        out
+    }
+
+    #[test]
+    fn staged_write_through_an_escaping_directory_link_leaves_the_outside_untouched() {
+        let root = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        std::fs::write(outside.path().join("authorized_keys"), b"theirs").unwrap();
+        std::fs::create_dir(outside.path().join("sub")).unwrap();
+        link_dir(outside.path(), &root.path().join("link")).unwrap();
+        let before = tree(outside.path());
+        let base = fingerprint(&outside.path().join("authorized_keys")).unwrap();
+
+        for (rel, expected) in [
+            ("link/authorized_keys", None),
+            ("link/authorized_keys", base),
+            ("link/new.md", None),
+            ("link/sub/new.md", None),
+            ("link/sub/fresh/deeper/new.md", None),
+        ] {
+            assert!(
+                matches!(
+                    write_staged(root.path(), rel, b"planted", expected),
+                    Err(EngineError::PathEscape(_))
+                ),
+                "{rel}"
+            );
+        }
+        assert_eq!(tree(outside.path()), before);
+    }
+
+    #[test]
+    fn staged_write_refuses_a_directory_link_that_stays_inside_the_root() {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::create_dir(root.path().join("real")).unwrap();
+        link_dir(&root.path().join("real"), &root.path().join("alias")).unwrap();
+
+        assert!(matches!(
+            write_staged(root.path(), "alias/page.md", b"draft", None),
+            Err(EngineError::PathEscape(_))
+        ));
+        assert_eq!(
+            std::fs::read_dir(root.path().join("real")).unwrap().count(),
+            0
+        );
+    }
+
+    #[test]
+    fn staged_write_refuses_a_linked_final_target_and_keeps_the_link() {
+        let root = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let victim = outside.path().join("victim.md");
+        std::fs::write(&victim, b"theirs").unwrap();
+        let link = root.path().join("page.md");
+        link_file(&victim, &link).unwrap();
+
+        assert!(matches!(
+            write_staged(root.path(), "page.md", b"draft", None),
+            Err(EngineError::PathEscape(_))
+        ));
+        assert_eq!(std::fs::read(&victim).unwrap(), b"theirs");
+        assert!(
+            std::fs::symlink_metadata(&link)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+    }
+
+    #[test]
+    fn staged_write_works_when_the_root_is_reached_through_a_link() {
+        let real = tempfile::tempdir().unwrap();
+        let holder = tempfile::tempdir().unwrap();
+        let root = holder.path().join("workspace");
+        link_dir(real.path(), &root).unwrap();
+
+        assert!(matches!(
+            write_staged(&root, "content/new/page.md", b"draft", None),
+            Ok(WriteOutcome::Written { .. })
+        ));
+        assert_eq!(
+            std::fs::read(real.path().join("content/new/page.md")).unwrap(),
+            b"draft"
+        );
+    }
+
+    #[test]
+    fn staged_write_creates_nested_directories_inside_the_root() {
+        let root = tempfile::tempdir().unwrap();
+        assert!(matches!(
+            write_staged(root.path(), "content/a/b/page.md", b"draft", None),
+            Ok(WriteOutcome::Written { .. })
+        ));
+        assert_eq!(
+            std::fs::read(root.path().join("content/a/b/page.md")).unwrap(),
+            b"draft"
+        );
     }
 
     #[test]
