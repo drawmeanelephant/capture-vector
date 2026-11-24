@@ -506,7 +506,7 @@
       "rect": [
         287.0,
         3.5,
-        132.3,
+        133.3,
         15.0
       ],
       "role": "text",
@@ -516,7 +516,7 @@
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-act-00002/#2",
       "rect": [
-        427.3,
+        428.3,
         11.0,
         0.0,
         0.0
@@ -528,13 +528,13 @@
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-act-00002/#3",
       "rect": [
-        435.3,
+        436.3,
         4.1,
-        144.7,
+        143.7,
         13.8
       ],
       "role": "text",
-      "text": "3 pages · 11 ms · 0 diagnostics"
+      "text": "3 pages · 2 ms · 0 diagnostics"
     },
     {
       "fill": "#14171dff",
@@ -569,7 +569,7 @@
       "rect": [
         287.0,
         25.5,
-        128.7,
+        128.5,
         15.0
       ],
       "role": "text",
@@ -579,7 +579,7 @@
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-act-00001/#2",
       "rect": [
-        423.7,
+        423.5,
         33.0,
         0.0,
         0.0
@@ -591,13 +591,13 @@
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-act-00001/#3",
       "rect": [
-        431.7,
+        431.5,
         26.1,
-        148.3,
+        148.5,
         13.8
       ],
       "role": "text",
-      "text": "3 pages · 5 ms · 0 diagnostics"
+      "text": "3 pages · 4 ms · 0 diagnostics"
     },
     {
       "fill": "#14171dff",
@@ -724,7 +724,7 @@
         15.0
       ],
       "role": "text",
-      "text": "3 pages · 11 ms · 0 diagnostics"
+      "text": "3 pages · 2 ms · 0 diagnostics"
     },
     {
       "key": "line-1",
