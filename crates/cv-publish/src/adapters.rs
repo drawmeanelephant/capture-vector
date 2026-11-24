@@ -228,11 +228,19 @@ impl DeliveryAdapter for RunCommand {
 }
 
 /// HTTP transport port — the shell supplies the real client.
+///
+/// Auth is a *header* the transport writes — `("Authorization",
+/// &secret)` — never material to fold into the URL or request line.
+/// Keeping the shape header-only means a transport that logs the
+/// request line can't leak a credential by accident. When the real
+/// transport lands it must be: https-only, explicit timeout, bounded
+/// response body, no cross-origin redirect while an auth header is
+/// attached, and it must never log URL+auth together.
 pub trait HttpTransport {
     fn post(
         &self,
         url: &str,
-        auth: Option<&Secret>,
+        auth_header: Option<(&'static str, &Secret)>,
         content_type: &str,
         body: &[u8],
     ) -> Result<u16, TransportFailure>;
@@ -252,12 +260,13 @@ impl<T: HttpTransport> DeliveryAdapter for HttpPost<T> {
     }
 
     fn deliver(&self, d: &Delivery<'_>) -> Result<Delivered, TransportFailure> {
-        let auth = match &self.secret {
-            Some(name) => Some(
+        let auth_header = match &self.secret {
+            Some(name) => Some((
+                "Authorization",
                 d.secrets
                     .get(name)
                     .map_err(|e| TransportFailure::before_contact(e.to_string()))?,
-            ),
+            )),
             None => None,
         };
         let base = d.config.deploy.base_url.trim_end_matches('/');
@@ -279,7 +288,7 @@ impl<T: HttpTransport> DeliveryAdapter for HttpPost<T> {
             .map_err(|e| TransportFailure::before_contact(e.to_string()))?;
         let status = self.transport.post(
             &d.config.destination,
-            auth.as_ref(),
+            auth_header.as_ref().map(|(n, s)| (*n, s)),
             "application/json",
             &body,
         )?;
