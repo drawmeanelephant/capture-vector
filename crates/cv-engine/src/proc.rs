@@ -358,6 +358,48 @@ mod tests {
     }
 
     #[test]
+    fn capture_stops_reading_an_endless_stream_after_the_limit() {
+        struct Endless(Arc<std::sync::atomic::AtomicUsize>);
+        impl Read for Endless {
+            fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+                buf.fill(b'x');
+                self.0.fetch_add(buf.len(), Ordering::SeqCst);
+                Ok(buf.len())
+            }
+        }
+        let pulled = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let result = capture(Endless(pulled.clone()), "stdout", 1024)
+            .join()
+            .unwrap();
+        assert!(matches!(
+            result,
+            Err(EngineError::OutputLimitExceeded {
+                stream: "stdout",
+                limit: 1024
+            })
+        ));
+        // One read chunk past the limit is the most that is ever pulled.
+        assert!(pulled.load(Ordering::SeqCst) <= 1024 + 8192);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn endless_child_output_fails_at_the_limit_instead_of_hanging() {
+        for (script, expected_stream) in [("exec yes", "stdout"), ("exec yes 1>&2", "stderr")] {
+            let start = Instant::now();
+            let result =
+                run_captured_with_limit(shell_command(script), None, &CancelToken::new(), 1024);
+            assert!(matches!(
+                result,
+                Err(EngineError::OutputLimitExceeded { stream, limit: 1024 })
+                    if stream == expected_stream
+            ));
+            // The writer is killed rather than left blocked on a full pipe.
+            assert!(start.elapsed() < Duration::from_secs(10));
+        }
+    }
+
+    #[test]
     fn cancel_kills_the_tree() {
         #[cfg(unix)]
         let script = "sleep 30 & sleep 30; wait";
