@@ -160,7 +160,7 @@ pub fn open_workspace(
             // the workspace (a symlink) gets no writer, so promotion
             // refuses instead of writing elsewhere.
             let inside =
-                workspace::normalize(&root.join(&input)).map_or(true, |p| p.starts_with(&root));
+                workspace::normalize(&root.join(&input)).is_ok_and(|p| p.starts_with(&root));
             let port = if inside {
                 r.port.with_writer(Box::new(live::SlotEngine(slot.clone())))
             } else {
