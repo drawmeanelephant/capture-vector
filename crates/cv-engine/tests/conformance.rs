@@ -252,6 +252,107 @@ fn stub_equals_process_on_every_corpus() {
     }
 }
 
+/// Watch lifecycle at the port, as one engine-neutral transcript: the
+/// first watch never reuses the one-shot session (a cursor tracker would
+/// read its events as duplicates), a concurrent second watch is refused
+/// without disturbing the live one, and a stale handle can't end a newer
+/// session.
+fn lifecycle(engine: &dyn Engine) -> Vec<String> {
+    use cv_engine::cursor::{CursorTracker, Observation};
+    let ended = |got: &std::sync::Arc<std::sync::Mutex<Vec<Envelope>>>| {
+        wait_until("watch end", T, || {
+            got.lock().unwrap().iter().any(|e| {
+                matches!(
+                    engine_payload(e),
+                    Some(EngineEvent::WatchSessionEnded { .. })
+                )
+            })
+        })
+    };
+    let mut out = vec![];
+    let mut tracker = CursorTracker::new();
+    let (sink, got) = collector();
+    engine.run(&Verb::Build, sink).unwrap();
+    for (i, e) in got.lock().unwrap().iter().enumerate() {
+        let obs = tracker.observe(&e.cursor);
+        assert!(i == 0 || obs == Observation::Next, "one-shot #{i}: {obs:?}");
+    }
+
+    let (sink, got) = collector();
+    let mut h1 = engine.watch(sink).unwrap();
+    wait_until("hello", T, || !got.lock().unwrap().is_empty());
+    let first = got.lock().unwrap()[0].cursor.clone();
+    let obs = tracker.observe(&first);
+    out.push(format!(
+        "first watch: {}",
+        matches!(obs, Observation::Resync(_))
+    ));
+
+    let (sink2, got2) = collector();
+    match engine.watch(sink2) {
+        Ok(_) => out.push("overlap: accepted".into()),
+        Err(e) => out.push(format!("overlap: {e}")),
+    }
+    out.push(format!(
+        "refused sink: {} events",
+        got2.lock().unwrap().len()
+    ));
+
+    h1.stop();
+    ended(&got);
+    let s1 = h1.session().clone();
+    let ends_in = |got: &std::sync::Arc<std::sync::Mutex<Vec<Envelope>>>| {
+        got.lock()
+            .unwrap()
+            .iter()
+            .filter(|e| {
+                matches!(
+                    engine_payload(e),
+                    Some(EngineEvent::WatchSessionEnded { .. })
+                )
+            })
+            .map(|e| e.cursor.session.clone())
+            .collect::<Vec<_>>()
+    };
+    out.push(format!(
+        "h1 ends own session: {}",
+        ends_in(&got) == [s1.clone()]
+    ));
+
+    let (sink, got) = collector();
+    let h2 = engine.watch(sink).unwrap();
+    out.push(format!("restart rotates: {}", *h2.session() != s1));
+    h1.stop();
+    drop(h1);
+    out.push(format!("stale stop ends h2: {}", !ends_in(&got).is_empty()));
+    drop(h2);
+    ended(&got);
+    out
+}
+
+#[test]
+fn watch_lifecycle_equals_across_engines() {
+    let fake = FakeBoris::corpus("happy");
+    fake.set("watch-hold", "");
+    let s = lifecycle(&StubEngine::new("happy"));
+    let p = lifecycle(&fake.engine());
+    assert_eq!(s, p);
+    assert_eq!(
+        s,
+        [
+            "first watch: true",
+            &format!(
+                "overlap: engine: {}",
+                cv_fixtures::stub_engine::WATCH_ALREADY_LIVE
+            ),
+            "refused sink: 0 events",
+            "h1 ends own session: true",
+            "restart rotates: true",
+            "stale stop ends h2: false",
+        ]
+    );
+}
+
 /// The stub replays captured exit codes through `ExitClass::from_code`;
 /// the subprocess must classify every raw code the same way.
 #[test]

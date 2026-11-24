@@ -14,7 +14,7 @@ use cv_core::events::{
 };
 use cv_core::id::WorkspaceId;
 use cv_core::rules::ArtifactSet;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 /// Replays one corpus's captured watch session + verb results.
@@ -24,14 +24,20 @@ pub struct StubEngine {
 }
 
 /// Cursor semantics match `cv-engine`'s emitter: `(session, seq)` with a
-/// gap-free seq per session, and every watch start opens a new session.
+/// gap-free seq per session; one-shot verbs before any watch run in
+/// `stub-session`, and every watch start opens a fresh session
+/// (`stub-session-2`, `-3`, …). One watch at a time, as `ProcessEngine`.
 /// Event and build ids stay globally unique across sessions.
 struct StubEmitter {
     minted: AtomicU64,
     watches: AtomicU64,
+    live: AtomicBool,
     cursor: Mutex<(SessionId, u64)>,
     sent: Mutex<Vec<EngineEvent>>,
 }
+
+/// `cv_engine::EngineError::WatchAlreadyLive` as it crosses the port.
+pub const WATCH_ALREADY_LIVE: &str = "a watch session is already live for this workspace";
 
 impl StubEmitter {
     fn next_build(&self) -> BuildId {
@@ -40,17 +46,22 @@ impl StubEmitter {
 
     fn rotate(&self) -> SessionId {
         let n = self.watches.fetch_add(1, Ordering::SeqCst);
-        let session = SessionId(match n {
-            0 => "stub-session".into(),
-            n => format!("stub-session-{}", n + 1),
-        });
+        let session = SessionId(format!("stub-session-{}", n + 2));
         *self.cursor.lock().unwrap() = (session.clone(), 0);
         session
     }
 
     fn emit(&self, sink: &mut EventSink, payload: EngineEvent) {
+        self.emit_in(sink, None, payload);
+    }
+
+    /// With `only_in`, drop the event once the session has rotated away.
+    fn emit_in(&self, sink: &mut EventSink, only_in: Option<&SessionId>, payload: EngineEvent) {
         let (cursor, id) = {
             let mut c = self.cursor.lock().unwrap();
+            if only_in.is_some_and(|s| *s != c.0) {
+                return;
+            }
             let cursor = Cursor {
                 session: c.0.clone(),
                 seq: c.1,
@@ -84,12 +95,14 @@ impl WatchHandle for StubWatch {
     }
     fn stop(&mut self) {
         if let Some(mut sink) = self.sink.take() {
-            self.emitter.emit(
+            self.emitter.emit_in(
                 &mut sink,
+                Some(&self.session),
                 EngineEvent::WatchSessionEnded {
                     reason: WatchEndReason::Killed,
                 },
             );
+            self.emitter.live.store(false, Ordering::SeqCst);
         }
     }
 }
@@ -107,6 +120,7 @@ impl StubEngine {
             emitter: Arc::new(StubEmitter {
                 minted: AtomicU64::new(0),
                 watches: AtomicU64::new(0),
+                live: AtomicBool::new(false),
                 cursor: Mutex::new((SessionId("stub-session".into()), 0)),
                 sent: Mutex::new(Vec::new()),
             }),
@@ -128,8 +142,13 @@ impl StubEngine {
 
     /// Replay the corpus's recorded watch NDJSON session, mapping each
     /// upstream line onto engine events. Malformed lines surface as
-    /// `MalformedLine`, never silently.
-    pub fn replay_watch(&self, mut sink: EventSink) -> Box<dyn WatchHandle> {
+    /// `MalformedLine`, never silently. Panics if a watch is already live
+    /// (`Engine::watch` returns the error instead).
+    pub fn replay_watch(&self, sink: EventSink) -> Box<dyn WatchHandle> {
+        self.watch(sink).expect(WATCH_ALREADY_LIVE)
+    }
+
+    fn start_replay(&self, mut sink: EventSink) -> Box<dyn WatchHandle> {
         let session = self.emitter.rotate();
         let ndjson = crate::corpus(&self.corpus).file_str("watch/session.ndjson");
         for line in ndjson.lines() {
@@ -268,7 +287,10 @@ impl Engine for StubEngine {
     }
 
     fn watch(&self, sink: EventSink) -> cv_core::Result<Box<dyn WatchHandle>> {
-        Ok(self.replay_watch(sink))
+        if self.emitter.live.swap(true, Ordering::SeqCst) {
+            return Err(cv_core::Error::Engine(WATCH_ALREADY_LIVE.into()));
+        }
+        Ok(self.start_replay(sink))
     }
 
     fn run(&self, cmd: &Verb, mut sink: EventSink) -> cv_core::Result<ExitClass> {
