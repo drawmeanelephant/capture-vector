@@ -644,7 +644,6 @@ mod tests {
 
     /// A regression that blocks in `open` fails here instead of hanging
     /// the test run; the stuck thread is abandoned.
-    #[cfg(unix)]
     fn before_deadline<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> T {
         let (tx, rx) = std::sync::mpsc::channel();
         std::thread::spawn(move || {
@@ -661,7 +660,20 @@ mod tests {
         assert_eq!(unsafe { libc::mkfifo(c.as_ptr(), 0o600) }, 0, "mkfifo");
     }
 
+    /// File links only: a Windows symlink and a Unix symlink both carry
+    /// the reparse bit `is_link` checks. std has no cross-platform link
+    /// API, so the tests share one helper. FIFOs and devices stay
+    /// unix-only — Windows has no equivalent a page open could hit.
     #[cfg(unix)]
+    fn link_file(target: &Path, link: &Path) -> io::Result<()> {
+        std::os::unix::fs::symlink(target, link)
+    }
+
+    #[cfg(windows)]
+    fn link_file(target: &Path, link: &Path) -> io::Result<()> {
+        std::os::windows::fs::symlink_file(target, link)
+    }
+
     fn scan_pages(root: &Path) -> Vec<String> {
         let root = root.to_path_buf();
         before_deadline(move || {
@@ -693,22 +705,19 @@ mod tests {
         assert_eq!(scan_pages(root), ["b-page.md"]);
     }
 
-    #[cfg(unix)]
     #[test]
     fn scan_skips_a_link_to_a_page_outside_the_root() {
         let outside = tempfile::tempdir().unwrap();
         write(outside.path(), "secret.md", "Outside");
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path();
-        std::os::unix::fs::symlink(outside.path().join("secret.md"), root.join("a-link.md"))
-            .unwrap();
+        link_file(&outside.path().join("secret.md"), &root.join("a-link.md")).unwrap();
         write(root, "b-page.md", "Body");
 
         assert_eq!(scan_pages(root), ["b-page.md"]);
     }
 
     /// Stands in for an entry replaced between the type check and the open.
-    #[cfg(unix)]
     fn read_swapped(swapped_in: PathBuf, checked: Metadata) -> Option<String> {
         before_deadline(move || {
             let mut left = MAX_TOTAL_SOURCE_BYTES;
@@ -728,7 +737,6 @@ mod tests {
         assert_eq!(read_swapped(root.join("pipe.md"), checked), None);
     }
 
-    #[cfg(unix)]
     #[test]
     fn regular_text_does_not_follow_a_link_swapped_in_after_the_type_check() {
         let outside = tempfile::tempdir().unwrap();
@@ -736,7 +744,7 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path();
         write(root, "page.md", "Body");
-        std::os::unix::fs::symlink(outside.path().join("secret.md"), root.join("link.md")).unwrap();
+        link_file(&outside.path().join("secret.md"), &root.join("link.md")).unwrap();
         let checked = fs::symlink_metadata(root.join("page.md")).unwrap();
 
         assert_eq!(read_swapped(root.join("link.md"), checked.clone()), None);
