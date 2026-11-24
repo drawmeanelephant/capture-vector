@@ -144,3 +144,14 @@ fn second_writer_is_refused() {
     drop(j);
     assert!(Journal::open(dir.path()).is_ok());
 }
+
+#[test]
+fn drifted_proof_schema_is_refused_not_lifted() {
+    let mut a: serde_json::Value = serde_json::from_slice(&proof("artifacts.json")).unwrap();
+    a["schema_version"] = serde_json::json!(2);
+    let err = ingest::from_bytes(&run(), Some(a.to_string().as_bytes()), None, None).unwrap_err();
+    assert!(
+        err.to_string().contains("schema_version 2"),
+        "unexpected error: {err}"
+    );
+}

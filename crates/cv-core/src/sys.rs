@@ -99,7 +99,10 @@ impl SeqIdGen {
 impl IdGen for SeqIdGen {
     fn next(&mut self) -> crate::id::StableId {
         let id = crate::id::StableId(format!("{}-{:06}", self.prefix, self.next));
-        self.next += 1;
+        self.next = self
+            .next
+            .checked_add(1)
+            .expect("SeqIdGen counter exhausted");
         id
     }
 }

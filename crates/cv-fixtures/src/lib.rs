@@ -32,6 +32,7 @@ impl Corpus {
     /// Verified bytes of one captured file, e.g. `watch/session.ndjson`
     /// or `build/stderr.txt`.
     pub fn file(&self, rel: &str) -> Vec<u8> {
+        check_rel(rel);
         let path = self.dir.join(&self.name).join(rel);
         let key = format!("captures/{}/{rel}", self.name);
         let bytes = std::fs::read(&path)
@@ -48,6 +49,7 @@ impl Corpus {
 
     /// The corpus source tree (authoring inputs that produced captures).
     pub fn corpus_src(&self, rel: &str) -> PathBuf {
+        check_rel(rel);
         let p = fixtures_root()
             .join("corpus-src")
             .join(&self.name)
@@ -62,8 +64,22 @@ impl Corpus {
     }
 }
 
+/// A fixture-relative path can't leave the fixture tree: no `..`,
+/// absolute, or rooted components. The manifest verifies bytes, not
+/// paths — this is what keeps a stray caller from walking out.
+fn check_rel(rel: &str) {
+    assert!(
+        !rel.is_empty()
+            && std::path::Path::new(rel)
+                .components()
+                .all(|c| matches!(c, std::path::Component::Normal(_))),
+        "fixture path {rel:?} must be a plain relative path"
+    );
+}
+
 /// Open a corpus by name (`happy`, `broken-frontmatter`, …).
 pub fn corpus(name: &str) -> Corpus {
+    check_rel(name);
     let manifest = Manifest::load(&fixtures_root().join("MANIFEST.toml"));
     let dir = fixtures_root().join("captures");
     assert!(

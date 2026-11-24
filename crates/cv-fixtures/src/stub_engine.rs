@@ -47,7 +47,7 @@ impl StubEmitter {
     fn rotate(&self) -> SessionId {
         let n = self.watches.fetch_add(1, Ordering::SeqCst);
         let session = SessionId(format!("stub-session-{}", n + 2));
-        *self.cursor.lock().unwrap() = (session.clone(), 0);
+        *self.cursor.lock().unwrap_or_else(|e| e.into_inner()) = (session.clone(), 0);
         session
     }
 
@@ -58,7 +58,7 @@ impl StubEmitter {
     /// With `only_in`, drop the event once the session has rotated away.
     fn emit_in(&self, sink: &mut EventSink, only_in: Option<&SessionId>, payload: EngineEvent) {
         let (cursor, id) = {
-            let mut c = self.cursor.lock().unwrap();
+            let mut c = self.cursor.lock().unwrap_or_else(|e| e.into_inner());
             if only_in.is_some_and(|s| *s != c.0) {
                 return;
             }
@@ -67,7 +67,10 @@ impl StubEmitter {
                 seq: c.1,
             };
             c.1 += 1;
-            self.sent.lock().unwrap().push(payload.clone());
+            self.sent
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .push(payload.clone());
             (cursor, self.minted.fetch_add(1, Ordering::SeqCst))
         };
         sink(Envelope {
@@ -129,7 +132,11 @@ impl StubEngine {
 
     /// Events emitted so far — the conformance surface lanes assert on.
     pub fn sent(&self) -> Vec<EngineEvent> {
-        self.emitter.sent.lock().unwrap().clone()
+        self.emitter
+            .sent
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     fn next_build(&self) -> BuildId {
@@ -202,7 +209,11 @@ fn watch_diagnostic(d: &WatchDiagnostic, build: &BuildId) -> Diagnostic {
             line: d.line.unwrap_or(0),
             col: d
                 .col
-                .or_else(|| extra("column").and_then(|v| v.as_u64()).map(|c| c as u32))
+                .or_else(|| {
+                    extra("column")
+                        .and_then(|v| v.as_u64())
+                        .map(|c| u32::try_from(c).unwrap_or(u32::MAX))
+                })
                 .unwrap_or(0),
         }),
         message: d.message.clone().unwrap_or_default(),
@@ -249,7 +260,7 @@ fn map_event(ev: WatchEvent, build: &BuildId) -> Option<EngineEvent> {
                 .collect(),
             recoverable,
         },
-        WatchEvent::WatcherStarted { .. } | WatchEvent::Unknown => return None,
+        WatchEvent::WatcherStarted { .. } | WatchEvent::Unknown { .. } => return None,
     })
 }
 
@@ -299,7 +310,13 @@ impl Engine for StubEngine {
             Verb::Build => "build",
             Verb::Validate => "validate",
             Verb::Check => "check",
-            _ => "build",
+            // No captured verb: the oracle must not replay a build's
+            // bytes for a verb it never saw — it can't answer.
+            other => {
+                return Err(cv_core::Error::Engine(format!(
+                    "stub engine has no capture for verb {other:?}"
+                )));
+            }
         };
         let code: i32 = crate::corpus(&self.corpus)
             .file_str(&format!("{verb_dir}/exit-code.txt"))

@@ -210,7 +210,7 @@ pub fn map_watch_event(ev: &WatchEvent, build: Option<&BuildId>) -> Option<Engin
         },
         WatchEvent::BuildStarted { .. }
         | WatchEvent::WatcherStarted { .. }
-        | WatchEvent::Unknown => {
+        | WatchEvent::Unknown { .. } => {
             return None;
         }
     })

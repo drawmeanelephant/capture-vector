@@ -51,6 +51,36 @@ impl Predicate {
             None => false,
         })
     }
+
+    /// Evaluate against a JSON document field-view — the exact same
+    /// `attr_cmp` semantics as `matches`. Every store that projects
+    /// JSON documents (the stub oracle, the future SQLite index) must
+    /// agree with `matches`, so they delegate here instead of keeping
+    /// their own comparator.
+    pub fn matches_json(&self, doc: &serde_json::Value) -> bool {
+        self.conj
+            .iter()
+            .all(|t| match doc.get(&t.field).and_then(json_attr) {
+                Some(v) => attr_cmp(&v, &t.op, &t.value),
+                None => false,
+            })
+    }
+}
+
+/// A JSON field as an `AttrValue`; non-scalar or non-matching values
+/// are `None` (the term can't match, never coerced).
+fn json_attr(v: &serde_json::Value) -> Option<AttrValue> {
+    use serde_json::Value::*;
+    match v {
+        Bool(b) => Some(AttrValue::Bool(*b)),
+        String(s) => Some(AttrValue::Text(s.clone())),
+        Number(n) => n
+            .as_i64()
+            .or_else(|| n.as_u64().and_then(|u| i64::try_from(u).ok()))
+            .map(AttrValue::Int)
+            .or_else(|| n.as_f64().map(AttrValue::Float)),
+        _ => None,
+    }
 }
 
 fn attr_cmp(v: &AttrValue, op: &Op, want: &AttrValue) -> bool {
@@ -135,5 +165,34 @@ mod tests {
             }],
         };
         assert!(!p3.matches(&r));
+    }
+}
+
+#[cfg(test)]
+mod json_tests {
+    use super::*;
+
+    #[test]
+    fn json_projection_uses_attr_cmp_semantics_not_f64() {
+        let p = Predicate {
+            conj: vec![Term {
+                field: "x".into(),
+                op: Op::Eq,
+                value: AttrValue::Float(3.0),
+            }],
+        };
+        // Strict typing: JSON 3 is an Int — never f64-coerced equal.
+        assert!(!p.matches_json(&serde_json::json!({"x": 3})));
+        assert!(p.matches_json(&serde_json::json!({"x": 3.0})));
+        // And range terms only compare same-typed numbers.
+        let gt = Predicate {
+            conj: vec![Term {
+                field: "x".into(),
+                op: Op::Gt,
+                value: AttrValue::Int(2),
+            }],
+        };
+        assert!(gt.matches_json(&serde_json::json!({"x": 3})));
+        assert!(!gt.matches_json(&serde_json::json!({"x": 2.5})));
     }
 }
