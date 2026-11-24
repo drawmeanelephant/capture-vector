@@ -35,9 +35,12 @@ lanes and CI don't each improvise the checkout.
 ## NOT YET PROVEN
 
 - `rune_kit::markdown::Markdown` — **PROVEN 2026-11-23 (Linux)**, see below.
-- Multi-window — **PROVEN 2026-11-24 (Linux, real winit windows)**, see below.
-- IME composition — **PROVEN 2026-11-24 (Linux X11, ibus/anthy over XIM)**,
-  see below. macOS/Windows still need a per-OS pass.
+- Multi-window — **PROVEN on macOS (2026-11-23) and Linux (2026-11-24)**,
+  using real native windows. See both results below.
+- IME composition — **US dead-key native path proven on macOS (2026-11-23)**
+  and **full ibus/anthy composition proven on Linux X11 (2026-11-24)**; see
+  below. One macOS Japanese conversion was observed; candidate placement,
+  broader replay and all of Windows remain unproven.
 - Windows/Linux — all results above are macOS-only. Nothing here can be claimed
   for the other two OSes until run there.
 - `TextEdit::rich` decorations — rune-edit compiles with `typing_tests`; a typed
@@ -45,8 +48,63 @@ lanes and CI don't each improvise the checkout.
 - `rune-ref` — **PROBED 2026-11-23 (Linux)**: works headless and reproducibly, but is
   not a drop-in Lavapipe replacement. See below.
 
-IME stays open on macOS/Windows: the Linux portion is proven below
-(issue #26); the other OSes still need a real OS input method.
+IME: the macOS US dead-key path is proven below (issue #26), and the
+Linux ibus/anthy path further down; Windows still needs a real OS input
+method. Windows native multi-window behavior remains unproven.
+The Linux real-window results below remain separate evidence.
+
+## 2026-11-23 — issue #26 macOS native probes
+
+Run on macOS aarch64, Darwin 27.3.0, rustc 1.100.0, rune `2a59b0f`.
+The vendored Rune checkout was clean at that pin.
+Probe: `python3 spike/macos-probe/run.py`.
+The foreground run completed with **9 PASS checks**.
+`cargo test -p cv-widgets --test editor --locked` passed **19 tests**.
+
+The probe uses the real `cv-app`, an isolated copy of the happy corpus,
+native accessibility actions, and generated macOS keyboard events.
+It does not use `Runtime::ime` or `--window-script` for the IME check.
+An independent AppKit `NSTextView` supplies the US Escape comparison.
+
+| Native behavior | Observed result |
+|---|---|
+| Primary and editor windows | Both native windows open |
+| US Option+E composition | `caf` stays committed during preedit; E commits `café` |
+| US Escape during a dead key | Both Cocoa and Capture Vector produce `caf´`; subsequent typing works |
+| Dirty native title-bar close | Editor reopens over the same edits with the confirmation controls |
+| Keep editing | Prompt disappears; unsaved text survives |
+| Save and close | Exact edited UTF-8 text reaches the copied file; editor closes |
+| Pinned reading companion | Primary selection changes without retargeting the companion |
+| Same noun opened again | No duplicate native companion |
+| Native close followed by reopen | A fresh companion opens without a stale handle |
+
+Screenshots and accessibility trees are generated under `target/macos-probe`.
+They are local evidence, not cross-OS goldens.
+The initial editor screenshot also showed painted wikilink accents and underlines
+on the happy corpus. This is a macOS paint observation, not a decoration parity gate.
+The host's discovered Boris 0.8.2 binary produced the expected version-mismatch
+banner; native editing and saving still worked. No engine pin changed.
+
+### Japanese conversion: observed, not a repeatable gate
+
+A separate native Kotoeri Romaji/Hiragana run kept the committed body at `caf`
+through `kyou` and Space. Enter committed `caf教`.
+The standard Cocoa control produced the same converted text in a separate run.
+The native screenshot showed the marked candidate at the caret before commit.
+
+Broader automated replay did not pass reliably.
+Some runs lost foreground focus to Factory and stopped before sending another key.
+Other runs after automatic input-source enablement produced Latin text in the
+Cocoa control instead of the expected Hiragana. Those runs are not passes and
+do not isolate a Capture Vector bug.
+The unreliable optional replay was removed rather than added as a CI gate.
+The original input source and temporarily enabled sources were restored.
+
+Candidate-popup placement, Japanese cancellation, reconversion, and composition
+across window changes remain unproven on macOS; Windows native window behavior
+and IME remain unproven on that OS. No app or vendored Rune behavior changed
+on the basis of these probes.
+The [manual IME and Windows VM checklist](macos-probe/README.md) covers the remaining checks.
 
 ## 2026-11-24 — issue #26 multi-window probe (Linux, real windows)
 
