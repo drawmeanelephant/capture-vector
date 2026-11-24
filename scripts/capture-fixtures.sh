@@ -48,6 +48,14 @@ for c in $CORPORA; do
       mkdir -p "$cap/dist/$(dirname "$f")"
       cp "$run/$f" "$cap/dist/$f"
     done
+    # ...plus every artifact the build's own index commits (pages, assets):
+    # the audit lane evaluates rendered HTML, and the index's sha256 pins it
+    idx="$run/dist/_boris/proof/artifacts.json"
+    [ -f "$idx" ] && sed -n 's/^ *"path": "\(.*\)",$/\1/p' "$idx" | while read -r f; do
+      [ -f "$run/dist/$f" ] || continue
+      mkdir -p "$cap/dist/dist/$(dirname "$f")"
+      cp "$run/dist/$f" "$cap/dist/dist/$f"
+    done
   fi
 
   # the mode pass starts from a clean output tree so dist/ and
