@@ -115,7 +115,7 @@ impl LifecycleLog {
             .create(true)
             .truncate(false)
             .open(&writer_path)?;
-        writer.try_lock().map_err(std::io::Error::other)?;
+        crate::lock::try_lock_settled(&writer).map_err(std::io::Error::other)?;
         let mut file = OpenOptions::new()
             .read(true)
             .write(true)

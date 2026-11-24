@@ -141,7 +141,7 @@ impl Journal {
             .open(&path)?;
         // Single writer per project: a second writer would reuse `seq`.
         // Locked before reading; all I/O goes through this one handle.
-        file.try_lock()
+        cv_store::lock::try_lock_settled(&file)
             .map_err(|e| LedgerError::Locked(format!("{path:?}: {e}")))?;
         if created {
             file.sync_all()?;

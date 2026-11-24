@@ -305,7 +305,7 @@ fn lock_writer(root: &Path) -> Result<WriterLock, DiskError> {
         .create(true)
         .truncate(false)
         .open(&path)?;
-    match file.try_lock() {
+    match cv_store::lock::try_lock_settled(&file) {
         Ok(()) => Ok(WriterLock(file)),
         Err(TryLockError::WouldBlock) => Err(DiskError::Locked(path)),
         Err(TryLockError::Error(e)) => Err(e.into()),
