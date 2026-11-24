@@ -10,23 +10,72 @@ use cv_core::engine::{
 };
 use cv_core::events::{
     BuildId, Cursor, Envelope, EventId, SessionId, SnapshotEpoch,
-    engine::{BuildPhase, EngineEvent},
+    engine::{BuildPhase, EngineEvent, WatchEndReason},
 };
 use cv_core::id::WorkspaceId;
 use cv_core::rules::ArtifactSet;
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 
 /// Replays one corpus's captured watch session + verb results.
 pub struct StubEngine {
     pub corpus: String,
-    seq: AtomicU64,
+    emitter: Arc<StubEmitter>,
+}
+
+/// Cursor semantics match `cv-engine`'s emitter: `(session, seq)` with a
+/// gap-free seq per session, and every watch start opens a new session.
+/// Event and build ids stay globally unique across sessions.
+struct StubEmitter {
+    minted: AtomicU64,
+    watches: AtomicU64,
+    cursor: Mutex<(SessionId, u64)>,
     sent: Mutex<Vec<EngineEvent>>,
 }
 
+impl StubEmitter {
+    fn next_build(&self) -> BuildId {
+        BuildId(format!("stub-build-{}", self.minted.load(Ordering::SeqCst)))
+    }
+
+    fn rotate(&self) -> SessionId {
+        let n = self.watches.fetch_add(1, Ordering::SeqCst);
+        let session = SessionId(match n {
+            0 => "stub-session".into(),
+            n => format!("stub-session-{}", n + 1),
+        });
+        *self.cursor.lock().unwrap() = (session.clone(), 0);
+        session
+    }
+
+    fn emit(&self, sink: &mut EventSink, payload: EngineEvent) {
+        let (cursor, id) = {
+            let mut c = self.cursor.lock().unwrap();
+            let cursor = Cursor {
+                session: c.0.clone(),
+                seq: c.1,
+            };
+            c.1 += 1;
+            self.sent.lock().unwrap().push(payload.clone());
+            (cursor, self.minted.fetch_add(1, Ordering::SeqCst))
+        };
+        sink(Envelope {
+            workspace: WorkspaceId("stub".into()),
+            snapshot_epoch: SnapshotEpoch(0),
+            build_id: Some(BuildId(format!("stub-build-{id}"))),
+            cursor,
+            event_id: EventId(format!("stub-{id}")),
+            payload: cv_core::events::AppEvent::Engine(payload),
+        });
+    }
+}
+
+/// The replayed session stays open (the recording never ends) until
+/// stopped or dropped, which ends it `Killed` — as `ProcessWatch` does.
 struct StubWatch {
     session: SessionId,
-    stopped: AtomicBool,
+    sink: Option<EventSink>,
+    emitter: Arc<StubEmitter>,
 }
 
 impl WatchHandle for StubWatch {
@@ -34,7 +83,20 @@ impl WatchHandle for StubWatch {
         &self.session
     }
     fn stop(&mut self) {
-        self.stopped.store(true, Ordering::SeqCst);
+        if let Some(mut sink) = self.sink.take() {
+            self.emitter.emit(
+                &mut sink,
+                EngineEvent::WatchSessionEnded {
+                    reason: WatchEndReason::Killed,
+                },
+            );
+        }
+    }
+}
+
+impl Drop for StubWatch {
+    fn drop(&mut self) {
+        self.stop();
     }
 }
 
@@ -42,41 +104,33 @@ impl StubEngine {
     pub fn new(corpus: impl Into<String>) -> Self {
         Self {
             corpus: corpus.into(),
-            seq: AtomicU64::new(0),
-            sent: Mutex::new(Vec::new()),
+            emitter: Arc::new(StubEmitter {
+                minted: AtomicU64::new(0),
+                watches: AtomicU64::new(0),
+                cursor: Mutex::new((SessionId("stub-session".into()), 0)),
+                sent: Mutex::new(Vec::new()),
+            }),
         }
     }
 
     /// Events emitted so far — the conformance surface lanes assert on.
     pub fn sent(&self) -> Vec<EngineEvent> {
-        self.sent.lock().unwrap().clone()
+        self.emitter.sent.lock().unwrap().clone()
     }
 
-    /// Build id the next emitted envelope carries.
     fn next_build(&self) -> BuildId {
-        BuildId(format!("stub-build-{}", self.seq.load(Ordering::SeqCst)))
+        self.emitter.next_build()
     }
 
     fn emit(&self, sink: &mut EventSink, payload: EngineEvent) {
-        let seq = self.seq.fetch_add(1, Ordering::SeqCst);
-        self.sent.lock().unwrap().push(payload.clone());
-        sink(Envelope {
-            workspace: WorkspaceId("stub".into()),
-            snapshot_epoch: SnapshotEpoch(0),
-            build_id: Some(BuildId(format!("stub-build-{seq}"))),
-            cursor: Cursor {
-                session: SessionId("stub-session".into()),
-                seq,
-            },
-            event_id: EventId(format!("stub-{seq}")),
-            payload: cv_core::events::AppEvent::Engine(payload),
-        });
+        self.emitter.emit(sink, payload)
     }
 
     /// Replay the corpus's recorded watch NDJSON session, mapping each
     /// upstream line onto engine events. Malformed lines surface as
     /// `MalformedLine`, never silently.
     pub fn replay_watch(&self, mut sink: EventSink) -> Box<dyn WatchHandle> {
+        let session = self.emitter.rotate();
         let ndjson = crate::corpus(&self.corpus).file_str("watch/session.ndjson");
         for line in ndjson.lines() {
             match cv_contracts::watch::decode_line(line) {
@@ -96,8 +150,9 @@ impl StubEngine {
             }
         }
         Box::new(StubWatch {
-            session: SessionId("stub-session".into()),
-            stopped: AtomicBool::new(false),
+            session,
+            sink: Some(sink),
+            emitter: self.emitter.clone(),
         })
     }
 }
@@ -273,7 +328,7 @@ impl Engine for StubEngine {
         self.emit(
             &mut sink,
             EngineEvent::VerbFinished {
-                verb: format!("{cmd:?}"),
+                verb: cmd.name(),
                 exit,
             },
         );

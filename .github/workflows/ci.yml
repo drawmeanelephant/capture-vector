@@ -40,6 +40,15 @@ jobs:
       - name: cargo test --workspace
         run: cargo test --workspace --locked
 
+      # PNG goldens: canonical rasterizer only (Linux + Lavapipe). The
+      # cross-OS UI gate is the tree/layout JSON in `cv-app --test goldens`.
+      - name: PNG goldens (lavapipe)
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        env:
+          VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+        run: bash scripts/check-ui-png.sh
+
   lint:
     name: fmt + clippy + firewall
     runs-on: ubuntu-latest

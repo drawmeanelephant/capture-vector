@@ -7,7 +7,8 @@ mod common;
 
 use common::{FakeBoris, collector, payloads, wait_until};
 use cv_core::engine::{Engine, ExitClass, Verb};
-use cv_core::events::engine::{EngineEvent, WatchEndReason};
+use cv_core::events::engine::EngineEvent;
+use cv_core::events::{AppEvent, Envelope};
 use cv_engine::EngineError;
 use cv_engine::probe::WatchMode;
 use cv_engine::proc::CancelToken;
@@ -17,71 +18,255 @@ use std::time::{Duration, Instant};
 
 const T: Duration = Duration::from_secs(30);
 
-/// Event identity modulo diagnostics (the stub never maps them).
-fn project(evs: &[EngineEvent]) -> Vec<serde_json::Value> {
-    evs.iter()
-        .filter(|e| !matches!(e, EngineEvent::WatchSessionEnded { .. }))
+/// One port-level observation: the envelope's cursor plus its payload
+/// as JSON, with only implementation-minted values normalized —
+/// `build_version` ids and wall-clock `duration_ms` of one-shot verbs.
+/// Diagnostics, phases, counts, exit classes and order are compared as-is.
+#[derive(Debug, Clone, PartialEq)]
+struct Seen {
+    session: String,
+    seq: u64,
+    payload: serde_json::Value,
+}
+
+fn observe(envs: &[Envelope], one_shot: bool) -> Vec<Seen> {
+    envs.iter()
         .map(|e| {
-            let mut v = serde_json::to_value(e).unwrap();
-            if let Some(obj) = v
-                .as_object_mut()
+            let mut payload = serde_json::to_value(&e.payload).unwrap();
+            if let Some(inner) = payload
+                .pointer_mut("/Engine")
+                .and_then(|v| v.as_object_mut())
                 .and_then(|o| o.values_mut().next())
-                .and_then(|i| i.as_object_mut())
+                .and_then(|v| v.as_object_mut())
             {
-                obj.remove("diagnostics");
-                obj.remove("duration_ms");
+                if one_shot && inner.contains_key("duration_ms") {
+                    inner.insert("duration_ms".into(), 0.into());
+                }
+                for d in inner
+                    .get_mut("diagnostics")
+                    .and_then(|v| v.as_array_mut())
+                    .into_iter()
+                    .flatten()
+                {
+                    let minted = d.get("build_version").is_some_and(|b| !b.is_null());
+                    d["build_version"] = serde_json::Value::Bool(minted);
+                }
             }
-            v
+            Seen {
+                session: e.cursor.session.0.clone(),
+                seq: e.cursor.seq,
+                payload,
+            }
         })
         .collect()
+}
+
+/// Cursor ordering semantics, impl-neutral: every observation shares
+/// one session and seq runs gap-free from `from`.
+fn assert_cursor(what: &str, seen: &[Seen], from: u64) {
+    for (i, s) in seen.iter().enumerate() {
+        assert_eq!(s.session, seen[0].session, "{what}: one session");
+        assert_eq!(s.seq, from + i as u64, "{what}: gap-free seq");
+    }
+}
+
+/// Session-relative view for cross-impl comparison (ids differ by impl).
+fn relative(seen: &[Seen]) -> Vec<(u64, serde_json::Value)> {
+    seen.iter().map(|s| (s.seq, s.payload.clone())).collect()
+}
+
+fn engine_payload(env: &Envelope) -> Option<&EngineEvent> {
+    match &env.payload {
+        AppEvent::Engine(e) => Some(e),
+        _ => None,
+    }
+}
+
+/// What one implementation showed for the shared scenario.
+struct Transcript {
+    watch1: Vec<Seen>,
+    verbs: Vec<(Verb, ExitClass, Vec<Seen>)>,
+    watch2: Vec<Seen>,
+}
+
+/// THE shared scenario, driven only through `cv_core::engine::Engine`:
+/// start watch → recorded builds + diagnostics → stop; one-shot build /
+/// validate / check with their exit classes; restart watch → stop.
+/// `settle(n)` blocks until `n` envelopes reached the sink (a no-op for
+/// the synchronous stub; the subprocess delivers from a pump thread).
+fn scenario(engine: &dyn Engine, expect_watch: usize) -> Transcript {
+    let settle = |got: &std::sync::Arc<std::sync::Mutex<Vec<Envelope>>>, n: usize| {
+        wait_until("watch events", T, || got.lock().unwrap().len() >= n)
+    };
+    let ended = |got: &std::sync::Arc<std::sync::Mutex<Vec<Envelope>>>| {
+        wait_until("watch end", T, || {
+            got.lock().unwrap().iter().any(|e| {
+                matches!(
+                    engine_payload(e),
+                    Some(EngineEvent::WatchSessionEnded { .. })
+                )
+            })
+        })
+    };
+
+    let (sink, got) = collector();
+    let mut h = engine.watch(sink).unwrap();
+    settle(&got, expect_watch);
+    let session = h.session().clone();
+    h.stop();
+    ended(&got);
+    let watch1 = observe(&got.lock().unwrap(), false);
+    assert!(watch1.iter().all(|s| s.session == session.0));
+
+    let mut verbs = vec![];
+    for verb in [Verb::Build, Verb::Validate, Verb::Check] {
+        let (sink, got) = collector();
+        let exit = engine.run(&verb, sink).unwrap();
+        let seen = observe(&got.lock().unwrap(), true);
+        verbs.push((verb, exit, seen));
+    }
+
+    let (sink, got) = collector();
+    let mut h = engine.watch(sink).unwrap();
+    settle(&got, expect_watch);
+    drop(std::mem::replace(&mut h, Box::new(Gone(session))));
+    ended(&got);
+    let watch2 = observe(&got.lock().unwrap(), false);
+    Transcript {
+        watch1,
+        verbs,
+        watch2,
+    }
+}
+
+/// Placeholder handle so the second watch is ended by *drop*, not stop.
+struct Gone(cv_core::events::SessionId);
+impl cv_core::engine::WatchHandle for Gone {
+    fn session(&self) -> &cv_core::events::SessionId {
+        &self.0
+    }
+    fn stop(&mut self) {}
+}
+
+fn assert_semantics(name: &str, t: &Transcript) {
+    for (what, w) in [("watch1", &t.watch1), ("watch2", &t.watch2)] {
+        assert_cursor(&format!("{name} {what}"), w, 0);
+        assert!(
+            matches!(
+                w.first().map(|s| &s.payload),
+                Some(v) if v.pointer("/Engine/WatchSessionStarted").is_some()
+            ),
+            "{name} {what}: hello first"
+        );
+        let ends: Vec<_> = w
+            .iter()
+            .filter(|s| s.payload.pointer("/Engine/WatchSessionEnded").is_some())
+            .collect();
+        assert_eq!(ends.len(), 1, "{name} {what}: exactly one end");
+        assert_eq!(
+            ends[0].payload.pointer("/Engine/WatchSessionEnded/reason"),
+            Some(&serde_json::json!("Killed")),
+            "{name} {what}: stopped ⇒ Killed"
+        );
+        assert_eq!(w.last(), Some(ends[0]), "{name} {what}: end is last");
+    }
+    assert_ne!(
+        t.watch1[0].session, t.watch2[0].session,
+        "{name}: a restarted watch is a new session"
+    );
+    // One-shot verbs continue the closed session's cursor gap-free.
+    let mut next = t.watch1.len() as u64;
+    for (verb, exit, seen) in &t.verbs {
+        assert_cursor(&format!("{name} {verb:?}"), seen, next);
+        assert_eq!(seen[0].session, t.watch1[0].session);
+        next += seen.len() as u64;
+        let last = &seen.last().unwrap().payload;
+        assert_eq!(
+            last.pointer("/Engine/VerbFinished"),
+            Some(&serde_json::json!({ "verb": verb.name(), "exit": exit })),
+            "{name} {verb:?}: VerbFinished last, exit class echoed"
+        );
+        let builds = seen
+            .iter()
+            .filter(|s| {
+                s.payload.pointer("/Engine/BuildFinished").is_some()
+                    || s.payload.pointer("/Engine/BuildFailed").is_some()
+            })
+            .count();
+        assert_eq!(builds, usize::from(*verb == Verb::Build), "{name} {verb:?}");
+    }
 }
 
 #[test]
 fn stub_equals_process_on_every_corpus() {
     for name in cv_fixtures::corpora() {
         let fake = FakeBoris::corpus(&name);
-        let engine = fake.engine();
-        assert_eq!(engine.report().watch_mode, WatchMode::Native, "{name}");
-
+        // A live child: the recorded stream, then held open until stopped.
+        fake.set("watch-hold", "");
+        let process = fake.engine();
+        assert_eq!(process.report().watch_mode, WatchMode::Native, "{name}");
         let stub = StubEngine::new(&name);
-        let (s_sink, s_got) = collector();
-        let _ = stub.watch(s_sink).unwrap();
 
-        let (p_sink, p_got) = collector();
-        let _h = engine.watch(p_sink).unwrap();
-        wait_until("watch end", T, || {
-            p_got.lock().unwrap().iter().any(|e| {
-                matches!(
-                    &e.payload,
-                    cv_core::events::AppEvent::Engine(EngineEvent::WatchSessionEnded { .. })
-                )
-            })
-        });
-        let p = payloads(&p_got.lock().unwrap());
+        // The stub replays synchronously: its count is the recording's.
+        let (sink, got) = collector();
+        drop(stub.watch(sink).unwrap());
+        let expect = got.lock().unwrap().len() - 1;
+        let stub = StubEngine::new(&name);
+
+        let s = scenario(&stub, expect);
+        let p = scenario(&process, expect);
+        assert_semantics(&format!("{name} stub"), &s);
+        assert_semantics(&format!("{name} process"), &p);
+
         assert_eq!(
-            project(&payloads(&s_got.lock().unwrap())),
-            project(&p),
+            relative(&s.watch1),
+            relative(&p.watch1),
             "{name}: watch stream"
         );
-        assert!(matches!(
-            p.last(),
-            Some(EngineEvent::WatchSessionEnded {
-                reason: WatchEndReason::CleanExit
-            })
-        ));
-        // Cursor: one session, gap-free seq from 0.
-        let got = p_got.lock().unwrap();
-        for (i, e) in got.iter().enumerate() {
-            assert_eq!(e.cursor.seq, i as u64, "{name}");
-            assert_eq!(e.cursor.session, got[0].cursor.session);
+        assert_eq!(
+            relative(&s.watch2),
+            relative(&p.watch2),
+            "{name}: restart stream"
+        );
+        for ((verb, se, ss), (_, pe, ps)) in s.verbs.iter().zip(&p.verbs) {
+            assert_eq!(se, pe, "{name} {verb:?}: exit class");
+            assert_eq!(relative(ss), relative(ps), "{name} {verb:?}: events");
         }
-        drop(got);
+        // Diagnostics are part of the compared surface, not projected away.
+        if [
+            "broken-duplicate-id",
+            "broken-frontmatter",
+            "broken-parent",
+            "broken-wikilink",
+        ]
+        .contains(&name.as_str())
+        {
+            let diags: usize = s.verbs[0]
+                .2
+                .iter()
+                .filter_map(|x| x.payload.pointer("/Engine/BuildFailed/diagnostics"))
+                .map(|d| d.as_array().unwrap().len())
+                .sum();
+            assert!(diags > 0, "{name}: broken build carries diagnostics");
+        }
+    }
+}
 
-        for verb in [Verb::Build, Verb::Validate, Verb::Check] {
-            let s = stub.run(&verb, Box::new(|_| {})).unwrap();
-            let p = engine.run(&verb, Box::new(|_| {})).unwrap();
-            assert_eq!(s, p, "{name} {verb:?}");
-        }
+/// The stub replays captured exit codes through `ExitClass::from_code`;
+/// the subprocess must classify every raw code the same way.
+#[test]
+fn process_exit_mapping_equals_stub_mapping() {
+    let fake = FakeBoris::new();
+    let engine = fake.engine();
+    for code in 0..=9 {
+        fake.set("verbs/check/exit-code.txt", &code.to_string());
+        let (sink, got) = collector();
+        let exit = engine.run(&Verb::Check, sink).unwrap();
+        assert_eq!(exit, ExitClass::from_code(code), "exit {code}");
+        assert!(matches!(
+            payloads(&got.lock().unwrap()).last(),
+            Some(EngineEvent::VerbFinished { exit: e, .. }) if *e == exit
+        ));
     }
 }
 
