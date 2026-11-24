@@ -180,7 +180,34 @@ impl FsWriter {
                 "{rel}: refusing to write outside the project root"
             )));
         }
-        Ok(self.root.join(p))
+        // The lexical check alone lets a symlink inside the workspace
+        // redirect the write outside it. Canonicalize the deepest
+        // existing ancestor and re-check containment before writing.
+        let root = std::fs::canonicalize(&self.root).map_err(|e| io(rel, "root", e))?;
+        let mut probe = self.root.join(p);
+        let mut tail = Vec::new();
+        let mut resolved = loop {
+            match std::fs::canonicalize(&probe) {
+                Ok(c) => break c,
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => match probe.file_name() {
+                    Some(name) => {
+                        tail.push(name.to_os_string());
+                        probe.pop();
+                    }
+                    None => return Err(io(rel, "resolve", e)),
+                },
+                Err(e) => return Err(io(rel, "resolve", e)),
+            }
+        };
+        for c in tail.iter().rev() {
+            resolved.push(c);
+        }
+        if !resolved.starts_with(&root) {
+            return Err(cv_core::Error::Other(format!(
+                "{rel}: refusing to write outside the project root"
+            )));
+        }
+        Ok(resolved)
     }
 }
 
