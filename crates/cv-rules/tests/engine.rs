@@ -668,3 +668,56 @@ fn robots_none_uppercase_names_and_mixed_case_jsonld_are_recognised() {
     let r = eval(&set, &Ruleset::v1());
     assert!(r.failed().any(|f| f.finding.code == "AEO-JSONLD-VALID"));
 }
+
+#[test]
+fn export_subjects_survive_a_rename() {
+    // `StableId` is never a filesystem path: the same artifact at a
+    // renamed location must keep the same `DedupKey.subject`, so a
+    // finding can't orphan/duplicate on output moves.
+    let dangling = |path: &str| {
+        let xml = "<urlset><url><loc>index.html</loc></url>                   <url><loc>guides/intro.html</loc></url>                   <url><loc>ghost.html</loc></url></urlset>";
+        let set = clean()
+            .export(Export::sitemap_xml(path, xml.as_bytes()).unwrap())
+            .build();
+        eval(&set, &Ruleset::v1())
+    };
+    let at = |r: &Report| {
+        r.findings
+            .iter()
+            .find(|f| f.finding.code == "TGT-PAGESET-PARITY")
+            .map(|f| f.finding.key.subject.clone())
+            .expect("no pageset parity finding")
+    };
+    let a = at(&dangling("sitemap.xml"));
+    let b = at(&dangling("dist/feeds/sm.xml"));
+    assert_eq!(a, b, "rename changed the dedup subject");
+    assert_eq!(
+        a.stable.0, "Sitemap",
+        "subject is the artifact slot, not the path"
+    );
+}
+
+#[test]
+fn noindex_leak_into_rss_llms_and_rag_blocks() {
+    // PROMPT-v3: noindex leakage into rss/llms/RAG is a blocking error,
+    // same as sitemap. `clean()` lists guides/intro in every export.
+    let noindex = page_html(
+        "guides/intro.html",
+        "Intro",
+        r#"<meta name="robots" content="noindex, follow">"#,
+        "",
+    );
+    let set = clean()
+        .page(page("guides/intro", "guides/intro.html", &noindex))
+        .build();
+    let r = eval(&set, &Ruleset::v1());
+    for code in [
+        "TGT-RSS-NOINDEX-LEAK",
+        "TGT-LLMS-NOINDEX-LEAK",
+        "TGT-RAG-NOINDEX-LEAK",
+    ] {
+        let f: Vec<_> = r.failed().filter(|f| f.finding.code == code).collect();
+        assert_eq!(f.len(), 1, "{code}");
+        assert!(f[0].blocks_publish(), "{code} must block publish");
+    }
+}

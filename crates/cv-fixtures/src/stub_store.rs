@@ -22,7 +22,7 @@ impl Store for StubStore {
     fn put(&self, ns: &Namespace, key: &StableId, doc: &Value) -> cv_core::Result<()> {
         self.inner
             .lock()
-            .unwrap()
+            .unwrap_or_else(|e| e.into_inner())
             .insert((ns.clone(), key.clone()), doc.clone());
         Ok(())
     }
@@ -31,13 +31,13 @@ impl Store for StubStore {
         Ok(self
             .inner
             .lock()
-            .unwrap()
+            .unwrap_or_else(|e| e.into_inner())
             .get(&(ns.clone(), key.clone()))
             .cloned())
     }
 
     fn query(&self, ns: &Namespace, pred: &Predicate) -> cv_core::Result<Vec<Value>> {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         Ok(inner
             .iter()
             .filter(|((n, _), _)| n == ns)
@@ -47,46 +47,9 @@ impl Store for StubStore {
     }
 }
 
-/// JSON-document predicate evaluation matching `Predicate::matches`
-/// semantics on `NounAttrRow` projections.
+/// JSON-document predicate evaluation — delegates to the shared
+/// `Predicate::matches_json` so the stub oracle and `Predicate::matches`
+/// (and the future SQLite index) can never diverge.
 fn predicate_matches_json(pred: &Predicate, doc: &Value) -> bool {
-    use cv_core::id::AttrValue;
-    use cv_core::store::Op;
-    pred.conj.iter().all(|t| {
-        let got = doc.get(&t.field);
-        let want = &t.value;
-        let num = |v: &Value| v.as_f64();
-        match (got, &t.op) {
-            (None, _) => false,
-            (Some(g), Op::Eq) => json_eq(g, want),
-            (Some(g), Op::Ne) => !json_eq(g, want),
-            (Some(g), Op::Contains) => match (g.as_str(), want) {
-                (Some(h), AttrValue::Text(n)) => h.contains(n.as_str()),
-                _ => false,
-            },
-            (Some(g), Op::Lt) => matches!((num(g), attr_num(want)), (Some(a), Some(b)) if a < b),
-            (Some(g), Op::Le) => matches!((num(g), attr_num(want)), (Some(a), Some(b)) if a <= b),
-            (Some(g), Op::Gt) => matches!((num(g), attr_num(want)), (Some(a), Some(b)) if a > b),
-            (Some(g), Op::Ge) => matches!((num(g), attr_num(want)), (Some(a), Some(b)) if a >= b),
-        }
-    })
-}
-
-fn attr_num(v: &cv_core::id::AttrValue) -> Option<f64> {
-    use cv_core::id::AttrValue::*;
-    match v {
-        Int(i) => Some(*i as f64),
-        Float(f) => Some(*f),
-        _ => None,
-    }
-}
-
-fn json_eq(g: &Value, want: &cv_core::id::AttrValue) -> bool {
-    use cv_core::id::AttrValue::*;
-    match want {
-        Bool(b) => g.as_bool() == Some(*b),
-        Int(i) => g.as_i64() == Some(*i),
-        Float(f) => g.as_f64() == Some(*f),
-        Text(t) => g.as_str() == Some(t.as_str()),
-    }
+    pred.matches_json(doc)
 }

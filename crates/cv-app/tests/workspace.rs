@@ -436,6 +436,34 @@ fn promotion_writes_under_the_profile_input() {
 }
 
 #[test]
+fn undecodable_journal_lines_open_as_a_disclosed_degradation() {
+    let ws = workspace("happy");
+    let cfg = tempfile::tempdir().unwrap();
+    let env = absent_env(cfg.path());
+    let mut wb = init();
+    open(&mut wb, ws.path(), &env);
+    wb.run_command("shell.goto.research");
+    wb.run_command("research.capture.idea");
+    assert_eq!(module_len(&wb, "research", Some("all")), 1);
+    // A complete-but-undecodable committed line (not a torn tail).
+    use std::io::Write;
+    let mut j = std::fs::OpenOptions::new()
+        .append(true)
+        .open(ws.path().join(".cv/research/notes.jsonl"))
+        .unwrap();
+    writeln!(j, "{{not json").unwrap();
+    drop(j);
+    drop(wb);
+
+    let mut again = init();
+    open(&mut again, ws.path(), &env);
+    assert_eq!(again.app.degraded, Some(DegradedReason::StoreCorrupt));
+    assert!(again.status.contains("undecodable"), "{}", again.status);
+    // The good lines still loaded — degradation, not data loss.
+    assert_eq!(module_len(&again, "research", Some("all")), 1);
+}
+
+#[test]
 fn research_storage_failure_survives_the_engine_outcome() {
     let ws = workspace("happy");
     std::fs::create_dir_all(ws.path().join(".cv")).unwrap();

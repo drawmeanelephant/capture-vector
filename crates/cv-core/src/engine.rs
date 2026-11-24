@@ -95,8 +95,9 @@ pub enum ExportKind {
 /// change; Windows retries on sharing violation).
 ///
 /// Windows retry pin: on `ERROR_SHARING_VIOLATION`/`ERROR_ACCESS_DENIED`
-/// from the rename, retry up to 5 times on a fixed 50 ms backoff (AV
-/// filters and reader handles release quickly). Exhaustion fails the
+/// from the rename, retry up to 8 times on a linear 25 ms backoff
+/// (`cv-engine`'s `SHARING_RETRIES`/`SHARING_BACKOFF`; AV filters and
+/// reader handles release quickly). Exhaustion fails the
 /// write as an honest diagnostic — saves never silently drop, and the
 /// retry loop never runs on the UI thread.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

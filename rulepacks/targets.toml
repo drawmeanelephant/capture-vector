@@ -116,6 +116,45 @@ frozen_quote = "Include the URLs in your sitemap that you want to see in Google'
 captured = "2026-11-23"
 
 [[rule]]
+id = "TGT-RSS-NOINDEX-LEAK"
+severity = "Error"
+tier = "NormativeSpec"
+archetypes = ["Any"]
+remediation = "A page that says noindex should not be advertised in the RSS feed; drop one of the two signals."
+check = { NotPresent = { artifact = "Rss", selector = { Html = "meta:robots-noindex" } } }
+[rule.citation]
+source = "PROMPT-v3 work order: Audit section (spec/PROMPT-v3.md)"
+url = "https://github.com/drawmeanelephant/capture-vector/blob/main/spec/PROMPT-v3.md"
+frozen_quote = "Draft/noindex leakage into sitemap/rss/llms/RAG is a blocking error."
+captured = "2026-11-24"
+
+[[rule]]
+id = "TGT-LLMS-NOINDEX-LEAK"
+severity = "Error"
+tier = "NormativeSpec"
+archetypes = ["Any"]
+remediation = "A page that says noindex should not be listed in llms.txt; drop one of the two signals."
+check = { NotPresent = { artifact = "Llms", selector = { Html = "meta:robots-noindex" } } }
+[rule.citation]
+source = "PROMPT-v3 work order: Audit section (spec/PROMPT-v3.md)"
+url = "https://github.com/drawmeanelephant/capture-vector/blob/main/spec/PROMPT-v3.md"
+frozen_quote = "Draft/noindex leakage into sitemap/rss/llms/RAG is a blocking error."
+captured = "2026-11-24"
+
+[[rule]]
+id = "TGT-RAG-NOINDEX-LEAK"
+severity = "Error"
+tier = "NormativeSpec"
+archetypes = ["Any"]
+remediation = "A page that says noindex should not ship in the RAG catalog; scope the export (`--scope`) or drop the noindex signal."
+check = { NotPresent = { artifact = "Rag", selector = { Html = "meta:robots-noindex" } } }
+[rule.citation]
+source = "PROMPT-v3 work order: Audit section (spec/PROMPT-v3.md)"
+url = "https://github.com/drawmeanelephant/capture-vector/blob/main/spec/PROMPT-v3.md"
+frozen_quote = "Draft/noindex leakage into sitemap/rss/llms/RAG is a blocking error."
+captured = "2026-11-24"
+
+[[rule]]
 id = "TGT-ROBOTS-TXT"
 severity = "Error"
 tier = "NormativeSpec"

@@ -9,12 +9,18 @@ use crate::runs::runs;
 use rusqlite::{Connection, OptionalExtension, params};
 use std::path::{Path, PathBuf};
 
+/// Where the index lived before it moved to OS app-data. Kept only so
+/// `open` can delete the stale file; the index is disposable.
 pub const INDEX_REL: &str = ".cv/ledger/index.sqlite";
 
 pub struct LedgerIndex {
     conn: Connection,
     path: PathBuf,
 }
+
+/// Bump when the table layout or fill rules change: an index written
+/// under another version is rebuilt, never trusted.
+const INDEX_SCHEMA_VERSION: u64 = 1;
 
 const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v INTEGER NOT NULL);
@@ -26,16 +32,21 @@ CREATE TABLE IF NOT EXISTS runs (
 ";
 
 impl LedgerIndex {
-    pub fn path_for(project_root: &Path) -> PathBuf {
-        project_root.join(INDEX_REL)
+    /// OS app-data path for this project's rebuildable index (keyed by
+    /// the canonical root, never inside `.cv/`).
+    pub fn path_for(project_root: &Path) -> std::io::Result<PathBuf> {
+        Ok(cv_store::paths::project_index_dir(project_root, "ledger")?.join("index.sqlite"))
     }
 
     /// Open the index and bring it in line with the journal. A stale,
     /// foreign, or corrupt index file is discarded and rebuilt.
     pub fn open(project_root: &Path, journal: &Journal) -> Result<Self> {
-        let path = Self::path_for(project_root);
-        if let Some(dir) = path.parent() {
-            std::fs::create_dir_all(dir)?;
+        let index_dir = cv_store::paths::create_project_index_dir(project_root, "ledger")?;
+        let path = index_dir.join("index.sqlite");
+        // Drop a pre-app-data index (and its journal artifacts); the
+        // JSONL journal is the truth and the index rebuilds from it.
+        for suffix in ["", "-journal", "-wal", "-shm"] {
+            let _ = std::fs::remove_file(project_root.join(format!("{INDEX_REL}{suffix}")));
         }
         let mut idx = match Self::connect(&path) {
             Ok(i) => i,
@@ -44,7 +55,9 @@ impl LedgerIndex {
                 Self::connect(&path)?
             }
         };
-        if idx.indexed_len()? != Some(journal.records().len() as u64) {
+        if idx.schema_version()? != Some(INDEX_SCHEMA_VERSION)
+            || idx.indexed_len()? != Some(journal.records().len() as u64)
+        {
             idx.rebuild(journal.records())?;
         }
         Ok(idx)
@@ -57,6 +70,16 @@ impl LedgerIndex {
             conn,
             path: path.to_path_buf(),
         })
+    }
+
+    fn schema_version(&self) -> Result<Option<u64>> {
+        Ok(self
+            .conn
+            .query_row("SELECT v FROM meta WHERE k = 'index_schema'", [], |r| {
+                r.get::<_, i64>(0)
+            })
+            .optional()?
+            .map(|v| v as u64))
     }
 
     fn indexed_len(&self) -> Result<Option<u64>> {
@@ -117,8 +140,8 @@ impl LedgerIndex {
             )?;
         }
         tx.execute(
-            "INSERT INTO meta (k, v) VALUES ('journal_len', ?1)",
-            params![records.len() as i64],
+            "INSERT INTO meta (k, v) VALUES ('journal_len', ?1), ('index_schema', ?2)",
+            params![records.len() as i64, INDEX_SCHEMA_VERSION as i64],
         )?;
         tx.commit()?;
         Ok(())

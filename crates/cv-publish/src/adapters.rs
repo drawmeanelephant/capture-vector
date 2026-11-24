@@ -114,11 +114,16 @@ impl DeliveryAdapter for CopyToFolder {
             .map_err(before_contact)?;
         std::fs::create_dir_all(&dest)
             .map_err(|e| TransportFailure::before_contact(format!("create {dest:?}: {e}")))?;
+        #[cfg(unix)]
+        let mut parents = std::collections::BTreeSet::new();
         for ((f, bytes), p) in d.files.iter().zip(paths) {
+            if let Some(parent) = p.parent() {
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| TransportFailure::after_contact(format!("{}: {e}", f.path)))?;
+                #[cfg(unix)]
+                parents.insert(parent.to_path_buf());
+            }
             let write = || -> std::io::Result<()> {
-                if let Some(parent) = p.parent() {
-                    std::fs::create_dir_all(parent)?;
-                }
                 // Fixed-length staging name (fits wherever the final name
                 // does), unique per run+path; `create_new` never clobbers
                 // a pre-existing sibling.
@@ -135,6 +140,21 @@ impl DeliveryAdapter for CopyToFolder {
                 std::fs::rename(&tmp, &p)
             };
             write().map_err(|e| TransportFailure::after_contact(format!("{}: {e}", f.path)))?;
+        }
+        // A rename isn't durable until the containing directory is
+        // fsynced; the journal records `Complete` on this return, so
+        // make the tree match first. `dest`'s own create_dir_all needs
+        // its parent fsynced for the same reason.
+        #[cfg(unix)]
+        {
+            if let Some(dp) = dest.parent() {
+                parents.insert(dp.to_path_buf());
+            }
+            for dir in &parents {
+                std::fs::File::open(dir)
+                    .and_then(|d| d.sync_all())
+                    .map_err(|e| TransportFailure::after_contact(format!("fsync {dir:?}: {e}")))?;
+            }
         }
         Ok(Delivered::Complete(RunStatus::Complete))
     }
@@ -228,11 +248,19 @@ impl DeliveryAdapter for RunCommand {
 }
 
 /// HTTP transport port — the shell supplies the real client.
+///
+/// Auth is a *header* the transport writes — `("Authorization",
+/// &secret)` — never material to fold into the URL or request line.
+/// Keeping the shape header-only means a transport that logs the
+/// request line can't leak a credential by accident. When the real
+/// transport lands it must be: https-only, explicit timeout, bounded
+/// response body, no cross-origin redirect while an auth header is
+/// attached, and it must never log URL+auth together.
 pub trait HttpTransport {
     fn post(
         &self,
         url: &str,
-        auth: Option<&Secret>,
+        auth_header: Option<(&'static str, &Secret)>,
         content_type: &str,
         body: &[u8],
     ) -> Result<u16, TransportFailure>;
@@ -252,12 +280,13 @@ impl<T: HttpTransport> DeliveryAdapter for HttpPost<T> {
     }
 
     fn deliver(&self, d: &Delivery<'_>) -> Result<Delivered, TransportFailure> {
-        let auth = match &self.secret {
-            Some(name) => Some(
+        let auth_header = match &self.secret {
+            Some(name) => Some((
+                "Authorization",
                 d.secrets
                     .get(name)
                     .map_err(|e| TransportFailure::before_contact(e.to_string()))?,
-            ),
+            )),
             None => None,
         };
         let base = d.config.deploy.base_url.trim_end_matches('/');
@@ -279,7 +308,7 @@ impl<T: HttpTransport> DeliveryAdapter for HttpPost<T> {
             .map_err(|e| TransportFailure::before_contact(e.to_string()))?;
         let status = self.transport.post(
             &d.config.destination,
-            auth.as_ref(),
+            auth_header.as_ref().map(|(n, s)| (*n, s)),
             "application/json",
             &body,
         )?;

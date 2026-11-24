@@ -4,15 +4,20 @@
 //! logs, events, or ledger records by accident.
 
 use crate::{PublishError, Result};
-use std::collections::BTreeMap;
 use std::io::BufRead;
 use std::sync::Mutex;
+use zeroize::Zeroizing;
 
-pub struct Secret(String);
+#[cfg(any(test, feature = "mock"))]
+use std::collections::BTreeMap;
+
+/// The bytes are zeroized on drop — a Secret that outlives the call
+/// can't leave a copy in freed memory.
+pub struct Secret(Zeroizing<String>);
 
 impl Secret {
     pub fn new(s: impl Into<String>) -> Self {
-        Self(s.into())
+        Self(Zeroizing::new(s.into()))
     }
     /// The only accessor; call it at the transport boundary.
     pub fn expose(&self) -> &str {
@@ -41,10 +46,15 @@ impl SecretBackend for NoSecrets {
     }
 }
 
-/// In-memory keychain stand-in for tests/CI.
+/// In-memory keychain stand-in for tests/CI. Feature-gated so release
+/// wiring can't select it by accident (`mock` is a default feature so
+/// this crate's own tests see it; dependents set `default-features =
+/// false`).
+#[cfg(any(test, feature = "mock"))]
 #[derive(Default)]
 pub struct MockKeychain(BTreeMap<String, String>);
 
+#[cfg(any(test, feature = "mock"))]
 impl MockKeychain {
     pub fn with(mut self, name: &str, value: &str) -> Self {
         self.0.insert(name.into(), value.into());
@@ -52,6 +62,7 @@ impl MockKeychain {
     }
 }
 
+#[cfg(any(test, feature = "mock"))]
 impl SecretBackend for MockKeychain {
     fn get(&self, name: &str) -> Result<Secret> {
         self.0

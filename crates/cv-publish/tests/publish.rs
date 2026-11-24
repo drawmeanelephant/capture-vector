@@ -716,13 +716,13 @@ impl HttpTransport for &MockHttp {
     fn post(
         &self,
         url: &str,
-        auth: Option<&Secret>,
+        auth_header: Option<(&'static str, &Secret)>,
         _: &str,
         body: &[u8],
     ) -> Result<u16, TransportFailure> {
         self.seen.borrow_mut().push((
             url.into(),
-            auth.map(|s| s.expose().to_string()),
+            auth_header.map(|(n, s)| format!("{n}: {}", s.expose())),
             String::from_utf8(body.to_vec()).unwrap(),
         ));
         Ok(self.status)
@@ -803,8 +803,13 @@ const CANARY: &str = "CANARY-7f3a9c-do-not-log";
 fn secret_canary_never_reaches_logs_events_or_ledger() {
     let kc = MockKeychain::default().with("indexnow-key", CANARY);
     let (dir, http, trail) = http_run(200, &kc);
-    // It *was* delivered to the transport boundary…
-    assert_eq!(http.seen.borrow()[0].1.as_deref(), Some(CANARY));
+    // It *was* delivered to the transport boundary as a named header…
+    let auth = http.seen.borrow()[0].1.clone().unwrap();
+    assert!(
+        auth.starts_with("Authorization: "),
+        "auth is a header: {auth}"
+    );
+    assert!(auth.contains(CANARY));
     assert!(!http.seen.borrow()[0].2.contains(CANARY), "not in the body");
     // …and nowhere else: events, run views, engine argv, every file on disk.
     for t in &trail {

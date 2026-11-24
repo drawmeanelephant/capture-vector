@@ -159,3 +159,31 @@ fn mode_flag_corpora_have_green_captures() {
         "1"
     );
 }
+
+#[test]
+fn stub_engine_refuses_verbs_without_a_capture() {
+    let engine = StubEngine::new("happy");
+    let r = engine.run(
+        &Verb::Custom {
+            name: "x".into(),
+            args: vec![],
+        },
+        Box::new(|_| {}),
+    );
+    assert!(
+        r.is_err(),
+        "a verb with no captured bytes can't replay build evidence"
+    );
+}
+
+#[test]
+#[should_panic(expected = "plain relative path")]
+fn fixture_paths_cannot_escape_the_tree() {
+    corpus("happy").file("../MANIFEST.toml");
+}
+
+#[test]
+#[should_panic(expected = "plain relative path")]
+fn corpus_names_cannot_escape_the_tree() {
+    corpus("../fixtures");
+}

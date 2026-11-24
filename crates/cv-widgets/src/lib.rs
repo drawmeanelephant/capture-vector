@@ -12,6 +12,10 @@
 pub mod app;
 pub mod diagnostic;
 pub mod editor;
+/// QA machinery (scripted-input harness, golden bless/check). On by
+/// default so `cargo test --workspace` exercises it; the shipped app
+/// (cv-app) depends with `default-features = false` so it isn't linked.
+#[cfg(any(test, feature = "harness"))]
 pub mod harness;
 pub mod keys;
 #[cfg(feature = "reference")]

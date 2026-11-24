@@ -58,7 +58,7 @@ pub trait Engine {
     fn capabilities(&self) -> EngineCaps;                // per-OS honesty
     fn snapshot(&self) -> Result<ArtifactSet>;           // disk-truth resync
     fn watch(&self, sink: EventSink) -> Result<WatchHandle>;   // caps-gated
-    fn run(&self, cmd: Verb, sink: EventSink) -> Result<ExitClass>;
+    fn run(&self, cmd: &Verb, sink: EventSink) -> Result<ExitClass>;
     fn write_content(&self, draft: &PageDraft, fp: Fingerprint)
                      -> Result<WriteOutcome>;            // staged+atomic
 }
