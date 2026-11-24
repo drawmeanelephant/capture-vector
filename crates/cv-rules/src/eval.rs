@@ -122,7 +122,7 @@ impl<'a> Ctx<'a, '_> {
         };
         let subject = NounId {
             account: self.set.account.clone(),
-            kind: NounKind::new(kind.to_string()),
+            kind: NounKind::register(kind),
             stable: StableId(stable),
         };
         let mut detail = detail;

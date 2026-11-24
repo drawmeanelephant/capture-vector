@@ -16,15 +16,30 @@ pub struct WorkspaceId(pub String);
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct StableId(pub String);
 
-/// Branded open string — lanes may mint kinds, well-knowns are constants.
-/// The noun-view registry must be able to render every produced kind and
-/// always falls back to a generic view.
+/// Branded noun kind — the field is private so producers cannot mint ad
+/// hoc strings: `register` only accepts `&'static str` constants, which
+/// means every mintable kind is declared as a `noun_kind` const and
+/// listed in `noun_kind::ALL`. The cv-model noun-view registry must
+/// render every registered kind and always falls back to a generic view.
+/// Kinds read back from stored data need not be registered — they
+/// render through that fallback.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct NounKind(pub String);
+pub struct NounKind(String);
 
 impl NounKind {
-    pub const fn new(s: String) -> Self {
-        Self(s)
+    /// Mint a registered kind. `kind` must be a `noun_kind` constant —
+    /// `noun_kind::ALL` is the closed minting set the noun-view
+    /// registry's comprehensiveness test covers.
+    ///
+    /// # Panics
+    /// On an unregistered kind: declare a `noun_kind::` constant and
+    /// register a view for it instead of minting ad hoc.
+    pub fn register(kind: &'static str) -> Self {
+        assert!(
+            noun_kind::ALL.contains(&kind),
+            "unregistered noun kind {kind:?}: declare a noun_kind:: constant"
+        );
+        Self(kind.into())
     }
     pub fn as_str(&self) -> &str {
         &self.0
@@ -39,6 +54,19 @@ pub mod noun_kind {
     pub const NOTE: &str = "note";
     pub const OUTPUT: &str = "output";
     pub const DIAGNOSTIC: &str = "diagnostic";
+    pub const EVENT: &str = "event";
+    pub const ARTIFACT: &str = "artifact";
+    pub const CHECK: &str = "check";
+    pub const CLAIM: &str = "claim";
+    pub const DELIVERY: &str = "delivery";
+
+    /// The closed set every producer mints from — `NounKind::register`
+    /// rejects anything outside it, and the noun-view registry asserts
+    /// a view for each member.
+    pub const ALL: &[&str] = &[
+        PAGE, FINDING, PLAN, RECEIPT, NOTE, OUTPUT, DIAGNOSTIC, EVENT, ARTIFACT, CHECK, CLAIM,
+        DELIVERY,
+    ];
 }
 
 /// Every artifact in the app is a noun: page, diagnostic, finding, plan,
@@ -87,7 +115,7 @@ mod tests {
     fn noun_id_is_path_free() {
         let id = NounId {
             account: AccountId("acct".into()),
-            kind: NounKind(noun_kind::PAGE.into()),
+            kind: NounKind::register(noun_kind::PAGE),
             stable: StableId("01JAAA".into()),
         };
         let json = serde_json::to_string(&id).unwrap();

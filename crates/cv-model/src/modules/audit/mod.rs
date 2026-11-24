@@ -103,7 +103,7 @@ pub fn key_id(k: &DedupKey) -> String {
     format!(
         "{}|{}:{}|{}",
         k.code,
-        k.subject.kind.0,
+        k.subject.kind.as_str(),
         k.subject.stable.0,
         k.target_hash.to_hex()
     )
@@ -725,7 +725,7 @@ impl Module for AuditModule {
         self.entry(key)?;
         Some(NounId {
             account: AccountId("local".into()),
-            kind: NounKind(noun_kind::FINDING.into()),
+            kind: NounKind::register(noun_kind::FINDING),
             stable: StableId(key.into()),
         })
     }

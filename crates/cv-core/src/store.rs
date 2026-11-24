@@ -110,14 +110,14 @@ pub trait Store: Send {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::id::{AccountId, AttrValue, NounId, NounKind};
+    use crate::id::{AccountId, AttrValue, NounId, NounKind, noun_kind};
     use std::collections::BTreeMap;
 
     fn row(fields: &[(&str, AttrValue)]) -> crate::id::NounAttrRow {
         crate::id::NounAttrRow {
             noun: NounId {
                 account: AccountId("a".into()),
-                kind: NounKind("page".into()),
+                kind: NounKind::register(noun_kind::PAGE),
                 stable: StableId("s".into()),
             },
             fields: fields

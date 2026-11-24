@@ -496,7 +496,7 @@ impl Module for PagesModule {
         let p = &self.pages[*self.by_path.get(key)?];
         Some(NounId {
             account: AccountId("local".into()),
-            kind: NounKind(noun_kind::PAGE.into()),
+            kind: NounKind::register(noun_kind::PAGE),
             stable: StableId(p.id.clone()),
         })
     }
