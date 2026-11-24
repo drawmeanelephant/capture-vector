@@ -86,8 +86,27 @@ impl CopyToFolder {
         }
     }
     fn dest(&self, cfg: &TargetConfig) -> std::io::Result<PathBuf> {
-        confined(&self.root, portable_relative(&cfg.destination)?)
+        confined(&self.root, copy_destination(&cfg.destination)?)
     }
+}
+
+/// A `CopyToFolder` destination: project-relative and outside the `.cv/`
+/// sidecar, whose ledger and run evidence delivered bytes must never
+/// overwrite. The sidecar name is matched case-insensitively because
+/// macOS and Windows volumes usually are.
+pub(crate) fn copy_destination(destination: &str) -> std::io::Result<&Path> {
+    let path = portable_relative(destination)?;
+    if destination
+        .split('/')
+        .next()
+        .is_some_and(|first| first.eq_ignore_ascii_case(".cv"))
+    {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "copy destination is inside the .cv sidecar",
+        ));
+    }
+    Ok(path)
 }
 
 pub const COPY_TO_FOLDER: &str = "copy-to-folder";
@@ -106,8 +125,8 @@ impl DeliveryAdapter for CopyToFolder {
             .files
             .iter()
             .map(|(f, _)| {
-                portable_relative(&f.path)?;
-                let relative = Path::new(&d.config.destination).join(&f.path);
+                let relative =
+                    copy_destination(&d.config.destination)?.join(portable_relative(&f.path)?);
                 confined_file(&self.root, &relative)
             })
             .collect::<std::io::Result<Vec<_>>>()
@@ -144,7 +163,7 @@ impl DeliveryAdapter for CopyToFolder {
     }
 
     fn read_back(&self, cfg: &TargetConfig, path: &str) -> Option<Vec<u8>> {
-        let relative = portable_relative(&cfg.destination)
+        let relative = copy_destination(&cfg.destination)
             .ok()?
             .join(portable_relative(path).ok()?);
         std::fs::read(confined_file(&self.root, &relative).ok()?).ok()
