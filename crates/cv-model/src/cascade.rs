@@ -33,7 +33,12 @@ pub fn dispatch(state: &mut AppState, env: &Envelope) -> bool {
                     found: found.into(),
                     want: WANT_ENGINE.into(),
                 });
-            } else if matches!(state.degraded, Some(DegradedReason::WatchDead)) {
+            } else if matches!(
+                state.degraded,
+                Some(DegradedReason::EngineAbsent)
+                    | Some(DegradedReason::EngineVersionMismatch { .. })
+                    | Some(DegradedReason::WatchDead)
+            ) {
                 state.degraded = None;
             }
         }
@@ -48,4 +53,76 @@ pub fn dispatch(state: &mut AppState, env: &Envelope) -> bool {
         _ => {}
     }
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cv_core::events::{BuildId, Cursor, EventId, SessionId, SnapshotEpoch};
+    use cv_core::id::WorkspaceId;
+
+    fn env(n: u64, payload: AppEvent) -> Envelope {
+        Envelope {
+            workspace: WorkspaceId("t".into()),
+            snapshot_epoch: SnapshotEpoch(0),
+            build_id: Some(BuildId(format!("b{n}"))),
+            cursor: Cursor {
+                session: SessionId("s".into()),
+                seq: n,
+            },
+            event_id: EventId(format!("e{n}")),
+            payload,
+        }
+    }
+
+    fn started(compiler: &str) -> Envelope {
+        env(
+            0,
+            AppEvent::Engine(EngineEvent::WatchSessionStarted {
+                schema: 1,
+                compiler: compiler.into(),
+            }),
+        )
+    }
+
+    #[test]
+    fn matching_version_session_clears_engine_degraded_states() {
+        for reason in [
+            DegradedReason::EngineAbsent,
+            DegradedReason::EngineVersionMismatch {
+                found: "0.8.2".into(),
+                want: WANT_ENGINE.into(),
+            },
+            DegradedReason::WatchDead,
+        ] {
+            let mut state = AppState {
+                degraded: Some(reason.clone()),
+                ..Default::default()
+            };
+            dispatch(&mut state, &started("boris/0.9.0"));
+            assert_eq!(state.degraded, None, "{reason:?} should clear");
+        }
+    }
+
+    #[test]
+    fn matching_version_session_keeps_unrelated_degraded_state() {
+        let mut state = AppState {
+            degraded: Some(DegradedReason::StoreCorrupt),
+            ..Default::default()
+        };
+        dispatch(&mut state, &started("boris/0.9.0"));
+        assert_eq!(state.degraded, Some(DegradedReason::StoreCorrupt));
+    }
+
+    #[test]
+    fn version_mismatch_clears_on_later_matching_session() {
+        let mut state = AppState::default();
+        dispatch(&mut state, &started("boris/0.8.2"));
+        assert!(matches!(
+            state.degraded,
+            Some(DegradedReason::EngineVersionMismatch { .. })
+        ));
+        dispatch(&mut state, &started("boris/0.9.0"));
+        assert_eq!(state.degraded, None);
+    }
 }
