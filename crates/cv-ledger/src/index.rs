@@ -9,6 +9,8 @@ use crate::runs::runs;
 use rusqlite::{Connection, OptionalExtension, params};
 use std::path::{Path, PathBuf};
 
+/// Where the index lived before it moved to OS app-data. Kept only so
+/// `open` can delete the stale file; the index is disposable.
 pub const INDEX_REL: &str = ".cv/ledger/index.sqlite";
 
 pub struct LedgerIndex {
@@ -26,14 +28,21 @@ CREATE TABLE IF NOT EXISTS runs (
 ";
 
 impl LedgerIndex {
-    pub fn path_for(project_root: &Path) -> PathBuf {
-        project_root.join(INDEX_REL)
+    /// OS app-data path for this project's rebuildable index (keyed by
+    /// the canonical root, never inside `.cv/`).
+    pub fn path_for(project_root: &Path) -> std::io::Result<PathBuf> {
+        Ok(cv_store::paths::project_index_dir(project_root, "ledger")?.join("index.sqlite"))
     }
 
     /// Open the index and bring it in line with the journal. A stale,
     /// foreign, or corrupt index file is discarded and rebuilt.
     pub fn open(project_root: &Path, journal: &Journal) -> Result<Self> {
-        let path = Self::path_for(project_root);
+        let path = Self::path_for(project_root)?;
+        // Drop a pre-app-data index (and its journal artifacts); the
+        // JSONL journal is the truth and the index rebuilds from it.
+        for suffix in ["", "-journal", "-wal", "-shm"] {
+            let _ = std::fs::remove_file(project_root.join(format!("{INDEX_REL}{suffix}")));
+        }
         if let Some(dir) = path.parent() {
             std::fs::create_dir_all(dir)?;
         }
