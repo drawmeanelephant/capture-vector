@@ -182,8 +182,7 @@ pub fn open_workspace(
 }
 
 /// Native boot: `--project` → `CV_PROJECT` → most recent workspace. With
-/// none, the fixture demo stays up and the status line says how to open
-/// one. A `--scene` that loaded its own project is left alone.
+/// none, see [`boot_without_workspace`]. A `--scene` that loaded its own project is left alone.
 pub fn native_boot(wb: &mut Workbench) {
     if wb.app.snapshot_epoch == 0 {
         let env = WorkspaceEnv::native();
@@ -198,15 +197,28 @@ pub fn native_boot(wb: &mut Workbench) {
             Some(root) => {
                 open_workspace(wb, root, &env);
             }
-            None => {
-                let _ = open_corpus(wb, CANARY_CORPUS);
-                wb.status = "No workspace open — showing the fixture demo. \
-                             Open workspace… (mod+shift+O) or launch with --project <dir>."
-                    .into();
-            }
+            None => boot_without_workspace(wb, demo_available()),
         }
     }
     editor::open_from_env(wb);
+}
+
+/// The fixture demo reads the build checkout's `fixtures/`; an installed
+/// package has none.
+pub fn demo_available() -> bool {
+    cv_fixtures::fixtures_root().join("MANIFEST.toml").is_file()
+}
+
+/// No workspace picked: show the fixture demo when the checkout is
+/// present, otherwise an empty workbench. Either way, say how to open one.
+pub fn boot_without_workspace(wb: &mut Workbench, demo: bool) {
+    let how = "Open workspace… (mod+shift+O) or launch with --project <dir>.";
+    wb.status = if demo {
+        let _ = open_corpus(wb, CANARY_CORPUS);
+        format!("No workspace open — showing the fixture demo. {how}")
+    } else {
+        format!("No workspace open. {how}")
+    };
 }
 
 fn open_native(wb: &mut Workbench, root: PathBuf) {

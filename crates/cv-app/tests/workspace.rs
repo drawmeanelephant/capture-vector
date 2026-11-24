@@ -365,3 +365,16 @@ fn symlinked_input_outside_the_workspace_gets_no_promotion_writer() {
     wb.run_command("research.promote");
     assert!(!outside.path().join("notes").exists(), "{}", wb.status);
 }
+
+#[test]
+fn installed_package_without_fixtures_boots_empty() {
+    let mut wb = init();
+    cv_app::boot_without_workspace(&mut wb, false);
+    assert_eq!(wb.app.snapshot_epoch, 0);
+    assert!(wb.status.contains("Open workspace"), "{}", wb.status);
+    assert!(!wb.status.contains("fixture demo"), "{}", wb.status);
+
+    let mut wb = init();
+    cv_app::boot_without_workspace(&mut wb, cv_app::demo_available());
+    assert_ne!(wb.app.snapshot_epoch, 0, "checkout fixtures load the demo");
+}

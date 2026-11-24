@@ -75,6 +75,11 @@ pub enum SidecarError {
         path: PathBuf,
         msg: String,
     },
+    #[error("{namespace}: {path:?} is a symlink; refusing to write outside the workspace")]
+    Escapes {
+        namespace: &'static str,
+        path: PathBuf,
+    },
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
 }
@@ -146,8 +151,70 @@ fn write_stamp(root: &Path, ns: &Namespace, version: u32) -> std::io::Result<()>
     std::fs::rename(&tmp, dir.join(STAMP))
 }
 
+/// `root/<ns.dir>.schema.lock`: serializes stamping and migration across
+/// processes (and threads) opening the same workspace.
+pub fn lock_path(root: &Path, ns: &Namespace) -> PathBuf {
+    root.join(format!("{}.schema.lock", ns.dir))
+}
+
+/// `.cv/` comes with the project: every path component we would write
+/// through (the namespace dirs, its stamp and lock) must be a real
+/// entry inside `root`, not a symlink to somewhere else.
+fn check_contained(root: &Path, ns: &Namespace) -> Result<(), SidecarError> {
+    let mut paths = Vec::new();
+    let mut p = root.to_path_buf();
+    for c in Path::new(ns.dir).components() {
+        p.push(c);
+        paths.push(p.clone());
+    }
+    paths.push(stamp_path(root, ns));
+    paths.push(root.join(ns.dir).join(format!("{STAMP}.tmp")));
+    paths.push(lock_path(root, ns));
+    for path in paths {
+        match std::fs::symlink_metadata(&path) {
+            Ok(m) if m.file_type().is_symlink() => {
+                return Err(SidecarError::Escapes {
+                    namespace: ns.name,
+                    path,
+                });
+            }
+            Ok(_) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(e.into()),
+        }
+    }
+    Ok(())
+}
+
 /// Bring `root/<ns.dir>` to `ns.current`, or fail without writing.
 pub fn ensure(root: &Path, ns: &Namespace) -> Result<Outcome, SidecarError> {
+    check_contained(root, ns)?;
+    // A newer schema fails before anything (even the lock) is created.
+    if let Some(found) = read_version(root, ns)?
+        && found > ns.current
+    {
+        return Err(SidecarError::TooNew {
+            namespace: ns.name,
+            found,
+            supported: ns.current,
+        });
+    }
+    let lock = lock_path(root, ns);
+    if let Some(parent) = lock.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&lock)?;
+    file.lock()?;
+    // Re-read under the lock: another opener may have stamped or migrated.
+    ensure_locked(root, ns)
+}
+
+fn ensure_locked(root: &Path, ns: &Namespace) -> Result<Outcome, SidecarError> {
     let Some(found) = read_version(root, ns)? else {
         write_stamp(root, ns, ns.current)?;
         return Ok(Outcome::Fresh);
@@ -381,8 +448,44 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("data.jsonl"), "{}\n").unwrap();
         std::os::unix::fs::symlink(&victim, dir.join(format!("{STAMP}.tmp"))).unwrap();
-        ensure(root.path(), &V1).unwrap();
+        let err = ensure(root.path(), &V1).unwrap_err();
+        assert!(matches!(err, SidecarError::Escapes { .. }), "{err}");
         assert_eq!(std::fs::read_to_string(&victim).unwrap(), "keep");
+        assert_eq!(read_version(root.path(), &V1).unwrap(), Some(0));
+    }
+
+    #[test]
+    fn concurrent_fresh_opens_stamp_once() {
+        let root = tempfile::tempdir().unwrap();
+        let barrier = std::sync::Barrier::new(12);
+        let outcomes: Vec<Outcome> = std::thread::scope(|sc| {
+            let hs: Vec<_> = (0..12)
+                .map(|_| {
+                    sc.spawn(|| {
+                        barrier.wait();
+                        ensure(root.path(), &V1).unwrap()
+                    })
+                })
+                .collect();
+            hs.into_iter().map(|h| h.join().unwrap()).collect()
+        });
+        assert_eq!(outcomes.iter().filter(|o| **o == Outcome::Fresh).count(), 1);
+        assert!(
+            outcomes
+                .iter()
+                .all(|o| matches!(o, Outcome::Fresh | Outcome::Current))
+        );
         assert_eq!(read_version(root.path(), &V1).unwrap(), Some(1));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_cv_dir_is_refused() {
+        let root = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        std::os::unix::fs::symlink(outside.path(), root.path().join(".cv")).unwrap();
+        let err = ensure(root.path(), &V1).unwrap_err();
+        assert!(matches!(err, SidecarError::Escapes { .. }), "{err}");
+        assert_eq!(std::fs::read_dir(outside.path()).unwrap().count(), 0);
     }
 }

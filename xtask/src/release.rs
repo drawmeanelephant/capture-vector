@@ -100,6 +100,23 @@ pub fn check_build_info(
     Ok(())
 }
 
+/// Subprocesses here run with other working directories; anchor
+/// user-supplied paths to ours first.
+fn absolute(p: &str) -> Result<PathBuf, String> {
+    std::path::absolute(p).map_err(|e| format!("{p}: {e}"))
+}
+
+/// The `executable` of `bin`'s `compiler-artifact` message in Cargo's
+/// `--message-format=json` output.
+pub fn built_executable(messages: &str, bin: &str) -> Option<PathBuf> {
+    messages
+        .lines()
+        .filter_map(|l| serde_json::from_str::<Value>(l).ok())
+        .filter(|m| m["reason"] == "compiler-artifact" && m["target"]["name"] == bin)
+        .filter_map(|m| m["executable"].as_str().map(PathBuf::from))
+        .next_back()
+}
+
 fn run(cmd: &mut Command) -> Result<String, String> {
     let shown = format!("{cmd:?}");
     let out = cmd.output().map_err(|e| format!("{shown}: {e}"))?;
@@ -148,7 +165,7 @@ fn copy_exe(from: &Path, to: &Path) -> Result<(), String> {
 pub fn fetch_boris(root: &Path, args: &[String]) -> Result<PathBuf, String> {
     let tag = boris_tag(PINNED);
     let src = match args.iter().position(|a| a == "--src") {
-        Some(i) => PathBuf::from(args.get(i + 1).ok_or("--src needs a path")?),
+        Some(i) => absolute(args.get(i + 1).ok_or("--src needs a path")?)?,
         None => {
             let dir = root.join("vendor").join("boris");
             if dir.join(".git").exists() {
@@ -181,6 +198,19 @@ pub fn fetch_boris(root: &Path, args: &[String]) -> Result<PathBuf, String> {
     if !head.starts_with(PINNED.vcs_revision) {
         return Err(format!(
             "{} is at {head}, not the pinned {} ({tag})",
+            src.display(),
+            PINNED.vcs_revision
+        ));
+    }
+    // `-Dvcs-revision` overrides boris' own dirty detection, so the tree
+    // must be exactly the pinned commit for that stamp to be true.
+    let dirty = run(Command::new("git")
+        .arg("-C")
+        .arg(&src)
+        .args(["status", "--porcelain"]))?;
+    if !dirty.is_empty() {
+        return Err(format!(
+            "{} has local changes; refusing to stamp them as {}:\n{dirty}",
             src.display(),
             PINNED.vcs_revision
         ));
@@ -246,17 +276,25 @@ pub fn release(root: &Path, args: &[String]) -> Result<PathBuf, String> {
     let vcs = git_vcs(root)?;
 
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
-    status(
-        Command::new(cargo)
-            .args(["build", "--release", "--locked", "-p", "cv-app"])
-            .env("CV_BUILD_VCS", &vcs)
-            .current_dir(root),
-    )?;
+    // Cargo reports where it put the binary (CARGO_TARGET_DIR, config).
+    let messages = run(Command::new(cargo)
+        .args([
+            "build",
+            "--release",
+            "--locked",
+            "-p",
+            "cv-app",
+            "--message-format=json-render-diagnostics",
+        ])
+        .env("CV_BUILD_VCS", &vcs)
+        .stderr(std::process::Stdio::inherit())
+        .current_dir(root))?;
+    let built =
+        built_executable(&messages, "cv-app").ok_or("cargo build reported no cv-app executable")?;
     let app_name = format!("cv-app{}", std::env::consts::EXE_SUFFIX);
-    let built = root.join("target").join("release").join(&app_name);
 
     let out = match args.iter().position(|a| a == "--out") {
-        Some(i) => PathBuf::from(args.get(i + 1).ok_or("--out needs a path")?),
+        Some(i) => absolute(args.get(i + 1).ok_or("--out needs a path")?)?,
         None => root.join("target").join("dist"),
     };
     let name = artifact_name(&version, std::env::consts::OS, std::env::consts::ARCH);
@@ -367,5 +405,21 @@ mod tests {
         let mut wrong_rev = ok;
         wrong_rev["engine"]["vcsRevision"] = json!("ce40d78");
         assert!(check_build_info(&wrong_rev, "0.1.0", "abc123", e, PINNED).is_err());
+    }
+
+    #[test]
+    fn executable_comes_from_cargo_artifact_messages() {
+        let msgs = concat!(
+            r#"{"reason":"compiler-artifact","target":{"name":"cv-core"},"executable":null}"#,
+            "\n",
+            r#"{"reason":"compiler-artifact","target":{"name":"cv-app"},"executable":"/elsewhere/release/cv-app"}"#,
+            "\n",
+            r#"{"reason":"build-finished","success":true}"#,
+        );
+        assert_eq!(
+            built_executable(msgs, "cv-app"),
+            Some(PathBuf::from("/elsewhere/release/cv-app"))
+        );
+        assert_eq!(built_executable(msgs, "cv-other"), None);
     }
 }
