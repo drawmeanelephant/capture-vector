@@ -14,6 +14,11 @@ fn session() -> Rc<RefCell<EditorSession>> {
     Rc::new(RefCell::new(EditorSession::new()))
 }
 
+/// The snapshot tests each spawn a real window; two live wgpu surfaces in
+/// one process segfault on software D3D12 (Microsoft Basic Render Driver),
+/// so windowed tests must not run in parallel.
+static WINDOWED: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 fn window(ses: &Rc<RefCell<EditorSession>>, id: u32, buf: BufferId) -> Runtime<EditorWindow> {
     editor::runtime(EditorWindow::new(
         WindowId(id),
@@ -134,6 +139,7 @@ fn pending_ed() -> EditorWindow {
 /// editor's own AppSpec, `Ime::Preedit` alive when `--at` snaps the mark.
 #[test]
 fn ime_marked_text_snapshot() {
+    let _windowed = WINDOWED.lock().unwrap();
     let ses = session();
     let buf = ses.borrow_mut().open("p.md", "café body line\n", None);
     let dir = tempfile::tempdir().unwrap();
@@ -272,6 +278,7 @@ fn dirty_close_confirm() {
 fn dirty_close_prompt_snapshot() {
     use cv_widgets::editor::Closing;
 
+    let _windowed = WINDOWED.lock().unwrap();
     let ses = session();
     let buf = ses.borrow_mut().open("p.md", "clean body\n", None);
     let mut w = EditorWindow::new(WindowId(9), ses.clone(), buf, Theme::dark());
