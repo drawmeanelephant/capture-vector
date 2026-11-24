@@ -45,9 +45,9 @@ jobs:
       - name: PNG goldens (lavapipe)
         if: matrix.os == 'ubuntu-latest'
         shell: bash
-        env:
-          VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
-        run: bash scripts/check-ui-png.sh
+        run: |
+          ls /usr/share/vulkan/icd.d/
+          bash scripts/check-ui-png.sh
 
   lint:
     name: fmt + clippy + firewall
