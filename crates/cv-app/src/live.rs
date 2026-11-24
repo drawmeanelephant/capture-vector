@@ -312,11 +312,11 @@ fn recover_build(
             "Boris one-shot build succeeded".into(),
         ),
         Ok(r) => (
-            DegradedReason::BuildFailed,
+            DegradedReason::EngineBuildFailing,
             format!("Boris one-shot build failed ({:?})", r.exit),
         ),
         Err(e) => (
-            DegradedReason::BuildFailed,
+            DegradedReason::EngineBuildFailing,
             format!("Boris one-shot build failed: {e}"),
         ),
     };
@@ -645,7 +645,7 @@ mod tests {
             wb.status
                 .contains("Boris one-shot build failed (IoFailure)")
         );
-        assert_eq!(wb.app.degraded, Some(DegradedReason::BuildFailed));
+        assert_eq!(wb.app.degraded, Some(DegradedReason::EngineBuildFailing));
         let activity = wb
             .registry
             .get(wb.registry.index_of("activity").unwrap())
@@ -678,7 +678,7 @@ mod tests {
     fn diagnostic_build_error_is_disclosed_even_without_a_build_envelope() {
         let wb = run_native_recovery(None);
         assert!(wb.status.contains("Boris one-shot build failed:"));
-        assert_eq!(wb.app.degraded, Some(DegradedReason::BuildFailed));
+        assert_eq!(wb.app.degraded, Some(DegradedReason::EngineBuildFailing));
     }
 
     #[test]

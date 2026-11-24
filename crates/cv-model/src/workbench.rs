@@ -120,7 +120,8 @@ pub struct Workbench {
     pub recent: Vec<PathBuf>,
     /// Pending requests for the windowing layer; drained by its poll.
     pub requests: Vec<ShellRequest>,
-    seen: BTreeSet<String>,
+    /// `(event_id, envelope digest)` — the contract's idempotency key.
+    seen: BTreeSet<(String, u64)>,
     /// Applied but not yet journaled (store write failed); retried on replay.
     unjournaled: BTreeSet<String>,
     tx: Sender<Inbound>,
@@ -260,7 +261,7 @@ impl Workbench {
     }
 
     fn commit(&mut self, env: &Envelope) -> bool {
-        if !self.seen.insert(env.event_id.0.clone()) {
+        if !self.seen.insert((env.event_id.0.clone(), digest(env))) {
             if self.unjournaled.contains(&env.event_id.0) {
                 self.journal(env);
             }
@@ -654,6 +655,17 @@ impl Workbench {
         }
         true
     }
+}
+
+/// Idempotency digest: the serialized envelope (event_id is deduped
+/// separately, so this stands in for the contract's `input_hash` — a
+/// reused id with a different payload or session is a new event, not a
+/// replay).
+fn digest(env: &Envelope) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    serde_json::to_vec(env).unwrap_or_default().hash(&mut h);
+    h.finish()
 }
 
 impl Drop for Workbench {

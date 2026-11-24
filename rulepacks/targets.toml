@@ -87,15 +87,20 @@ captured = "2026-11-23"
 [[rule]]
 id = "TGT-RAG-DRAFT-LEAK"
 severity = "Error"
-tier = "EngineDocumented"
+tier = "NormativeSpec"
 archetypes = ["Any"]
 remediation = "Boris RAG keeps every page, drafts included; scope the export (`--scope`) or publish the draft before shipping a RAG pack."
 check = { NotPresent = { artifact = "Rag", selector = { IrNode = { kind = "*", field = "status=draft" } } } }
+# The blocking authority is PROMPT-v3, not the engine: the Boris
+# contract keeps drafts in RAG by design ("IR and RAG keep every page",
+# docs/contracts/frontmatter.md), so this rule gates a leak the engine
+# does not treat as a failure. Tension recorded in
+# spec/synthesis/prompt-v3-vs-engine-contract.md.
 [rule.citation]
-source = "Boris 0.9.0 contract: Frontmatter, status (docs/contracts/frontmatter.md)"
-url = "https://github.com/drawmeanelephant/boris/blob/v0.9.0/docs/contracts/frontmatter.md"
-frozen_quote = "Standard.site, Nostr, RSS, sitemap, and search exclude drafts; IR and RAG keep every page."
-captured = "2026-11-23"
+source = "PROMPT-v3 work order: Audit section (spec/PROMPT-v3.md)"
+url = "https://github.com/drawmeanelephant/capture-vector/blob/main/spec/PROMPT-v3.md"
+frozen_quote = "Draft/noindex leakage into sitemap/rss/llms/RAG is a blocking error."
+captured = "2026-11-24"
 
 [[rule]]
 id = "TGT-SITEMAP-NOINDEX-LEAK"

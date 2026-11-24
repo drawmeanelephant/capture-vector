@@ -18,7 +18,12 @@ pub enum ShellEvent {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DegradedReason {
     EngineAbsent,
-    EngineVersionMismatch { found: String, want: String },
+    EngineVersionMismatch {
+        found: String,
+        want: String,
+    },
+    /// The diagnostic build after a fatal native watch failure failed.
+    EngineBuildFailing,
     WatchDead,
     StoreCorrupt,
     BuildFailed,
