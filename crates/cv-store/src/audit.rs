@@ -82,6 +82,7 @@ impl From<std::io::Error> for Error {
 pub struct LifecycleLog {
     file: File,
     path: PathBuf,
+    _writer: File,
 }
 
 fn refuse_symlink(p: &Path) -> Result<(), Error> {
@@ -103,17 +104,24 @@ impl LifecycleLog {
         let cv = root.join(".cv");
         let dir = root.join(DIR);
         let path = dir.join(LIFECYCLE);
-        for p in [&cv, &dir, &path] {
+        let writer_path = path.with_extension("lock");
+        for p in [&cv, &dir, &path, &writer_path] {
             refuse_symlink(p)?;
         }
         sidecar::ensure(root, &SCHEMA).map_err(Error::Schema)?;
+        let writer = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(&writer_path)?;
+        writer.try_lock().map_err(std::io::Error::other)?;
         let mut file = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
             .truncate(false)
             .open(&path)?;
-        file.try_lock().map_err(std::io::Error::other)?;
         let mut buf = Vec::new();
         file.read_to_end(&mut buf)?;
         let good = buf.iter().rposition(|b| *b == b'\n').map_or(0, |i| i + 1);
@@ -152,7 +160,15 @@ impl LifecycleLog {
                 }
             }
         }
-        Ok((Self { file, path }, out, scan))
+        Ok((
+            Self {
+                file,
+                path,
+                _writer: writer,
+            },
+            out,
+            scan,
+        ))
     }
 
     pub fn append(&mut self, key: &DedupKey, to: FindingLifecycle) -> Result<(), Error> {
@@ -316,6 +332,15 @@ mod tests {
         std::fs::create_dir_all(d.path().join(DIR)).unwrap();
         let target = elsewhere.path().join("victim");
         std::os::unix::fs::symlink(&target, d.path().join(DIR).join(LIFECYCLE)).unwrap();
+        assert!(matches!(
+            LifecycleLog::open(d.path()),
+            Err(Error::Symlink(_))
+        ));
+        assert!(!target.exists());
+        let d = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(d.path().join(DIR)).unwrap();
+        let lock = d.path().join(DIR).join(LIFECYCLE).with_extension("lock");
+        std::os::unix::fs::symlink(&target, lock).unwrap();
         assert!(matches!(
             LifecycleLog::open(d.path()),
             Err(Error::Symlink(_))

@@ -82,7 +82,8 @@ and migrates independently (`cv_store::sidecar`):
   opens stamp once.
 
 A newer schema in one namespace does not block the others. The audit
-journal also holds an exclusive writer lock until the workspace closes.
+writer holds `.cv/audit/lifecycle.lock` until the workspace closes.
+Locking this separate file keeps the journal readable on Windows.
 
 ## Deferred — needs the owner (issue #2 territory)
 
