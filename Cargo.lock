@@ -845,7 +845,6 @@ name = "cv-store"
 version = "0.0.0"
 dependencies = [
  "cv-core",
- "rusqlite",
  "serde",
  "serde_json",
  "tempfile",
