@@ -376,9 +376,6 @@ impl Workbench {
         if index < self.registry.len() && index != self.active {
             self.active = index;
             self.clear_selection();
-            if let Some(m) = self.registry.get(index) {
-                self.status = format!("{} — {}", m.spec().slot.title(), m.spec().title);
-            }
         }
     }
 

@@ -132,6 +132,42 @@ fn scripted_palette_flow_reaches_every_degraded_state() {
 }
 
 #[test]
+fn degraded_banner_dismisses_by_click_and_by_palette() {
+    let mut h = scene("watch-dead");
+    let alert = h.tree()["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|n| n["key"] == "banner" && n["role"] == "alert");
+    assert!(alert, "banner keeps role alert");
+    h.script(&["click:banner-dismiss"]);
+    assert!(!h.has("banner"), "dismissed by click");
+
+    let mut h = scene("store-corrupt");
+    h.script(&["key:mod+k", "key:text:dismiss degraded", "key:enter"]);
+    assert!(!h.has("banner"), "dismissed from the palette");
+}
+
+#[test]
+fn status_bar_buttons_toggle_theme_and_motion() {
+    let mut h = scene("canary");
+    h.script(&["click:status-3"]);
+    assert_eq!(h.state().theme.mode, cv_model::theme::Mode::Light);
+    h.script(&["click:status-4"]);
+    assert!(h.state().theme.motion.reduced);
+}
+
+#[test]
+fn transient_status_shows_as_a_closable_toast() {
+    let mut h = scene("research-promote");
+    assert!(h.has("status-msg"));
+    assert!(h.has("close"), "toast has a close button");
+    h.script(&["click:close"]);
+    assert!(!h.has("status-msg"));
+    assert!(h.state().status.is_empty());
+}
+
+#[test]
 fn click_and_keyboard_drive_selection_and_rail() {
     let mut h = scene("canary");
     h.script(&["click:nav-pages"]);

@@ -4,23 +4,17 @@
 
 use crate::diagnostic;
 use crate::theme::{self, Level, Size, Styled, color, font};
+use crate::{controls, icons};
 use cv_core::events::shell::DegradedReason;
 use cv_model::module::{ReadingModel, RowModel, Slot, Tone};
-use cv_model::theme::Theme;
+use cv_model::theme::{Mode, Rgba, Theme};
 use cv_model::workbench::Workbench;
-use rune::{Color, Cx, El, GrowthSpec, ScrollSpec, col, row, spacer, text};
-use rune_kit::Markdown;
+use rune::{Color, Cx, Edge, El, GrowthSpec, ScrollSpec, Transition, col, icon, row, spacer, text};
+use rune_kit::{ButtonVariant, Markdown, RollingText, Toast, ToastRegion};
 use std::borrow::Cow;
 
-pub(crate) fn tone(t: &Theme, tone: Tone) -> Color {
-    let c = &t.colors;
-    color(match tone {
-        Tone::Normal => c.text,
-        Tone::Dim => c.text_dim,
-        Tone::Ok => c.ok,
-        Tone::Warn => c.warn,
-        Tone::Error => c.error,
-    })
+pub(crate) fn tone(t: &Theme, tn: Tone) -> Color {
+    color(tone_token(t, tn))
 }
 
 fn label(t: &Theme, s: impl Into<String>) -> El {
@@ -54,9 +48,55 @@ pub fn degraded_text(r: &DegradedReason) -> String {
     }
 }
 
+/// How serious each degraded reason reads: a stale or mismatched engine
+/// is a warning; no engine, a failing build or a corrupt store is an error.
+pub fn degraded_tone(r: &DegradedReason) -> Tone {
+    match r {
+        DegradedReason::EngineVersionMismatch { .. } | DegradedReason::WatchDead => Tone::Warn,
+        DegradedReason::EngineAbsent
+        | DegradedReason::EngineBuildFailing
+        | DegradedReason::StoreCorrupt
+        | DegradedReason::BuildFailed => Tone::Error,
+    }
+}
+
+fn tone_token(t: &Theme, tn: Tone) -> Rgba {
+    let c = &t.colors;
+    match tn {
+        Tone::Normal => c.text,
+        Tone::Dim => c.text_dim,
+        Tone::Ok => c.ok,
+        Tone::Warn => c.warn,
+        Tone::Error => c.error,
+    }
+}
+
+/// A small tinted capsule: `label` in the tone colour on a wash of it.
+fn chip(t: &Theme, key: &str, label: impl Into<String>, tn: Tone) -> El {
+    let fg = tone_token(t, tn);
+    row()
+        .key(key.to_string())
+        .px(t.spacing.unit * 1.5)
+        .items_center()
+        .fill(theme::tint(fg, 0x2e))
+        .rounded(t, Size::Pill)
+        .child(
+            text(label)
+                .font(font(t.type_.label))
+                .color(color(fg))
+                .single_line(),
+        )
+}
+
 fn banner(s: &Workbench) -> Option<El> {
     let t = &s.theme;
     let r = s.app.degraded.as_ref()?;
+    let tn = degraded_tone(r);
+    let fg = tone_token(t, tn);
+    let wash = match tn {
+        Tone::Error => color(t.gradients.banner.start),
+        _ => theme::tint(fg, 0x38),
+    };
     Some(
         row()
             .key("banner")
@@ -65,22 +105,32 @@ fn banner(s: &Workbench) -> Option<El> {
             .px(t.spacing.unit * 3.0)
             .py(t.spacing.unit * 1.5)
             .gap(t.spacing.unit * 2.0)
+            .items_center()
             .fill(color(t.colors.banner))
-            .child(
-                text("DEGRADED")
-                    .font(font(t.type_.label))
-                    .color(color(t.colors.error)),
+            .linear_gradient(
+                std::f32::consts::FRAC_PI_2,
+                [(0.0, wash), (1.0, color(t.gradients.banner.end))],
             )
+            .border_sides([0.0, 0.0, 1.0, 0.0], color(fg))
+            .transition(Transition::move_edge(Edge::Top))
+            .motion(theme::spring(t.motion.panel))
+            .child(icon(&icons::TRIANGLE_ALERT, 14.0).color(color(fg)))
+            .child(chip(t, "banner-chip", "DEGRADED", tn))
             .child(
                 text(degraded_text(r))
                     .font(font(t.type_.body))
                     .color(color(t.colors.text)),
             )
             .child(spacer())
-            .child(label(t, "palette: Dismiss degraded banner")),
+            .child(controls::button(
+                t,
+                "banner-dismiss",
+                "Dismiss",
+                ButtonVariant::Ghost,
+                |s: &mut Workbench| s.run_command("shell.degraded.dismiss"),
+            )),
     )
 }
-
 fn rail(s: &Workbench) -> El {
     let t = &s.theme;
     let mut rail = col()
@@ -477,37 +527,124 @@ fn inspector(s: &Workbench) -> El {
     pane
 }
 
-fn status(s: &Workbench) -> El {
+/// Engine health for the status chip.
+fn engine_tone(s: &Workbench) -> Tone {
+    let engine_reason = s
+        .app
+        .degraded
+        .as_ref()
+        .filter(|r| !matches!(r, DegradedReason::StoreCorrupt));
+    match (engine_reason, &s.app.engine) {
+        (Some(r), _) => degraded_tone(r),
+        (None, Some(_)) => Tone::Ok,
+        (None, None) => Tone::Dim,
+    }
+}
+
+fn engine_chip(s: &Workbench) -> El {
     let t = &s.theme;
     let engine = s.app.engine.clone().unwrap_or_else(|| "no engine".into());
-    let parts = [
-        engine,
-        format!("{} events", s.app.committed),
-        format!("epoch {}", s.app.snapshot_epoch),
-        format!("{:?}", t.mode).to_lowercase(),
-        if t.motion.reduced {
-            "reduced motion"
-        } else {
-            "motion"
-        }
-        .into(),
-    ];
-    let mut bar = row()
+    let tn = engine_tone(s);
+    let dot = 6.0;
+    row()
+        .key("status-0")
+        .h(t.spacing.row_h - t.spacing.unit)
+        .px(t.spacing.unit * 2.0)
+        .gap(t.spacing.unit * 1.5)
+        .items_center()
+        .fill(color(t.colors.pane_alt))
+        .rounded(t, Size::Pill)
+        .child(
+            col()
+                .key("status-dot")
+                .w(dot)
+                .h(dot)
+                .fill(tone(t, tn))
+                .rounded(t, Size::Pill),
+        )
+        .child(label(t, engine).color(color(t.colors.text)))
+}
+
+fn status(s: &Workbench) -> El {
+    let t = &s.theme;
+    let k = theme::kit(t);
+    let dark = t.mode == Mode::Dark;
+    let events = s.app.committed;
+    let (mode_icon, mode_label) = if dark {
+        (&icons::SUN, "Switch to light theme")
+    } else {
+        (&icons::MOON, "Switch to dark theme")
+    };
+    let (motion_icon, motion_label) = if t.motion.reduced {
+        (&icons::ZAP_OFF, "Motion reduced — turn motion on")
+    } else {
+        (&icons::ZAP, "Motion on — reduce motion")
+    };
+    row()
         .key("status")
         .w_full()
         .h(t.spacing.row_h)
-        .px(t.spacing.unit * 3.0)
+        .px(t.spacing.unit * 2.0)
         .gap(t.spacing.unit * 3.0)
         .items_center()
-        .fill(color(t.colors.rail));
-    for (i, p) in parts.into_iter().enumerate() {
-        bar = bar.child(label(t, p).key(format!("status-{i}")));
-    }
-    bar.child(spacer())
-        .child(label(t, s.status.clone()).key("status-msg"))
+        .fill(color(t.colors.rail))
+        .border_sides([0.5, 0.0, 0.0, 0.0], color(t.colors.border))
+        .child(engine_chip(s))
+        .child(
+            RollingText::new("status-1", format!("{events} events"))
+                .value(events as f64)
+                .font(font(t.type_.label))
+                .color(color(t.colors.text_dim))
+                .spring(theme::spring(t.motion.pop))
+                .build(&k),
+        )
+        .child(
+            row()
+                .key("status-2")
+                .px(t.spacing.unit * 1.5)
+                .fill(color(t.colors.pane_alt))
+                .rounded(t, Size::Xs)
+                .child(
+                    text(format!("epoch {}", s.app.snapshot_epoch))
+                        .font(font(t.type_.mono))
+                        .color(color(t.colors.text_dim))
+                        .single_line(),
+                ),
+        )
+        .child(spacer())
         .child(label(t, "mod+K commands"))
+        .child(controls::icon_button(
+            t,
+            "status-3",
+            mode_icon,
+            mode_label,
+            |s: &mut Workbench| s.run_command("shell.theme.toggle"),
+        ))
+        .child(controls::icon_button(
+            t,
+            "status-4",
+            motion_icon,
+            motion_label,
+            |s: &mut Workbench| s.run_command("shell.motion.toggle"),
+        ))
 }
 
+/// Transient status messages, bottom-right above the status bar.
+fn toasts(s: &Workbench) -> Option<El> {
+    if s.status.is_empty() {
+        return None;
+    }
+    let t = &s.theme;
+    let k = theme::kit(t);
+    let short = s.status.chars().count() <= 40;
+    let mut toast = if short {
+        Toast::new("status-msg", s.status.clone())
+    } else {
+        Toast::new("status-msg", "Status").description(s.status.clone())
+    };
+    toast = toast.on_close(|s: &mut Workbench| s.status.clear());
+    Some(ToastRegion::new().toast(toast.build(&k)).build(&k))
+}
 fn palette(s: &Workbench, width: f32) -> El {
     let t = &s.theme;
     let cmds = s.commands();
@@ -588,6 +725,9 @@ pub fn view(s: &Workbench, cx: &mut Cx<Workbench>) -> El {
         root = root.child(b);
     }
     root = root.child(body).child(status(s));
+    if let Some(t) = toasts(s) {
+        root = root.child(t);
+    }
     if s.palette.open {
         let w = cx.layout_size("shell").map(|[w, _]| w).unwrap_or(1280.0);
         root = root.child(palette(s, w));
