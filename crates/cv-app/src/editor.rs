@@ -53,18 +53,22 @@ pub fn open_from_env(wb: &mut Workbench) {
     let Ok(rel) = std::env::var("CV_EDIT") else {
         return;
     };
+    open_for_editing(wb, &rel);
+}
+
+fn open_for_editing(wb: &mut Workbench, rel: &str) {
     let root = wb
         .workspace
         .clone()
         .or_else(crate::workspace::project_env)
         .unwrap_or_else(|| ".".into());
-    match open_page(wb, &root, &rel) {
-        Ok(_) => crate::logging::info("editor_open", &[("page", serde_json::json!(&rel))]),
+    match open_page(wb, &root, rel) {
+        Ok(_) => crate::logging::info("editor_open", &[("page", serde_json::json!(rel))]),
         Err(e) => {
             crate::logging::warn(
                 "editor_open_failed",
                 &[
-                    ("page", serde_json::json!(&rel)),
+                    ("page", serde_json::json!(rel)),
                     ("error", serde_json::json!(e.to_string())),
                 ],
             );
@@ -85,6 +89,73 @@ mod tests {
         let mut wb = crate::init();
         let err = open_page(&mut wb, dir.path(), page.to_str().unwrap()).unwrap_err();
         assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
+        assert!(wb.windows.companions.is_empty());
+    }
+
+    /// A workspace `root` beside a file holding text that must never
+    /// reach an editor buffer.
+    fn root_beside_a_secret() -> (tempfile::TempDir, std::path::PathBuf) {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("ws");
+        std::fs::create_dir_all(root.join("content")).unwrap();
+        std::fs::write(dir.path().join("secret.md"), "outside the workspace").unwrap();
+        (dir, root)
+    }
+
+    fn assert_refused(wb: &Workbench, err: std::io::Error) {
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
+        assert!(wb.windows.companions.is_empty());
+    }
+
+    #[test]
+    fn open_page_refuses_parent_directory_traversal() {
+        let (_dir, root) = root_beside_a_secret();
+        let mut wb = crate::init();
+        for rel in ["../secret.md", "content/../../secret.md"] {
+            let err = open_page(&mut wb, &root, rel).unwrap_err();
+            assert_refused(&wb, err);
+            assert!(host::session().borrow().find(rel).is_none(), "{rel}");
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn open_page_refuses_a_linked_page_that_escapes_the_root() {
+        let (dir, root) = root_beside_a_secret();
+        std::os::unix::fs::symlink(dir.path().join("secret.md"), root.join("content/p.md"))
+            .unwrap();
+        let mut wb = crate::init();
+        let err = open_page(&mut wb, &root, "content/p.md").unwrap_err();
+        assert_refused(&wb, err);
+        assert!(host::session().borrow().find("content/p.md").is_none());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn open_page_refuses_a_page_under_a_linked_directory() {
+        let (dir, root) = root_beside_a_secret();
+        std::os::unix::fs::symlink(dir.path(), root.join("content/out")).unwrap();
+        let mut wb = crate::init();
+        let err = open_page(&mut wb, &root, "content/out/secret.md").unwrap_err();
+        assert_refused(&wb, err);
+        assert!(
+            host::session()
+                .borrow()
+                .find("content/out/secret.md")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn a_refused_page_is_reported_in_the_status_line() {
+        let (_dir, root) = root_beside_a_secret();
+        let mut wb = crate::init();
+        wb.workspace = Some(root);
+        open_for_editing(&mut wb, "../secret.md");
+        assert_eq!(
+            wb.status,
+            "cannot open ../secret.md for editing: not a confined project-relative path"
+        );
         assert!(wb.windows.companions.is_empty());
     }
 
