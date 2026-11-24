@@ -175,6 +175,12 @@ pub enum Severity {
     Info,
 }
 
+impl Severity {
+    fn legacy_finding_default() -> Self {
+        Self::Error
+    }
+}
+
 /// `(code, subject, hash(target))` — N broken links on one page stay N
 /// findings; the same finding on an unchanged target dedups across runs.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -210,6 +216,10 @@ pub struct FixIt {
 pub struct Finding {
     pub code: AuditCode,
     pub tier: AuthorityTier,
+    /// Copied from the producing `Rule`. Payloads serialized before
+    /// findings carried severity load as `Error`, which is what
+    /// `severity()` reported for every finding back then.
+    #[serde(default = "Severity::legacy_finding_default")]
     pub severity: Severity,
     pub status: CheckStatus,
     pub subject: NounId,
@@ -257,5 +267,129 @@ mod tests {
         assert!(!AuthorityTier::Heuristic.may_block());
         assert!(AuthorityTier::NormativeSpec.may_block());
         assert!(AuthorityTier::EngineDocumented.may_block());
+    }
+
+    fn failed(tier: AuthorityTier, severity: Severity) -> Finding {
+        let subject = NounId {
+            account: crate::id::AccountId("acct".into()),
+            kind: crate::id::NounKind::new("page".into()),
+            stable: crate::id::StableId("p".into()),
+        };
+        Finding {
+            code: "X".into(),
+            tier,
+            severity,
+            status: CheckStatus::Failed,
+            key: DedupKey {
+                code: "X".into(),
+                subject: subject.clone(),
+                target_hash: Hash([0; 32]),
+            },
+            subject,
+            evidence: Evidence {
+                summary: "failed".into(),
+                detail: None,
+            },
+            fix: None,
+            lifecycle: FindingLifecycle::Open,
+        }
+    }
+
+    fn report(findings: Vec<Finding>) -> Report {
+        Report {
+            artifact_set_hash: Hash([1; 32]),
+            ruleset_hash: Hash([2; 32]),
+            findings,
+        }
+    }
+
+    #[test]
+    fn failed_warning_or_info_at_a_blocking_tier_does_not_block() {
+        for tier in [
+            AuthorityTier::NormativeSpec,
+            AuthorityTier::EngineDocumented,
+        ] {
+            for severity in [Severity::Warning, Severity::Info] {
+                let f = failed(tier, severity);
+                assert_eq!(f.severity(), severity);
+                assert!(!f.blocks_publish(), "{tier:?}/{severity:?}");
+                assert!(
+                    !report(vec![f]).has_blocking_errors(),
+                    "{tier:?}/{severity:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn failed_error_at_a_blocking_tier_blocks() {
+        for tier in [
+            AuthorityTier::NormativeSpec,
+            AuthorityTier::EngineDocumented,
+        ] {
+            let r = report(vec![
+                failed(tier, Severity::Warning),
+                failed(tier, Severity::Error),
+            ]);
+            assert!(r.has_blocking_errors(), "{tier:?}");
+        }
+    }
+
+    #[test]
+    fn failed_heuristic_error_never_blocks() {
+        let f = failed(AuthorityTier::Heuristic, Severity::Error);
+        assert_eq!(f.severity(), Severity::Error);
+        assert!(!f.blocks_publish());
+        assert!(!report(vec![f.clone(), f]).has_blocking_errors());
+    }
+
+    #[test]
+    fn non_failed_error_at_a_blocking_tier_does_not_block() {
+        for status in [
+            CheckStatus::Checked,
+            CheckStatus::Passed,
+            CheckStatus::Limited,
+        ] {
+            let mut f = failed(AuthorityTier::NormativeSpec, Severity::Error);
+            f.status = status;
+            assert!(!report(vec![f]).has_blocking_errors(), "{status:?}");
+        }
+    }
+
+    #[test]
+    fn finding_serialized_without_severity_loads_as_error() {
+        let mut legacy = serde_json::to_value(failed(AuthorityTier::Heuristic, Severity::Info))
+            .expect("finding serializes");
+        legacy
+            .as_object_mut()
+            .expect("finding is a JSON object")
+            .remove("severity");
+        let f: Finding = serde_json::from_value(legacy).expect("legacy finding loads");
+        assert_eq!(f.severity(), Severity::Error);
+        assert!(!f.blocks_publish());
+
+        let mut legacy = serde_json::to_value(report(vec![failed(
+            AuthorityTier::EngineDocumented,
+            Severity::Info,
+        )]))
+        .expect("report serializes");
+        legacy["findings"][0]
+            .as_object_mut()
+            .expect("finding is a JSON object")
+            .remove("severity");
+        let r: Report = serde_json::from_value(legacy).expect("legacy report loads");
+        assert_eq!(r.findings[0].severity(), Severity::Error);
+        assert!(r.has_blocking_errors());
+    }
+
+    #[test]
+    fn severity_round_trips_through_serialization() {
+        for severity in [Severity::Error, Severity::Warning, Severity::Info] {
+            let f = failed(AuthorityTier::EngineDocumented, severity);
+            let back: Finding =
+                serde_json::from_str(&serde_json::to_string(&f).expect("serializes"))
+                    .expect("deserializes");
+            assert_eq!(back, f);
+        }
     }
 }
