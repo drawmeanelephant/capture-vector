@@ -668,3 +668,28 @@ fn robots_none_uppercase_names_and_mixed_case_jsonld_are_recognised() {
     let r = eval(&set, &Ruleset::v1());
     assert!(r.failed().any(|f| f.finding.code == "AEO-JSONLD-VALID"));
 }
+
+#[test]
+fn noindex_leak_into_rss_llms_and_rag_blocks() {
+    // PROMPT-v3: noindex leakage into rss/llms/RAG is a blocking error,
+    // same as sitemap. `clean()` lists guides/intro in every export.
+    let noindex = page_html(
+        "guides/intro.html",
+        "Intro",
+        r#"<meta name="robots" content="noindex, follow">"#,
+        "",
+    );
+    let set = clean()
+        .page(page("guides/intro", "guides/intro.html", &noindex))
+        .build();
+    let r = eval(&set, &Ruleset::v1());
+    for code in [
+        "TGT-RSS-NOINDEX-LEAK",
+        "TGT-LLMS-NOINDEX-LEAK",
+        "TGT-RAG-NOINDEX-LEAK",
+    ] {
+        let f: Vec<_> = r.failed().filter(|f| f.finding.code == code).collect();
+        assert_eq!(f.len(), 1, "{code}");
+        assert!(f[0].blocks_publish(), "{code} must block publish");
+    }
+}
