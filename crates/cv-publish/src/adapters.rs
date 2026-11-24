@@ -11,6 +11,7 @@ use crate::targets::TargetConfig;
 use cv_core::engine::{Engine, ExitClass, Verb};
 use cv_core::id::StableId;
 use cv_core::publish::RunStatus;
+use cv_store::paths::{confined, confined_file, portable_relative};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -84,8 +85,8 @@ impl CopyToFolder {
             root: root.to_path_buf(),
         }
     }
-    fn dest(&self, cfg: &TargetConfig) -> PathBuf {
-        self.root.join(&cfg.destination)
+    fn dest(&self, cfg: &TargetConfig) -> std::io::Result<PathBuf> {
+        confined(&self.root, portable_relative(&cfg.destination)?)
     }
 }
 
@@ -99,11 +100,21 @@ impl DeliveryAdapter for CopyToFolder {
     }
 
     fn deliver(&self, d: &Delivery<'_>) -> Result<Delivered, TransportFailure> {
-        let dest = self.dest(d.config);
+        let before_contact = |e: std::io::Error| TransportFailure::before_contact(e.to_string());
+        let dest = self.dest(d.config).map_err(before_contact)?;
+        let paths = d
+            .files
+            .iter()
+            .map(|(f, _)| {
+                portable_relative(&f.path)?;
+                let relative = Path::new(&d.config.destination).join(&f.path);
+                confined_file(&self.root, &relative)
+            })
+            .collect::<std::io::Result<Vec<_>>>()
+            .map_err(before_contact)?;
         std::fs::create_dir_all(&dest)
             .map_err(|e| TransportFailure::before_contact(format!("create {dest:?}: {e}")))?;
-        for (f, bytes) in d.files {
-            let p = dest.join(&f.path);
+        for ((f, bytes), p) in d.files.iter().zip(paths) {
             let write = || -> std::io::Result<()> {
                 if let Some(parent) = p.parent() {
                     std::fs::create_dir_all(parent)?;
@@ -133,10 +144,15 @@ impl DeliveryAdapter for CopyToFolder {
     }
 
     fn read_back(&self, cfg: &TargetConfig, path: &str) -> Option<Vec<u8>> {
-        std::fs::read(self.dest(cfg).join(path)).ok()
+        let relative = portable_relative(&cfg.destination)
+            .ok()?
+            .join(portable_relative(path).ok()?);
+        std::fs::read(confined_file(&self.root, &relative).ok()?).ok()
     }
 
     fn probe(&self, plan: &SealedPlan, cfg: &TargetConfig) -> Option<Observation> {
+        self.dest(cfg).ok()?;
+        plan.validate_file_paths().ok()?;
         let ok = plan
             .files
             .iter()

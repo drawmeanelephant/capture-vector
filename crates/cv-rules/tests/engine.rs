@@ -287,6 +287,7 @@ fn finding(tier: AuthorityTier, status: CheckStatus) -> Finding {
     Finding {
         code: "X".into(),
         tier,
+        severity: Severity::Error,
         status,
         key: DedupKey {
             code: "X".into(),
@@ -308,7 +309,6 @@ fn heuristic_finding_can_never_block() {
     // Blocking-shaped in every respect except tier: Failed + Error.
     let heuristic = AuditFinding {
         pack: "any".into(),
-        severity: Severity::Error,
         finding: finding(AuthorityTier::Heuristic, CheckStatus::Failed),
     };
     assert!(!heuristic.blocks_publish());
@@ -329,7 +329,6 @@ fn heuristic_finding_can_never_block() {
     ] {
         let f = AuditFinding {
             pack: "any".into(),
-            severity: Severity::Error,
             finding: finding(tier, CheckStatus::Failed),
         };
         assert!(f.blocks_publish());
@@ -337,7 +336,6 @@ fn heuristic_finding_can_never_block() {
     // Limited never blocks either.
     let limited = AuditFinding {
         pack: "any".into(),
-        severity: Severity::Error,
         finding: finding(AuthorityTier::NormativeSpec, CheckStatus::Limited),
     };
     assert!(!limited.blocks_publish());
@@ -368,9 +366,47 @@ captured = "2026-11-23"
     .unwrap();
     let r = eval(&clean().build(), &Ruleset::new(vec![pack]).unwrap());
     assert_eq!(r.failed().count(), 2);
-    assert!(r.failed().all(|f| f.severity == Severity::Error));
+    assert!(r.failed().all(|f| f.finding.severity() == Severity::Error));
     assert!(!r.blocks_publish());
     assert_eq!(r.verdict().blocking, 0);
+}
+
+#[test]
+fn failed_engine_documented_warning_stays_advisory_in_core() {
+    let pack = RulePack::from_toml(
+        r#"
+[pack]
+id = "warning"
+version = 1
+description = "t"
+[[rule]]
+id = "MISSING-BLINK"
+severity = "Warning"
+tier = "EngineDocumented"
+archetypes = ["Any"]
+remediation = "r"
+check = { Exists = { artifact = "Html", selector = { Html = "blink" } } }
+[rule.citation]
+source = "s"
+url = "https://example.org/"
+frozen_quote = "q"
+captured = "2026-11-23"
+"#,
+    )
+    .unwrap();
+    let report = eval(&clean().build(), &Ruleset::new(vec![pack]).unwrap());
+    assert_eq!(report.verdict().advisory, 2);
+    assert!(!report.blocks_publish());
+    let core = report.to_core();
+    let core: cv_core::rules::Report =
+        serde_json::from_slice(&serde_json::to_vec(&core).unwrap()).unwrap();
+    assert_eq!(core.findings.len(), 2);
+    assert!(
+        core.findings
+            .iter()
+            .all(|f| f.severity() == Severity::Warning)
+    );
+    assert!(!core.has_blocking_errors());
 }
 
 #[test]
@@ -429,16 +465,25 @@ fn not_emitted_and_not_expected_robots_is_not_applicable() {
 }
 
 #[test]
-fn expected_but_absent_robots_fails_not_limited() {
-    // Deploy profile expects robots.txt but the artifact set is silent:
-    // an absent expected artifact is a fact, not a limited observation.
-    let set = clean().missing(ArtifactKind::RobotsTxt).build();
+fn expected_robots_omitted_from_target_is_a_blocking_failure() {
+    let set = ArtifactSet::builder().deploy(deploy()).build();
     let r = eval(&set, &Ruleset::v1());
     assert!(
         r.failed()
-            .any(|f| f.finding.code == "TGT-ROBOTS-TXT" && f.blocks_publish()),
-        "absent expected robots.txt must fail, not report limited"
+            .any(|f| f.finding.code == "TGT-ROBOTS-TXT" && f.blocks_publish())
     );
+    assert!(r.to_core().has_blocking_errors());
+}
+
+#[test]
+fn unreadable_robots_stays_limited_even_when_expected() {
+    let set = ArtifactSet::builder()
+        .deploy(deploy())
+        .missing(ArtifactKind::RobotsTxt)
+        .build();
+    let r = eval(&set, &Ruleset::v1());
+    assert!(r.limited().any(|f| f.finding.code == "TGT-ROBOTS-TXT"));
+    assert!(!r.blocks_publish());
 }
 
 #[test]

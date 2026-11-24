@@ -282,7 +282,7 @@ fn successful_diagnostic_build_does_not_report_the_watcher_as_live() {
     let mut wb = init();
     open(&mut wb, ws.path(), &fake.env(cfg.path()));
     wait_for(&mut wb, "successful diagnostic build disclosure", |wb| {
-        wb.status.contains("diagnostic build succeeded")
+        wb.status.contains("one-shot build succeeded")
     });
     assert_eq!(wb.app.degraded, Some(DegradedReason::WatchDead));
     assert!(wb.status.contains("reopen workspace"));

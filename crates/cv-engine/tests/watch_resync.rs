@@ -219,6 +219,25 @@ fn probe_drives_one_shot_fallback() {
 }
 
 #[test]
+fn probe_rejects_an_oversized_first_record() {
+    let fake = FakeBoris::corpus("happy");
+    let capture = fake.read("watch.ndjson");
+    let (hello, rest) = capture.split_once('\n').unwrap();
+    let spaces = " ".repeat(1024 * 1024 + 1 - hello.len());
+    let padded = format!("{hello}{spaces}\n{rest}");
+    fake.set("watch.ndjson", &padded);
+    let engine = fake.engine();
+    assert_eq!(engine.report().watch_mode, WatchMode::OneShotFallback);
+    assert!(
+        engine
+            .report()
+            .evidence
+            .iter()
+            .any(|e| e.contains("line limit"))
+    );
+}
+
+#[test]
 fn scheduler_stops_watch_before_dist_writer() {
     let fake = FakeBoris::corpus("happy");
     fake.set("watch-hold", "");

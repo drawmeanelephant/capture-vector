@@ -114,6 +114,18 @@ fn new_files_need_no_base_and_paths_stay_inside_root() {
 
 #[cfg(unix)]
 #[test]
+fn save_refuses_linked_parent_before_creating_directories() {
+    let dir = tempfile::tempdir().unwrap();
+    let other = tempfile::tempdir().unwrap();
+    std::os::unix::fs::symlink(other.path(), dir.path().join("linked")).unwrap();
+    let writer = FsWriter::new(dir.path());
+    let buf = Buffer::open("linked/new/page.md", "# Draft", None);
+    assert!(writer.write(&buf.begin_save().draft).is_err());
+    assert_eq!(std::fs::read_dir(other.path()).unwrap().count(), 0);
+}
+
+#[cfg(unix)]
+#[test]
 fn a_symlink_inside_the_root_cannot_redirect_a_write_outside() {
     let dir = tempfile::tempdir().unwrap();
     let outside = tempfile::tempdir().unwrap();

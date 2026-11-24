@@ -106,7 +106,7 @@ impl ProcessEngine {
     }
     /// Replay from the bounded ring, or `Resync`.
     pub fn resume(&self, seen: &Cursor) -> Resume {
-        self.emitter.ring().since(seen, &self.emitter.session())
+        self.emitter.resume(seen)
     }
     pub fn ring_capacity(&self) -> usize {
         self.emitter.ring().capacity()

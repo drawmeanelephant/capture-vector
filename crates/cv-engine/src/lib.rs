@@ -6,6 +6,7 @@
 //! staged writes, exact exit mapping, process-tree cancellation, and a
 //! stdin-only secrets channel. No Boris semantics are reimplemented.
 
+mod bounded;
 pub mod cursor;
 pub mod emit;
 pub mod engine;

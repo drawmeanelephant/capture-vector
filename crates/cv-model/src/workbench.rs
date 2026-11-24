@@ -32,6 +32,8 @@ pub enum Inbound {
     Envelope(Envelope),
     Snapshot(ProjectSnapshot),
     Watch(Box<dyn WatchHandle>),
+    /// The engine worker stopped this watch and released its writer seat.
+    WatchStopped(SessionId),
     Degraded(DegradedReason),
     Status(String),
 }
@@ -222,6 +224,12 @@ impl Workbench {
                 Inbound::Watch(h) => {
                     self.stop_watch();
                     self.watch = Some(h);
+                    false
+                }
+                Inbound::WatchStopped(session) => {
+                    if self.watch.as_ref().is_some_and(|h| *h.session() == session) {
+                        self.watch = None;
+                    }
                     false
                 }
                 Inbound::Degraded(reason) => {

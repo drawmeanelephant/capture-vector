@@ -21,13 +21,23 @@ impl Hash {
     }
 
     pub fn from_hex(s: &str) -> crate::Result<Self> {
-        if s.len() != 64 {
-            return Err(crate::Error::Other(format!("hash hex len {}", s.len())));
+        let bytes = s.as_bytes();
+        if bytes.len() != 64 {
+            return Err(crate::Error::Other(format!("hash hex len {}", bytes.len())));
+        }
+        fn digit(b: u8) -> Option<u8> {
+            match b {
+                b'0'..=b'9' => Some(b - b'0'),
+                b'a'..=b'f' => Some(b - b'a' + 10),
+                b'A'..=b'F' => Some(b - b'A' + 10),
+                _ => None,
+            }
         }
         let mut out = [0u8; 32];
-        for (i, b) in out.iter_mut().enumerate() {
-            *b = u8::from_str_radix(&s[2 * i..2 * i + 2], 16)
-                .map_err(|e| crate::Error::Other(e.to_string()))?;
+        for (b, &[hi, lo]) in out.iter_mut().zip(bytes.as_chunks::<2>().0) {
+            let pair = digit(hi).zip(digit(lo));
+            let (hi, lo) = pair.ok_or_else(|| crate::Error::Other("invalid hash hex".into()))?;
+            *b = hi << 4 | lo;
         }
         Ok(Self(out))
     }
@@ -104,9 +114,23 @@ mod tests {
         let hex = h.to_hex();
         assert_eq!(hex.len(), 64);
         assert_eq!(Hash::from_hex(&hex).unwrap(), h);
+        assert_eq!(Hash::from_hex(&hex.to_ascii_uppercase()).unwrap(), h);
         // serde uses the same hex form
         let json = serde_json::to_string(&h).unwrap();
         assert_eq!(serde_json::from_str::<Hash>(&json).unwrap(), h);
+    }
+
+    #[test]
+    fn non_hex_text_is_a_decode_error() {
+        for invalid in [
+            format!("0é{}", "0".repeat(61)),
+            format!("+0{}", "0".repeat(62)),
+        ] {
+            assert_eq!(invalid.len(), 64);
+            assert!(Hash::from_hex(&invalid).is_err());
+            let json = serde_json::to_string(&invalid).unwrap();
+            assert!(serde_json::from_str::<Hash>(&json).is_err());
+        }
     }
 
     #[test]

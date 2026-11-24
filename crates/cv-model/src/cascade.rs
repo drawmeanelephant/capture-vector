@@ -16,6 +16,9 @@ pub const WANT_ENGINE: &str = "0.9.0";
 
 /// `boris/0.9.0` → `0.9.0`.
 fn engine_version(compiler: &str) -> &str {
+    let compiler = compiler
+        .strip_suffix(" (cv one-shot fallback)")
+        .unwrap_or(compiler);
     compiler.rsplit('/').next().unwrap_or(compiler)
 }
 
@@ -47,6 +50,11 @@ pub fn dispatch(state: &mut AppState, env: &Envelope) -> bool {
             if *reason != WatchEndReason::CleanExit {
                 state.degraded = Some(DegradedReason::WatchDead);
             }
+        }
+        AppEvent::Engine(EngineEvent::BuildFinished { .. })
+            if state.degraded == Some(DegradedReason::BuildFailed) =>
+        {
+            state.degraded = None;
         }
         AppEvent::Shell(ShellEvent::Degraded { reason }) => {
             state.degraded = Some(reason.clone());

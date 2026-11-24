@@ -2,9 +2,10 @@
 //! group (Unix) or Job object (Windows) so cancellation kills the whole
 //! tree, never just the leader.
 
+use crate::bounded::append;
 use crate::error::{EngineError, Result};
 use crate::exit::ExitOutcome;
-use std::io::Read;
+use std::io::{self, Read, Write};
 use std::path::Path;
 use std::process::{Child, ChildStderr, ChildStdout, Command, ExitStatus, Stdio};
 use std::sync::Arc;
@@ -28,6 +29,9 @@ pub const SCRUBBED_ENV: &[&str] = &["CV_NOSTR_NSEC", "CV_BSKY_APP_PASSWORD", "CV
 pub const STOP_GRACE: Duration = Duration::from_millis(1500);
 
 const POLL: Duration = Duration::from_millis(10);
+const PIPE_EXIT_GRACE: Duration = Duration::from_secs(5);
+/// Retain complete one-shot output up to this many bytes per stream.
+const CAPTURE_LIMIT: usize = 8 * 1024 * 1024;
 
 /// Cooperative cancellation for a running verb.
 #[derive(Clone, Default, Debug)]
@@ -67,14 +71,22 @@ pub(crate) struct Spawned {
     child: Child,
     group: platform::Group,
     killed: bool,
+    tree_stopped: bool,
     status: Option<ExitStatus>,
 }
 
 impl Spawned {
-    pub fn spawn(mut cmd: Command, stdin: Stdio) -> Result<Self> {
-        cmd.stdin(stdin)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+    pub fn spawn(cmd: Command, stdin: Stdio) -> Result<Self> {
+        Self::spawn_with_stdout(cmd, stdin, Stdio::piped())
+    }
+
+    /// Watch and its capability probe read the protocol on stderr only.
+    pub fn spawn_watch(cmd: Command) -> Result<Self> {
+        Self::spawn_with_stdout(cmd, Stdio::null(), Stdio::null())
+    }
+
+    fn spawn_with_stdout(mut cmd: Command, stdin: Stdio, stdout: Stdio) -> Result<Self> {
+        cmd.stdin(stdin).stdout(stdout).stderr(Stdio::piped());
         platform::configure(&mut cmd);
         let program = std::path::PathBuf::from(cmd.get_program());
         let mut child = cmd
@@ -92,6 +104,7 @@ impl Spawned {
             child,
             group,
             killed: false,
+            tree_stopped: false,
             status: None,
         })
     }
@@ -121,9 +134,10 @@ impl Spawned {
     /// Stop the whole tree: polite signal, grace period, then force.
     /// Idempotent; safe after the leader already exited.
     pub fn kill_tree(&mut self, grace: Duration) {
-        if self.status.is_some() && self.killed {
+        if self.tree_stopped {
             return;
         }
+        self.tree_stopped = true;
         let leader_alive = matches!(self.try_wait(), Ok(None));
         if leader_alive {
             self.killed = true;
@@ -138,20 +152,6 @@ impl Spawned {
             self.status = self.child.wait().ok();
         }
     }
-
-    /// Wait for exit, killing the tree if `cancel` fires first.
-    pub fn wait_cancellable(&mut self, cancel: &CancelToken) -> Result<ExitOutcome> {
-        loop {
-            if let Some(status) = self.try_wait()? {
-                return Ok(ExitOutcome::from_status(status, self.killed));
-            }
-            if cancel.is_cancelled() {
-                self.kill_tree(Duration::ZERO);
-                return Err(EngineError::Cancelled);
-            }
-            std::thread::sleep(POLL);
-        }
-    }
 }
 
 impl Drop for Spawned {
@@ -162,14 +162,41 @@ impl Drop for Spawned {
     }
 }
 
-/// Drain a pipe to bytes on its own thread (both pipes must be drained
-/// concurrently or a chatty child deadlocks on a full pipe buffer).
-pub(crate) fn drain<R: Read + Send + 'static>(mut r: R) -> JoinHandle<Vec<u8>> {
+/// Read each pipe concurrently. On overflow discard the entire capture,
+/// not just the suffix: a byte prefix is not a complete report or bundle.
+fn capture<R: Read + Send + 'static>(
+    mut r: R,
+    stream: &'static str,
+    limit: usize,
+) -> JoinHandle<Result<Vec<u8>>> {
     std::thread::spawn(move || {
-        let mut buf = Vec::new();
-        let _ = r.read_to_end(&mut buf);
-        buf
+        let mut captured = Vec::new();
+        let mut chunk = [0; 8192];
+        loop {
+            let n = match r.read(&mut chunk) {
+                Ok(0) => return Ok(captured),
+                Ok(n) => n,
+                Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
+                Err(e) => return Err(e.into()),
+            };
+            if !append(&mut captured, &chunk[..n], limit) {
+                return Err(EngineError::OutputLimitExceeded { stream, limit });
+            }
+        }
     })
+}
+
+fn take_capture(thread: &mut Option<JoinHandle<Result<Vec<u8>>>>) -> Result<Option<Vec<u8>>> {
+    if thread.as_ref().is_some_and(|t| t.is_finished()) {
+        let bytes = thread
+            .take()
+            .expect("reader finished")
+            .join()
+            .map_err(|_| io::Error::other("child output reader failed"))??;
+        Ok(Some(bytes))
+    } else {
+        Ok(None)
+    }
 }
 
 /// Captured result of a one-shot child.
@@ -180,11 +207,25 @@ pub(crate) struct Captured {
 }
 
 /// Spawn, optionally feed stdin, capture both pipes, honour cancel.
+/// Return only complete captures; overflow fails the run even if the
+/// child exited successfully or already wrote its output artifacts.
 pub(crate) fn run_captured(
     cmd: Command,
     stdin: Option<&[u8]>,
     cancel: &CancelToken,
 ) -> Result<Captured> {
+    run_captured_with_limit(cmd, stdin, cancel, CAPTURE_LIMIT)
+}
+
+fn run_captured_with_limit(
+    cmd: Command,
+    stdin: Option<&[u8]>,
+    cancel: &CancelToken,
+    limit: usize,
+) -> Result<Captured> {
+    if cancel.is_cancelled() {
+        return Err(EngineError::Cancelled);
+    }
     let mut child = Spawned::spawn(
         cmd,
         if stdin.is_some() {
@@ -193,23 +234,68 @@ pub(crate) fn run_captured(
             Stdio::null()
         },
     )?;
-    let out = drain(child.take_stdout().expect("stdout piped"));
-    let err = drain(child.take_stderr().expect("stderr piped"));
-    if let (Some(bytes), Some(mut pipe)) = (stdin, child.take_stdin()) {
-        use std::io::Write;
-        // A child that exits without reading closes the pipe; that is
-        // its verdict to report, not ours.
-        let _ = pipe.write_all(bytes).and_then(|_| pipe.flush());
-        drop(pipe);
-    }
-    let outcome = child.wait_cancellable(cancel);
-    // Tree is dead on cancel, so pipes reach EOF and the drains finish.
-    let stdout = out.join().unwrap_or_default();
-    let stderr = err.join().unwrap_or_default();
-    Ok(Captured {
-        outcome: outcome?,
-        stdout,
-        stderr,
+    let mut out = Some(capture(
+        child.take_stdout().expect("stdout piped"),
+        "stdout",
+        limit,
+    ));
+    let mut err = Some(capture(
+        child.take_stderr().expect("stderr piped"),
+        "stderr",
+        limit,
+    ));
+    std::thread::scope(|scope| {
+        // Keep the waiter responsive even if the child isn't reading its
+        // stdin. Borrow the input so signing doesn't make another key copy.
+        let input = stdin.zip(child.take_stdin()).map(|(bytes, mut pipe)| {
+            scope.spawn(move || {
+                // An early pipe close is the child's verdict to report.
+                let _ = pipe.write_all(bytes).and_then(|_| pipe.flush());
+            })
+        });
+        let result = (|| {
+            let mut stdout = None;
+            let mut stderr = None;
+            let mut exited_at = None;
+            loop {
+                if cancel.is_cancelled() {
+                    return Err(EngineError::Cancelled);
+                }
+                stdout = take_capture(&mut out)?.or(stdout);
+                stderr = take_capture(&mut err)?.or(stderr);
+                if child.try_wait()?.is_some() {
+                    if out.is_none()
+                        && err.is_none()
+                        && input.as_ref().is_none_or(|t| t.is_finished())
+                    {
+                        return Ok(Captured {
+                            outcome: child.outcome().expect("child exited"),
+                            stdout: stdout.expect("stdout captured"),
+                            stderr: stderr.expect("stderr captured"),
+                        });
+                    }
+                    // A descendant may still be flushing the pipes, but
+                    // must not hold them open indefinitely after exit.
+                    if exited_at.get_or_insert_with(Instant::now).elapsed() >= PIPE_EXIT_GRACE {
+                        return Err(io::Error::new(
+                            io::ErrorKind::TimedOut,
+                            "child pipes stayed open after exit",
+                        )
+                        .into());
+                    }
+                }
+                std::thread::sleep(POLL);
+            }
+        })();
+        if result.is_err() {
+            // Includes a capture error, even if the leader already quit.
+            // Kill remaining pipe holders before waiting for the workers.
+            child.kill_tree(Duration::ZERO);
+        }
+        for reader in [out, err].into_iter().flatten() {
+            let _ = reader.join();
+        }
+        result
     })
 }
 
@@ -244,6 +330,34 @@ mod tests {
     }
 
     #[test]
+    fn captures_complete_output_at_the_limit() {
+        // Get the platform's actual line endings (echo writes CRLF on Windows).
+        let script = "echo short && echo short 1>&2";
+        let cancel = CancelToken::new();
+        let reference = run_captured(shell_command(script), None, &cancel).unwrap();
+        let limit = reference.stdout.len().max(reference.stderr.len());
+        let at_limit =
+            run_captured_with_limit(shell_command(script), None, &cancel, limit).unwrap();
+        assert_eq!(at_limit.stdout, reference.stdout);
+        assert_eq!(at_limit.stderr, reference.stderr);
+        assert_eq!(at_limit.outcome, ExitOutcome::Exited { code: 0 });
+    }
+
+    #[test]
+    fn fails_without_returning_a_prefix_when_either_pipe_overflows() {
+        for (script, expected_stream) in [
+            ("echo complete report && echo ok 1>&2", "stdout"),
+            ("echo ok && echo complete report 1>&2", "stderr"),
+        ] {
+            assert!(matches!(
+                run_captured_with_limit(shell_command(script), None, &CancelToken::new(), 8),
+                Err(EngineError::OutputLimitExceeded { stream, limit: 8 })
+                    if stream == expected_stream
+            ));
+        }
+    }
+
+    #[test]
     fn cancel_kills_the_tree() {
         #[cfg(unix)]
         let script = "sleep 30 & sleep 30; wait";
@@ -262,6 +376,22 @@ mod tests {
         // Drains only finish once every holder of the pipes is dead —
         // finishing fast proves the grandchildren died too.
         assert!(start.elapsed() < Duration::from_secs(10));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn cancellation_still_applies_while_draining_after_leader_exit() {
+        let cancel = CancelToken::new();
+        let c2 = cancel.clone();
+        let t = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(200));
+            c2.cancel();
+        });
+        // The leader exits normally while a finite background task still
+        // holds the pipes. Capture must not stop observing cancellation.
+        let result = run_captured(shell_command("sleep 2 & exit 0"), None, &cancel);
+        t.join().unwrap();
+        assert!(matches!(result, Err(EngineError::Cancelled)));
     }
 
     #[test]

@@ -26,4 +26,5 @@ pub enum DegradedReason {
     EngineBuildFailing,
     WatchDead,
     StoreCorrupt,
+    BuildFailed,
 }

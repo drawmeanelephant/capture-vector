@@ -210,6 +210,7 @@ pub struct FixIt {
 pub struct Finding {
     pub code: AuditCode,
     pub tier: AuthorityTier,
+    pub severity: Severity,
     pub status: CheckStatus,
     pub subject: NounId,
     pub key: DedupKey,
@@ -231,19 +232,19 @@ impl Report {
     /// True when any blocking-tier error is present. Heuristic findings
     /// cannot produce this by construction (see `AuthorityTier::may_block`).
     pub fn has_blocking_errors(&self) -> bool {
-        self.findings.iter().any(|f| {
-            f.tier.may_block()
-                && f.status == CheckStatus::Failed
-                && matches!(f.severity(), Severity::Error)
-        })
+        self.findings.iter().any(Finding::blocks_publish)
     }
 }
 
 impl Finding {
     pub fn severity(&self) -> Severity {
-        // severity is carried on the Rule; findings mirror the producing
-        // rule's severity via `code` lookup — stored here once L4 wires it.
-        Severity::Error
+        self.severity
+    }
+
+    pub fn blocks_publish(&self) -> bool {
+        self.tier.may_block()
+            && self.status == CheckStatus::Failed
+            && self.severity == Severity::Error
     }
 }
 

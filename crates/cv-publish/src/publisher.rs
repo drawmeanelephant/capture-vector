@@ -1,8 +1,8 @@
 //! The publish loop over the ledger. Every decision reads durable
 //! journal state; every transition is fsynced before the next step.
 
-use crate::adapters::{Delivered, Delivery, DeliveryAdapter};
-use crate::plan::{SealedPlan, hash_json, inventory, load_sealed, sha256};
+use crate::adapters::{COPY_TO_FOLDER, Delivered, Delivery, DeliveryAdapter};
+use crate::plan::{SealedPlan, hash_json, inventory, load_sealed, safe_rel_path, sha256};
 use crate::preflight::{
     PreflightOutcome, PreflightRequest, Ruleset, graph_file, run_dir, site_dir, verbs,
 };
@@ -17,7 +17,9 @@ use cv_core::sys::{Clock, IdGen};
 use cv_ledger::journal::Entry;
 use cv_ledger::nouns::{DeliveryNoun, derive_id};
 use cv_ledger::{Journal, RunView, ingest, runs};
+use cv_store::paths::{confined, confined_file};
 use std::collections::BTreeMap;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 /// What a human (or a read-only adapter probe) observed at the target
@@ -139,17 +141,33 @@ impl<'a> Publisher<'a> {
         ruleset: &dyn Ruleset,
         ids: &mut dyn IdGen,
     ) -> Result<PreflightOutcome> {
-        let run = ids.next();
         let cfg = &req.config;
-        let target = cfg.target.id().to_string();
-        let dir = self.root.join(run_dir(&run));
-        if dir.exists() {
-            std::fs::remove_dir_all(&dir)?;
+        validate_destination(&cfg.adapter, &cfg.destination)?;
+        let seed = ids.next();
+        run_dir(&seed)?;
+        // An IdGen can restart when the app restarts. The durable sequence
+        // distinguishes later sessions without sacrificing deterministic IDs.
+        let run = StableId(format!("{}-{}", seed.0, self.journal.records().len()));
+        if self.run(&run).is_some() {
+            return Err(PublishError::Refused("publish run already recorded".into()));
         }
-        std::fs::create_dir_all(self.root.join(site_dir(&run)))?;
+        let target = cfg.target.id().to_string();
+        let publish = confined(&self.root, Path::new(".cv/publish"))?;
+        std::fs::create_dir_all(&publish)?;
+        let dir = publish.join(&run.0);
+        match std::fs::create_dir(&dir) {
+            Err(e) if e.kind() == ErrorKind::AlreadyExists => {
+                return Err(PublishError::Refused(
+                    "publish run directory already exists".into(),
+                ));
+            }
+            result => result?,
+        }
+        let site_rel = site_dir(&run)?;
+        std::fs::create_dir(dir.join("site"))?;
 
         let mut blocks = Vec::new();
-        for (step, verb) in verbs(cfg, &run) {
+        for (step, verb) in verbs(cfg, &run)? {
             match self.engine.run(&verb, Box::new(|_| {})) {
                 Ok(ExitClass::Ok) => {}
                 Ok(x) => blocks.push(format!("{step}: {x:?}")),
@@ -159,12 +177,12 @@ impl<'a> Publisher<'a> {
                 break;
             }
         }
-        let site = self.root.join(site_dir(&run));
+        let site = confined(&self.root, Path::new(&site_rel))?;
         let files = inventory(&site)?;
         if blocks.is_empty() && files.is_empty() {
             blocks.push("build: output dir is empty".into());
         }
-        let graph = std::fs::read(self.root.join(graph_file(&run))).ok();
+        let graph = self.read_graph(&run)?;
         if blocks.is_empty() && graph.is_none() {
             blocks.push("graph: not produced".into());
         }
@@ -202,7 +220,7 @@ impl<'a> Publisher<'a> {
             target: target.clone(),
             adapter: cfg.adapter.clone(),
             destination: cfg.destination.clone(),
-            site: site_dir(&run),
+            site: site_rel,
             files,
         };
         let grant = PreflightGrant {
@@ -224,6 +242,15 @@ impl<'a> Publisher<'a> {
             grant: Box::new(grant.clone()),
         });
         Ok(PreflightOutcome::Granted { run, grant })
+    }
+
+    fn read_graph(&self, run: &StableId) -> Result<Option<Vec<u8>>> {
+        let graph = confined_file(&self.root, Path::new(&graph_file(run)?))?;
+        match std::fs::read(graph) {
+            Ok(bytes) => Ok(Some(bytes)),
+            Err(e) if e.kind() == ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(e.into()),
+        }
     }
 
     // ── approve / publish ────────────────────────────────────────────
@@ -253,12 +280,12 @@ impl<'a> Publisher<'a> {
         plan: &SealedPlan,
         cfg: &TargetConfig,
         ruleset: &dyn Ruleset,
+        site: &Path,
     ) -> Result<Vec<&'static str>> {
         let mut broken = Vec::new();
-        let site = self.root.join(&plan.site);
         let current = SealedPlan {
             files: if site.is_dir() {
-                inventory(&site)?
+                inventory(site)?
             } else {
                 vec![]
             },
@@ -270,8 +297,11 @@ impl<'a> Publisher<'a> {
         if plan.hash()? != grant.plan_hash || current.hash()? != grant.plan_hash {
             broken.push("plan");
         }
-        let graph = std::fs::read(self.root.join(graph_file(v.run.as_ref().expect("run id"))))
-            .unwrap_or_default();
+        let run = v
+            .run
+            .as_ref()
+            .ok_or_else(|| PublishError::Refused("missing run ID".into()))?;
+        let graph = self.read_graph(run)?.unwrap_or_default();
         if sha256(&graph) != grant.graph_hash {
             broken.push("graph");
         }
@@ -331,7 +361,10 @@ impl<'a> Publisher<'a> {
             ));
         }
         let plan: SealedPlan = serde_json::from_value(plan)?;
-        let broken = self.broken_seals(&v, &grant, &plan, cfg, ruleset)?;
+        validate_plan(run, &plan)?;
+        validate_destination(&cfg.adapter, &cfg.destination)?;
+        let site = confined(&self.root, Path::new(&plan.site))?;
+        let broken = self.broken_seals(&v, &grant, &plan, cfg, ruleset, &site)?;
         if !broken.is_empty() {
             let _ = self.refuse(run, format!("seal broken: {}", broken.join(", ")));
             return Err(PublishError::SealBroken(broken));
@@ -339,7 +372,7 @@ impl<'a> Publisher<'a> {
         if !self.adapters.contains_key(&cfg.adapter) {
             return Err(self.refuse(run, format!("no delivery adapter '{}'", cfg.adapter)));
         }
-        let files = match load_sealed(&self.root.join(&plan.site), &plan) {
+        let files = match load_sealed(&site, &plan) {
             Ok(f) => f,
             Err(e) => {
                 let _ = self.refuse(run, e.to_string());
@@ -364,7 +397,7 @@ impl<'a> Publisher<'a> {
             run,
             plan: &plan,
             files: &files,
-            site: &self.root.join(&plan.site),
+            site: &site,
             config: cfg,
             secrets: self.secrets,
             engine: self.engine,
@@ -425,6 +458,13 @@ impl<'a> Publisher<'a> {
             Observation::Delivered(s) => s,
             Observation::NotDelivered => RunStatus::Failed,
         };
+        let shipment = if matches!(status, RunStatus::Complete | RunStatus::Partial)
+            && let (Some(plan), Some(cfg)) = (v.plan, v.target_cfg)
+        {
+            Some(decode_shipment(run, plan, cfg)?)
+        } else {
+            None
+        };
         self.append(Entry::Reconciled {
             run: run.clone(),
             observation: format!("{obs:?}"),
@@ -432,14 +472,10 @@ impl<'a> Publisher<'a> {
         })?;
         let state = RunState::Complete(status);
         self.set_state(run, state.clone(), Some(format!("reconciled by {by}")))?;
-        if matches!(status, RunStatus::Complete | RunStatus::Partial)
-            && let (Some(plan), Some(cfg)) = (v.plan, v.target_cfg)
+        if let Some((plan, cfg)) = shipment
+            && self.adapters.contains_key(&cfg.adapter)
         {
-            let plan: SealedPlan = serde_json::from_value(plan)?;
-            let cfg: TargetConfig = serde_json::from_value(cfg)?;
-            if self.adapters.contains_key(&cfg.adapter) {
-                self.ship_check(run, &plan, &cfg)?;
-            }
+            self.ship_check(run, &plan, &cfg)?;
         }
         Ok(state)
     }
@@ -454,8 +490,7 @@ impl<'a> Publisher<'a> {
         let (Some(plan), Some(cfg)) = (v.plan, v.target_cfg) else {
             return Ok(None);
         };
-        let plan: SealedPlan = serde_json::from_value(plan)?;
-        let cfg: TargetConfig = serde_json::from_value(cfg)?;
+        let (plan, cfg) = decode_shipment(run, plan, cfg)?;
         let Some(adapter) = self.adapters.get(&cfg.adapter) else {
             return Ok(None);
         };
@@ -464,5 +499,70 @@ impl<'a> Publisher<'a> {
         };
         let by = format!("probe:{}", cfg.adapter);
         self.reconcile(run, obs, &by).map(Some)
+    }
+}
+
+fn decode_shipment(
+    run: &StableId,
+    plan: serde_json::Value,
+    cfg: serde_json::Value,
+) -> Result<(SealedPlan, TargetConfig)> {
+    let plan: SealedPlan = serde_json::from_value(plan)?;
+    let cfg: TargetConfig = serde_json::from_value(cfg)?;
+    validate_plan(run, &plan)?;
+    validate_destination(&cfg.adapter, &cfg.destination)?;
+    Ok((plan, cfg))
+}
+
+fn validate_destination(adapter: &str, destination: &str) -> Result<()> {
+    if adapter == COPY_TO_FOLDER {
+        safe_rel_path(destination)?;
+    }
+    Ok(())
+}
+
+fn validate_plan(run: &StableId, plan: &SealedPlan) -> Result<()> {
+    if plan.site != site_dir(run)? {
+        return Err(PublishError::Refused(
+            "plan site is not this run's output directory".into(),
+        ));
+    }
+    validate_destination(&plan.adapter, &plan.destination)?;
+    plan.validate_file_paths()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Target;
+
+    #[test]
+    fn decoded_plan_cannot_select_another_runs_site() {
+        let run = StableId("run-current".into());
+        let other = StableId("run-other".into());
+        let cfg = TargetConfig::new(
+            Target::StaticDist,
+            "p",
+            "https://example.test/",
+            COPY_TO_FOLDER,
+            "out",
+        );
+        let mut plan = SealedPlan {
+            target: cfg.target.id().into(),
+            adapter: cfg.adapter.clone(),
+            destination: cfg.destination.clone(),
+            site: site_dir(&other).unwrap(),
+            files: vec![],
+        };
+        let decode = |plan: &SealedPlan| {
+            decode_shipment(
+                &run,
+                serde_json::to_value(plan).unwrap(),
+                serde_json::to_value(&cfg).unwrap(),
+            )
+        };
+        assert!(matches!(decode(&plan), Err(PublishError::Refused(_))));
+        plan.site = site_dir(&run).unwrap();
+        assert!(decode(&plan).is_ok());
     }
 }

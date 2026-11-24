@@ -4,13 +4,10 @@
 //! one-shot builds under a portable file watcher instead.
 
 use crate::proc::{CancelToken, Spawned, boris_command, run_captured};
-use cv_contracts::watch::{WatchEvent, decode_line};
+use crate::watch::{HandshakeFault, LINE_LIMIT, handshake, line_reader};
 use cv_core::engine::{EngineCaps, ExitClass};
 use serde::{Deserialize, Serialize};
-use std::io::{BufRead, BufReader};
 use std::path::Path;
-use std::process::Stdio;
-use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 pub const PROBE_TIMEOUT: Duration = Duration::from_secs(10);
@@ -44,7 +41,7 @@ enum WatchProbe {
 fn probe_watch(bin: &Path, scratch: &Path, extra: &[&str], timeout: Duration) -> WatchProbe {
     let mut cmd = boris_command(bin, scratch);
     cmd.args(["watch", "--watch-json"]).args(extra);
-    let mut child = match Spawned::spawn(cmd, Stdio::null()) {
+    let mut child = match Spawned::spawn_watch(cmd) {
         Ok(c) => c,
         Err(e) => {
             return WatchProbe::Refused {
@@ -53,76 +50,39 @@ fn probe_watch(bin: &Path, scratch: &Path, extra: &[&str], timeout: Duration) ->
             };
         }
     };
-    let _stdout = crate::proc::drain(child.take_stdout().expect("piped"));
-    let stderr = child.take_stderr().expect("piped");
-    let (tx, rx) = mpsc::channel();
-    std::thread::spawn(move || {
-        for line in BufReader::new(stderr).lines() {
-            let Ok(line) = line else { break };
-            if tx.send(line).is_err() {
-                break;
-            }
-        }
-    });
-    let deadline = Instant::now() + timeout;
-    let verdict = loop {
-        let left = deadline.saturating_duration_since(Instant::now());
-        match rx.recv_timeout(left.min(Duration::from_millis(50))) {
-            Ok(line) => match decode_line(&line) {
-                Ok(None) => continue,
-                Ok(Some(WatchEvent::Hello {
-                    watch_events_schema,
-                    compiler,
-                })) if watch_events_schema == WATCH_SCHEMA => break WatchProbe::Hello { compiler },
-                Ok(Some(WatchEvent::Hello {
-                    watch_events_schema,
-                    ..
-                })) => {
-                    break WatchProbe::Refused {
-                        why: format!("watch_events_schema {watch_events_schema} != {WATCH_SCHEMA}"),
-                        usage: false,
-                    };
-                }
-                // Anything before a hello voids the handshake.
-                _ => {
-                    break WatchProbe::Refused {
-                        why: format!("first record was not hello: {line:?}"),
-                        usage: false,
-                    };
-                }
-            },
-            Err(mpsc::RecvTimeoutError::Timeout) if Instant::now() < deadline => {
-                if let Ok(Some(status)) = child.try_wait() {
-                    // Give the reader a moment to flush the last lines.
-                    if let Ok(line) = rx.recv_timeout(Duration::from_millis(200)) {
-                        if let Ok(Some(WatchEvent::Hello {
-                            compiler,
-                            watch_events_schema,
-                        })) = decode_line(&line)
-                            && watch_events_schema == WATCH_SCHEMA
-                        {
-                            break WatchProbe::Hello { compiler };
+    let (rx, reader) = line_reader(child.take_stderr().expect("piped"), LINE_LIMIT);
+    let hello = handshake(&rx, timeout);
+    drop(rx);
+    let verdict = match hello {
+        Ok(compiler) => WatchProbe::Hello { compiler },
+        Err(e) => {
+            // An older binary can reject --serve as a usage error. Give
+            // the leader a moment to exit after its stderr diagnostic.
+            // Protocol faults and timeouts never qualify for this retry.
+            let mut usage = false;
+            if matches!(e, HandshakeFault::FirstRecord | HandshakeFault::Closed) {
+                let deadline = Instant::now() + Duration::from_millis(200);
+                loop {
+                    match child.try_wait() {
+                        Ok(Some(status)) => {
+                            usage = status.code() == Some(2);
+                            break;
                         }
-                        break WatchProbe::Refused {
-                            why: format!("exited {status} after {line:?}"),
-                            usage: status.code() == Some(2),
-                        };
+                        Ok(None) if Instant::now() < deadline => {
+                            std::thread::sleep(Duration::from_millis(10));
+                        }
+                        _ => break,
                     }
-                    break WatchProbe::Refused {
-                        why: format!("exited {status} before hello"),
-                        usage: status.code() == Some(2),
-                    };
                 }
             }
-            Err(_) => {
-                break WatchProbe::Refused {
-                    why: format!("no hello within {timeout:?}"),
-                    usage: false,
-                };
+            WatchProbe::Refused {
+                why: e.to_string(),
+                usage,
             }
         }
     };
     child.kill_tree(Duration::ZERO);
+    let _ = reader.join();
     verdict
 }
 
