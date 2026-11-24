@@ -37,14 +37,12 @@ impl LedgerIndex {
     /// Open the index and bring it in line with the journal. A stale,
     /// foreign, or corrupt index file is discarded and rebuilt.
     pub fn open(project_root: &Path, journal: &Journal) -> Result<Self> {
-        let path = Self::path_for(project_root)?;
+        let index_dir = cv_store::paths::create_project_index_dir(project_root, "ledger")?;
+        let path = index_dir.join("index.sqlite");
         // Drop a pre-app-data index (and its journal artifacts); the
         // JSONL journal is the truth and the index rebuilds from it.
         for suffix in ["", "-journal", "-wal", "-shm"] {
             let _ = std::fs::remove_file(project_root.join(format!("{INDEX_REL}{suffix}")));
-        }
-        if let Some(dir) = path.parent() {
-            std::fs::create_dir_all(dir)?;
         }
         let mut idx = match Self::connect(&path) {
             Ok(i) => i,

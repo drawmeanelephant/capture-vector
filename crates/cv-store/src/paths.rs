@@ -116,13 +116,32 @@ fn project_key(project_root: &Path) -> io::Result<String> {
 }
 
 /// `…/capture-vector/<project-key>/<namespace>` under OS app-data —
-/// the directory a lane's rebuildable index lives in. The caller
-/// creates it; this only resolves the path.
+/// the directory a lane's rebuildable index lives in. Resolve only;
+/// use [`create_project_index_dir`] to open it for use.
 pub fn project_index_dir(project_root: &Path, namespace: &str) -> io::Result<PathBuf> {
     Ok(app_data_base()?
         .join("capture-vector")
         .join(project_key(project_root)?)
         .join(namespace))
+}
+
+/// Create (or reuse) the index dir. Every level is owner-only on unix:
+/// an index mirrors private workspace content — note bodies, journal
+/// noun JSON — and a umask-022 default would leave it readable by other
+/// local users.
+pub fn create_project_index_dir(project_root: &Path, namespace: &str) -> io::Result<PathBuf> {
+    let base = app_data_base()?.join("capture-vector");
+    let keyed = base.join(project_key(project_root)?);
+    let dir = keyed.join(namespace);
+    for level in [&base, &keyed, &dir] {
+        std::fs::create_dir_all(level)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(level, std::fs::Permissions::from_mode(0o700))?;
+        }
+    }
+    Ok(dir)
 }
 
 /// Validate a persisted `/`-separated path regardless of the host OS.
@@ -193,6 +212,21 @@ mod tests {
         let s = ledger.to_str().unwrap();
         assert!(!s.contains(".cv"), "{s}");
         assert_eq!(ledger.file_name().unwrap(), "ledger");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn created_index_dirs_are_owner_only() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = tempfile::tempdir().unwrap();
+        let dir = create_project_index_dir(root.path(), "ledger").unwrap();
+        for level in [dir.as_path(), dir.parent().unwrap()] {
+            assert_eq!(
+                level.metadata().unwrap().permissions().mode() & 0o777,
+                0o700,
+                "{level:?}"
+            );
+        }
     }
 
     #[cfg(unix)]

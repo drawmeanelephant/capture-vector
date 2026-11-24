@@ -344,8 +344,7 @@ pub fn open(
             report.rejected += 1;
         }
     }
-    let index_dir = cv_store::paths::project_index_dir(root, "research")?;
-    std::fs::create_dir_all(&index_dir)?;
+    let index_dir = cv_store::paths::create_project_index_dir(root, "research")?;
     let mut index = FtsIndex::open_or_reset(&index_dir.join(INDEX))?;
     // Drop a pre-app-data index (and its journal artifacts); it
     // rebuilds from the journals.
