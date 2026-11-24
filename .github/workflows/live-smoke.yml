@@ -20,10 +20,10 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  # Must match cv-engine's `locate::PINNED` (boris/0.9.0, vcs 66efcfb).
+  # Full commit for cv-engine's `locate::PINNED` (boris/0.9.0, vcs 66efcfb).
   BORIS_REPO: drawmeanelephant/boris
-  BORIS_REF: v0.9.0
-  BORIS_VCS: 66efcfb
+  BORIS_VERSION: boris/0.9.0
+  BORIS_SHA: 66efcfb586b4342fe69d5a51962cb6d201e4dfc2
 
 jobs:
   build-boris:
@@ -31,10 +31,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      # A real git checkout so build.zig auto-detects the vcsRevision the
-      # cv-engine gate checks; a tarball would bake an empty one.
-      - name: clone boris
-        run: git clone --depth 1 --branch "$BORIS_REF" "https://github.com/$BORIS_REPO.git" boris
+      - name: fetch pinned boris commit
+        run: |
+          git init boris
+          git -C boris fetch --no-tags --depth 1 "https://github.com/$BORIS_REPO.git" "$BORIS_SHA"
+          git -C boris checkout --detach FETCH_HEAD
+          test "$(git -C boris rev-parse HEAD)" = "$BORIS_SHA"
 
       - name: zig 0.17.0
         uses: drawmeanelephant/zig-zouave@2d8510d62b517fa786279562cf8b1bdcf0c47b9f
@@ -44,17 +46,21 @@ jobs:
 
       # Zig defaults to -Dcpu=native; the smoke job may land on a runner
       # with an older CPU (SIGILL), so target the baseline x86_64.
+      # Boris auto-detects an abbreviated revision; bake in the verified SHA.
       - name: zig build --release=safe -Dcpu=baseline
         working-directory: boris
-        run: zig build --release=safe -Dcpu=baseline
+        run: zig build --release=safe -Dcpu=baseline -Dvcs-revision="$BORIS_SHA"
 
       - name: check identity
         working-directory: boris
         run: |
-          ./zig-out/bin/boris --version
-          ./zig-out/bin/boris --build-info
-          ./zig-out/bin/boris --version | grep -qx "boris/${BORIS_REF#v}"
-          ./zig-out/bin/boris --build-info | grep -q "\"vcsRevision\": \"$BORIS_VCS\""
+          version="$(./zig-out/bin/boris --version)"
+          info="$(./zig-out/bin/boris --build-info)"
+          printf '%s\n' "$version" "$info"
+          test "$version" = "$BORIS_VERSION"
+          jq -e --arg version "$BORIS_VERSION" --arg sha "$BORIS_SHA" '
+            .format == "boris-build-info" and .version == $version and .vcsRevision == $sha
+          ' <<< "$info"
 
       - uses: actions/upload-artifact@v7
         with:

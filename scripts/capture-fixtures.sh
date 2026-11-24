@@ -2,8 +2,9 @@
 # capture-fixtures.sh — capture REAL Boris outputs into fixtures/.
 # Spec rule: hand-authored Boris JSON is banned. Everything in fixtures/captures/
 # comes from running the pinned binary over fixtures/corpus-src/.
-set -u
+set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+source "$ROOT/scripts/fixture-sha256.sh"
 BORIS="${CV_BORIS_BIN:-boris}"
 CORPUS_SRC="${1:?usage: capture-fixtures.sh <corpora-dir> — e.g. a solipsist Stunts/ or Tests/Fixtures checkout}"
 FIX="$ROOT/fixtures"
@@ -102,16 +103,20 @@ for c in $CORPORA; do
 done
 
 # manifest: sha256 of every captured artifact + engine version + commands
+# Quote one Bash argument for replay, then escape it for a TOML basic string.
+printf -v capture_command 'scripts/capture-fixtures.sh %q' "$CORPUS_SRC"
+capture_command=${capture_command//\\/\\\\}
+capture_command=${capture_command//\"/\\\"}
 ( cd "$FIX" && {
   echo 'schema_version = 1'
   # engine-version.txt is JSON — a TOML literal string keeps it valid
   echo "engine_version = '$(head -1 engine-version.txt)'"
-  echo "capture_command = \"scripts/capture-fixtures.sh $CORPUS_SRC\""
+  printf 'capture_command = "%s"\n' "$capture_command"
   echo "captured = \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\""
   echo ""
-  find corpus-src captures -type f | sort | while read -r f; do
-    h=$(shasum -a 256 "$f" | cut -d' ' -f1)
+  find corpus-src captures -type f | sort | while IFS= read -r f; do
+    h=$(fixture_sha256 "$f") || exit 1
     echo "\"$f\" = \"$h\""
   done
-} > MANIFEST.toml )
+} > MANIFEST.toml ) || exit 1
 echo "done -> $FIX"
