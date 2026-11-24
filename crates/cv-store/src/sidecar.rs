@@ -128,8 +128,18 @@ fn write_stamp(root: &Path, ns: &Namespace, version: u32) -> std::io::Result<()>
     std::fs::create_dir_all(&dir)?;
     let body = json!({"format": FORMAT, "namespace": ns.name, "schema_version": version});
     let tmp = dir.join(format!("{STAMP}.tmp"));
+    // `.cv/` ships inside cloned projects: never follow a planted
+    // `schema.json.tmp` symlink. Unlink it, then create exclusively
+    // (O_EXCL refuses symlinks).
+    match std::fs::remove_file(&tmp) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => return Err(e),
+        _ => {}
+    }
     {
-        let mut f = std::fs::File::create(&tmp)?;
+        let mut f = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&tmp)?;
         f.write_all(format!("{body}\n").as_bytes())?;
         f.sync_all()?;
     }
@@ -358,5 +368,21 @@ mod tests {
             Outcome::Migrated { from: 1, to: 3 }
         );
         assert_eq!(read_version(t.path(), &BETA).unwrap(), Some(7));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn planted_tmp_symlink_is_not_followed() {
+        let root = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let victim = outside.path().join("victim");
+        std::fs::write(&victim, "keep").unwrap();
+        let dir = root.path().join(V1.dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("data.jsonl"), "{}\n").unwrap();
+        std::os::unix::fs::symlink(&victim, dir.join(format!("{STAMP}.tmp"))).unwrap();
+        ensure(root.path(), &V1).unwrap();
+        assert_eq!(std::fs::read_to_string(&victim).unwrap(), "keep");
+        assert_eq!(read_version(root.path(), &V1).unwrap(), Some(1));
     }
 }
