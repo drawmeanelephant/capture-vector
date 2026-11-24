@@ -862,3 +862,134 @@ fn copy_to_folder_accepts_names_at_the_length_limit() {
     assert_eq!(std::fs::read(dest.join(&name)).unwrap(), b"hi");
     assert_eq!(std::fs::read_dir(&dest).unwrap().count(), 1);
 }
+
+// ── tier gate, end to end: cv-rules verdict → Preflight → publish ────
+
+/// The real cv-rules engine behind the Preflight `Ruleset` port: parse
+/// the HTML the preflight build sealed, `eval`, and split the report on
+/// `AuditFinding::blocks_publish` — the tier decides, nothing else.
+struct RealRules(cv_rules::Ruleset);
+
+impl RealRules {
+    fn one_failing_rule(tier: &str) -> Self {
+        let pack = cv_rules::RulePack::from_toml(&format!(
+            r#"
+[pack]
+id = "gate"
+version = 1
+description = "t"
+[[rule]]
+id = "GATE-H1-MISSING-H2"
+severity = "Error"
+tier = "{tier}"
+archetypes = ["Any"]
+remediation = "r"
+check = {{ Exists = {{ artifact = "Html", selector = {{ Html = "h2" }} }} }}
+[rule.citation]
+source = "s"
+url = "https://example.org/"
+frozen_quote = "q"
+captured = "2026-11-23"
+"#
+        ))
+        .unwrap();
+        Self(cv_rules::Ruleset::new(vec![pack]).unwrap())
+    }
+}
+
+impl Ruleset for RealRules {
+    fn hash(&self) -> Hash {
+        self.0.hash()
+    }
+    fn evaluate(&self, site: &Path, files: &[PlanFile]) -> RulesetVerdict {
+        let mut set = cv_rules::ArtifactSet::builder();
+        for f in files.iter().filter(|f| f.path.ends_with(".html")) {
+            let bytes = std::fs::read(site.join(&f.path)).unwrap();
+            set = set.page(cv_rules::HtmlPage::parse(None, &f.path, &bytes).unwrap());
+        }
+        let report = cv_rules::eval(&set.build(), &self.0);
+        let (blocking, advisory): (Vec<_>, Vec<_>) =
+            report.failed().partition(|f| f.blocks_publish());
+        let label = |v: Vec<&cv_rules::AuditFinding>| {
+            v.into_iter()
+                .map(|f| format!("{}: {}", f.finding.code, f.finding.subject.stable.0))
+                .collect()
+        };
+        RulesetVerdict {
+            blocking: label(blocking),
+            advisory: label(advisory),
+        }
+    }
+}
+
+#[test]
+fn heuristic_only_ruleset_cannot_block_preflight_or_publish() {
+    // Same failing Error rule over the same built pages; only the tier differs.
+    let dir = tempfile::tempdir().unwrap();
+    let eng = FakeEngine::new(dir.path());
+    let heuristic = RealRules::one_failing_rule("Heuristic");
+    let site = dir.path().join("probe");
+    for (p, body) in &eng.pages {
+        let f = site.join(p);
+        std::fs::create_dir_all(f.parent().unwrap()).unwrap();
+        std::fs::write(f, body).unwrap();
+    }
+    let files: Vec<PlanFile> = ["index.html", "guides/a.html"]
+        .iter()
+        .map(|p| PlanFile {
+            path: (*p).into(),
+            bytes: 0,
+            sha256: Hash([0; 32]),
+        })
+        .collect();
+    let v = heuristic.evaluate(&site, &files);
+    assert_eq!(
+        v.advisory.len(),
+        2,
+        "the heuristic rule really fails: {v:?}"
+    );
+    assert!(v.blocking.is_empty());
+
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets)
+        .unwrap()
+        .with_adapter(CopyToFolder::new(dir.path()));
+    let run = granted(
+        p.preflight(
+            &PreflightRequest { config: cfg() },
+            &heuristic,
+            &mut ids("run"),
+        )
+        .unwrap(),
+    );
+    p.approve(&run, "tester").unwrap();
+    assert_eq!(
+        p.publish(&run, &cfg(), &heuristic).unwrap(),
+        RunState::Complete(RunStatus::Complete)
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join("deployed/index.html")).unwrap(),
+        "<h1>home</h1>"
+    );
+
+    // Contrast: the identical rule at a blocking tier refuses the grant.
+    for tier in ["NormativeSpec", "EngineDocumented"] {
+        let blocking = RealRules::one_failing_rule(tier);
+        let out = p
+            .preflight(
+                &PreflightRequest { config: cfg() },
+                &blocking,
+                &mut ids(&format!("b-{tier}")),
+            )
+            .unwrap();
+        let PreflightOutcome::Blocked { run, blocks } = out else {
+            panic!("{tier}: expected blocked")
+        };
+        assert_eq!(blocks.len(), 2, "{tier}: {blocks:?}");
+        assert!(
+            blocks
+                .iter()
+                .all(|b| b.starts_with("ruleset: GATE-H1-MISSING-H2"))
+        );
+        assert!(p.approve(&run, "tester").is_err());
+    }
+}

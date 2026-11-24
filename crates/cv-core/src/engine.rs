@@ -63,6 +63,23 @@ pub enum Verb {
     Custom { name: String, args: Vec<String> },
 }
 
+impl Verb {
+    /// The verb's name as `EngineEvent::VerbFinished` reports it — one
+    /// spelling for every `Engine` implementation.
+    pub fn name(&self) -> String {
+        match self {
+            Self::Build => "build".into(),
+            Self::Validate => "validate".into(),
+            Self::Check => "check".into(),
+            Self::Plan => "plan".into(),
+            Self::Graph => "graph".into(),
+            Self::Export { kind } => format!("export:{kind:?}").to_lowercase(),
+            Self::Publish { target } => format!("publish:{target}"),
+            Self::Custom { name, .. } => name.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExportKind {
     Out,
