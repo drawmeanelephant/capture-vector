@@ -2,7 +2,7 @@
 
 <!-- GENERATED from rule citations by `cargo run -p cv-rules --example gen-sources > rulepacks/SOURCES.md`; do not edit by hand. -->
 
-24 rules in 4 packs cite 20 sources. A rule without a citation does not load.
+24 rules in 4 packs cite 21 sources. A rule without a citation does not load.
 
 Tiers: `NormativeSpec` (a published standard) and `EngineDocumented` (the Boris compiler contract or a search engine's own documentation) may block a publish when they fail at `Error` severity; `Heuristic` findings are advisory and can never block.
 
@@ -24,7 +24,6 @@ Tiers: `NormativeSpec` (a published standard) and `EngineDocumented` (the Boris 
 
 | Rule | Pack | Tier | Severity | Captured |
 |---|---|---|---|---|
-| `TGT-RAG-DRAFT-LEAK` | targets | EngineDocumented | Error | 2026-11-23 |
 | `TGT-RSS-DRAFT-LEAK` | targets | EngineDocumented | Error | 2026-11-23 |
 | `TGT-SITEMAP-DRAFT-LEAK` | targets | EngineDocumented | Error | 2026-11-23 |
 
@@ -107,6 +106,16 @@ Tiers: `NormativeSpec` (a published standard) and `EngineDocumented` (the Boris 
 | Rule | Pack | Tier | Severity | Captured |
 |---|---|---|---|---|
 | `AEO-ANSWER-FIRST` | aeo-llm | Heuristic | Info | 2026-11-23 |
+
+## PROMPT-v3 work order: Audit section (spec/PROMPT-v3.md)
+
+<https://github.com/drawmeanelephant/capture-vector/blob/main/spec/PROMPT-v3.md>
+
+> Draft/noindex leakage into sitemap/rss/llms/RAG is a blocking error.
+
+| Rule | Pack | Tier | Severity | Captured |
+|---|---|---|---|---|
+| `TGT-RAG-DRAFT-LEAK` | targets | NormativeSpec | Error | 2026-11-24 |
 
 ## RFC 6596 The Canonical Link Relation, section 5
 

@@ -213,6 +213,18 @@ impl<'a> Ctx<'a, '_> {
             let present = self.set.availability(artifact) == Availability::Present;
             match self.set.deploy() {
                 Some(d) if !d.expects_robots_txt && !present => return,
+                Some(_) if !present => {
+                    // An expected-but-absent robots.txt is a fact, not a
+                    // limited observation: RFC 9309 makes it a MUST.
+                    self.verdict(
+                        Subject::Output("robots.txt"),
+                        "robots.txt",
+                        "robots.txt",
+                        0,
+                        pred,
+                    );
+                    return;
+                }
                 None if !present => {
                     let why = "deploy profile and robots.txt both unavailable".to_string();
                     self.limited(Subject::Output("robots.txt"), "robots", why);

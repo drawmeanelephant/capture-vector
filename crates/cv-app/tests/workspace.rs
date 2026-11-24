@@ -242,6 +242,82 @@ fn gated_engine_drives_activity_from_the_live_watch() {
 }
 
 #[test]
+fn failed_diagnostic_build_stops_retries_and_discloses_the_failure() {
+    let ws = workspace("broken-frontmatter");
+    let cfg = tempfile::tempdir().unwrap();
+    let fake = Fake::new("broken-frontmatter", None);
+    fake.set("watch-exit.txt", b"1\n");
+    // The captured watch failure is fatal and empty. Its one-shot
+    // diagnostic build fails without diagnostics too.
+    fake.set("verbs/build/stderr.txt", b"");
+    fake.set("verbs/build/exit-code.txt", b"3\n");
+    let mut wb = init();
+    for expected_attempts in [1, 2] {
+        open(&mut wb, ws.path(), &fake.env(cfg.path()));
+        wait_for(&mut wb, "failed diagnostic build disclosure", |wb| {
+            wb.app.degraded == Some(DegradedReason::EngineBuildFailing)
+                && wb.status.contains("reopen workspace")
+        });
+        let argv = std::fs::read_to_string(fake.dir.path().join("argv.log")).unwrap();
+        assert_eq!(
+            argv.lines()
+                .filter(|line| line.split_whitespace().next() == Some("build"))
+                .count(),
+            expected_attempts,
+            "only one diagnostic build per workspace open"
+        );
+    }
+    let tree = Harness::new(wb).tree().to_string();
+    assert!(tree.contains(&degraded_text(&DegradedReason::EngineBuildFailing)));
+}
+
+#[test]
+fn successful_diagnostic_build_does_not_report_the_watcher_as_live() {
+    let ws = workspace("broken-frontmatter");
+    let cfg = tempfile::tempdir().unwrap();
+    let fake = Fake::new("broken-frontmatter", None);
+    fake.set("watch-exit.txt", b"1\n");
+    fake.set("verbs/build/stderr.txt", b"");
+    fake.set("verbs/build/exit-code.txt", b"0\n");
+    let mut wb = init();
+    open(&mut wb, ws.path(), &fake.env(cfg.path()));
+    wait_for(&mut wb, "successful diagnostic build disclosure", |wb| {
+        wb.status.contains("diagnostic build succeeded")
+    });
+    assert_eq!(wb.app.degraded, Some(DegradedReason::WatchDead));
+    assert!(wb.status.contains("reopen workspace"));
+}
+
+#[test]
+fn polling_fallback_rebuilds_on_edits_without_an_automatic_retry() {
+    let ws = workspace("broken-frontmatter");
+    let cfg = tempfile::tempdir().unwrap();
+    let fake = Fake::new("broken-frontmatter", None);
+    fake.set("watch-refuse.txt", b"usage: watch unsupported\n");
+    fake.set("verbs/build/stderr.txt", b"");
+    fake.set("verbs/build/exit-code.txt", b"3\n");
+    let mut wb = init();
+    open(&mut wb, ws.path(), &fake.env(cfg.path()));
+    assert!(wb.status.contains("one-shot rebuilds"), "{}", wb.status);
+    wait_for(&mut wb, "initial polling build", |wb| {
+        module_len(wb, "activity", Some("builds")) == 1
+    });
+    std::fs::write(ws.path().join("added.md"), "# Added\n").unwrap();
+    wait_for(&mut wb, "polling build after an edit", |wb| {
+        module_len(wb, "activity", Some("builds")) == 2
+    });
+    assert!(wb.status.contains("one-shot rebuilds"), "{}", wb.status);
+    wb.stop_watch();
+    let argv = std::fs::read_to_string(fake.dir.path().join("argv.log")).unwrap();
+    assert_eq!(
+        argv.lines()
+            .filter(|line| line.split_whitespace().next() == Some("build"))
+            .count(),
+        2
+    );
+}
+
+#[test]
 fn research_notes_persist_across_reopen() {
     let ws = workspace("happy");
     let cfg = tempfile::tempdir().unwrap();

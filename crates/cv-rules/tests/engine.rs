@@ -429,6 +429,19 @@ fn not_emitted_and_not_expected_robots_is_not_applicable() {
 }
 
 #[test]
+fn expected_but_absent_robots_fails_not_limited() {
+    // Deploy profile expects robots.txt but the artifact set is silent:
+    // an absent expected artifact is a fact, not a limited observation.
+    let set = clean().missing(ArtifactKind::RobotsTxt).build();
+    let r = eval(&set, &Ruleset::v1());
+    assert!(
+        r.failed()
+            .any(|f| f.finding.code == "TGT-ROBOTS-TXT" && f.blocks_publish()),
+        "absent expected robots.txt must fail, not report limited"
+    );
+}
+
+#[test]
 fn removing_a_pack_removes_exactly_its_findings() {
     let rules = Ruleset::v1();
     let set = seeded().build();

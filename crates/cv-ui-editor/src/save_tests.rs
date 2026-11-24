@@ -112,6 +112,24 @@ fn new_files_need_no_base_and_paths_stay_inside_root() {
     }
 }
 
+#[cfg(unix)]
+#[test]
+fn a_symlink_inside_the_root_cannot_redirect_a_write_outside() {
+    let dir = tempfile::tempdir().unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    std::os::unix::fs::symlink(outside.path(), dir.path().join("link")).unwrap();
+    let writer = FsWriter::new(dir.path());
+    for bad in ["link/x.md", "link/nested/x.md"] {
+        let d = PageDraft {
+            path: bad.into(),
+            body: "planted".into(),
+            base: None,
+        };
+        assert!(writer.write(&d).is_err(), "{bad}");
+    }
+    assert!(std::fs::read_dir(outside.path()).unwrap().next().is_none());
+}
+
 #[test]
 fn engine_errors_surface_as_failed_not_dropped() {
     let w = EngineWriter(RefusingEngine);

@@ -39,7 +39,7 @@ pub fn degraded_text(r: &DegradedReason) -> String {
             format!("Engine version mismatch — found boris {found}, want {want}.")
         }
         DegradedReason::EngineBuildFailing => {
-            "Engine build keeps failing — auto-retry paused; fix the build or restart watch.".into()
+            "Engine build failed after one retry. Fix the build, then reopen the workspace.".into()
         }
         DegradedReason::WatchDead => {
             "Watch session died — showing last snapshot; restart watch to resume.".into()
@@ -503,10 +503,10 @@ fn status(s: &Workbench) -> El {
 fn palette(s: &Workbench, width: f32) -> El {
     let t = &s.theme;
     let cmds = s.commands();
-    let hits = s.palette.matches(&cmds);
+    let hits = s.palette.visible(&cmds);
     let left = ((width - t.spacing.palette_w) / 2.0).max(0.0);
     let mut list = col().key("palette-list").w_full().gap(1.0);
-    for (i, c) in hits.iter().take(12).enumerate() {
+    for (i, c) in hits.iter().enumerate() {
         let sel = i == s.palette.cursor;
         let id = c.id.clone();
         list = list.child(

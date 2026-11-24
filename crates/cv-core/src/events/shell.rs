@@ -22,7 +22,7 @@ pub enum DegradedReason {
         found: String,
         want: String,
     },
-    /// Non-recoverable builds kept failing past the auto-retry cap.
+    /// The diagnostic build after a fatal native watch failure failed.
     EngineBuildFailing,
     WatchDead,
     StoreCorrupt,

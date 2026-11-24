@@ -86,6 +86,27 @@ fn replay_is_idempotent_and_journaled() {
 }
 
 #[test]
+fn a_reused_event_id_with_a_new_payload_is_not_a_replay() {
+    let mut wb = Workbench::new(Registry::with_all());
+    let captured = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let c = captured.clone();
+    let _h = StubEngine::new("happy").replay_watch(Box::new(move |e| c.lock().unwrap().push(e)));
+    let envs = captured.lock().unwrap().clone();
+    let mut sink = wb.sink();
+    envs.iter().cloned().for_each(&mut sink);
+    wb.drain();
+    let committed = wb.app.committed;
+    // Re-send the session-start envelope with the same event_id but a
+    // new session: it is a new event, not a replay.
+    let mut again = envs[0].clone();
+    again.cursor.session = cv_core::events::SessionId("other".into());
+    let mut sink = wb.sink();
+    sink(again);
+    wb.drain();
+    assert_eq!(wb.app.committed, committed + 1);
+}
+
+#[test]
 fn rail_slots_and_keyboard_navigation() {
     let (mut wb, _) = replayed("happy");
     wb.drain();

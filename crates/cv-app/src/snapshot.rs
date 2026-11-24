@@ -107,16 +107,33 @@ fn list(v: &str) -> Vec<String> {
         .collect()
 }
 
+/// Same fence rules as `frontmatter::read`: the first line must be a
+/// `---` fence (LF or CRLF) and the body is everything after the closing
+/// fence line, verbatim. An unclosed opening fence is no frontmatter.
+fn split_frontmatter(raw: &str) -> Option<(&str, &str)> {
+    fn is_fence(line: &str) -> bool {
+        line.strip_suffix('\r').unwrap_or(line) == "---"
+    }
+    let mut lines = raw.split_inclusive('\n');
+    let first = lines.next()?;
+    if !is_fence(first.trim_end_matches('\n')) {
+        return None;
+    }
+    let mut at = first.len();
+    for l in lines {
+        let start = at;
+        at += l.len();
+        if is_fence(l.trim_end_matches('\n')) {
+            return Some((&raw[first.len()..start], &raw[at..]));
+        }
+    }
+    None
+}
+
 /// One page record. Without an explicit `id` the path (sans extension)
 /// stands in, matching the `[[guides/x]]` links the corpora use.
 pub fn page(path: &str, raw: &str) -> PageRecord {
-    let (fm, body) = match raw
-        .strip_prefix("---\n")
-        .and_then(|r| r.split_once("\n---"))
-    {
-        Some((fm, rest)) => (fm, rest.trim_start_matches(['-', '\n'])),
-        None => ("", raw),
-    };
+    let (fm, body) = split_frontmatter(raw).unwrap_or(("", raw));
     let mut p = PageRecord {
         path: path.into(),
         id: strip_ext(path).into(),
@@ -241,5 +258,32 @@ pub fn workspace_snapshot(
         outputs,
         last_publish: None,
         artifact_root: Some(root.join(html_dir).to_string_lossy().into_owned()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn crlf_frontmatter_still_parses_fields() {
+        let p = page("a.md", "---\r\nid: x\r\ntitle: T\r\n---\r\nbody\r\n");
+        assert_eq!(p.id, "x");
+        assert_eq!(p.title, "T");
+        assert_eq!(p.body, "body\r\n");
+    }
+
+    #[test]
+    fn dash_leading_body_is_kept_verbatim() {
+        let p = page("a.md", "---\ntitle: T\n---\n- one\n- two\n---\n");
+        assert_eq!(p.body, "- one\n- two\n---\n");
+    }
+
+    #[test]
+    fn unclosed_fence_is_no_frontmatter() {
+        let raw = "---\ntitle: T\nbody without a closing fence\n";
+        let p = page("a.md", raw);
+        assert_eq!(p.body, raw);
+        assert_eq!(p.id, "a");
     }
 }
