@@ -5,6 +5,7 @@
 //! - [`shell`]: the module rail/chrome view over `cv_model::workbench`.
 //! - [`theme`]: `cv_model::theme` tokens → rune colours/type/springs.
 //! - [`harness`]: headless runtime, scripted input, tree/layout goldens.
+//! - `reference` (feature): replay a headless frame on `rune-ref`'s CPU oracle.
 //! - [`app`]: native window boot + companion windows.
 //! - [`editor`]: the L7 editor surface (form + body, problems, draft sketch).
 
@@ -13,6 +14,8 @@ pub mod diagnostic;
 pub mod editor;
 pub mod harness;
 pub mod keys;
+#[cfg(feature = "reference")]
+pub mod reference;
 pub mod shell;
 pub mod theme;
 pub mod tree;
