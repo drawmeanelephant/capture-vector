@@ -11,7 +11,7 @@ default = ["disk"]
 # JSONL truth + SQLite FTS5 index under `.cv/research/`. The pure domain
 # (model, graph, mailboxes, promotion drafts) builds without it so the
 # IO-free UI model can depend on it.
-disk = ["dep:rusqlite"]
+disk = ["dep:rusqlite", "dep:cv-store"]
 
 [dependencies]
 cv-core.workspace = true
@@ -19,8 +19,10 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 rusqlite = { workspace = true, optional = true }
+cv-store = { workspace = true, optional = true }
 
 [dev-dependencies]
 cv-fixtures.workspace = true
 cv-engine.workspace = true
 tempfile = "3"
+cv-store.workspace = true

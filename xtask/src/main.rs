@@ -3,8 +3,15 @@
 //!   (`crates/cv-model/src/modules/mod.rs`) from `modules/<lane>/` dirs.
 //! - `png-diff <a.png> <b.png> [--tolerance N] [--max-ratio R]` — the
 //!   canonical-rasterizer PNG golden comparison.
+//! - `parity` — draft-sketch ↔ Boris parity report.
+//! - `fetch-boris [--src <checkout>]` — build the pinned boris (zig
+//!   0.17.x, network) and stage it at `vendor/engines/boris`.
+//! - `release [--out <dir>]` — version-stamped package with the staged
+//!   boris bundled (see `release.rs`).
 //!
-//! Planned: `fetch-engines`, `fixtures refresh`, `parity`, `release`.
+//! Planned: `fixtures refresh`.
+
+mod release;
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -177,14 +184,28 @@ fn parity() -> ExitCode {
     }
 }
 
+fn report<T>(r: Result<T, String>) -> ExitCode {
+    match r {
+        Ok(_) => ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("error: {e}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
         Some("codegen") => codegen(args.iter().any(|a| a == "--check")),
         Some("png-diff") => png_diff(&args[1..]),
         Some("parity") => parity(),
+        Some("fetch-boris") => report(release::fetch_boris(&root(), &args[1..])),
+        Some("release") => report(release::release(&root(), &args[1..])),
         _ => {
-            eprintln!("usage: xtask <codegen [--check] | png-diff a.png b.png | parity>");
+            eprintln!(
+                "usage: xtask <codegen [--check] | png-diff a.png b.png | parity | fetch-boris [--src DIR] | release [--out DIR]>"
+            );
             ExitCode::FAILURE
         }
     }

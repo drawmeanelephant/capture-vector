@@ -9,6 +9,7 @@ use crate::session::Research;
 use cv_core::engine::{Engine, PageDraft, WriteOutcome};
 use cv_core::id::{AccountId, StableId};
 use cv_core::sys::{Clock, Timestamp};
+use cv_store::sidecar::{self, Namespace, SidecarError};
 use rusqlite::{Connection, params};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -22,6 +23,15 @@ pub const PROVENANCE: &str = "provenance.jsonl";
 pub const INDEX: &str = "index.sqlite";
 const INDEX_SCHEMA: i64 = 1;
 
+/// `.cv/research/` sidecar schema. v1 = `notes.jsonl` + `provenance.jsonl`
+/// as [`Record`]/[`Provenance`] lines; v0 is the same shape, unstamped.
+pub const SIDECAR: Namespace = Namespace {
+    name: "research",
+    dir: DIR,
+    current: 1,
+    migrations: &[sidecar::ADOPT_UNSTAMPED],
+};
+
 #[derive(Debug, thiserror::Error)]
 pub enum DiskError {
     #[error("io: {0}")]
@@ -30,6 +40,8 @@ pub enum DiskError {
     Sql(#[from] rusqlite::Error),
     #[error("json: {0}")]
     Json(#[from] serde_json::Error),
+    #[error("schema: {0}")]
+    Schema(#[from] SidecarError),
 }
 
 /// Append-only JSONL file.
@@ -225,13 +237,14 @@ impl FtsIndex {
 }
 
 /// What [`open`] recovered.
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OpenReport {
     pub notes: Scan,
     pub provenance: Scan,
     /// Decoded records the fold rejected (e.g. edits of unknown notes).
     pub rejected: u64,
     pub index_rebuilt: bool,
+    pub schema: sidecar::Outcome,
 }
 
 pub struct DiskPort {
@@ -260,6 +273,7 @@ pub fn open(
     account: AccountId,
     clock: Box<dyn Clock + Send>,
 ) -> Result<(Research<DiskPort>, OpenReport), DiskError> {
+    let schema = sidecar::ensure(root, &SIDECAR)?;
     let dir = root.join(DIR);
     let (notes, recs, notes_scan) = Jsonl::open::<Record>(&dir.join(NOTES))?;
     let (provenance, provs, prov_scan) = Jsonl::open::<Provenance>(&dir.join(PROVENANCE))?;
@@ -267,7 +281,9 @@ pub fn open(
     let mut report = OpenReport {
         notes: notes_scan,
         provenance: prov_scan,
-        ..OpenReport::default()
+        rejected: 0,
+        index_rebuilt: false,
+        schema,
     };
     for r in &recs {
         if nb.apply(r).is_err() {

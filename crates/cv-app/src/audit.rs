@@ -92,6 +92,28 @@ impl AuditPort for DiskPort {
 mod tests {
     use super::*;
 
+    #[test]
+    fn artifact_reads_enforce_the_limit_and_reject_directories() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("page.html");
+        let file = std::fs::File::create(&path).unwrap();
+        file.set_len(MAX_ARTIFACT_BYTES + 1).unwrap();
+        let port = DiskPort::ephemeral();
+        assert!(
+            port.read(root.path().to_str().unwrap(), "page.html")
+                .is_err()
+        );
+        file.set_len(MAX_ARTIFACT_BYTES).unwrap();
+        assert_eq!(
+            port.read(root.path().to_str().unwrap(), "page.html")
+                .unwrap()
+                .len() as u64,
+            MAX_ARTIFACT_BYTES
+        );
+        std::fs::create_dir(root.path().join("dir")).unwrap();
+        assert!(port.read(root.path().to_str().unwrap(), "dir").is_err());
+    }
+
     #[cfg(unix)]
     #[test]
     fn artifact_symlinks_cannot_escape_the_build_root() {

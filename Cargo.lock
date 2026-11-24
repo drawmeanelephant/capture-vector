@@ -711,7 +711,7 @@ checksum = "f27ae1dd37df86211c42e150270f82743308803d90a6f6e6651cd730d5e1732f"
 
 [[package]]
 name = "cv-app"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "cv-core",
  "cv-engine",
@@ -778,6 +778,7 @@ dependencies = [
  "cv-contracts",
  "cv-core",
  "cv-fixtures",
+ "cv-store",
  "rusqlite",
  "serde",
  "serde_json",
@@ -805,6 +806,7 @@ dependencies = [
  "cv-core",
  "cv-engine",
  "cv-fixtures",
+ "cv-store",
  "rusqlite",
  "serde",
  "serde_json",
@@ -847,6 +849,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -4744,7 +4747,12 @@ checksum = "ec7a2a501ed189703dba8b08142f057e887dfc4b2cc4db2d343ac6376ba3e0b9"
 name = "xtask"
 version = "0.0.0"
 dependencies = [
+ "cv-core",
+ "cv-engine",
  "png 0.18.1",
+ "serde_json",
+ "sha2",
+ "toml",
 ]
 
 [[package]]

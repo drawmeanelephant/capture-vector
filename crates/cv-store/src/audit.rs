@@ -8,16 +8,23 @@
 //! `.cv/` lives inside cloned (untrusted) projects, so a symlinked
 //! `.cv`, `.cv/audit` or journal is refused rather than followed.
 
+use crate::sidecar::{self, ADOPT_UNSTAMPED, Namespace, SidecarError};
 use cv_core::rules::{DedupKey, FindingLifecycle};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
-use std::io::{Read, Write};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 pub const DIR: &str = ".cv/audit";
 pub const LIFECYCLE: &str = "lifecycle.jsonl";
 pub const SCHEMA_VERSION: u32 = 1;
+const SCHEMA: Namespace = Namespace {
+    name: "audit",
+    dir: DIR,
+    current: SCHEMA_VERSION,
+    migrations: &[ADOPT_UNSTAMPED],
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LifecycleRecord {
@@ -50,6 +57,7 @@ pub enum Error {
     Io(std::io::Error),
     Symlink(PathBuf),
     Json(serde_json::Error),
+    Schema(SidecarError),
 }
 
 impl std::fmt::Display for Error {
@@ -58,6 +66,7 @@ impl std::fmt::Display for Error {
             Error::Io(e) => write!(f, "{e}"),
             Error::Symlink(p) => write!(f, "refusing symlinked {}", p.display()),
             Error::Json(e) => write!(f, "{e}"),
+            Error::Schema(e) => write!(f, "{e}"),
         }
     }
 }
@@ -78,7 +87,9 @@ pub struct LifecycleLog {
 fn refuse_symlink(p: &Path) -> Result<(), Error> {
     match std::fs::symlink_metadata(p) {
         Ok(m) if m.file_type().is_symlink() => Err(Error::Symlink(p.to_path_buf())),
-        _ => Ok(()),
+        Ok(_) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e.into()),
     }
 }
 
@@ -92,17 +103,15 @@ impl LifecycleLog {
         let cv = root.join(".cv");
         let dir = root.join(DIR);
         let path = dir.join(LIFECYCLE);
-        for p in [&cv, &dir] {
+        for p in [&cv, &dir, &path] {
             refuse_symlink(p)?;
-            if !p.exists() {
-                std::fs::create_dir(p)?;
-            }
         }
-        refuse_symlink(&path)?;
+        sidecar::ensure(root, &SCHEMA).map_err(Error::Schema)?;
         let mut file = OpenOptions::new()
             .read(true)
-            .append(true)
+            .write(true)
             .create(true)
+            .truncate(false)
             .open(&path)?;
         file.try_lock().map_err(std::io::Error::other)?;
         let mut buf = Vec::new();
@@ -113,10 +122,10 @@ impl LifecycleLog {
             ..Scan::default()
         };
         if scan.torn_bytes > 0 {
-            let w = OpenOptions::new().write(true).open(&path)?;
-            w.set_len(good as u64)?;
-            w.sync_all()?;
+            file.set_len(good as u64)?;
+            file.sync_all()?;
         }
+        file.seek(SeekFrom::End(0))?;
         let mut out: Vec<(DedupKey, FindingLifecycle)> = Vec::new();
         let mut at: HashMap<DedupKey, usize> = HashMap::new();
         for line in buf[..good].split(|b| *b == b'\n') {
@@ -217,6 +226,46 @@ mod tests {
     }
 
     #[test]
+    fn an_unstamped_audit_journal_is_adopted_without_losing_snoozes() {
+        let root = tempfile::tempdir().unwrap();
+        let dir = root.path().join(DIR);
+        std::fs::create_dir_all(&dir).unwrap();
+        let record = LifecycleRecord::new(key("A", "x"), FindingLifecycle::Ignored);
+        let bytes = format!("{}\n", serde_json::to_string(&record).unwrap());
+        std::fs::write(dir.join(LIFECYCLE), &bytes).unwrap();
+        let (_, records, _) = LifecycleLog::open(root.path()).unwrap();
+        assert_eq!(records, vec![(record.key, FindingLifecycle::Ignored)]);
+        assert_eq!(std::fs::read_to_string(dir.join(LIFECYCLE)).unwrap(), bytes);
+        assert_eq!(
+            sidecar::read_version(root.path(), &SCHEMA).unwrap(),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn a_newer_audit_schema_is_refused_without_changing_its_journal() {
+        let root = tempfile::tempdir().unwrap();
+        let (mut log, _, _) = LifecycleLog::open(root.path()).unwrap();
+        log.append(&key("A", "x"), FindingLifecycle::Ignored)
+            .unwrap();
+        let journal = log.path().to_path_buf();
+        drop(log);
+        let stamp = sidecar::stamp_path(root.path(), &SCHEMA);
+        let future = serde_json::json!({
+            "format": sidecar::FORMAT, "namespace": "audit", "schema_version": 2
+        })
+        .to_string();
+        std::fs::write(&stamp, &future).unwrap();
+        let before = std::fs::read(&journal).unwrap();
+        assert!(matches!(
+            LifecycleLog::open(root.path()),
+            Err(Error::Schema(SidecarError::TooNew { .. }))
+        ));
+        assert_eq!(std::fs::read(&journal).unwrap(), before);
+        assert_eq!(std::fs::read_to_string(&stamp).unwrap(), future);
+    }
+
+    #[test]
     fn torn_tail_and_foreign_schema_are_skipped() {
         let d = tempfile::tempdir().unwrap();
         let (mut log, _, _) = LifecycleLog::open(d.path()).unwrap();
@@ -235,11 +284,22 @@ mod tests {
         writeln!(f, "not json").unwrap();
         write!(f, "{{\"torn").unwrap();
         drop(f);
-        let (_, got, scan) = LifecycleLog::open(d.path()).unwrap();
+        let (mut log, got, scan) = LifecycleLog::open(d.path()).unwrap();
         assert_eq!(got, vec![(key("A", "x"), FindingLifecycle::Ignored)]);
         assert_eq!((scan.unsupported, scan.undecodable), (1, 1));
         assert!(scan.torn_bytes > 0);
         assert!(std::fs::read(&path).unwrap().ends_with(b"\n"));
+        log.append(&key("C", "z"), FindingLifecycle::Wontfix)
+            .unwrap();
+        drop(log);
+        let (_, got, _) = LifecycleLog::open(d.path()).unwrap();
+        assert_eq!(
+            got,
+            vec![
+                (key("A", "x"), FindingLifecycle::Ignored),
+                (key("C", "z"), FindingLifecycle::Wontfix),
+            ]
+        );
     }
 
     #[cfg(unix)]
