@@ -12,6 +12,7 @@ use cv_ui_editor::problems::Freshness;
 use cv_ui_editor::save::{FsWriter, SaveStatus};
 use cv_ui_editor::{BufferId, EditorSession};
 use cv_widgets::editor::{self, EditorWindow};
+use rune::accesskit::{Action, Role};
 use rune::{Ime, Runtime};
 use std::cell::RefCell;
 use std::path::PathBuf;
@@ -342,6 +343,42 @@ fn degraded_inputs_are_disclosed_not_fatal() {
     assert!(rq.find("fm-title").is_some() && rq.find("fm-yield").is_some());
     assert_eq!(rq.state.body.text, "just text");
     assert!(texts(&rq).iter().any(|t| t == cv_ui_editor::sketch::LABEL));
+}
+
+#[test]
+fn editor_accessibility_tree_names_each_editable_field() {
+    for decorations in [false, true] {
+        let ses = session();
+        let buf = ses.borrow_mut().open("page.md", &broken_page(), None);
+        let mut editor = EditorWindow::new(WindowId(1), ses, buf, Theme::dark());
+        editor.decorations = decorations;
+        let mut rt = editor::runtime(editor);
+        settle(&mut rt);
+
+        let tree = rt.accessibility_tree();
+        let assert_field = |key: &str, name: &str, role: Role| {
+            let (_, node) = tree
+                .nodes
+                .iter()
+                .find(|(_, node)| node.author_id() == Some(key))
+                .unwrap_or_else(|| panic!("{key} missing from the accessibility tree"));
+            assert_eq!(node.role(), role, "{key}");
+            assert_eq!(node.label(), Some(name), "{key}");
+            assert!(
+                node.supports_action(Action::Focus),
+                "{key} cannot be focused"
+            );
+            assert!(
+                node.supports_action(Action::ReplaceSelectedText),
+                "{key} is not editable"
+            );
+        };
+
+        for spec in cv_ui_editor::frontmatter::SCHEMA {
+            assert_field(&format!("fm-{}", spec.key), spec.key, Role::TextInput);
+        }
+        assert_field("editor-body", "Markdown body", Role::MultilineTextInput);
+    }
 }
 
 #[test]
