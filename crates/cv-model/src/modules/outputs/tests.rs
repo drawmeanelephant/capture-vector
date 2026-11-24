@@ -35,6 +35,7 @@ fn snap() -> ProjectSnapshot {
             ..Default::default()
         }],
         last_publish: None,
+        artifact_root: None,
     }
 }
 

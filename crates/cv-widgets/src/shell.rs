@@ -123,6 +123,19 @@ fn rail(s: &Workbench) -> El {
                     .color(color(fg))
                     .single_line(),
             );
+        if let Some(n) = idx
+            .and_then(|i| s.registry.get(i))
+            .and_then(|m| m.badge())
+            .filter(|n| *n > 0)
+        {
+            item = item.child(spacer()).child(
+                text(n.to_string())
+                    .key(format!("rail-{key}-badge"))
+                    .font(font(t.type_.label))
+                    .color(color(fg))
+                    .single_line(),
+            );
+        }
         if let Some(i) = idx {
             item = item
                 .hover(color(t.colors.pane_alt))
@@ -162,6 +175,7 @@ fn nav(s: &Workbench) -> El {
                 .w_full()
                 .px(t.spacing.unit * 2.0)
                 .py(t.spacing.unit)
+                .gap(t.spacing.unit)
                 .fill(color(if sel {
                     t.colors.selection
                 } else {
@@ -172,7 +186,9 @@ fn nav(s: &Workbench) -> El {
                 .child(
                     text(item.label)
                         .font(font(t.type_.body))
-                        .color(color(t.colors.text)),
+                        .color(color(t.colors.text))
+                        .single_line()
+                        .truncate(),
                 )
                 .child(spacer())
                 .child(label(

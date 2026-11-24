@@ -93,7 +93,6 @@
     {
       "fill": "#08090cff",
       "key": "rail-audit",
-      "label": "not registered",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-audit",
       "rect": [
@@ -105,7 +104,7 @@
       "role": "tab"
     },
     {
-      "color": "#8a93a3ff",
+      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-audit/#0",
       "rect": [
@@ -278,9 +277,9 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-all/#1",
       "rect": [
-        162.5,
+        166.5,
         32.3,
-        82.9,
+        74.9,
         15.0
       ],
       "role": "group"
@@ -328,9 +327,9 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-errors/#1",
       "rect": [
-        138.3,
+        142.3,
         59.3,
-        106.8,
+        98.8,
         15.0
       ],
       "role": "group"
@@ -378,9 +377,9 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-warnings/#1",
       "rect": [
-        203.3,
+        207.3,
         86.3,
-        41.5,
+        33.5,
         15.0
       ],
       "role": "group"
@@ -428,9 +427,9 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-builds/#1",
       "rect": [
-        138.5,
+        142.5,
         113.3,
-        106.8,
+        98.8,
         15.0
       ],
       "role": "group"
@@ -478,9 +477,9 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-file:orphan.md/#1",
       "rect": [
-        165.5,
+        169.5,
         140.3,
-        81.9,
+        73.9,
         15.0
       ],
       "role": "group"

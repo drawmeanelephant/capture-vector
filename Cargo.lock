@@ -718,6 +718,7 @@ dependencies = [
  "cv-fixtures",
  "cv-model",
  "cv-notes",
+ "cv-store",
  "cv-ui-editor",
  "cv-widgets",
  "serde_json",
@@ -792,6 +793,7 @@ dependencies = [
  "cv-core",
  "cv-fixtures",
  "cv-notes",
+ "cv-rules",
  "serde",
  "serde_json",
 ]
@@ -841,7 +843,9 @@ version = "0.0.0"
 dependencies = [
  "cv-core",
  "rusqlite",
+ "serde",
  "serde_json",
+ "tempfile",
 ]
 
 [[package]]

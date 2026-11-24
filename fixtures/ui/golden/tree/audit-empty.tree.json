@@ -1,0 +1,1115 @@
+{
+  "nodes": [
+    {
+      "fill": "#0e1014ff",
+      "key": "shell",
+      "opacity": 1.0,
+      "path": "shell",
+      "rect": [
+        0.0,
+        0.0,
+        1280.0,
+        800.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "body",
+      "opacity": 1.0,
+      "path": "shell/body",
+      "rect": [
+        0.0,
+        0.0,
+        1280.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/rail",
+      "rect": [
+        0.0,
+        0.0,
+        88.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-pages",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages",
+      "rect": [
+        0.0,
+        8.0,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages/#0",
+      "rect": [
+        12.0,
+        14.0,
+        38.7,
+        16.3
+      ],
+      "role": "text",
+      "text": "Pages"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-research",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research",
+      "rect": [
+        0.0,
+        40.3,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research/#0",
+      "rect": [
+        12.0,
+        46.3,
+        58.8,
+        16.3
+      ],
+      "role": "text",
+      "text": "Research"
+    },
+    {
+      "fill": "#00d1ffff",
+      "key": "rail-audit",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit",
+      "rect": [
+        0.0,
+        72.5,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#001018ff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#0",
+      "rect": [
+        12.0,
+        78.5,
+        33.5,
+        16.3
+      ],
+      "role": "text",
+      "text": "Audit"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-publish",
+      "label": "not registered",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish",
+      "rect": [
+        0.0,
+        104.8,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish/#0",
+      "rect": [
+        12.0,
+        110.8,
+        46.4,
+        16.3
+      ],
+      "role": "text",
+      "text": "Publish"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-outputs",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs",
+      "rect": [
+        0.0,
+        137.0,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs/#0",
+      "rect": [
+        12.0,
+        143.0,
+        50.2,
+        16.3
+      ],
+      "role": "text",
+      "text": "Outputs"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-activity",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity",
+      "rect": [
+        0.0,
+        169.3,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity/#0",
+      "rect": [
+        12.0,
+        175.3,
+        48.4,
+        16.3
+      ],
+      "role": "text",
+      "text": "Activity"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-demo",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo",
+      "rect": [
+        0.0,
+        201.5,
+        88.0,
+        28.3
+      ],
+      "role": "tab"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo/#0",
+      "rect": [
+        12.0,
+        207.5,
+        36.7,
+        16.3
+      ],
+      "role": "text",
+      "text": "Demo"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav",
+      "opacity": 1.0,
+      "path": "shell/body/nav",
+      "rect": [
+        88.0,
+        0.0,
+        180.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/#0",
+      "rect": [
+        96.0,
+        8.0,
+        164.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Audit"
+    },
+    {
+      "fill": "#00d1ff33",
+      "key": "nav-open",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-open",
+      "rect": [
+        96.0,
+        28.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-open/#0",
+      "rect": [
+        104.0,
+        32.3,
+        30.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "Open"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-open/#1",
+      "rect": [
+        138.6,
+        32.3,
+        102.3,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-open/#2",
+      "rect": [
+        244.9,
+        32.3,
+        7.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-blocking",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-blocking",
+      "rect": [
+        96.0,
+        55.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-blocking/#0",
+      "rect": [
+        104.0,
+        59.3,
+        48.8,
+        15.0
+      ],
+      "role": "text",
+      "text": "Blocking"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-blocking/#1",
+      "rect": [
+        156.8,
+        59.3,
+        84.1,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-blocking/#2",
+      "rect": [
+        244.9,
+        59.3,
+        7.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-error",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-error",
+      "rect": [
+        96.0,
+        82.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-error/#0",
+      "rect": [
+        104.0,
+        86.3,
+        34.3,
+        15.0
+      ],
+      "role": "text",
+      "text": "Errors"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-error/#1",
+      "rect": [
+        142.3,
+        86.3,
+        98.6,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-error/#2",
+      "rect": [
+        244.9,
+        86.3,
+        7.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-warning",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-warning",
+      "rect": [
+        96.0,
+        109.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-warning/#0",
+      "rect": [
+        104.0,
+        113.3,
+        53.4,
+        15.0
+      ],
+      "role": "text",
+      "text": "Warnings"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-warning/#1",
+      "rect": [
+        161.4,
+        113.3,
+        79.5,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-warning/#2",
+      "rect": [
+        244.9,
+        113.3,
+        7.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-info",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-info",
+      "rect": [
+        96.0,
+        136.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-info/#0",
+      "rect": [
+        104.0,
+        140.3,
+        21.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "Info"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-info/#1",
+      "rect": [
+        129.6,
+        140.3,
+        111.3,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-info/#2",
+      "rect": [
+        244.9,
+        140.3,
+        7.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-snoozed",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-snoozed",
+      "rect": [
+        96.0,
+        163.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-snoozed/#0",
+      "rect": [
+        104.0,
+        167.3,
+        49.8,
+        15.0
+      ],
+      "role": "text",
+      "text": "Snoozed"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-snoozed/#1",
+      "rect": [
+        157.8,
+        167.3,
+        83.1,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-snoozed/#2",
+      "rect": [
+        244.9,
+        167.3,
+        7.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-wontfix",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-wontfix",
+      "rect": [
+        96.0,
+        190.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-wontfix/#0",
+      "rect": [
+        104.0,
+        194.3,
+        50.3,
+        15.0
+      ],
+      "role": "text",
+      "text": "Won't fix"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-wontfix/#1",
+      "rect": [
+        158.3,
+        194.3,
+        82.6,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-wontfix/#2",
+      "rect": [
+        244.9,
+        194.3,
+        7.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-fixed",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-fixed",
+      "rect": [
+        96.0,
+        217.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-fixed/#0",
+      "rect": [
+        104.0,
+        221.3,
+        30.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "Fixed"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-fixed/#1",
+      "rect": [
+        138.6,
+        221.3,
+        102.3,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-fixed/#2",
+      "rect": [
+        244.9,
+        221.3,
+        7.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-limited",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-limited",
+      "rect": [
+        96.0,
+        244.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-limited/#0",
+      "rect": [
+        104.0,
+        248.3,
+        72.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "Not checked"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-limited/#1",
+      "rect": [
+        180.0,
+        248.3,
+        60.9,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-limited/#2",
+      "rect": [
+        244.9,
+        248.3,
+        7.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-pack:a11y-content",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-pack:a11y-content",
+      "rect": [
+        96.0,
+        271.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-pack:a11y-content/#0",
+      "rect": [
+        104.0,
+        275.3,
+        108.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "Pack · a11y-content"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-pack:a11y-content/#1",
+      "rect": [
+        216.9,
+        275.3,
+        24.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-pack:a11y-content/#2",
+      "rect": [
+        244.9,
+        275.3,
+        7.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-pack:aeo-llm",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-pack:aeo-llm",
+      "rect": [
+        96.0,
+        298.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-pack:aeo-llm/#0",
+      "rect": [
+        104.0,
+        302.3,
+        80.8,
+        15.0
+      ],
+      "role": "text",
+      "text": "Pack · aeo-llm"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-pack:aeo-llm/#1",
+      "rect": [
+        188.8,
+        302.3,
+        52.1,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-pack:aeo-llm/#2",
+      "rect": [
+        244.9,
+        302.3,
+        7.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "nav-pack:seo-core",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-pack:seo-core",
+      "rect": [
+        96.0,
+        325.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-pack:seo-core/#0",
+      "rect": [
+        104.0,
+        329.3,
+        89.5,
+        15.0
+      ],
+      "role": "text",
+      "text": "Pack · seo-core"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-pack:seo-core/#1",
+      "rect": [
+        197.5,
+        329.3,
+        43.4,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-pack:seo-core/#2",
+      "rect": [
+        244.9,
+        329.3,
+        7.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "list-pane",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane",
+      "rect": [
+        268.0,
+        0.0,
+        320.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "list-empty",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-empty",
+      "rect": [
+        268.0,
+        0.0,
+        320.0,
+        29.8
+      ],
+      "role": "text",
+      "text": "Empty mailbox"
+    },
+    {
+      "key": "list-viewport",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport",
+      "rect": [
+        268.0,
+        29.8,
+        320.0,
+        748.3
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "reading",
+      "opacity": 1.0,
+      "path": "shell/body/reading",
+      "rect": [
+        588.0,
+        0.0,
+        452.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/#0",
+      "rect": [
+        604.0,
+        16.0,
+        420.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Nothing selected"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "inspector",
+      "opacity": 1.0,
+      "path": "shell/body/inspector",
+      "rect": [
+        1040.0,
+        0.0,
+        240.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/#0",
+      "rect": [
+        1048.0,
+        8.0,
+        224.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Inspector"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/#1",
+      "rect": [
+        1048.0,
+        36.3,
+        224.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Windows"
+    },
+    {
+      "key": "field-primary",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-primary",
+      "rect": [
+        1048.0,
+        54.0,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-primary/#0",
+      "rect": [
+        1048.0,
+        54.0,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "primary"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/field-primary/#1",
+      "rect": [
+        1128.0,
+        54.0,
+        28.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "clean"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "status",
+      "opacity": 1.0,
+      "path": "shell/status",
+      "rect": [
+        0.0,
+        778.0,
+        1280.0,
+        22.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-0",
+      "opacity": 1.0,
+      "path": "shell/status/status-0",
+      "rect": [
+        12.0,
+        782.1,
+        51.9,
+        13.8
+      ],
+      "role": "text",
+      "text": "no engine"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1",
+      "opacity": 1.0,
+      "path": "shell/status/status-1",
+      "rect": [
+        75.9,
+        782.1,
+        45.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "0 events"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-2",
+      "opacity": 1.0,
+      "path": "shell/status/status-2",
+      "rect": [
+        133.0,
+        782.1,
+        40.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "epoch 1"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-3",
+      "opacity": 1.0,
+      "path": "shell/status/status-3",
+      "rect": [
+        185.4,
+        782.1,
+        23.6,
+        13.8
+      ],
+      "role": "text",
+      "text": "dark"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-4",
+      "opacity": 1.0,
+      "path": "shell/status/status-4",
+      "rect": [
+        221.0,
+        782.1,
+        36.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "motion"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/status/#5",
+      "rect": [
+        269.2,
+        789.0,
+        803.3,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-msg",
+      "opacity": 1.0,
+      "path": "shell/status/status-msg",
+      "rect": [
+        1084.5,
+        782.1,
+        72.3,
+        13.8
+      ],
+      "role": "text",
+      "text": "Audit — Audit"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/status/#7",
+      "rect": [
+        1168.8,
+        782.1,
+        99.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "mod+K commands"
+    }
+  ],
+  "schema": 1
+}

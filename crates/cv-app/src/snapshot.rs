@@ -73,6 +73,9 @@ pub fn corpus_snapshot(name: &str) -> ProjectSnapshot {
         pages,
         outputs,
         last_publish: None,
+        artifact_root: Some(fixtures_root().join(format!("captures/{name}/dist/dist")))
+            .filter(|d| d.is_dir())
+            .map(|d| d.to_string_lossy().into_owned()),
     }
 }
 
@@ -237,5 +240,6 @@ pub fn workspace_snapshot(
         pages,
         outputs,
         last_publish: None,
+        artifact_root: Some(root.join(html_dir).to_string_lossy().into_owned()),
     }
 }

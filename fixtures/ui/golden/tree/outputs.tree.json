@@ -93,7 +93,6 @@
     {
       "fill": "#08090cff",
       "key": "rail-audit",
-      "label": "not registered",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-audit",
       "rect": [
@@ -105,7 +104,7 @@
       "role": "tab"
     },
     {
-      "color": "#8a93a3ff",
+      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-audit/#0",
       "rect": [
@@ -116,6 +115,31 @@
       ],
       "role": "text",
       "text": "Audit"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#1",
+      "rect": [
+        45.5,
+        78.5,
+        23.5,
+        16.3
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-audit-badge",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/rail-audit-badge",
+      "rect": [
+        69.1,
+        78.5,
+        6.9,
+        16.3
+      ],
+      "role": "text",
+      "text": "8"
     },
     {
       "fill": "#08090cff",
@@ -278,9 +302,9 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-all/#1",
       "rect": [
-        164.3,
+        168.3,
         32.3,
-        76.0,
+        68.0,
         15.0
       ],
       "role": "group"
@@ -328,9 +352,9 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-ir/#1",
       "rect": [
-        151.4,
+        155.4,
         59.3,
-        93.5,
+        85.5,
         15.0
       ],
       "role": "group"
@@ -378,9 +402,9 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-rag/#1",
       "rect": [
-        165.9,
+        169.9,
         86.3,
-        79.0,
+        71.0,
         15.0
       ],
       "role": "group"
@@ -428,9 +452,9 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-context/#1",
       "rect": [
-        196.8,
+        200.8,
         113.3,
-        48.1,
+        40.1,
         15.0
       ],
       "role": "group"
@@ -478,9 +502,9 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-llms/#1",
       "rect": [
-        144.8,
+        148.8,
         140.3,
-        100.1,
+        92.1,
         15.0
       ],
       "role": "group"
@@ -528,9 +552,9 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-rss/#1",
       "rect": [
-        127.1,
+        131.1,
         167.3,
-        117.8,
+        109.8,
         15.0
       ],
       "role": "group"
@@ -578,9 +602,9 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-sitemap/#1",
       "rect": [
-        150.0,
+        154.0,
         194.3,
-        94.9,
+        86.9,
         15.0
       ],
       "role": "group"
@@ -628,9 +652,9 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-proof/#1",
       "rect": [
-        165.8,
+        169.8,
         221.3,
-        79.5,
+        71.5,
         15.0
       ],
       "role": "group"
@@ -678,9 +702,9 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-search/#1",
       "rect": [
-        177.8,
+        181.8,
         248.3,
-        69.6,
+        61.6,
         15.0
       ],
       "role": "group"
@@ -728,9 +752,9 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-dist/#1",
       "rect": [
-        125.8,
+        129.8,
         275.3,
-        119.0,
+        111.0,
         15.0
       ],
       "role": "group"
