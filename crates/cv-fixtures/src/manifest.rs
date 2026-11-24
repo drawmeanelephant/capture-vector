@@ -49,7 +49,8 @@ impl Manifest {
         let schema_version = table
             .get("schema_version")
             .and_then(|v| v.as_integer())
-            .unwrap_or(0) as u32;
+            .and_then(|v| u32::try_from(v).ok())
+            .unwrap_or(0);
         assert_eq!(
             schema_version, SCHEMA_VERSION,
             "fixture format schema_version {schema_version} unsupported"
