@@ -19,7 +19,7 @@ fail=0
 for f in "${files[@]}"; do
   [ -f "$f" ] || continue
   case "$f" in
-    vendor/*|target/*|.git/*) continue ;;
+    vendor/*|target/*|.git/*|scripts/check-todos.sh) continue ;;
     *.rs|*.sh|*.toml|*.yml|*.yaml) ;;
     *) continue ;;
   esac
