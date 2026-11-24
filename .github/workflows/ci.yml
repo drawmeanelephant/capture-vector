@@ -49,6 +49,14 @@ jobs:
           ls /usr/share/vulkan/icd.d/
           bash scripts/check-ui-png.sh
 
+      # The opt-in `effects` compositor draws real GPU frames, so it runs
+      # where Lavapipe is installed.
+      - name: cargo test -p cv-widgets --features effects (lavapipe)
+        if: matrix.os == 'ubuntu-latest'
+        env:
+          WGPU_BACKEND: vulkan
+        run: cargo test -p cv-widgets --features effects --locked
+
   lint:
     name: fmt + clippy + firewall
     runs-on: ubuntu-latest
@@ -68,6 +76,8 @@ jobs:
         run: cargo fmt --package cv-core --package cv-contracts --package cv-fixtures --package cv-engine --package cv-store --package cv-rules --package cv-ledger --package cv-publish --package cv-notes --package cv-model --package cv-widgets --package cv-ui-editor --package cv-app --package xtask -- --check
       - name: clippy
         run: cargo clippy --workspace --all-targets --no-deps -- -D warnings -D clippy::cognitive_complexity
+      - name: clippy (effects)
+        run: cargo clippy -p cv-app -p cv-widgets --all-targets --no-deps --features effects -- -D warnings -D clippy::cognitive_complexity
       - name: unused dependencies
         run: ./scripts/check-unused-deps.sh
       - name: repo hygiene
