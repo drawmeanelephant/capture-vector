@@ -82,29 +82,54 @@ fn codegen(check: bool) -> ExitCode {
     ExitCode::SUCCESS
 }
 
+// A 4096×4096 RGBA8 image fits; the canonical goldens are smaller. Bound
+// our frame buffers separately from the png decoder's internal budget.
+const MAX_PNG_RGBA_BYTES: usize = 64 * 1024 * 1024;
+
+fn bounded_rgba_size(width: u32, height: u32) -> Option<usize> {
+    let pixels = u64::from(width) * u64::from(height);
+    (pixels <= (MAX_PNG_RGBA_BYTES / 4) as u64).then(|| pixels as usize * 4)
+}
+
 fn read_rgba(p: &str) -> Result<(u32, u32, Vec<u8>), String> {
     let f = std::fs::File::open(p).map_err(|e| format!("{p}: {e}"))?;
-    let mut dec = png::Decoder::new(std::io::BufReader::new(f));
+    let mut dec = png::Decoder::new_with_limits(
+        std::io::BufReader::new(f),
+        png::Limits {
+            bytes: MAX_PNG_RGBA_BYTES,
+        },
+    );
+    // The diff uses raw samples, not text metadata or color profiles.
+    dec.set_ignore_text_chunk(true);
+    dec.set_ignore_iccp_chunk(true);
     dec.set_transformations(png::Transformations::EXPAND | png::Transformations::STRIP_16);
+    let header = dec.read_header_info().map_err(|e| format!("{p}: {e}"))?;
+    let (width, height) = header.size();
+    let rgba_bytes = bounded_rgba_size(width, height).ok_or_else(|| {
+        format!("{p}: PNG {width}x{height} exceeds the {MAX_PNG_RGBA_BYTES}-byte RGBA limit")
+    })?;
     let mut r = dec.read_info().map_err(|e| format!("{p}: {e}"))?;
-    let mut buf = vec![0; r.output_buffer_size().ok_or("png too large")?];
+    let output_size = r
+        .output_buffer_size()
+        .filter(|&size| size <= rgba_bytes)
+        .ok_or_else(|| format!("{p}: PNG output buffer exceeds the RGBA limit"))?;
+    let mut buf = vec![0; output_size];
     let info = r.next_frame(&mut buf).map_err(|e| format!("{p}: {e}"))?;
     buf.truncate(info.buffer_size());
+    if info.color_type == png::ColorType::Rgba {
+        return Ok((info.width, info.height, buf));
+    }
     let ch = match info.color_type {
-        png::ColorType::Rgba => 4,
         png::ColorType::Rgb => 3,
         png::ColorType::GrayscaleAlpha => 2,
         _ => 1,
     };
-    let rgba = buf
-        .chunks(ch)
-        .flat_map(|c| match ch {
-            4 => [c[0], c[1], c[2], c[3]],
-            3 => [c[0], c[1], c[2], 255],
-            2 => [c[0], c[0], c[0], c[1]],
-            _ => [c[0], c[0], c[0], 255],
-        })
-        .collect();
+    let mut rgba = Vec::with_capacity(buf.len() / ch * 4);
+    rgba.extend(buf.chunks_exact(ch).flat_map(|c| match ch {
+        3 => [c[0], c[1], c[2], 255],
+        2 => [c[0], c[0], c[0], c[1]],
+        _ => [c[0], c[0], c[0], 255],
+    }));
     Ok((info.width, info.height, rgba))
 }
 
@@ -238,5 +263,20 @@ mod tests {
         let a = [10, 10, 10, 255, 0, 0, 0, 255];
         let b = [11, 10, 10, 255, 50, 0, 0, 255];
         assert_eq!(diff_ratio(&a, &b, 2), 0.5);
+    }
+
+    #[test]
+    fn rgba_size_enforces_the_decoded_image_budget() {
+        assert_eq!(bounded_rgba_size(4096, 4096), Some(MAX_PNG_RGBA_BYTES));
+        assert_eq!(bounded_rgba_size(4096, 4097), None);
+        assert_eq!(bounded_rgba_size(u32::MAX, u32::MAX), None);
+    }
+
+    #[test]
+    fn png_diff_still_decodes_the_canonical_canary() {
+        let path = root().join("fixtures/ui/golden/png/canary.png");
+        let (width, height, rgba) = read_rgba(path.to_str().unwrap()).unwrap();
+        assert_eq!(rgba.len(), width as usize * height as usize * 4);
+        assert!(!rgba.is_empty());
     }
 }

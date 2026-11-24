@@ -6,6 +6,7 @@
 set -uo pipefail
 BORIS="${BORIS:-boris}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+source "$ROOT/scripts/fixture-sha256.sh"
 E="$ROOT/fixtures/editor"
 rm -rf "$E/captures"
 for src in "$E"/corpus-src/*/; do
@@ -29,7 +30,9 @@ done
   echo "capture_command = \"scripts/capture-editor-fixtures.sh\""
   echo "captured = \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\""
   echo
-  ( cd "$E" && find corpus-src captures -type f | sort | while read -r f; do
-      echo "\"$f\" = \"$(sha256sum "$f" | cut -d' ' -f1)\""; done )
-} > "$E/MANIFEST.toml"
+  ( cd "$E" && find corpus-src captures -type f | sort | while IFS= read -r f; do
+      h=$(fixture_sha256 "$f") || exit 1
+      echo "\"$f\" = \"$h\""
+    done )
+} > "$E/MANIFEST.toml" || exit 1
 echo "captured into $E"

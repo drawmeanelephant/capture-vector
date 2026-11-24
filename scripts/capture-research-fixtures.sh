@@ -3,8 +3,9 @@
 # Promotion drafts come from cv-notes' own `promote_with` (examples/
 # research-fixture.rs); Boris judges them, Oliver renders note bodies.
 # Never hand-edit fixtures/research/ — rerun this script.
-set -eu
+set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+source "$ROOT/scripts/fixture-sha256.sh"
 BORIS="${CV_BORIS_BIN:-boris}"
 OLIVER="${CV_OLIVER_BIN:-oliver}"
 R="$ROOT/fixtures/research"
@@ -41,7 +42,6 @@ for f in markdown textile cooklang; do
   set -e
 done
 
-sha() { if command -v shasum >/dev/null; then shasum -a 256 "$1"; else sha256sum "$1"; fi | cut -d' ' -f1; }
 ( cd "$R" && {
   echo 'schema_version = 1'
   echo "engine_version = '$("$BORIS" --build-info 2>/dev/null | head -1)'"
@@ -49,8 +49,9 @@ sha() { if command -v shasum >/dev/null; then shasum -a 256 "$1"; else sha256sum
   echo 'capture_command = "scripts/capture-research-fixtures.sh"'
   echo "captured = \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\""
   echo ""
-  find corpus-src captures oliver -type f | LC_ALL=C sort | while read -r f; do
-    echo "\"$f\" = \"$(sha "$f")\""
+  find corpus-src captures oliver -type f | LC_ALL=C sort | while IFS= read -r f; do
+    h=$(fixture_sha256 "$f") || exit 1
+    echo "\"$f\" = \"$h\""
   done
 } > MANIFEST.toml )
 echo "done -> $R"
