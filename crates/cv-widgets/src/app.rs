@@ -105,10 +105,21 @@ fn companion_closed(s: &mut Companion, _tx: &mut Tx) {
     }
 }
 
+/// Seconds since the first frame before which no companion window opens.
+/// A second wgpu surface created while the primary window is still warming
+/// up races it on software D3D12 (WARP): both surfaces initialize and draw,
+/// then the process dies in `d3d10warp.dll` (issue #31, 13/14 repro). With
+/// the open deferred past the settle the boot-time companion is stable.
+/// Only boot-time requests (CV_EDIT) ever wait on this; mid-run opens are
+/// long past it. `poll`'s clock starts at the first frame, so the wait is
+/// over once the primary surface has been rendering for this long.
+const COMPANION_STARTUP_SETTLE: f64 = 3.0;
+
 /// Reconcile native companion windows with `Workbench::windows`: retire
 /// records whose window the user closed, close windows whose record went,
-/// open windows for new records.
-fn sync_companions(s: &mut Workbench) -> bool {
+/// open windows for new records. `t` is the poll clock — seconds since the
+/// first frame; openings wait out [`COMPANION_STARTUP_SETTLE`].
+fn sync_companions(s: &mut Workbench, t: f64, tx: &mut Tx) -> bool {
     let mut closed: Vec<WindowId> = CLOSED.with(|c| std::mem::take(&mut *c.borrow_mut()));
     closed.extend(editor::host::take_closed());
     let mut changed = false;
@@ -130,8 +141,17 @@ fn sync_companions(s: &mut Workbench) -> bool {
             live
         })
     });
+    // While the settle keeps an opening waiting, ask for the next frame —
+    // an idle window may not poll again on its own, and the companion would
+    // never open.
+    let settling = t < COMPANION_STARTUP_SETTLE;
+    let mut deferred = false;
     for c in &s.windows.companions {
         if OPENED.with(|o| o.borrow().contains_key(&c.id)) {
+            continue;
+        }
+        if settling {
+            deferred = true;
             continue;
         }
         if c.module == editor::MODULE {
@@ -167,6 +187,13 @@ fn sync_companions(s: &mut Workbench) -> bool {
             .on_close(companion_closed),
         );
         OPENED.with(|o| o.borrow_mut().insert(c.id, handle));
+    }
+    if deferred {
+        // One wake just past the settle, not a per-frame redraw: the
+        // companion opens onto an idle primary surface, not one mid-draw.
+        tx.wake_after(std::time::Duration::from_secs_f64(
+            COMPANION_STARTUP_SETTLE - t + 0.05,
+        ));
     }
     editor::host::ingest_builds();
     editor::host::sync_dirty(&mut s.windows);
@@ -282,7 +309,7 @@ fn shutdown(s: &mut Workbench, _: &mut Tx) {
 fn poll(s: &mut Workbench, t: f64, tx: &mut Tx) -> bool {
     let changed = input_poll(s, t, tx);
     let served = serve_requests(s, tx);
-    sync_companions(s) || changed || served
+    sync_companions(s, t, tx) || changed || served
 }
 
 /// Boot the primary window (or a headless run, per rune's CLI flags).
