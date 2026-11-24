@@ -156,7 +156,6 @@
     {
       "fill": "#08090cff",
       "key": "rail-audit",
-      "label": "not registered",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-audit",
       "rect": [
@@ -168,7 +167,7 @@
       "role": "tab"
     },
     {
-      "color": "#8a93a3ff",
+      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-audit/#0",
       "rect": [
@@ -179,6 +178,31 @@
       ],
       "role": "text",
       "text": "Audit"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#1",
+      "rect": [
+        45.5,
+        105.5,
+        23.5,
+        16.3
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-audit-badge",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/rail-audit-badge",
+      "rect": [
+        69.1,
+        105.5,
+        6.9,
+        16.3
+      ],
+      "role": "text",
+      "text": "8"
     },
     {
       "fill": "#08090cff",
@@ -341,9 +365,9 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-all/#1",
       "rect": [
-        156.4,
+        160.4,
         59.3,
-        88.7,
+        80.7,
         15.0
       ],
       "role": "group"
@@ -391,9 +415,9 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-trunks/#1",
       "rect": [
-        142.7,
+        146.7,
         86.3,
-        104.7,
+        96.7,
         15.0
       ],
       "role": "group"
@@ -441,9 +465,9 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-issues/#1",
       "rect": [
-        198.1,
+        202.1,
         113.3,
-        46.8,
+        38.8,
         15.0
       ],
       "role": "group"
@@ -491,9 +515,9 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-orphans/#1",
       "rect": [
-        187.7,
+        191.7,
         140.3,
-        57.2,
+        49.2,
         15.0
       ],
       "role": "group"
@@ -541,9 +565,9 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-tree:index/#1",
       "rect": [
-        178.7,
+        182.7,
         167.3,
-        66.5,
+        58.5,
         15.0
       ],
       "role": "group"

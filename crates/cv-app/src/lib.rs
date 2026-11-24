@@ -2,6 +2,7 @@
 //! (`cv_model::workbench`) and hands it to `cv_widgets::app::run`. No
 //! rune import here; scenes are shared by the binary and golden tests.
 
+pub mod audit;
 pub mod build_info;
 pub mod editor;
 pub mod live;
@@ -27,6 +28,7 @@ mod research;
 pub const CANARY_CORPUS: &str = "happy";
 
 pub fn init() -> Workbench {
+    cv_model::modules::audit::install(Box::new(audit::DiskPort::ephemeral()));
     Workbench::new(Registry::with_all()).with_store(Box::new(StubStore::new()))
 }
 
@@ -125,6 +127,8 @@ pub fn open_workspace(
         );
         return None;
     }
+    wb.stop_watch();
+    wb.registry = Registry::default();
     let slot = live::EngineSlot::default();
     let research = cv_notes::disk::open(
         &root,
@@ -149,10 +153,22 @@ pub fn open_workspace(
         }
         Err(e) => Some(e.to_string()),
     };
+    let audit_err = match audit::DiskPort::open(&root) {
+        Ok(p) => {
+            cv_model::modules::audit::install(Box::new(p));
+            None
+        }
+        Err(e) => {
+            cv_model::modules::audit::install(Box::new(audit::DiskPort::ephemeral()));
+            Some(e.to_string())
+        }
+    };
     wb.reset_project(Registry::with_all());
     wb.workspace = Some(root.clone());
     show(wb, "pages");
-    let warning = research_err.map(|e| format!("research notes not persisted: {e}"));
+    let warning = research_err
+        .map(|e| format!("research notes not persisted: {e}"))
+        .or_else(|| audit_err.map(|e| format!("finding snoozes not persisted: {e}")));
     if let Some(w) = &warning {
         wb.disclose(DegradedReason::StoreCorrupt);
         wb.status = w.clone();
@@ -358,6 +374,36 @@ fn pages_degraded(reason: DegradedReason, wb: &mut Workbench) {
     wb.select_key("index.md");
 }
 
+fn audit(wb: &mut Workbench) {
+    boot(wb);
+    show(wb, "audit");
+}
+
+fn audit_empty(wb: &mut Workbench) {
+    wb.load_snapshot(&ProjectSnapshot {
+        epoch: 1,
+        ..Default::default()
+    });
+    show(wb, "audit");
+}
+
+fn audit_detail(wb: &mut Workbench) {
+    audit(wb);
+    wb.select_row(0);
+}
+
+/// The build finished but its rendered pages are unreadable: their rules
+/// disclose "not checked" instead of passing silently.
+fn audit_degraded(wb: &mut Workbench) {
+    let mut snap = snapshot::corpus_snapshot(CANARY_CORPUS);
+    snap.artifact_root = None;
+    wb.load_snapshot(&snap);
+    attach_engine(wb, &StubEngine::new(CANARY_CORPUS));
+    show(wb, "audit");
+    wb.set_nav("limited");
+    wb.select_row(0);
+}
+
 /// Named scenes: `cv-app --scene <name> --tree t.json --snap s.png`.
 pub const SCENES: &[Scene] = &[
     ("canary", canary),
@@ -409,6 +455,10 @@ pub const SCENES: &[Scene] = &[
     ("research-empty", research::empty),
     ("research-promote", research::promote),
     ("research-degraded", research::degraded),
+    ("audit-empty", audit_empty),
+    ("audit", audit),
+    ("audit-detail", audit_detail),
+    ("audit-degraded", audit_degraded),
 ];
 
 pub fn launch() -> Launch {

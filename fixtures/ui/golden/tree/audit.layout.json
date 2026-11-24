@@ -1,0 +1,317 @@
+{
+  "keys": {
+    "body": [
+      0.0,
+      0.0,
+      1280.0,
+      778.0
+    ],
+    "field-primary": [
+      1048.0,
+      54.0,
+      224.0,
+      13.8
+    ],
+    "inspector": [
+      1040.0,
+      0.0,
+      240.0,
+      778.0
+    ],
+    "list-pane": [
+      268.0,
+      0.0,
+      320.0,
+      778.0
+    ],
+    "list-viewport": [
+      268.0,
+      0.0,
+      320.0,
+      778.0
+    ],
+    "nav": [
+      88.0,
+      0.0,
+      180.0,
+      778.0
+    ],
+    "nav-blocking": [
+      96.0,
+      55.3,
+      164.0,
+      23.0
+    ],
+    "nav-error": [
+      96.0,
+      82.3,
+      164.0,
+      23.0
+    ],
+    "nav-fixed": [
+      96.0,
+      217.3,
+      164.0,
+      23.0
+    ],
+    "nav-info": [
+      96.0,
+      136.3,
+      164.0,
+      23.0
+    ],
+    "nav-limited": [
+      96.0,
+      244.3,
+      164.0,
+      23.0
+    ],
+    "nav-noun:Llms": [
+      96.0,
+      460.3,
+      164.0,
+      23.0
+    ],
+    "nav-noun:guides/getting-started": [
+      96.0,
+      487.3,
+      164.0,
+      23.0
+    ],
+    "nav-noun:guides/publishing": [
+      96.0,
+      514.3,
+      164.0,
+      23.0
+    ],
+    "nav-noun:index": [
+      96.0,
+      541.3,
+      164.0,
+      23.0
+    ],
+    "nav-open": [
+      96.0,
+      28.3,
+      164.0,
+      23.0
+    ],
+    "nav-pack:a11y-content": [
+      96.0,
+      271.3,
+      164.0,
+      23.0
+    ],
+    "nav-pack:aeo-llm": [
+      96.0,
+      298.3,
+      164.0,
+      23.0
+    ],
+    "nav-pack:seo-core": [
+      96.0,
+      325.3,
+      164.0,
+      23.0
+    ],
+    "nav-rule:AEO-LLMS-TXT-H1": [
+      96.0,
+      352.3,
+      164.0,
+      23.0
+    ],
+    "nav-rule:AEO-LLMS-TXT-SUMMARY": [
+      96.0,
+      379.3,
+      164.0,
+      23.0
+    ],
+    "nav-rule:SEO-CANONICAL-PRESENT": [
+      96.0,
+      406.3,
+      164.0,
+      23.0
+    ],
+    "nav-rule:SEO-META-DESCRIPTION": [
+      96.0,
+      433.3,
+      164.0,
+      23.0
+    ],
+    "nav-snoozed": [
+      96.0,
+      163.3,
+      164.0,
+      23.0
+    ],
+    "nav-warning": [
+      96.0,
+      109.3,
+      164.0,
+      23.0
+    ],
+    "nav-wontfix": [
+      96.0,
+      190.3,
+      164.0,
+      23.0
+    ],
+    "rail": [
+      0.0,
+      0.0,
+      88.0,
+      778.0
+    ],
+    "rail-activity": [
+      0.0,
+      169.3,
+      88.0,
+      28.3
+    ],
+    "rail-audit": [
+      0.0,
+      72.5,
+      88.0,
+      28.3
+    ],
+    "rail-audit-badge": [
+      69.1,
+      78.5,
+      6.9,
+      16.3
+    ],
+    "rail-demo": [
+      0.0,
+      201.5,
+      88.0,
+      28.3
+    ],
+    "rail-outputs": [
+      0.0,
+      137.0,
+      88.0,
+      28.3
+    ],
+    "rail-pages": [
+      0.0,
+      8.0,
+      88.0,
+      28.3
+    ],
+    "rail-publish": [
+      0.0,
+      104.8,
+      88.0,
+      28.3
+    ],
+    "rail-research": [
+      0.0,
+      40.3,
+      88.0,
+      28.3
+    ],
+    "reading": [
+      588.0,
+      0.0,
+      452.0,
+      778.0
+    ],
+    "row-AEO-LLMS-TXT-H1|output:Llms|5399710fd596737c5c4cdcdf190b1c978ddde227077e05ae712ab0457a38d440": [
+      268.0,
+      0.0,
+      320.0,
+      22.0
+    ],
+    "row-AEO-LLMS-TXT-SUMMARY|output:Llms|5399710fd596737c5c4cdcdf190b1c978ddde227077e05ae712ab0457a38d440": [
+      268.0,
+      22.0,
+      320.0,
+      22.0
+    ],
+    "row-SEO-CANONICAL-PRESENT|page:guides/getting-started|6e3212aad3af40e203ada9e5559c5ec75bb1655b1de7087e86127e6976f87334": [
+      268.0,
+      44.0,
+      320.0,
+      22.0
+    ],
+    "row-SEO-CANONICAL-PRESENT|page:guides/publishing|378266a925208e45ef24b181eb10da009af4aec95d0b58b3e8e4ac3824ba553e": [
+      268.0,
+      66.0,
+      320.0,
+      22.0
+    ],
+    "row-SEO-CANONICAL-PRESENT|page:index|0eb547304658805aad788d320f10bf1f292797b5e6d745a3bf617584da017051": [
+      268.0,
+      88.0,
+      320.0,
+      22.0
+    ],
+    "row-SEO-META-DESCRIPTION|page:guides/getting-started|6e3212aad3af40e203ada9e5559c5ec75bb1655b1de7087e86127e6976f87334": [
+      268.0,
+      110.0,
+      320.0,
+      22.0
+    ],
+    "row-SEO-META-DESCRIPTION|page:guides/publishing|378266a925208e45ef24b181eb10da009af4aec95d0b58b3e8e4ac3824ba553e": [
+      268.0,
+      132.0,
+      320.0,
+      22.0
+    ],
+    "row-SEO-META-DESCRIPTION|page:index|0eb547304658805aad788d320f10bf1f292797b5e6d745a3bf617584da017051": [
+      268.0,
+      154.0,
+      320.0,
+      22.0
+    ],
+    "shell": [
+      0.0,
+      0.0,
+      1280.0,
+      800.0
+    ],
+    "status": [
+      0.0,
+      778.0,
+      1280.0,
+      22.0
+    ],
+    "status-0": [
+      12.0,
+      782.1,
+      57.4,
+      13.8
+    ],
+    "status-1": [
+      81.4,
+      782.1,
+      44.8,
+      13.8
+    ],
+    "status-2": [
+      138.2,
+      782.1,
+      40.4,
+      13.8
+    ],
+    "status-3": [
+      190.6,
+      782.1,
+      23.6,
+      13.8
+    ],
+    "status-4": [
+      226.2,
+      782.1,
+      36.2,
+      13.8
+    ],
+    "status-msg": [
+      1084.5,
+      782.1,
+      72.3,
+      13.8
+    ]
+  },
+  "schema": 1
+}

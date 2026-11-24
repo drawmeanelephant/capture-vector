@@ -11,6 +11,7 @@ cv-core.workspace = true
 cv-engine.workspace = true
 cv-model.workspace = true
 cv-notes.workspace = true
+cv-store.workspace = true
 cv-widgets.workspace = true
 cv-ui-editor.workspace = true
 # Wave-0 canary: StubEngine replays captured Boris watch sessions until

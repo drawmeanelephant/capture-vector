@@ -7,4 +7,5 @@
 //! their forward migrations; every namespace writer calls
 //! [`sidecar::ensure`] before opening its files.
 
+pub mod audit;
 pub mod sidecar;

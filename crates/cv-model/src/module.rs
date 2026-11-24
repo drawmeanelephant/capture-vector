@@ -136,6 +136,9 @@ pub struct ProjectSnapshot {
     pub outputs: Vec<OutputRecord>,
     /// Hashes recorded at the last publish, by output path.
     pub last_publish: Option<PublishMark>,
+    /// Directory the outputs' paths are relative to (the built HTML
+    /// tree), when the composition root knows it.
+    pub artifact_root: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
@@ -211,6 +214,10 @@ pub trait Module {
 
     /// Click-through target for a row, if it names a noun elsewhere.
     fn link(&self, _key: &str) -> Option<Link> {
+        None
+    }
+    /// Count shown on the module's rail entry (e.g. open findings).
+    fn badge(&self) -> Option<u64> {
         None
     }
     /// Uniform attribute projection of every noun this module owns.

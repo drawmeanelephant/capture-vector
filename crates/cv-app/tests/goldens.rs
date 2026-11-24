@@ -37,6 +37,10 @@ const TREE_SCENES: &[&str] = &[
     "empty",
     "mid-watch",
     "pages-watch-dead",
+    "audit-empty",
+    "audit",
+    "audit-detail",
+    "audit-degraded",
 ];
 
 #[test]

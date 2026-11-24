@@ -67,7 +67,7 @@ than falling through to a different engine.
 
 ## `.cv/` sidecar schema
 
-Each `.cv/` namespace (`research`, `ledger`) carries its own
+Each `.cv/` namespace (`research`, `ledger`, `audit`) carries its own
 `schema.json` stamp (`{"format":"cv-sidecar","namespace":…,"schema_version":N}`)
 and migrates independently (`cv_store::sidecar`):
 
@@ -81,8 +81,9 @@ and migrates independently (`cv_store::sidecar`):
 - stamping and migration run under `.cv/<ns>.schema.lock`, so concurrent
   opens stamp once.
 
-A newer `research` schema does not block opening the `ledger`, and vice
-versa.
+A newer schema in one namespace does not block the others. The audit
+writer holds `.cv/audit/lifecycle.lock` until the workspace closes.
+Locking this separate file keeps the journal readable on Windows.
 
 ## Deferred — needs the owner (issue #2 territory)
 
@@ -92,7 +93,6 @@ Not built, not verified:
   Developer account (signing budget decision) and the owner's Mac.
 - **Windows** installer (MSI/MSIX) and Authenticode signing — needs a
   signing-certificate decision and a Windows machine.
-- **Real-OS verification** of the package on macOS and Windows. The
-  `release` pipeline and lookup code are platform-neutral (`boris.exe`
-  on Windows, `.app` Resources fallback on macOS) but have only been run
-  on Linux x86_64.
+- **Windows package verification**. The directory/archive pipeline has
+  run on Linux x86_64 and macOS aarch64. Windows packaging and the macOS
+  `.app` Resources fallback remain unverified.
