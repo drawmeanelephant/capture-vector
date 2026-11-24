@@ -42,6 +42,24 @@ fn looks_like_secret(arg: &str) -> bool {
     a.starts_with("nsec1") || (a.len() == 64 && a.bytes().all(|b| b.is_ascii_hexdigit()))
 }
 
+/// Flags that receive secret material — blocked by name regardless of
+/// the value's shape (`--token` with an innocuous value is still where a
+/// credential would ride).
+const SECRET_FLAGS: &[&str] = &[
+    "--key",
+    "--key-stdin",
+    "--nsec",
+    "--password",
+    "--token",
+    "--app-password",
+    "--secret",
+];
+
+fn is_secret_flag(arg: &str) -> bool {
+    let name = arg.split('=').next().unwrap_or(arg);
+    SECRET_FLAGS.contains(&name)
+}
+
 /// The argv after the binary name.
 pub fn argv(verb: &Verb) -> Result<Vec<String>> {
     let s = |v: &[&str]| v.iter().map(|x| x.to_string()).collect();
@@ -67,6 +85,9 @@ pub fn argv(verb: &Verb) -> Result<Vec<String>> {
             )));
         }
         Verb::Custom { name, args } => {
+            if name.starts_with('-') {
+                return Err(EngineError::Refused("verb name must not be a flag".into()));
+            }
             if name == "nostr" && args.first().is_some_and(|a| a == "sign") {
                 return Err(EngineError::UnsupportedVerb(
                     "nostr sign goes through cv_engine::secrets::nostr_sign (stdin-only key)"
@@ -75,7 +96,7 @@ pub fn argv(verb: &Verb) -> Result<Vec<String>> {
             }
             if args
                 .iter()
-                .any(|a| a == "--key-stdin" || looks_like_secret(a))
+                .any(|a| is_secret_flag(a) || looks_like_secret(a))
             {
                 return Err(EngineError::Refused(
                     "argument looks like secret material; secrets never ride argv".into(),
@@ -183,6 +204,33 @@ mod tests {
             args: vec!["ab".repeat(32)],
         };
         assert!(matches!(argv(&hex), Err(EngineError::Refused(_))));
+        // Secret-receiving flags are blocked by name, value-agnostic.
+        for flag in [
+            "--key",
+            "--key-stdin",
+            "--nsec",
+            "--password",
+            "--token",
+            "--app-password",
+            "--secret",
+        ] {
+            for a in [flag.to_string(), format!("{flag}=x")] {
+                let v = Verb::Custom {
+                    name: "x".into(),
+                    args: vec![a.clone()],
+                };
+                assert!(
+                    matches!(argv(&v), Err(EngineError::Refused(_))),
+                    "{a} must be refused"
+                );
+            }
+        }
+        // A flag can't be a verb name.
+        let flag_name = Verb::Custom {
+            name: "--serve".into(),
+            args: vec![],
+        };
+        assert!(matches!(argv(&flag_name), Err(EngineError::Refused(_))));
         assert!(
             argv(&Verb::Publish {
                 target: "pages".into()
