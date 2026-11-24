@@ -1,0 +1,46 @@
+{
+  "format": "boris-publication-artifacts",
+  "schema_version": 1,
+  "target": "default",
+  "artifacts": [
+    {
+      "path": "_boris/search/search-index.json",
+      "kind": "rendered-search",
+      "producer": "rendered-search",
+      "required": true,
+      "status": "committed",
+      "bytes": 437,
+      "sha256": "26220881cc2f44d9d65b959b2ac1d465760e40ddae956e902a581702fbd969d7",
+      "format_version": "1",
+      "dimensions": null,
+      "semantics": null,
+      "advertised": null
+    },
+    {
+      "path": "assets/css/boris.css",
+      "kind": "theme-asset",
+      "producer": "theme-assets",
+      "required": true,
+      "status": "committed",
+      "bytes": 1483,
+      "sha256": "ac4dc197bb46ade5432be1a4ed5d0a958c4834f386909577c3b5f1b74e8d219e",
+      "format_version": null,
+      "dimensions": null,
+      "semantics": "static",
+      "advertised": null
+    },
+    {
+      "path": "soup.html",
+      "kind": "html-page",
+      "producer": "html-render",
+      "required": true,
+      "status": "committed",
+      "bytes": 1176,
+      "sha256": "ad53721374a8b2f3c616cb00573161a9fa2e929043116ce1eccf6daf29870637",
+      "format_version": null,
+      "dimensions": null,
+      "semantics": null,
+      "advertised": true
+    }
+  ]
+}

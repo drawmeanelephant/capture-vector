@@ -1,1 +1,1 @@
-error: ECOOKLANG: content root mixes Cooklang and non-Cooklang page extensions, or uses the wrong explicit input mode [Use a .cook-only tree with --cooklang, or drop --cooklang for Markdown input]
+ok: validation passed for 1 target(s)

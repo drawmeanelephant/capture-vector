@@ -468,7 +468,7 @@
       "rect": [
         419.8,
         33.0,
-        50.0,
+        49.4,
         0.0
       ],
       "role": "group"
@@ -478,13 +478,13 @@
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-ev-stub-1/#2",
       "rect": [
-        477.8,
+        477.3,
         26.1,
-        82.7,
+        83.3,
         13.8
       ],
       "role": "text",
-      "text": "3 pages in 5 ms"
+      "text": "3 pages in 4 ms"
     },
     {
       "color": "#00d1ffff",
@@ -531,7 +531,7 @@
       "rect": [
         429.4,
         55.0,
-        35.8,
+        38.1,
         0.0
       ],
       "role": "group"
@@ -541,13 +541,13 @@
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-ev-stub-2/#2",
       "rect": [
-        473.1,
+        475.5,
         48.1,
-        85.2,
+        82.8,
         13.8
       ],
       "role": "text",
-      "text": "3 pages in 11 ms"
+      "text": "3 pages in 2 ms"
     },
     {
       "color": "#00d1ffff",
