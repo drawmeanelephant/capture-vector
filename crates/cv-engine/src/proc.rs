@@ -383,17 +383,35 @@ mod tests {
     }
 
     #[cfg(unix)]
+    const ENDLESS: [(&str, &str); 2] = [("exec yes", "stdout"), ("exec yes 1>&2", "stderr")];
+    // cmd /C passes inner quotes through to powershell, which would echo the
+    // script as a string literal — no quoting around the -Command script.
+    #[cfg(windows)]
+    const ENDLESS: [(&str, &str); 2] = [
+        ("powershell -NoProfile -Command while($true){'x'}", "stdout"),
+        (
+            "powershell -NoProfile -Command while($true){[Console]::Error.WriteLine('x')}",
+            "stderr",
+        ),
+    ];
+
     #[test]
     fn endless_child_output_fails_at_the_limit_instead_of_hanging() {
-        for (script, expected_stream) in [("exec yes", "stdout"), ("exec yes 1>&2", "stderr")] {
+        for (script, expected_stream) in ENDLESS {
             let start = Instant::now();
             let result =
                 run_captured_with_limit(shell_command(script), None, &CancelToken::new(), 1024);
-            assert!(matches!(
-                result,
-                Err(EngineError::OutputLimitExceeded { stream, limit: 1024 })
-                    if stream == expected_stream
-            ));
+            assert!(
+                matches!(
+                    result,
+                    Err(EngineError::OutputLimitExceeded { stream, limit: 1024 })
+                        if stream == expected_stream
+                ),
+                "got {}",
+                result
+                    .map(|_| "Ok".to_string())
+                    .unwrap_or_else(|e| format!("{e}"))
+            );
             // The writer is killed rather than left blocked on a full pipe.
             assert!(start.elapsed() < Duration::from_secs(10));
         }
@@ -420,7 +438,6 @@ mod tests {
         assert!(start.elapsed() < Duration::from_secs(10));
     }
 
-    #[cfg(unix)]
     #[test]
     fn cancellation_still_applies_while_draining_after_leader_exit() {
         let cancel = CancelToken::new();
@@ -431,7 +448,12 @@ mod tests {
         });
         // The leader exits normally while a finite background task still
         // holds the pipes. Capture must not stop observing cancellation.
-        let result = run_captured(shell_command("sleep 2 & exit 0"), None, &cancel);
+        // Windows: `start /b` leaves a grandchild holding the pipe handles.
+        #[cfg(unix)]
+        let script = "sleep 2 & exit 0";
+        #[cfg(windows)]
+        let script = "start /b ping -n 5 127.0.0.1 & exit 0";
+        let result = run_captured(shell_command(script), None, &cancel);
         t.join().unwrap();
         assert!(matches!(result, Err(EngineError::Cancelled)));
     }
