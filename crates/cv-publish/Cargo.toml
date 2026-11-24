@@ -13,6 +13,12 @@ serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 thiserror.workspace = true
+zeroize.workspace = true
+
+[features]
+# `mock` is on for cv-publish's own tests; dependents ship without it.
+default = ["mock"]
+mock = []
 
 [dev-dependencies]
 cv-rules.workspace = true

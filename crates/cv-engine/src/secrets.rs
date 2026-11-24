@@ -33,18 +33,20 @@ pub trait SecretSource: Send + Sync {
 
 /// CI/test backend. Never reads the real `CV_NOSTR_NSEC`.
 pub struct MockSecretSource {
-    key: Vec<u8>,
+    key: Zeroizing<Vec<u8>>,
 }
 
 impl MockSecretSource {
     pub fn new(key: impl Into<Vec<u8>>) -> Self {
-        Self { key: key.into() }
+        Self {
+            key: Zeroizing::new(key.into()),
+        }
     }
 }
 
 impl SecretSource for MockSecretSource {
     fn nostr_key(&self) -> Result<SecretKey> {
-        Ok(SecretKey::new(self.key.clone()))
+        Ok(SecretKey::new(self.key.to_vec()))
     }
 }
 
@@ -63,10 +65,35 @@ fn redact(text: &[u8], key: &[u8]) -> String {
     let k = String::from_utf8_lossy(key);
     let k = k.trim();
     if k.is_empty() {
-        s
-    } else {
-        s.replace(k, REDACTED)
+        return s;
     }
+    // Normalized encodings a child might echo: raw, lowercase hex,
+    // standard base64. Partial or line-split leaks aren't recoverable
+    // by replace — structure beats scrubbing for those.
+    s.replace(k, REDACTED)
+        .replace(&hex_lower(key), REDACTED)
+        .replace(&b64_standard(key), REDACTED)
+}
+
+fn hex_lower(key: &[u8]) -> String {
+    key.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// RFC 4648 standard base64 with padding — no dep for one encoder.
+fn b64_standard(key: &[u8]) -> String {
+    const B64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(key.len().div_ceil(3) * 4);
+    for chunk in key.chunks(3) {
+        let n = chunk.iter().fold(0u32, |acc, &b| (acc << 8) | b as u32) << (8 * (3 - chunk.len()));
+        for i in 0..4 {
+            out.push(if i < chunk.len() + 1 {
+                B64[(n >> (18 - 6 * i)) as usize & 63] as char
+            } else {
+                '='
+            });
+        }
+    }
+    out
 }
 
 /// `boris nostr sign --plan PLAN --key-stdin [--out OUT]`.
@@ -111,6 +138,23 @@ mod tests {
         assert_eq!(
             redact(b"bad key nsec1abc!", b"nsec1abc\n"),
             "bad key <redacted>!"
+        );
+    }
+
+    #[test]
+    fn normalized_encodings_are_redacted_too() {
+        let key = b"nsec1abc";
+        // hex echo
+        let echoed = format!("signing with {}", hex_lower(key));
+        assert_eq!(redact(echoed.as_bytes(), key), "signing with <redacted>");
+        // base64 echo (b"nsec1abc" → "bnNlYzFhYmM=")
+        let echoed = format!("key={}", b64_standard(key));
+        assert_eq!(redact(echoed.as_bytes(), key), "key=<redacted>");
+        // sanity: the encoder itself is RFC 4648-shaped
+        assert_eq!(b64_standard(b"Man"), "TWFu");
+        assert_eq!(
+            b64_standard(b"any carnal pleasure."),
+            "YW55IGNhcm5hbCBwbGVhc3VyZS4="
         );
     }
 }
