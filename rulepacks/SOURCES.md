@@ -2,7 +2,7 @@
 
 <!-- GENERATED from rule citations by `cargo run -p cv-rules --example gen-sources > rulepacks/SOURCES.md`; do not edit by hand. -->
 
-24 rules in 4 packs cite 21 sources. A rule without a citation does not load.
+27 rules in 4 packs cite 21 sources. A rule without a citation does not load.
 
 Tiers: `NormativeSpec` (a published standard) and `EngineDocumented` (the Boris compiler contract or a search engine's own documentation) may block a publish when they fail at `Error` severity; `Heuristic` findings are advisory and can never block.
 
@@ -115,7 +115,10 @@ Tiers: `NormativeSpec` (a published standard) and `EngineDocumented` (the Boris 
 
 | Rule | Pack | Tier | Severity | Captured |
 |---|---|---|---|---|
+| `TGT-LLMS-NOINDEX-LEAK` | targets | NormativeSpec | Error | 2026-11-24 |
 | `TGT-RAG-DRAFT-LEAK` | targets | NormativeSpec | Error | 2026-11-24 |
+| `TGT-RAG-NOINDEX-LEAK` | targets | NormativeSpec | Error | 2026-11-24 |
+| `TGT-RSS-NOINDEX-LEAK` | targets | NormativeSpec | Error | 2026-11-24 |
 
 ## RFC 6596 The Canonical Link Relation, section 5
 
