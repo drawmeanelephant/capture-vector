@@ -2118,25 +2118,38 @@
     {
       "fill": "#00d1ffff",
       "key": "follow-link",
+      "label": "Open source page",
       "opacity": 1.0,
       "path": "shell/body/inspector/follow-link",
+      "radius": 4.0,
       "rect": [
         1048.0,
         292.8,
         224.0,
-        23.0
+        20.0
       ],
-      "role": "button"
+      "role": "button",
+      "shadows": [
+        [
+          0.0,
+          1.0,
+          1.5,
+          0.0,
+          "#0000004d",
+          false
+        ]
+      ]
     },
     {
       "color": "#001018ff",
+      "key": "label",
       "opacity": 1.0,
-      "path": "shell/body/inspector/follow-link/#0",
+      "path": "shell/body/inspector/follow-link/label",
       "rect": [
-        1056.0,
+        1111.7,
         296.8,
-        104.7,
-        15.0
+        96.7,
+        12.0
       ],
       "role": "text",
       "text": "Open source page"
@@ -2147,7 +2160,7 @@
       "path": "shell/body/inspector/#16",
       "rect": [
         1048.0,
-        327.8,
+        324.8,
         224.0,
         13.8
       ],
@@ -2160,7 +2173,7 @@
       "path": "shell/body/inspector/field-primary",
       "rect": [
         1048.0,
-        345.5,
+        342.5,
         224.0,
         13.8
       ],
@@ -2172,7 +2185,7 @@
       "path": "shell/body/inspector/field-primary/#0",
       "rect": [
         1048.0,
-        345.5,
+        342.5,
         72.0,
         13.8
       ],
@@ -2185,7 +2198,7 @@
       "path": "shell/body/inspector/field-primary/#1",
       "rect": [
         1128.0,
-        345.5,
+        342.5,
         28.2,
         13.8
       ],

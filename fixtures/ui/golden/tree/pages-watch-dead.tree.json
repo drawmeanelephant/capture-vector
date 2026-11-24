@@ -1516,25 +1516,38 @@
     {
       "fill": "#00d1ffff",
       "key": "follow-link",
+      "label": "Open output",
       "opacity": 1.0,
       "path": "shell/body/inspector/follow-link",
+      "radius": 4.0,
       "rect": [
         1048.0,
         287.5,
         224.0,
-        23.0
+        20.0
       ],
-      "role": "button"
+      "role": "button",
+      "shadows": [
+        [
+          0.0,
+          1.0,
+          1.5,
+          0.0,
+          "#0000004d",
+          false
+        ]
+      ]
     },
     {
       "color": "#001018ff",
+      "key": "label",
       "opacity": 1.0,
-      "path": "shell/body/inspector/follow-link/#0",
+      "path": "shell/body/inspector/follow-link/label",
       "rect": [
-        1056.0,
+        1127.3,
         291.5,
-        70.6,
-        15.0
+        65.4,
+        12.0
       ],
       "role": "text",
       "text": "Open output"
@@ -1545,7 +1558,7 @@
       "path": "shell/body/inspector/#13",
       "rect": [
         1048.0,
-        322.5,
+        319.5,
         224.0,
         13.8
       ],
@@ -1558,7 +1571,7 @@
       "path": "shell/body/inspector/field-primary",
       "rect": [
         1048.0,
-        340.3,
+        337.3,
         224.0,
         13.8
       ],
@@ -1570,7 +1583,7 @@
       "path": "shell/body/inspector/field-primary/#0",
       "rect": [
         1048.0,
-        340.3,
+        337.3,
         72.0,
         13.8
       ],
@@ -1583,7 +1596,7 @@
       "path": "shell/body/inspector/field-primary/#1",
       "rect": [
         1128.0,
-        340.3,
+        337.3,
         28.2,
         13.8
       ],

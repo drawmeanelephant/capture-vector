@@ -596,3 +596,81 @@ fn window_over_an_open_buffer_shows_no_error() {
     assert_eq!(rt.state.error(), None);
     assert!(rt.find("editor-error").is_none());
 }
+
+fn a11y_disabled(rt: &Runtime<EditorWindow>, key: &str) -> bool {
+    let tree = rt.accessibility_tree();
+    let (_, node) = tree
+        .nodes
+        .iter()
+        .find(|(_, n)| n.author_id() == Some(key))
+        .unwrap_or_else(|| panic!("{key} missing from the accessibility tree"));
+    node.is_disabled()
+}
+
+fn tree_node(rt: &Runtime<EditorWindow>, path_end: &str) -> serde_json::Value {
+    cv_widgets::tree::element_tree(rt)["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|n| n["path"].as_str().is_some_and(|p| p.ends_with(path_end)))
+        .cloned()
+        .unwrap_or_else(|| panic!("no node at …{path_end}"))
+}
+
+#[test]
+fn save_undo_and_redo_are_disabled_until_there_is_something_to_do() {
+    let ses = session();
+    let buf = ses.borrow_mut().open("p.md", "x", None);
+    let mut rt = window(&ses, 1, buf);
+    settle(&mut rt);
+    for k in ["editor-save", "editor-undo", "editor-redo"] {
+        assert!(a11y_disabled(&rt, k), "{k} at rest");
+    }
+    caret(&mut rt, 1);
+    type_str(&mut rt, "y");
+    assert!(!a11y_disabled(&rt, "editor-save"), "dirty buffer can save");
+    assert!(!a11y_disabled(&rt, "editor-undo"), "an edit can be undone");
+    assert!(a11y_disabled(&rt, "editor-redo"), "nothing to redo yet");
+    click(&mut rt, "editor-undo");
+    assert!(
+        !a11y_disabled(&rt, "editor-redo"),
+        "the undone edit can be redone"
+    );
+}
+
+#[test]
+fn held_save_presses_and_shrinks_unless_the_theme_reduces_motion() {
+    for reduced in [false, true] {
+        let ses = session();
+        let buf = ses.borrow_mut().open("p.md", "x", None);
+        let theme = Theme::for_mode(cv_model::theme::Mode::Dark, reduced);
+        let mut rt = editor::runtime(EditorWindow::new(WindowId(1), ses.clone(), buf, theme));
+        caret(&mut rt, 1);
+        type_str(&mut rt, "y");
+        let (x, y) = rt.find("editor-save").unwrap();
+        rt.pointer_move(x, y);
+        rt.pointer_down(x, y);
+        settle(&mut rt);
+        let held = tree_node(&rt, "/editor-save");
+        assert!(held["press"].as_f64().unwrap_or(0.0) > 0.0, "{held}");
+        let scale = held["scale"].as_f64().unwrap_or(1.0);
+        if reduced {
+            assert_eq!(scale, 1.0, "reduced motion keeps scale 1: {held}");
+        } else {
+            assert!(scale < 1.0, "a held press shrinks: {held}");
+        }
+        rt.pointer_up(x, y);
+        settle(&mut rt);
+        assert!(tree_node(&rt, "/editor-save").get("scale").is_none());
+    }
+}
+
+#[test]
+fn discard_and_close_wears_the_danger_tone() {
+    let (_ses, _buf, rt, _dir) = dirty_closed_window();
+    let danger = cv_widgets::theme::color(Theme::dark().colors.error).hex();
+    let discard = tree_node(&rt, "/editor-close-discard/label");
+    assert_eq!(discard["color"], danger.as_str(), "{discard}");
+    let keep = tree_node(&rt, "/editor-close-cancel/label");
+    assert_ne!(keep["color"], danger.as_str(), "{keep}");
+}

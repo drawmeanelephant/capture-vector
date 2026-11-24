@@ -3,7 +3,7 @@
 //! hover colours themselves.
 
 use cv_model::theme::{Rgba, ShadowTok, SpringTok, Theme, TypeStyle};
-use rune::{Color, El, Family, Shadow, Spring, TextStyle};
+use rune::{Color, Cx, El, Family, Shadow, Spring, TextStyle};
 use rune_kit::{Kit, MarkdownStyle, PaletteFocus, PaletteSeed};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -118,6 +118,15 @@ impl Styled for El {
     }
 }
 
+/// Apply the theme's reduced-motion switch to Rune's own motion (press
+/// scale, transitions, springs). It can only add reduction: the OS
+/// preference still holds when the theme leaves motion on.
+pub fn motion_preference<S>(cx: &mut Cx<S>, t: &Theme) {
+    if t.motion.reduced {
+        cx.reduced_motion(true);
+    }
+}
+
 /// rune-kit's tokens rebuilt from the app theme, so kit components
 /// (Markdown sketch, buttons, toasts) wear our palette, radii, depth and
 /// springs. Cached: the theme only changes on the mode/motion toggles.
@@ -153,6 +162,11 @@ fn build_kit(t: &Theme) -> Kit {
     p.layer_01 = color(c.pane_alt);
     p.layer_02 = color(c.pane);
     p.bg_accent = color(c.accent);
+    // Kit "contrast" buttons are our primary buttons: they sit on the accent.
+    p.bg_contrast = color(c.accent);
+    p.text_contrast = color(c.accent_text);
+    p.contrast_hover = tint(c.accent_text, 0x1f);
+    p.contrast_pressed = tint(c.accent_text, 0x38);
     p.text_base = color(c.text);
     p.text_strong = color(c.text);
     p.text_muted = color(c.text_dim);

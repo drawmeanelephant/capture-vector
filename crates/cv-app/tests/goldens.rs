@@ -282,3 +282,27 @@ fn held_press_shows_press_in_the_tree_until_release() {
         assert_eq!(h.state().selected_key(), Some(item));
     }
 }
+
+#[test]
+fn held_buttons_shrink_until_the_motion_toggle_reduces_motion() {
+    let mut h = scene("watch-dead");
+    assert!(h.hold("banner-dismiss"));
+    let held = node(&h, "banner-dismiss");
+    let scale = held["scale"].as_f64().unwrap_or(1.0);
+    assert!(scale < 1.0, "a held press shrinks: {held}");
+    let (x, y) = h.rt.find("banner-dismiss").unwrap();
+    h.rt.pointer_up(x, y);
+    h.settle();
+    assert!(!h.has("banner"), "the release dismissed it");
+    h.script(&["cmd:shell.motion.toggle"]);
+    assert!(h.state().theme.motion.reduced);
+    assert!(!h.rt.system_reduced_motion(), "the OS setting stays off");
+    h.script(&["key:mod+k", "key:text:watch-dead", "key:enter"]);
+    assert!(h.hold("banner-dismiss"));
+    let held = node(&h, "banner-dismiss");
+    assert!(
+        held.get("scale").is_none(),
+        "reduced motion keeps scale 1: {held}"
+    );
+    assert!(held["press"].as_f64().unwrap_or(0.0) > 0.0, "{held}");
+}

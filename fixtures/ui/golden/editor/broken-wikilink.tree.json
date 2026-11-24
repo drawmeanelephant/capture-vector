@@ -33,7 +33,7 @@
         12.0,
         12.0,
         684.0,
-        21.8
+        20.0
       ],
       "role": "group"
     },
@@ -45,85 +45,102 @@
         12.0,
         12.0,
         55.5,
-        21.8
+        20.0
       ],
       "role": "text",
       "text": "page.md"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#00d1ffff",
       "key": "editor-save",
+      "label": "Save",
       "opacity": 1.0,
       "path": "editor/editor-main/editor-header/editor-save",
+      "radius": 4.0,
       "rect": [
         75.5,
         12.0,
-        33.8,
-        21.8
+        45.8,
+        20.0
       ],
-      "role": "button"
+      "role": "button",
+      "shadows": [
+        [
+          0.0,
+          1.0,
+          1.5,
+          0.0,
+          "#0000004d",
+          false
+        ]
+      ]
     },
     {
-      "color": "#e6e9efff",
+      "color": "#001018ff",
+      "key": "label",
       "opacity": 1.0,
-      "path": "editor/editor-main/editor-header/editor-save/#0",
+      "path": "editor/editor-main/editor-header/editor-save/label",
       "rect": [
-        79.5,
+        85.5,
         16.0,
         25.8,
-        13.8
+        12.0
       ],
       "role": "text",
       "text": "Save"
     },
     {
-      "fill": "#1a1e26ff",
       "key": "editor-undo",
+      "label": "Undo",
       "opacity": 1.0,
       "path": "editor/editor-main/editor-header/editor-undo",
+      "radius": 4.0,
       "rect": [
-        117.3,
+        129.3,
         12.0,
-        36.2,
-        21.8
+        48.2,
+        20.0
       ],
       "role": "button"
     },
     {
       "color": "#e6e9efff",
+      "key": "label",
       "opacity": 1.0,
-      "path": "editor/editor-main/editor-header/editor-undo/#0",
+      "path": "editor/editor-main/editor-header/editor-undo/label",
       "rect": [
-        121.3,
+        139.3,
         16.0,
         28.2,
-        13.8
+        12.0
       ],
       "role": "text",
       "text": "Undo"
     },
     {
-      "fill": "#1a1e26ff",
       "key": "editor-redo",
+      "label": "Redo",
       "opacity": 1.0,
       "path": "editor/editor-main/editor-header/editor-redo",
+      "radius": 4.0,
       "rect": [
-        161.5,
+        185.5,
         12.0,
-        34.9,
-        21.8
+        46.9,
+        20.0
       ],
       "role": "button"
     },
     {
       "color": "#e6e9efff",
+      "key": "label",
       "opacity": 1.0,
-      "path": "editor/editor-main/editor-header/editor-redo/#0",
+      "path": "editor/editor-main/editor-header/editor-redo/label",
       "rect": [
-        165.5,
+        195.5,
         16.0,
         26.9,
-        13.8
+        12.0
       ],
       "role": "text",
       "text": "Redo"
@@ -134,7 +151,7 @@
       "path": "editor/editor-main/editor-form",
       "rect": [
         12.0,
-        41.8,
+        40.0,
         684.0,
         205.0
       ],
@@ -145,7 +162,7 @@
       "path": "editor/editor-main/editor-form/#0",
       "rect": [
         12.0,
-        41.8,
+        40.0,
         684.0,
         15.0
       ],
@@ -158,7 +175,7 @@
       "path": "editor/editor-main/editor-form/#0/fm-label-id",
       "rect": [
         12.0,
-        41.8,
+        40.0,
         96.0,
         15.0
       ],
@@ -172,7 +189,7 @@
       "path": "editor/editor-main/editor-form/#0/fm-id",
       "rect": [
         116.0,
-        41.8,
+        40.0,
         416.6,
         15.0
       ],
@@ -185,7 +202,7 @@
       "path": "editor/editor-main/editor-form/#0/#2",
       "rect": [
         540.6,
-        41.8,
+        40.0,
         155.4,
         15.0
       ],
@@ -197,7 +214,7 @@
       "path": "editor/editor-main/editor-form/#1",
       "rect": [
         12.0,
-        60.8,
+        59.0,
         684.0,
         15.0
       ],
@@ -210,7 +227,7 @@
       "path": "editor/editor-main/editor-form/#1/fm-label-title",
       "rect": [
         12.0,
-        60.8,
+        59.0,
         96.0,
         15.0
       ],
@@ -224,7 +241,7 @@
       "path": "editor/editor-main/editor-form/#1/fm-title",
       "rect": [
         116.0,
-        60.8,
+        59.0,
         530.7,
         15.0
       ],
@@ -237,7 +254,7 @@
       "path": "editor/editor-main/editor-form/#1/#2",
       "rect": [
         654.7,
-        60.8,
+        59.0,
         41.3,
         15.0
       ],
@@ -249,7 +266,7 @@
       "path": "editor/editor-main/editor-form/#2",
       "rect": [
         12.0,
-        79.8,
+        78.0,
         684.0,
         15.0
       ],
@@ -262,7 +279,7 @@
       "path": "editor/editor-main/editor-form/#2/fm-label-parent",
       "rect": [
         12.0,
-        79.8,
+        78.0,
         96.0,
         15.0
       ],
@@ -276,7 +293,7 @@
       "path": "editor/editor-main/editor-form/#2/fm-parent",
       "rect": [
         116.0,
-        79.8,
+        78.0,
         369.0,
         15.0
       ],
@@ -289,7 +306,7 @@
       "path": "editor/editor-main/editor-form/#2/#2",
       "rect": [
         493.0,
-        79.8,
+        78.0,
         203.0,
         15.0
       ],
@@ -301,7 +318,7 @@
       "path": "editor/editor-main/editor-form/#3",
       "rect": [
         12.0,
-        98.8,
+        97.0,
         684.0,
         15.0
       ],
@@ -314,7 +331,7 @@
       "path": "editor/editor-main/editor-form/#3/fm-label-status",
       "rect": [
         12.0,
-        98.8,
+        97.0,
         96.0,
         15.0
       ],
@@ -328,7 +345,7 @@
       "path": "editor/editor-main/editor-form/#3/fm-status",
       "rect": [
         116.0,
-        98.8,
+        97.0,
         430.9,
         15.0
       ],
@@ -341,7 +358,7 @@
       "path": "editor/editor-main/editor-form/#3/#2",
       "rect": [
         554.9,
-        98.8,
+        97.0,
         141.1,
         15.0
       ],
@@ -353,7 +370,7 @@
       "path": "editor/editor-main/editor-form/#4",
       "rect": [
         12.0,
-        117.8,
+        116.0,
         684.0,
         15.0
       ],
@@ -366,7 +383,7 @@
       "path": "editor/editor-main/editor-form/#4/fm-label-tags",
       "rect": [
         12.0,
-        117.8,
+        116.0,
         96.0,
         15.0
       ],
@@ -380,7 +397,7 @@
       "path": "editor/editor-main/editor-form/#4/fm-tags",
       "rect": [
         116.0,
-        117.8,
+        116.0,
         544.8,
         15.0
       ],
@@ -393,7 +410,7 @@
       "path": "editor/editor-main/editor-form/#4/#2",
       "rect": [
         668.8,
-        117.8,
+        116.0,
         27.2,
         15.0
       ],
@@ -405,7 +422,7 @@
       "path": "editor/editor-main/editor-form/#5",
       "rect": [
         12.0,
-        136.8,
+        135.0,
         684.0,
         15.0
       ],
@@ -418,7 +435,7 @@
       "path": "editor/editor-main/editor-form/#5/fm-label-relations",
       "rect": [
         12.0,
-        136.8,
+        135.0,
         96.0,
         15.0
       ],
@@ -432,7 +449,7 @@
       "path": "editor/editor-main/editor-form/#5/fm-relations",
       "rect": [
         116.0,
-        136.8,
+        135.0,
         486.9,
         15.0
       ],
@@ -445,7 +462,7 @@
       "path": "editor/editor-main/editor-form/#5/#2",
       "rect": [
         610.9,
-        136.8,
+        135.0,
         85.1,
         15.0
       ],
@@ -457,7 +474,7 @@
       "path": "editor/editor-main/editor-form/#6",
       "rect": [
         12.0,
-        155.8,
+        154.0,
         684.0,
         15.0
       ],
@@ -470,7 +487,7 @@
       "path": "editor/editor-main/editor-form/#6/fm-label-published_at",
       "rect": [
         12.0,
-        155.8,
+        154.0,
         96.0,
         15.0
       ],
@@ -484,7 +501,7 @@
       "path": "editor/editor-main/editor-form/#6/fm-published_at",
       "rect": [
         116.0,
-        155.8,
+        154.0,
         329.4,
         15.0
       ],
@@ -497,7 +514,7 @@
       "path": "editor/editor-main/editor-form/#6/#2",
       "rect": [
         453.4,
-        155.8,
+        154.0,
         242.6,
         15.0
       ],
@@ -509,7 +526,7 @@
       "path": "editor/editor-main/editor-form/#7",
       "rect": [
         12.0,
-        174.8,
+        173.0,
         684.0,
         15.0
       ],
@@ -522,7 +539,7 @@
       "path": "editor/editor-main/editor-form/#7/fm-label-summary",
       "rect": [
         12.0,
-        174.8,
+        173.0,
         96.0,
         15.0
       ],
@@ -536,7 +553,7 @@
       "path": "editor/editor-main/editor-form/#7/fm-summary",
       "rect": [
         116.0,
-        174.8,
+        173.0,
         530.7,
         15.0
       ],
@@ -549,7 +566,7 @@
       "path": "editor/editor-main/editor-form/#7/#2",
       "rect": [
         654.7,
-        174.8,
+        173.0,
         41.3,
         15.0
       ],
@@ -561,7 +578,7 @@
       "path": "editor/editor-main/editor-form/#8",
       "rect": [
         12.0,
-        193.8,
+        192.0,
         684.0,
         15.0
       ],
@@ -574,7 +591,7 @@
       "path": "editor/editor-main/editor-form/#8/fm-label-servings",
       "rect": [
         12.0,
-        193.8,
+        192.0,
         96.0,
         15.0
       ],
@@ -588,7 +605,7 @@
       "path": "editor/editor-main/editor-form/#8/fm-servings",
       "rect": [
         116.0,
-        193.8,
+        192.0,
         414.1,
         15.0
       ],
@@ -601,7 +618,7 @@
       "path": "editor/editor-main/editor-form/#8/#2",
       "rect": [
         538.1,
-        193.8,
+        192.0,
         157.9,
         15.0
       ],
@@ -613,7 +630,7 @@
       "path": "editor/editor-main/editor-form/#9",
       "rect": [
         12.0,
-        212.8,
+        211.0,
         684.0,
         15.0
       ],
@@ -626,7 +643,7 @@
       "path": "editor/editor-main/editor-form/#9/fm-label-serves",
       "rect": [
         12.0,
-        212.8,
+        211.0,
         96.0,
         15.0
       ],
@@ -640,7 +657,7 @@
       "path": "editor/editor-main/editor-form/#9/fm-serves",
       "rect": [
         116.0,
-        212.8,
+        211.0,
         433.2,
         15.0
       ],
@@ -653,7 +670,7 @@
       "path": "editor/editor-main/editor-form/#9/#2",
       "rect": [
         557.2,
-        212.8,
+        211.0,
         138.8,
         15.0
       ],
@@ -665,7 +682,7 @@
       "path": "editor/editor-main/editor-form/#10",
       "rect": [
         12.0,
-        231.8,
+        230.0,
         684.0,
         15.0
       ],
@@ -678,7 +695,7 @@
       "path": "editor/editor-main/editor-form/#10/fm-label-yield",
       "rect": [
         12.0,
-        231.8,
+        230.0,
         96.0,
         15.0
       ],
@@ -692,7 +709,7 @@
       "path": "editor/editor-main/editor-form/#10/fm-yield",
       "rect": [
         116.0,
-        231.8,
+        230.0,
         433.2,
         15.0
       ],
@@ -705,7 +722,7 @@
       "path": "editor/editor-main/editor-form/#10/#2",
       "rect": [
         557.2,
-        231.8,
+        230.0,
         138.8,
         15.0
       ],
@@ -717,9 +734,9 @@
       "path": "editor/editor-main/#2",
       "rect": [
         12.0,
-        254.8,
+        253.0,
         684.0,
-        493.3
+        495.0
       ],
       "role": "group"
     },
@@ -728,7 +745,7 @@
       "path": "editor/editor-main/#2/#0",
       "rect": [
         12.0,
-        254.8,
+        253.0,
         684.0,
         240.0
       ],
@@ -740,7 +757,7 @@
       "path": "editor/editor-main/#2/#0/editor-gutter",
       "rect": [
         12.0,
-        254.8,
+        253.0,
         56.0,
         240.0
       ],
@@ -753,7 +770,7 @@
       "path": "editor/editor-main/#2/#0/editor-gutter/gutter-6",
       "rect": [
         12.0,
-        254.8,
+        253.0,
         56.0,
         13.8
       ],
@@ -768,7 +785,7 @@
       "path": "editor/editor-main/#2/#0/editor-body",
       "rect": [
         72.0,
-        254.8,
+        253.0,
         624.0,
         240.0
       ],

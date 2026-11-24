@@ -10,7 +10,7 @@ use cv_model::module::{ReadingModel, RowModel, Slot, Tone};
 use cv_model::theme::{Mode, Rgba, Theme};
 use cv_model::workbench::Workbench;
 use rune::{Color, Cx, Edge, El, GrowthSpec, ScrollSpec, Transition, col, icon, row, spacer, text};
-use rune_kit::{ButtonVariant, Markdown, RollingText, Toast, ToastRegion};
+use rune_kit::{Markdown, RollingText, Toast, ToastRegion};
 use std::borrow::Cow;
 
 pub(crate) fn tone(t: &Theme, tn: Tone) -> Color {
@@ -126,7 +126,7 @@ fn banner(s: &Workbench) -> Option<El> {
                 t,
                 "banner-dismiss",
                 "Dismiss",
-                ButtonVariant::Ghost,
+                controls::Variant::Ghost,
                 |s: &mut Workbench| s.run_command("shell.degraded.dismiss"),
             )),
     )
@@ -503,19 +503,14 @@ fn inspector(s: &Workbench) -> El {
         }
         if let Some(l) = s.link_for(k) {
             pane = pane.child(
-                row()
-                    .key("follow-link")
-                    .role("button")
-                    .mt(t.spacing.unit * 2.0)
-                    .px(t.spacing.unit * 2.0)
-                    .py(t.spacing.unit)
-                    .fill(color(t.colors.accent))
-                    .on_press(|s: &mut Workbench| s.follow_link())
-                    .child(
-                        text(l.label)
-                            .font(font(t.type_.body))
-                            .color(color(t.colors.accent_text)),
-                    ),
+                controls::button(
+                    t,
+                    "follow-link",
+                    &l.label,
+                    controls::Variant::Primary,
+                    |s: &mut Workbench| s.follow_link(),
+                )
+                .mt(t.spacing.unit * 2.0),
             );
         }
     }
@@ -718,6 +713,7 @@ fn palette(s: &Workbench, width: f32) -> El {
 /// The shell view (rune `view` fn).
 pub fn view(s: &Workbench, cx: &mut Cx<Workbench>) -> El {
     let t = &s.theme;
+    theme::motion_preference(cx, t);
     let mut body = row().key("body").w_full().grow(1.0).min_h(0.0);
     body = body
         .child(rail(s))

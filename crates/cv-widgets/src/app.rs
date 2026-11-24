@@ -64,8 +64,9 @@ fn companion_init() -> Companion {
         })
 }
 
-pub fn companion_view(s: &Companion, _cx: &mut Cx<Companion>) -> El {
+pub fn companion_view(s: &Companion, cx: &mut Cx<Companion>) -> El {
     let t = &s.theme;
+    crate::theme::motion_preference(cx, t);
     let mut body = col()
         .key("companion")
         .w_full()

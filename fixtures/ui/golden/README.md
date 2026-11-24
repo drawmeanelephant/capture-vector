@@ -36,8 +36,9 @@ or changed lines:
 | `focused`, `focus_visible` | Keyboard focus, and whether its ring shows. |
 | `selected` | A selected list, tree or table item (`El::focus_selected`). |
 
-Borders, gradients, outlines and blur are not in `ElementInfo`, so they
-stay PNG-gated (Linux + Lavapipe). Gating them in JSON needs Rune to
+Borders, gradients, outlines, blur and layer opacity (how a disabled kit
+button dims) are not in `ElementInfo`, so they stay PNG-gated (Linux +
+Lavapipe); test disabled controls through the accessibility tree. Gating them in JSON needs Rune to
 expose them first.
 
 Layout JSON (`<scene>.layout.json`) is still schema 1: keyed rects only.
