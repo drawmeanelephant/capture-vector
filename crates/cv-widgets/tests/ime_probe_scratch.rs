@@ -15,7 +15,12 @@ fn session() -> Rc<RefCell<EditorSession>> {
 }
 
 fn window(ses: &Rc<RefCell<EditorSession>>, id: u32, buf: BufferId) -> Runtime<EditorWindow> {
-    editor::runtime(EditorWindow::new(WindowId(id), ses.clone(), buf, Theme::dark()))
+    editor::runtime(EditorWindow::new(
+        WindowId(id),
+        ses.clone(),
+        buf,
+        Theme::dark(),
+    ))
 }
 
 fn settle(rt: &mut Runtime<EditorWindow>) {
@@ -130,9 +135,7 @@ fn pending_ed() -> EditorWindow {
 #[test]
 fn ime_marked_text_snapshot() {
     let ses = session();
-    let buf = ses
-        .borrow_mut()
-        .open("p.md", "café body line\n", None);
+    let buf = ses.borrow_mut().open("p.md", "café body line\n", None);
     let dir = tempfile::tempdir().unwrap();
     let script = dir.path().join("ime.json");
     let snap = dir.path().join("marked.png");
@@ -158,7 +161,12 @@ fn ime_marked_text_snapshot() {
         "mark:marked".to_string(),
     ];
     PENDING_ED.with(|p| {
-        *p.borrow_mut() = Some(EditorWindow::new(WindowId(1), ses.clone(), buf, Theme::dark()))
+        *p.borrow_mut() = Some(EditorWindow::new(
+            WindowId(1),
+            ses.clone(),
+            buf,
+            Theme::dark(),
+        ))
     });
     rune::run_windows_with_args(rune::RunOptions::default(), args, move |_| {
         vec![rune::WindowSpec::new(
@@ -180,8 +188,8 @@ fn ime_marked_text_snapshot() {
 /// reopened window renders `editor-close-prompt` with save/discard/cancel.
 #[test]
 fn dirty_close_confirm() {
-    use cv_widgets::editor::host;
     use cv_widgets::editor::Closing;
+    use cv_widgets::editor::host;
     use rune::Shell;
 
     let ses = session();
@@ -204,7 +212,11 @@ fn dirty_close_confirm() {
         "dirty close asks to confirm, got {:?}",
         rt.state.closing
     );
-    assert_eq!(host::take_reopen(), vec![WindowId(7)], "id queued to reopen");
+    assert_eq!(
+        host::take_reopen(),
+        vec![WindowId(7)],
+        "id queued to reopen"
+    );
     assert!(host::take_closed().is_empty(), "not closed outright");
 
     // Reopened window: host::open sets closing=Confirm when ASK held the id.
@@ -236,7 +248,11 @@ fn dirty_close_confirm() {
     rt.pointer_down(x, y);
     rt.pointer_up(x, y);
     settle(&mut rt);
-    assert_eq!(rt.shell_request.take(), Some(Shell::Close), "discard closes");
+    assert_eq!(
+        rt.shell_request.take(),
+        Some(Shell::Close),
+        "discard closes"
+    );
     assert_eq!(
         ses.borrow().get(buf).unwrap().buffer.text(),
         "clean body\n",
