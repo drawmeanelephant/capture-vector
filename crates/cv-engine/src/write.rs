@@ -6,9 +6,10 @@
 use crate::error::{EngineError, Result};
 use cv_core::engine::{Fingerprint, WriteOutcome};
 use cv_core::sys::{Hash, Timestamp};
+use cv_store::paths::confined_file;
 use sha2::{Digest, Sha256};
 use std::io::Write;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::time::{Duration, UNIX_EPOCH};
 
 /// Windows: antivirus/indexer handles make rename fail transiently.
@@ -38,17 +39,12 @@ pub fn fingerprint(path: &Path) -> std::io::Result<Option<Fingerprint>> {
     }
 }
 
-/// Resolve a workspace-relative draft path; absolute paths, `..`, and
-/// drive prefixes are refused (mirrors Boris's workspace containment).
+/// Resolve a workspace-relative draft path without following links.
 pub fn resolve(root: &Path, rel: &str) -> Result<PathBuf> {
-    let p = Path::new(rel);
-    let ok = !rel.is_empty()
-        && p.components()
-            .all(|c| matches!(c, Component::Normal(_) | Component::CurDir));
-    if !ok {
-        return Err(EngineError::PathEscape(rel.to_string()));
-    }
-    Ok(root.join(p))
+    confined_file(root, Path::new(rel)).map_err(|e| match e.kind() {
+        std::io::ErrorKind::InvalidInput => EngineError::PathEscape(rel.to_string()),
+        _ => EngineError::Io(e),
+    })
 }
 
 /// Is this a transient Windows sharing/lock violation worth retrying?
@@ -103,6 +99,7 @@ pub fn write_staged(
     tmp.as_file().sync_all()?;
     // Re-check right before the swap to narrow the race with an external
     // editor; the rename itself is atomic.
+    let target = resolve(root, rel)?;
     if let Some(stale) = check(&target)? {
         return Ok(stale);
     }
@@ -173,6 +170,20 @@ mod tests {
         }
         #[cfg(windows)]
         assert!(resolve(t.path(), r"C:\x.md").is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn staged_write_refuses_linked_parent_before_creating_directories() {
+        let root = tempfile::tempdir().unwrap();
+        let other = tempfile::tempdir().unwrap();
+        std::os::unix::fs::symlink(other.path(), root.path().join("linked")).unwrap();
+
+        assert!(matches!(
+            write_staged(root.path(), "linked/new/page.md", b"draft", None),
+            Err(EngineError::PathEscape(_))
+        ));
+        assert_eq!(std::fs::read_dir(other.path()).unwrap().count(), 0);
     }
 
     #[test]

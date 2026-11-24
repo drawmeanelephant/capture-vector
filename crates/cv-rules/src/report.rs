@@ -1,15 +1,14 @@
 //! Report + verdict. Blocking is decided here, at verdict time, from the
 //! finding's authority tier — never from the rule pack's say-so.
 
-use cv_core::rules::{CheckStatus, Finding, Report as CoreReport, Severity};
+use cv_core::rules::{CheckStatus, Finding, Report as CoreReport};
 use cv_core::sys::Hash;
 use serde::{Deserialize, Serialize};
 
-/// A `cv_core` finding plus the producing pack and rule severity.
+/// A `cv_core` finding plus the producing pack.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AuditFinding {
     pub pack: String,
-    pub severity: Severity,
     pub finding: Finding,
 }
 
@@ -17,9 +16,7 @@ impl AuditFinding {
     /// Only a *failed* `Error` from a tier that may block can block a
     /// publish. `Heuristic` can never, whatever its severity or status.
     pub fn blocks_publish(&self) -> bool {
-        self.finding.tier.may_block()
-            && self.finding.status == CheckStatus::Failed
-            && matches!(self.severity, Severity::Error)
+        self.finding.blocks_publish()
     }
 }
 
@@ -77,10 +74,7 @@ impl Report {
             .filter(|f| f.finding.status == CheckStatus::Limited)
     }
 
-    /// Shared-contract view for events/store. `cv_core::Finding` carries no
-    /// severity yet, so `CoreReport::has_blocking_errors` over-approximates
-    /// for non-Error findings; its tier gate still keeps every Heuristic
-    /// out. Preflight should ask [`Report::blocks_publish`].
+    /// Shared-contract view for events/store, with the same blocking policy.
     pub fn to_core(&self) -> CoreReport {
         CoreReport {
             artifact_set_hash: self.artifact_set_hash,

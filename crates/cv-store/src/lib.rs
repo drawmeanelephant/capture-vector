@@ -8,4 +8,5 @@
 //! [`sidecar::ensure`] before opening its files.
 
 pub mod audit;
+pub mod paths;
 pub mod sidecar;

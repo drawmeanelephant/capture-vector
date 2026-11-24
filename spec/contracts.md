@@ -106,7 +106,7 @@ pub struct Rule { pub id: AuditCode, pub severity: Severity,
     pub check: CheckSpec,              // closed versioned algebra: typed
                                        // selectors + thresholds
     pub remediation: String, pub citation: Citation }
-pub struct Finding { pub code: AuditCode, pub tier: AuthorityTier,
+pub struct Finding { pub code: AuditCode, pub tier: AuthorityTier, pub severity: Severity,
     pub status: CheckStatus,           // checked|passed|failed|limited
     pub subject: NounId, pub key: DedupKey,  // (code, subject, hash(target))
     pub evidence: Evidence, pub fix: Option<FixIt> }

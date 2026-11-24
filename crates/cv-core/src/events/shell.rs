@@ -21,4 +21,5 @@ pub enum DegradedReason {
     EngineVersionMismatch { found: String, want: String },
     WatchDead,
     StoreCorrupt,
+    BuildFailed,
 }

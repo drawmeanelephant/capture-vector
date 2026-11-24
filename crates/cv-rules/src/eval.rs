@@ -127,6 +127,7 @@ impl<'a> Ctx<'a, '_> {
         let finding = Finding {
             code: self.rule.id.clone(),
             tier: self.rule.tier,
+            severity: self.rule.severity,
             status,
             key: DedupKey {
                 code: self.rule.id.clone(),
@@ -146,7 +147,6 @@ impl<'a> Ctx<'a, '_> {
         };
         self.out.push(AuditFinding {
             pack: self.pack.meta.id.clone(),
-            severity: self.rule.severity,
             finding,
         });
     }
@@ -209,22 +209,27 @@ impl<'a> Ctx<'a, '_> {
             self.limited(Subject::Output("live-http"), p, why);
             return;
         }
-        if artifact == ArtifactKind::RobotsTxt {
-            let present = self.set.availability(artifact) == Availability::Present;
+        let mut availability = self.set.availability(artifact);
+        if artifact == ArtifactKind::RobotsTxt && availability != Availability::Present {
             match self.set.deploy() {
-                Some(d) if !d.expects_robots_txt && !present => return,
-                None if !present => {
+                Some(d) if !d.expects_robots_txt => return,
+                None => {
                     let why = "deploy profile and robots.txt both unavailable".to_string();
                     self.limited(Subject::Output("robots.txt"), "robots", why);
                     return;
                 }
-                _ => {}
+                // With a deploy contract, an omitted robots.txt counts as
+                // absent unless the caller explicitly couldn't inspect it.
+                Some(_) if !self.set.manifest.missing.contains(&artifact) => {
+                    availability = Availability::NotEmitted;
+                }
+                Some(_) => {}
             }
         }
         match artifact {
             ArtifactKind::Html => self.count_html(selector, pred),
             ArtifactKind::Ir => self.count_ir(selector, pred),
-            k => self.count_export(k, selector, pred),
+            k => self.count_export(k, availability, selector, pred),
         }
     }
 
@@ -356,9 +361,14 @@ impl<'a> Ctx<'a, '_> {
         }
     }
 
-    fn count_export(&mut self, kind: ArtifactKind, selector: &Selector, pred: Pred) {
-        let avail = self.set.availability(kind);
-        if avail == Availability::Unavailable {
+    fn count_export(
+        &mut self,
+        kind: ArtifactKind,
+        availability: Availability,
+        selector: &Selector,
+        pred: Pred,
+    ) {
+        if availability == Availability::Unavailable {
             return self.limited_unavailable(kind);
         }
         let export = self.set.export(kind);

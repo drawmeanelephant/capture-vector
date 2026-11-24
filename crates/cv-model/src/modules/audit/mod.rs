@@ -427,7 +427,7 @@ impl AuditModule {
             match e.state {
                 FindingLifecycle::Open => {
                     push("open".into());
-                    push(severity_label(e.af.severity).into());
+                    push(severity_label(e.af.finding.severity()).into());
                     if e.blocks_publish() {
                         push("blocking".into());
                     }
@@ -600,7 +600,7 @@ impl Module for AuditModule {
                 FindingLifecycle::Ignored | FindingLifecycle::Wontfix => Tone::Dim,
                 FindingLifecycle::Open => Tone::Normal,
             },
-            rail: Some(match e.af.severity {
+            rail: Some(match e.af.finding.severity() {
                 _ if !failed => Tone::Dim,
                 Severity::Error => Tone::Error,
                 Severity::Warning => Tone::Warn,
@@ -636,7 +636,11 @@ impl Module for AuditModule {
                 },
                 false,
             ),
-            line("severity", severity_label(e.af.severity).into(), false),
+            line(
+                "severity",
+                severity_label(e.af.finding.severity()).into(),
+                false,
+            ),
             line("authority", tier_label(f.tier).into(), false),
             ReadingLine {
                 label: Some("publish".into()),

@@ -44,6 +44,10 @@ pub fn degraded_text(r: &DegradedReason) -> String {
         DegradedReason::StoreCorrupt => {
             "Store corrupt — journal writes failing; changes are not persisted.".into()
         }
+        DegradedReason::BuildFailed => {
+            "Boris build failed — workspace remains browsable; see Activity for build details."
+                .into()
+        }
     }
 }
 

@@ -5,10 +5,12 @@
 
 use crate::plan::PlanFile;
 use crate::targets::TargetConfig;
+use crate::{PublishError, Result};
 use cv_core::engine::Verb;
 use cv_core::id::StableId;
 use cv_core::publish::PreflightGrant;
 use cv_core::sys::Hash;
+use cv_store::paths::portable_relative;
 use std::path::Path;
 
 /// Ruleset port (cv-rules implements it). Only engine-documented
@@ -51,28 +53,31 @@ impl PreflightOutcome {
 }
 
 /// Project-relative workspace for one run.
-pub fn run_dir(run: &StableId) -> String {
-    format!(".cv/publish/{}", run.0)
+pub fn run_dir(run: &StableId) -> Result<String> {
+    if run.0.contains('/') || portable_relative(&run.0).is_err() {
+        return Err(PublishError::Refused("invalid publish run ID".into()));
+    }
+    Ok(format!(".cv/publish/{}", run.0))
 }
 
-pub fn site_dir(run: &StableId) -> String {
-    format!("{}/site", run_dir(run))
+pub fn site_dir(run: &StableId) -> Result<String> {
+    Ok(format!("{}/site", run_dir(run)?))
 }
 
-pub fn graph_file(run: &StableId) -> String {
-    format!("{}/graph.mmd", run_dir(run))
+pub fn graph_file(run: &StableId) -> Result<String> {
+    Ok(format!("{}/graph.mmd", run_dir(run)?))
 }
 
 /// The engine verbs preflight issues, in order. Argv is mapped by
 /// cv-engine; nothing here carries a secret.
-pub fn verbs(cfg: &TargetConfig, run: &StableId) -> Vec<(&'static str, Verb)> {
+pub fn verbs(cfg: &TargetConfig, run: &StableId) -> Result<Vec<(&'static str, Verb)>> {
     let c = |name: &str, args: &[&str]| Verb::Custom {
         name: name.into(),
         args: args.iter().map(|s| s.to_string()).collect(),
     };
-    let site = site_dir(run);
-    let graph = graph_file(run);
-    vec![
+    let site = site_dir(run)?;
+    let graph = graph_file(run)?;
+    Ok(vec![
         (
             "build",
             c("build", &["--profile", &cfg.profile, "--html-dir", &site]),
@@ -80,5 +85,5 @@ pub fn verbs(cfg: &TargetConfig, run: &StableId) -> Vec<(&'static str, Verb)> {
         ("validate", c("validate", &["--profile", &cfg.profile])),
         ("check", c("check", &["--html-dir", &site])),
         ("graph", c("graph", &["--out", &graph])),
-    ]
+    ])
 }

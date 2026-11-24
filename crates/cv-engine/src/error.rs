@@ -39,6 +39,8 @@ pub enum EngineError {
     WatchAlreadyLive,
     #[error("cancelled; child process group killed")]
     Cancelled,
+    #[error("child {stream} exceeded the {limit}-byte capture limit")]
+    OutputLimitExceeded { stream: &'static str, limit: usize },
     #[error("verb not dispatchable through cv-engine: {0}")]
     UnsupportedVerb(String),
     #[error("refused: {0}")]

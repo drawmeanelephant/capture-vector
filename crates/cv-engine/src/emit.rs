@@ -3,7 +3,7 @@
 //! session rotates whenever a watch child starts, so any consumer that
 //! sees a new session id knows to resync from disk.
 
-use crate::ring::EventRing;
+use crate::ring::{EventRing, Resume};
 use cv_contracts::watch::{Phase, WatchDiagnostic, WatchEvent};
 use cv_core::diagnostic::{Diagnostic, Severity, Span};
 use cv_core::engine::EventSink;
@@ -81,6 +81,11 @@ impl Emitter {
         &self.ring
     }
 
+    pub fn resume(&self, seen: &Cursor) -> Resume {
+        let s = self.state.lock().unwrap();
+        self.ring.since(seen, &s.session)
+    }
+
     /// Mint + record + deliver. When `only_in` is set and the session has
     /// rotated past it, the event belongs to a dead child: dropped.
     pub fn emit(
@@ -109,7 +114,7 @@ impl Emitter {
                 payload: AppEvent::Engine(payload),
             };
             // Recorded under the lock so ring order == seq order.
-            self.ring.push(env.clone());
+            self.ring.record(&env);
             env
         };
         sink(env);

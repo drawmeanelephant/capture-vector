@@ -124,7 +124,7 @@ pub struct TargetConfig {
     /// Boris publication profile driving the build.
     pub profile: String,
     pub deploy: TargetDeployProfile,
-    /// Delivery adapter id + its destination (folder, URL, …).
+    /// Delivery adapter id + its destination (project-relative folder, URL, …).
     pub adapter: String,
     pub destination: String,
     pub exports: Vec<(ExportKind, String)>,

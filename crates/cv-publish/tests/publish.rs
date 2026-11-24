@@ -13,7 +13,8 @@ use cv_publish::adapters::{
     HttpTransport, RUN_COMMAND, RunCommand, TransportFailure,
 };
 use cv_publish::exports;
-use cv_publish::plan::{PlanFile, SealedPlan};
+use cv_publish::plan::{PlanFile, SealedPlan, load_sealed};
+use cv_publish::preflight::{graph_file, run_dir, site_dir};
 use cv_publish::secrets::{MockKeychain, NoSecrets, Secret, SecretBackend, StdinSecret};
 use cv_publish::{
     Observation, PreflightOutcome, PreflightRequest, PublishError, Publisher, Ruleset,
@@ -244,7 +245,7 @@ fn registry_labels_match_boris() {
 // ── sealed grant ─────────────────────────────────────────────────────
 
 fn seal_case(
-    tamper: impl FnOnce(&Path, &FakeEngine, &Rules, &mut TargetConfig),
+    tamper: impl FnOnce(&Path, &StableId, &FakeEngine, &Rules, &mut TargetConfig),
 ) -> Vec<&'static str> {
     let dir = tempfile::tempdir().unwrap();
     let eng = FakeEngine::new(dir.path());
@@ -262,7 +263,7 @@ fn seal_case(
         .unwrap(),
     );
     p.approve(&run, "tester").unwrap();
-    tamper(dir.path(), &eng, &rules, &mut c);
+    tamper(dir.path(), &run, &eng, &rules, &mut c);
     let err = p.publish(&run, &c, &rules).unwrap_err();
     let PublishError::SealBroken(broken) = err else {
         panic!("expected SealBroken, got {err:?}")
@@ -276,36 +277,113 @@ fn seal_case(
 
 #[test]
 fn hash_mismatch_refuses_publish() {
-    let site = ".cv/publish/run-000000/site";
     assert_eq!(
-        seal_case(|root, _, _, _| std::fs::write(
-            root.join(site).join("index.html"),
+        seal_case(|root, run, _, _, _| std::fs::write(
+            root.join(site_dir(run).unwrap()).join("index.html"),
             "<h1>pwned</h1>"
         )
         .unwrap()),
         vec!["artifact_set", "plan"]
     );
     assert_eq!(
-        seal_case(|root, _, _, _| std::fs::write(root.join(site).join("extra.js"), "x").unwrap()),
+        seal_case(|root, run, _, _, _| std::fs::write(
+            root.join(site_dir(run).unwrap()).join("extra.js"),
+            "x"
+        )
+        .unwrap()),
         vec!["artifact_set", "plan"]
     );
     assert_eq!(
-        seal_case(|root, _, _, _| std::fs::write(
-            root.join(".cv/publish/run-000000/graph.mmd"),
+        seal_case(|root, run, _, _, _| std::fs::write(
+            root.join(graph_file(run).unwrap()),
             "changed"
         )
         .unwrap()),
         vec!["graph"]
     );
-    assert_eq!(seal_case(|_, _, r, _| r.0.set(9)), vec!["ruleset"]);
+    assert_eq!(seal_case(|_, _, _, r, _| r.0.set(9)), vec!["ruleset"]);
     assert_eq!(
-        seal_case(|_, e, _, _| *e.version.lock().unwrap() = "boris/0.9.1".into()),
+        seal_case(|_, _, e, _, _| *e.version.lock().unwrap() = "boris/0.9.1".into()),
         vec!["boris_version"]
     );
     assert_eq!(
-        seal_case(|_, _, _, c| c.deploy.base_url = "https://evil.test/".into()),
+        seal_case(|_, _, _, _, c| c.deploy.base_url = "https://evil.test/".into()),
         vec!["target_cfg"]
     );
+}
+
+#[test]
+fn restarting_the_id_generator_preserves_the_old_run_evidence() {
+    let dir = tempfile::tempdir().unwrap();
+    let eng = FakeEngine::new(dir.path());
+    let rules = Rules::ok();
+    let req = PreflightRequest { config: cfg() };
+    let preflight = || {
+        let mut publisher = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+        granted(publisher.preflight(&req, &rules, &mut ids("run")).unwrap())
+    };
+    let first = preflight();
+    let evidence = dir
+        .path()
+        .join(run_dir(&first).unwrap())
+        .join("evidence.txt");
+    std::fs::write(&evidence, "preserve").unwrap();
+    let second = preflight();
+    assert_ne!(first, second);
+    assert_eq!(std::fs::read_to_string(evidence).unwrap(), "preserve");
+    assert!(dir.path().join(site_dir(&second).unwrap()).is_dir());
+}
+
+#[test]
+fn preflight_refuses_to_replace_an_existing_run_directory() {
+    let dir = tempfile::tempdir().unwrap();
+    let eng = FakeEngine::new(dir.path());
+    let mut publisher = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+    let first = StableId(format!(
+        "run-000000-{}",
+        publisher.journal().records().len()
+    ));
+    let existing = dir.path().join(run_dir(&first).unwrap());
+    std::fs::create_dir_all(&existing).unwrap();
+    let evidence = existing.join("evidence.txt");
+    std::fs::write(&evidence, "preserve").unwrap();
+
+    let out = publisher.preflight(
+        &PreflightRequest { config: cfg() },
+        &Rules::ok(),
+        &mut ids("run"),
+    );
+    assert!(matches!(out, Err(PublishError::Refused(_))));
+    assert!(eng.verbs().is_empty());
+    assert_eq!(std::fs::read_to_string(evidence).unwrap(), "preserve");
+}
+
+#[test]
+fn run_ids_must_be_single_components() {
+    let run = StableId("group/run".into());
+    assert!(run_dir(&run).is_err());
+    assert!(site_dir(&run).is_err());
+    assert!(graph_file(&run).is_err());
+}
+
+#[test]
+fn sealed_inventory_rejects_nonportable_file_names() {
+    let dir = tempfile::tempdir().unwrap();
+    let plan = SealedPlan {
+        target: "static-dist".into(),
+        adapter: COPY_TO_FOLDER.into(),
+        destination: "out".into(),
+        site: "site".into(),
+        files: vec![PlanFile {
+            path: r"guides\one.html".into(),
+            bytes: 0,
+            sha256: Hash([0; 32]),
+        }],
+    };
+    assert!(matches!(
+        load_sealed(dir.path(), &plan),
+        Err(PublishError::Refused(_))
+    ));
 }
 
 #[test]
@@ -782,7 +860,7 @@ fn copy_to_folder_never_clobbers_siblings() {
         "p",
         "https://example.test/",
         COPY_TO_FOLDER,
-        dest.to_str().unwrap(),
+        "out",
     );
     let plan = SealedPlan {
         target: "static-dist".into(),
@@ -838,7 +916,7 @@ fn copy_to_folder_accepts_names_at_the_length_limit() {
         "p",
         "https://example.test/",
         COPY_TO_FOLDER,
-        dest.to_str().unwrap(),
+        "out",
     );
     let plan = SealedPlan {
         target: "static-dist".into(),
@@ -861,6 +939,36 @@ fn copy_to_folder_accepts_names_at_the_length_limit() {
     assert_eq!(out.unwrap(), Delivered::Complete(RunStatus::Complete));
     assert_eq!(std::fs::read(dest.join(&name)).unwrap(), b"hi");
     assert_eq!(std::fs::read_dir(&dest).unwrap().count(), 1);
+}
+
+#[test]
+fn copy_to_folder_refuses_absolute_destinations_before_contact() {
+    let dir = tempfile::tempdir().unwrap();
+    let dest = dir.path().join("out");
+    let eng = FakeEngine::new(dir.path());
+    let mut config = cfg();
+    config.destination = dest.to_str().unwrap().into();
+    let adapter = CopyToFolder::new(dir.path());
+    let plan = SealedPlan {
+        target: "static-dist".into(),
+        adapter: COPY_TO_FOLDER.into(),
+        destination: config.destination.clone(),
+        site: "site".into(),
+        files: vec![],
+    };
+    let result = adapter.deliver(&Delivery {
+        run: &StableId("run".into()),
+        plan: &plan,
+        files: &[],
+        site: dir.path(),
+        config: &config,
+        secrets: &NoSecrets,
+        engine: &eng,
+    });
+    assert!(!result.unwrap_err().contacted);
+    assert!(adapter.read_back(&config, "index.html").is_none());
+    assert!(adapter.probe(&plan, &config).is_none());
+    assert!(!dest.exists());
 }
 
 // ── tier gate, end to end: cv-rules verdict → Preflight → publish ────

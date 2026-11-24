@@ -14,10 +14,10 @@
 use crate::buffer::Buffer;
 use cv_core::engine::{Engine, Fingerprint, PageDraft, WriteOutcome};
 use cv_core::sys::{Hash, Timestamp};
+use cv_store::paths::confined_file;
 use sha2::{Digest, Sha256};
 use std::io::Write;
-use std::path::{Component, Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// Retries after the first failed rename (cv-core pin: 5 × 50 ms).
@@ -169,31 +169,17 @@ impl FsWriter {
     pub fn new(root: impl Into<PathBuf>) -> Self {
         Self { root: root.into() }
     }
-
-    fn resolve(&self, rel: &str) -> cv_core::Result<PathBuf> {
-        let p = Path::new(rel);
-        let ok = !rel.is_empty()
-            && p.components()
-                .all(|c| matches!(c, Component::Normal(_) | Component::CurDir));
-        if !ok {
-            return Err(cv_core::Error::Other(format!(
-                "{rel}: refusing to write outside the project root"
-            )));
-        }
-        Ok(self.root.join(p))
-    }
 }
 
 fn io(rel: &str, what: &str, e: std::io::Error) -> cv_core::Error {
     cv_core::Error::Other(format!("{rel}: {what}: {e}"))
 }
 
-static TMP_SEQ: AtomicU64 = AtomicU64::new(0);
-
 impl ContentWriter for FsWriter {
     fn write(&self, draft: &PageDraft) -> cv_core::Result<WriteOutcome> {
         let rel = draft.path.as_str();
-        let target = self.resolve(rel)?;
+        let resolve = || confined_file(&self.root, Path::new(rel));
+        let target = resolve().map_err(|e| io(rel, "resolve", e))?;
         let check = |target: &Path| -> cv_core::Result<Option<WriteOutcome>> {
             let found = retry_pinned(
                 || fingerprint_file(target),
@@ -215,28 +201,20 @@ impl ContentWriter for FsWriter {
         }
         let dir = target.parent().unwrap_or(&self.root);
         std::fs::create_dir_all(dir).map_err(|e| io(rel, "create dir", e))?;
-        let name = target
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("page");
-        let tmp = dir.join(format!(
-            ".{name}.{}-{}.tmp",
-            std::process::id(),
-            TMP_SEQ.fetch_add(1, Ordering::Relaxed)
-        ));
-        let staged = (|| -> std::io::Result<()> {
-            let mut f = std::fs::File::create(&tmp)?;
-            f.write_all(draft.body.as_bytes())?;
-            f.sync_all()
-        })();
-        if let Err(e) = staged {
-            let _ = std::fs::remove_file(&tmp);
-            return Err(io(rel, "stage", e));
-        }
+        let mut tmp = tempfile::Builder::new()
+            .prefix(".cv-write-")
+            .suffix(".tmp")
+            .tempfile_in(dir)
+            .map_err(|e| io(rel, "stage", e))?;
+        tmp.write_all(draft.body.as_bytes())
+            .and_then(|()| tmp.as_file().sync_all())
+            .map_err(|e| io(rel, "stage", e))?;
+        let mut tmp = Some(tmp);
         // Re-check the base on every attempt: a writer holding the file
         // during a retry may have changed it before releasing.
-        let landed = retry_pinned(
+        let stale = retry_pinned(
             || -> std::io::Result<Option<WriteOutcome>> {
+                let target = resolve()?;
                 match (fingerprint_file(&target)?, draft.base) {
                     (None, None) => {}
                     (Some(found), Some(base)) if found == base => {}
@@ -248,21 +226,23 @@ impl ContentWriter for FsWriter {
                         ));
                     }
                 }
-                std::fs::rename(&tmp, &target).map(|()| None)
+                let staged = tmp
+                    .take()
+                    .ok_or_else(|| std::io::Error::other("no staged save"))?;
+                match staged.persist(&target) {
+                    Ok(_) => Ok(None),
+                    Err(e) => {
+                        tmp = Some(e.file);
+                        Err(e.error)
+                    }
+                }
             },
             is_sharing_violation,
             std::thread::sleep,
-        );
-        match landed {
-            Ok(None) => {}
-            Ok(Some(stale)) => {
-                let _ = std::fs::remove_file(&tmp);
-                return Ok(stale);
-            }
-            Err(e) => {
-                let _ = std::fs::remove_file(&tmp);
-                return Err(io(rel, "rename", e));
-            }
+        )
+        .map_err(|e| io(rel, "rename", e))?;
+        if let Some(stale) = stale {
+            return Ok(stale);
         }
         let fingerprint = fingerprint_file(&target)
             .map_err(|e| io(rel, "fingerprint", e))?

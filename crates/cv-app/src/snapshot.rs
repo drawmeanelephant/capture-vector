@@ -1,13 +1,19 @@
 //! Project snapshot from a captured fixture corpus: page sources from
 //! `fixtures/corpus-src/<corpus>/` and output records from the captured
-//! Boris artifact index. Read once at scene/boot time, never per frame.
+//! Boris artifact index. Live workspaces are read at boot and on resync,
+//! never per frame.
 //!
 //! Frontmatter is read for display only (title, parent, tags,
 //! relations); Boris diagnostics stay authoritative for what is valid.
 
 use cv_fixtures::{Manifest, corpus, fixtures_root};
 use cv_model::module::{OutputRecord, PageRecord, ProjectSnapshot};
+use cv_store::paths::{confined, confined_file, is_link};
 use serde_json::Value;
+use std::collections::HashSet;
+use std::fs::{self, File, Metadata};
+use std::io::Read;
+use std::path::{Component, Path, PathBuf};
 
 const ARTIFACTS: &str = "dist/dist/_boris/proof/artifacts.json";
 const SOURCE_EXT: &[&str] = &[".md", ".textile", ".cook"];
@@ -148,18 +154,72 @@ pub fn page(path: &str, raw: &str) -> PageRecord {
 
 /// Directories never walked for page sources.
 const SKIP_DIRS: &[&str] = &["themes", "node_modules", "target"];
-/// Bound on page sources read for one snapshot.
+
 const MAX_PAGES: usize = 20_000;
+const MAX_SOURCE_BYTES: u64 = 2 << 20;
+const MAX_TOTAL_SOURCE_BYTES: u64 = 64 << 20;
+/// Number of directory levels below the selected content root.
+const MAX_DEPTH: usize = 32;
+/// Includes ignored names and read_dir errors, not just accepted pages.
+const MAX_ENTRIES: usize = 100_000;
+const MAX_PROFILE_BYTES: u64 = 1 << 20;
+const MAX_INDEX_BYTES: u64 = 16 << 20;
+
+fn bounded_text(reader: impl Read, max_bytes: u64, bytes_left: &mut u64) -> Option<String> {
+    let limit = max_bytes.min(*bytes_left);
+    let mut bytes = Vec::new();
+    // Check actual bytes, not just the size reported before opening. One
+    // extra byte distinguishes an exact fit from truncated text.
+    let result = reader.take(limit + 1).read_to_end(&mut bytes);
+    let len = bytes.len() as u64;
+    *bytes_left = bytes_left.saturating_sub(len);
+    if result.is_err() || len > limit {
+        return None;
+    }
+    String::from_utf8(bytes).ok()
+}
+
+fn regular_text(path: &Path, meta: &Metadata, limit: u64, bytes_left: &mut u64) -> Option<String> {
+    if !meta.is_file() || is_link(meta) || meta.len() > limit.min(*bytes_left) {
+        return None;
+    }
+    let file = File::open(path).ok()?;
+    if !file.metadata().ok()?.is_file() {
+        return None;
+    }
+    bounded_text(file, limit, bytes_left)
+}
+
+fn workspace_json(root: &Path, relative: &Path, mut limit: u64) -> Option<Value> {
+    let path = confined_file(root, relative).ok()?;
+    let meta = fs::symlink_metadata(&path).ok()?;
+    let raw = regular_text(&path, &meta, limit, &mut limit)?;
+    serde_json::from_str(&raw).ok()
+}
+
+fn ordinary_dir(path: &Path) -> bool {
+    fs::symlink_metadata(path).is_ok_and(|m| m.is_dir() && !is_link(&m))
+}
+
+fn workspace_root(root: &Path) -> Option<PathBuf> {
+    // Inspect the root itself even if the path ends in a separator or `/.`.
+    let root: PathBuf = root.components().collect();
+    ordinary_dir(&root).then_some(root)
+}
 
 /// The profile's content input: `boris.json`'s `input`, else `content/`
 /// when present, else the root.
-pub fn content_input(root: &std::path::Path) -> String {
-    std::fs::read_to_string(root.join("boris.json"))
-        .ok()
-        .and_then(|s| serde_json::from_str::<Value>(&s).ok())
+pub fn content_input(root: &Path) -> String {
+    workspace_root(root).map_or_else(|| ".".into(), |dir| input_at(&dir))
+}
+
+fn input_at(root: &Path) -> String {
+    workspace_json(root, Path::new("boris.json"), MAX_PROFILE_BYTES)
         .and_then(|v| v["input"].as_str().map(String::from))
         .unwrap_or_else(|| {
-            if root.join("content").is_dir() {
+            // Still select a linked `content` so the snapshot can reject
+            // it rather than silently scanning the rest of the workspace.
+            if fs::symlink_metadata(root.join("content")).is_ok_and(|m| m.is_dir() || is_link(&m)) {
                 "content".into()
             } else {
                 ".".into()
@@ -167,32 +227,91 @@ pub fn content_input(root: &std::path::Path) -> String {
         })
 }
 
-fn walk(dir: &std::path::Path, rel: &str, html_dir: &str, out: &mut Vec<(String, String)>) {
-    let Ok(rd) = std::fs::read_dir(dir) else {
-        return;
-    };
-    let mut entries: Vec<_> = rd.flatten().collect();
-    entries.sort_by_key(|e| e.file_name());
-    for e in entries {
-        if out.len() >= MAX_PAGES {
+fn source_root(root: &Path, input: &Path) -> Option<PathBuf> {
+    if input.components().all(|c| c == Component::CurDir) {
+        return Some(root.to_path_buf());
+    }
+    let dir = confined(root, input).ok()?;
+    ordinary_dir(&dir).then_some(dir)
+}
+
+struct Scan<'a> {
+    html_dir: &'a str,
+    pages: Vec<PageRecord>,
+    max_pages: usize,
+    max_source_bytes: u64,
+    max_depth: usize,
+    bytes_left: u64,
+    entries_left: usize,
+}
+
+impl<'a> Scan<'a> {
+    fn new(html_dir: &'a str) -> Self {
+        Self {
+            html_dir,
+            pages: Vec::new(),
+            max_pages: MAX_PAGES,
+            max_source_bytes: MAX_SOURCE_BYTES,
+            max_depth: MAX_DEPTH,
+            bytes_left: MAX_TOTAL_SOURCE_BYTES,
+            entries_left: MAX_ENTRIES,
+        }
+    }
+
+    fn complete(&self) -> bool {
+        self.pages.len() >= self.max_pages || self.bytes_left == 0
+    }
+
+    fn walk(&mut self, dir: &Path, rel: &str, depth: usize) {
+        if self.complete() || self.entries_left == 0 {
             return;
         }
-        let name = e.file_name().to_string_lossy().into_owned();
-        if name.starts_with('.') {
-            continue;
-        }
-        let child = if rel.is_empty() {
-            name.clone()
-        } else {
-            format!("{rel}/{name}")
+        let Ok(rd) = fs::read_dir(dir) else {
+            return;
         };
-        let Ok(ft) = e.file_type() else { continue };
-        if ft.is_dir() {
-            if !SKIP_DIRS.contains(&name.as_str()) && child != html_dir {
-                walk(&e.path(), &child, html_dir, out);
+        let mut entries = Vec::new();
+        for entry in rd.take(self.entries_left) {
+            self.entries_left -= 1;
+            if let Ok(entry) = entry {
+                entries.push(entry.file_name());
             }
-        } else if SOURCE_EXT.iter().any(|x| name.ends_with(x)) {
-            out.push((child, std::fs::read_to_string(e.path()).unwrap_or_default()));
+        }
+        entries.sort_unstable();
+        for entry in entries {
+            if self.complete() {
+                return;
+            }
+            let name = entry.to_string_lossy();
+            if name.starts_with('.') {
+                continue;
+            }
+            let path = dir.join(&entry);
+            let Ok(meta) = fs::symlink_metadata(&path) else {
+                continue;
+            };
+            // On Windows, is_link also rejects junctions and other
+            // reparse points which can report themselves as directories.
+            if is_link(&meta) {
+                continue;
+            }
+            let child = if rel.is_empty() {
+                name.to_string()
+            } else {
+                format!("{rel}/{name}")
+            };
+            if meta.is_dir() {
+                if depth < self.max_depth
+                    && !SKIP_DIRS.contains(&name.as_ref())
+                    && child != self.html_dir
+                {
+                    self.walk(&path, &child, depth + 1);
+                }
+            } else if SOURCE_EXT.iter().any(|ext| name.ends_with(ext))
+                && let Some(raw) =
+                    regular_text(&path, &meta, self.max_source_bytes, &mut self.bytes_left)
+            {
+                self.pages.push(page(&child, &raw));
+            }
         }
     }
 }
@@ -200,24 +319,25 @@ fn walk(dir: &std::path::Path, rel: &str, html_dir: &str, out: &mut Vec<(String,
 /// Project snapshot from a real workspace: page sources under the
 /// content input, output records from the last build's proof pack
 /// (`<html_dir>/_boris/proof/artifacts.json`) when one exists.
+/// Unreadable or oversized files are omitted. The walk checks the tree
+/// as found; these checks are not atomic against concurrent replacement.
 pub fn workspace_snapshot(
-    root: &std::path::Path,
+    root: &Path,
     html_dir: &str,
     compiler: Option<String>,
     epoch: u64,
 ) -> ProjectSnapshot {
-    let input = content_input(root);
-    let mut sources = Vec::new();
-    let base = if input == "." {
-        root.to_path_buf()
-    } else {
-        root.join(&input)
-    };
-    walk(&base, "", html_dir, &mut sources);
-    let index: Option<Value> =
-        std::fs::read_to_string(root.join(html_dir).join("_boris/proof/artifacts.json"))
-            .ok()
-            .and_then(|s| serde_json::from_str(&s).ok());
+    let mut scan = Scan::new(html_dir);
+    let index = workspace_root(root).and_then(|base| {
+        if let Some(dir) = source_root(&base, Path::new(&input_at(&base))) {
+            scan.walk(&dir, "", 0);
+        }
+        workspace_json(
+            &base,
+            &Path::new(html_dir).join("_boris/proof/artifacts.json"),
+            MAX_INDEX_BYTES,
+        )
+    });
     let outputs: Vec<OutputRecord> = index
         .as_ref()
         .and_then(|v| v["artifacts"].as_array())
@@ -225,10 +345,11 @@ pub fn workspace_snapshot(
         .flatten()
         .map(output)
         .collect();
-    let mut pages: Vec<PageRecord> = sources.iter().map(|(rel, raw)| page(rel, raw)).collect();
+    let paths: HashSet<&str> = outputs.iter().map(|o| o.path.as_str()).collect();
+    let mut pages = scan.pages;
     for p in &mut pages {
         let html = format!("{}.html", strip_ext(&p.path));
-        p.output = outputs.iter().any(|o| o.path == html).then_some(html);
+        p.output = paths.contains(html.as_str()).then_some(html);
     }
     ProjectSnapshot {
         epoch,
@@ -241,5 +362,188 @@ pub fn workspace_snapshot(
         outputs,
         last_publish: None,
         artifact_root: Some(root.join(html_dir).to_string_lossy().into_owned()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn write(root: &Path, rel: &str, body: impl AsRef<[u8]>) {
+        let path = root.join(rel);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, body).unwrap();
+    }
+
+    fn paths(pages: &[PageRecord]) -> Vec<&str> {
+        pages.iter().map(|p| p.path.as_str()).collect()
+    }
+
+    #[test]
+    fn workspace_snapshot_uses_default_content_and_boris_outputs() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        write(root, "content/index.md", "---\ntitle: Home\n---\nHello");
+        write(root, "content/guides/recipe.cook", "Cook");
+        write(root, "content/guides/format.textile", "Textile");
+        write(root, "content/readme.txt", "Not a page");
+        write(root, "outside-default-input.md", "Not a content page");
+        write(
+            root,
+            "dist/_boris/proof/artifacts.json",
+            corpus("happy").file(ARTIFACTS),
+        );
+
+        let snap = workspace_snapshot(root, "dist", Some("boris".into()), 7);
+        assert_eq!(
+            paths(&snap.pages),
+            ["guides/format.textile", "guides/recipe.cook", "index.md"]
+        );
+        assert_eq!((snap.epoch, snap.compiler.as_deref()), (7, Some("boris")));
+        assert_eq!(snap.target.as_deref(), Some("default"));
+        assert_eq!(snap.pages[2].title, "Home");
+        assert_eq!(snap.pages[2].body, "Hello");
+        assert_eq!(snap.pages[2].output.as_deref(), Some("index.html"));
+    }
+
+    #[test]
+    fn workspace_snapshot_respects_a_nested_profile_input() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        write(root, "boris.json", r#"{"input":"site/posts/."}"#);
+        write(root, "site/posts/guide.md", "Guide");
+        write(root, "content/default.md", "Not the configured input");
+
+        let snap = workspace_snapshot(root, "dist", None, 1);
+        assert_eq!(paths(&snap.pages), ["guide.md"]);
+    }
+
+    #[test]
+    fn scan_preserves_skips_and_includes_pages_at_the_depth_limit() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        for path in [
+            ".hidden/no.md",
+            "dist/no.md",
+            "themes/no.md",
+            "node_modules/no.md",
+            "target/no.md",
+            "folder.md/within.md",
+            "folder.md/deeper/no.md",
+            "root.md",
+        ] {
+            write(root, path, "Body");
+        }
+
+        let mut scan = Scan::new("dist");
+        scan.max_depth = 1;
+        scan.walk(root, "", 0);
+        assert_eq!(paths(&scan.pages), ["folder.md/within.md", "root.md"]);
+    }
+
+    #[test]
+    fn scan_omits_oversized_and_invalid_pages_without_truncating_valid_pages() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        write(root, "a-oversized.md", "12345");
+        write(root, "b-invalid.md", [0xff]);
+        write(root, "c-exact.md", "1234");
+        write(root, "d-empty.md", "");
+
+        let mut scan = Scan::new("dist");
+        scan.max_source_bytes = 4;
+        scan.max_pages = 2;
+        scan.walk(root, "", 0);
+        assert_eq!(paths(&scan.pages), ["c-exact.md", "d-empty.md"]);
+        assert_eq!(scan.pages[0].body, "1234");
+        assert_eq!(scan.bytes_left, MAX_TOTAL_SOURCE_BYTES - 5);
+    }
+
+    #[test]
+    fn scan_never_accepts_more_than_the_remaining_source_budget() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        write(root, "a.md", "1234");
+        write(root, "b-cannot-fit.md", "1234");
+        write(root, "c-fits.md", "123");
+        write(root, "d-after-limit.md", "1");
+
+        let mut scan = Scan::new("dist");
+        scan.bytes_left = 7;
+        scan.walk(root, "", 0);
+        assert_eq!(paths(&scan.pages), ["a.md", "c-fits.md"]);
+        assert_eq!(scan.bytes_left, 0);
+    }
+
+    #[test]
+    fn bounded_reader_checks_actual_length_with_one_extra_byte() {
+        let mut remaining = 8;
+        let mut input = &b"12345678"[..];
+        assert!(bounded_text(&mut input, 4, &mut remaining).is_none());
+        assert_eq!(remaining, 3);
+        assert_eq!(input, b"678");
+        assert_eq!(
+            bounded_text(input, 4, &mut remaining).as_deref(),
+            Some("678")
+        );
+        assert_eq!(remaining, 0);
+    }
+
+    #[test]
+    fn scan_limits_pages_in_sort_order() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        for path in ["c.md", "a.md", "b.md"] {
+            write(root, path, "Body");
+        }
+        let mut scan = Scan::new("dist");
+        scan.max_pages = 2;
+        scan.walk(root, "", 0);
+        assert_eq!(paths(&scan.pages), ["a.md", "b.md"]);
+    }
+
+    #[test]
+    fn scan_limits_entries_before_sorting() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        for path in ["a.md", "b.md", "c.md"] {
+            write(root, path, "Body");
+        }
+        let mut scan = Scan::new("dist");
+        scan.entries_left = 2;
+        scan.walk(root, "", 0);
+        assert_eq!(scan.entries_left, 0);
+        assert_eq!(scan.pages.len(), 2);
+        assert!(scan.pages[0].path < scan.pages[1].path);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn workspace_snapshot_skips_linked_files_and_directories() {
+        use std::os::unix::fs::symlink;
+
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        write(root, "content/real/one.md", "Inert page");
+        symlink("real/one.md", root.join("content/copied.md")).unwrap();
+        symlink("real", root.join("content/copied-dir")).unwrap();
+
+        let snap = workspace_snapshot(root, "dist", None, 1);
+        assert_eq!(paths(&snap.pages), ["real/one.md"]);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn workspace_snapshot_refuses_a_link_in_the_content_root() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        write(root, "actual/nested/one.md", "Inert page");
+        std::os::unix::fs::symlink("actual", root.join("content")).unwrap();
+
+        let implicit = workspace_snapshot(root, "dist", None, 1);
+        assert!(implicit.pages.is_empty());
+        write(root, "boris.json", r#"{"input":"content/nested"}"#);
+        let explicit = workspace_snapshot(root, "dist", None, 2);
+        assert!(explicit.pages.is_empty());
     }
 }

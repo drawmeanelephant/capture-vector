@@ -9,6 +9,7 @@ description = "The ONLY process owner: RawSubprocess Boris adapter + EngineSched
 [dependencies]
 cv-core.workspace = true
 cv-contracts.workspace = true
+cv-store.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true

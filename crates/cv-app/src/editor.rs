@@ -4,6 +4,7 @@
 
 use cv_model::windows::WindowId;
 use cv_model::workbench::Workbench;
+use cv_store::paths::confined_file;
 use cv_ui_editor::completion::CompletionIndex;
 use cv_ui_editor::save::{FsWriter, fingerprint_file};
 use cv_widgets::editor::{self, host};
@@ -15,7 +16,7 @@ use std::sync::Arc;
 /// `root/.boris/completion.json` when Boris has written one.
 pub fn open_page(wb: &mut Workbench, root: &Path, rel: &str) -> std::io::Result<WindowId> {
     let ses = host::session();
-    let path = root.join(rel);
+    let path = confined_file(root, Path::new(rel))?;
     let base = fingerprint_file(&path)?;
     let found = ses.borrow().find(rel);
     match found {
@@ -36,7 +37,8 @@ pub fn open_page(wb: &mut Workbench, root: &Path, rel: &str) -> std::io::Result<
         Some(_) => {}
     }
     if ses.borrow().completion.is_none()
-        && let Ok(json) = std::fs::read_to_string(root.join(".boris/completion.json"))
+        && let Ok(path) = confined_file(root, Path::new(".boris/completion.json"))
+        && let Ok(json) = std::fs::read_to_string(path)
     {
         ses.borrow_mut().completion = CompletionIndex::parse(&json).ok();
     }
@@ -74,6 +76,17 @@ pub fn open_from_env(wb: &mut Workbench) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn open_page_requires_a_project_relative_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let page = dir.path().join("p.md");
+        std::fs::write(&page, "# Page").unwrap();
+        let mut wb = crate::init();
+        let err = open_page(&mut wb, dir.path(), page.to_str().unwrap()).unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
+        assert!(wb.windows.companions.is_empty());
+    }
 
     #[test]
     fn open_page_binds_a_companion_to_one_buffer() {
