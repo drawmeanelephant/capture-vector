@@ -71,6 +71,27 @@ impl Harness {
         true
     }
 
+    /// Rest the pointer on `key` and settle, so hover styling is captured.
+    pub fn hover(&mut self, key: &str) -> bool {
+        let Some((x, y)) = self.rt.find(key) else {
+            return false;
+        };
+        self.rt.pointer_move(x, y);
+        self.settle();
+        true
+    }
+
+    /// Press `key` and keep holding it (no release), then settle.
+    pub fn hold(&mut self, key: &str) -> bool {
+        let Some((x, y)) = self.rt.find(key) else {
+            return false;
+        };
+        self.rt.pointer_move(x, y);
+        self.rt.pointer_down(x, y);
+        self.settle();
+        true
+    }
+
     /// Script steps: `key:<token>` (see `keys::parse`), `click:<element key>`,
     /// `cmd:<command id>`, `frame`. Unknown steps panic — scripts are tests.
     pub fn script(&mut self, steps: &[&str]) {
@@ -93,7 +114,7 @@ impl Harness {
     }
 
     pub fn tree(&self) -> Value {
-        tree::element_tree(&self.rt.elements())
+        tree::element_tree(&self.rt)
     }
 
     pub fn layout(&self) -> Value {

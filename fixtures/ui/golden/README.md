@@ -14,9 +14,33 @@ Scenes are named in `crates/cv-app/src/lib.rs` (`SCENES`): `canary`
 `version-mismatch`, `watch-dead`, `store-corrupt`. Scripted input
 (`key:`, `click:`, `cmd:` steps) lives in `cv_widgets::harness::Harness`.
 
-Tree JSON is built from `Runtime::elements()` (layout + retained tree):
-keys, roles, text, rects rounded to 0.1pt, colours. It never reads GPU
-output, so it must be byte-identical on every OS.
+Tree JSON is built from `Runtime::elements()` (layout + retained tree)
+and `Runtime::presented_pose`. It never reads GPU output, so it must be
+byte-identical on every OS. Floats are rounded to 0.1pt.
+
+### Tree schema 2
+
+Every node has `path`, `rect` and `opacity`. The other fields appear only
+when they differ from the default, so a styling change shows up as added
+or changed lines:
+
+| Field | Meaning |
+|---|---|
+| `key`, `role`, `label`, `text` | Identity and content (schema 1). |
+| `help` | Tooltip and accessibility help (`El::help`). |
+| `fill`, `color` | Fill and text colour as `#rrggbbaa`, when not transparent (schema 1). |
+| `radius` | Corner radius in points, when not 0. |
+| `shadows` | `El::box_shadow` layers at their presented geometry: `[x, y, blur, spread, "#rrggbbaa", inset]`. Only on keyed nodes whose keyed path segments are unique, since Rune looks poses up by key. |
+| `scale` | Effective uniform scale, when not 1 (press scale, presence). |
+| `hover`, `press` | Hover and press track amounts, when above 0. Resting goldens never have them; harness tests use `Harness::hover` and `Harness::hold`. |
+| `focused`, `focus_visible` | Keyboard focus, and whether its ring shows. |
+| `selected` | A selected list, tree or table item (`El::focus_selected`). |
+
+Borders, gradients, outlines and blur are not in `ElementInfo`, so they
+stay PNG-gated (Linux + Lavapipe). Gating them in JSON needs Rune to
+expose them first.
+
+Layout JSON (`<scene>.layout.json`) is still schema 1: keyed rects only.
 
 ## Bless
 
