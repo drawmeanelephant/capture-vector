@@ -52,6 +52,12 @@ Layout JSON (`<scene>.layout.json`) is still schema 1: keyed rects only.
    open both and run `cargo run -p xtask -- png-diff <a> <b>`.
 3. Bless: `CV_BLESS=1 cargo test -p cv-app --test goldens` and/or
    `CV_BLESS=1 scripts/check-ui-png.sh` (Linux + Lavapipe only).
+   Without a Linux + Lavapipe machine, use CI's renders: on a PNG
+   mismatch the ubuntu job uploads the `ui-png-lavapipe` artifact
+   (`gh run download <run-id> -n ui-png-lavapipe -D target/ui-ci`).
+   Review each changed scene, then copy `<scene>.png` over
+   `png/<scene>.png`; `effects.fx.png` is `png/effects.png`, and
+   `canary.fx.png` is only checked against `png/canary.png`.
 4. Commit goldens in the same commit as the UI change, with one line per
    changed scene saying why.
 
