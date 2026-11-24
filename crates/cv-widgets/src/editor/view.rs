@@ -132,8 +132,10 @@ fn form(s: &EditorWindow) -> El {
     let t = &s.theme;
     let mut f = col().key("editor-form").gap(t.spacing.unit);
     for (i, (spec, edit)) in SCHEMA.iter().zip(&s.fields).enumerate() {
+        let caption_key = format!("fm-label-{}", spec.key);
         let field = text_input(edit, font(t.type_.body))
             .key(format!("fm-{}", spec.key))
+            .labelled_by(caption_key.clone())
             .single_line()
             .grow(1.0)
             .color(color(t.colors.text))
@@ -142,7 +144,7 @@ fn form(s: &EditorWindow) -> El {
         f = f.child(
             row()
                 .gap(t.spacing.unit * 2.0)
-                .child(label(t, spec.key).w(96.0))
+                .child(label(t, spec.key).key(caption_key).w(96.0))
                 .child(field)
                 .child(label(t, spec.hint)),
         );
@@ -198,6 +200,7 @@ fn body(s: &EditorWindow) -> El {
     }
     let mut field = text_input(&s.body, font(t.type_.mono))
         .key("editor-body")
+        .label_static("Markdown body")
         .grow(1.0)
         .min_h(240.0)
         .color(color(t.colors.text))

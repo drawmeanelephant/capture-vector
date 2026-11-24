@@ -153,8 +153,9 @@
     },
     {
       "color": "#8a93a3ff",
+      "key": "fm-label-id",
       "opacity": 1.0,
-      "path": "editor/editor-main/editor-form/#0/#0",
+      "path": "editor/editor-main/editor-form/#0/fm-label-id",
       "rect": [
         12.0,
         41.8,
@@ -204,8 +205,9 @@
     },
     {
       "color": "#8a93a3ff",
+      "key": "fm-label-title",
       "opacity": 1.0,
-      "path": "editor/editor-main/editor-form/#1/#0",
+      "path": "editor/editor-main/editor-form/#1/fm-label-title",
       "rect": [
         12.0,
         60.8,
@@ -255,8 +257,9 @@
     },
     {
       "color": "#8a93a3ff",
+      "key": "fm-label-parent",
       "opacity": 1.0,
-      "path": "editor/editor-main/editor-form/#2/#0",
+      "path": "editor/editor-main/editor-form/#2/fm-label-parent",
       "rect": [
         12.0,
         79.8,
@@ -306,8 +309,9 @@
     },
     {
       "color": "#8a93a3ff",
+      "key": "fm-label-status",
       "opacity": 1.0,
-      "path": "editor/editor-main/editor-form/#3/#0",
+      "path": "editor/editor-main/editor-form/#3/fm-label-status",
       "rect": [
         12.0,
         98.8,
@@ -357,8 +361,9 @@
     },
     {
       "color": "#8a93a3ff",
+      "key": "fm-label-tags",
       "opacity": 1.0,
-      "path": "editor/editor-main/editor-form/#4/#0",
+      "path": "editor/editor-main/editor-form/#4/fm-label-tags",
       "rect": [
         12.0,
         117.8,
@@ -408,8 +413,9 @@
     },
     {
       "color": "#8a93a3ff",
+      "key": "fm-label-relations",
       "opacity": 1.0,
-      "path": "editor/editor-main/editor-form/#5/#0",
+      "path": "editor/editor-main/editor-form/#5/fm-label-relations",
       "rect": [
         12.0,
         136.8,
@@ -459,8 +465,9 @@
     },
     {
       "color": "#8a93a3ff",
+      "key": "fm-label-published_at",
       "opacity": 1.0,
-      "path": "editor/editor-main/editor-form/#6/#0",
+      "path": "editor/editor-main/editor-form/#6/fm-label-published_at",
       "rect": [
         12.0,
         155.8,
@@ -510,8 +517,9 @@
     },
     {
       "color": "#8a93a3ff",
+      "key": "fm-label-summary",
       "opacity": 1.0,
-      "path": "editor/editor-main/editor-form/#7/#0",
+      "path": "editor/editor-main/editor-form/#7/fm-label-summary",
       "rect": [
         12.0,
         174.8,
@@ -561,8 +569,9 @@
     },
     {
       "color": "#8a93a3ff",
+      "key": "fm-label-servings",
       "opacity": 1.0,
-      "path": "editor/editor-main/editor-form/#8/#0",
+      "path": "editor/editor-main/editor-form/#8/fm-label-servings",
       "rect": [
         12.0,
         193.8,
@@ -612,8 +621,9 @@
     },
     {
       "color": "#8a93a3ff",
+      "key": "fm-label-serves",
       "opacity": 1.0,
-      "path": "editor/editor-main/editor-form/#9/#0",
+      "path": "editor/editor-main/editor-form/#9/fm-label-serves",
       "rect": [
         12.0,
         212.8,
@@ -663,8 +673,9 @@
     },
     {
       "color": "#8a93a3ff",
+      "key": "fm-label-yield",
       "opacity": 1.0,
-      "path": "editor/editor-main/editor-form/#10/#0",
+      "path": "editor/editor-main/editor-form/#10/fm-label-yield",
       "rect": [
         12.0,
         231.8,
@@ -752,6 +763,7 @@
     {
       "color": "#e6e9efff",
       "key": "editor-body",
+      "label": "Markdown body",
       "opacity": 1.0,
       "path": "editor/editor-main/#2/#0/editor-body",
       "rect": [
