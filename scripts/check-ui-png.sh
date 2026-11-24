@@ -22,7 +22,11 @@ cargo build -q -p cv-app -p xtask 2>/dev/null || cargo build -p cv-app -p xtask
 
 fail=0
 for s in "${SCENES[@]}"; do
-  ./target/debug/cv-app --scene "$s" --snap "$OUT/$s.png" >/dev/null 2>&1
+  if ! ./target/debug/cv-app --scene "$s" --snap "$OUT/$s.png" >"$OUT/$s.log" 2>&1; then
+    echo "check-ui-png: cv-app --scene $s --snap failed:"
+    cat "$OUT/$s.log"
+    exit 2
+  fi
   if [ "${CV_BLESS:-}" = "1" ]; then
     cp "$OUT/$s.png" "$GOLD/$s.png"
     echo "blessed $GOLD/$s.png"

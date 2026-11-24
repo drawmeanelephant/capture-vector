@@ -818,6 +818,7 @@ version = "0.0.0"
 dependencies = [
  "cv-core",
  "cv-ledger",
+ "cv-rules",
  "serde",
  "serde_json",
  "sha2",

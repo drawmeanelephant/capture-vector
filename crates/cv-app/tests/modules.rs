@@ -212,7 +212,15 @@ fn big(n: usize) -> Workbench {
         pages,
         ..Default::default()
     });
-    let diagnostics = (0..n)
+    let mut sink = wb.sink();
+    sink(failed(1, BuildPhase::Initial, river(n)));
+    wb.drain();
+    wb
+}
+
+/// `n` standing diagnostics, one per page: the diagnostics river.
+fn river(n: usize) -> Vec<Diagnostic> {
+    (0..n)
         .map(|i| Diagnostic {
             code: "EREFERENCEMISSING".into(),
             severity: if i % 3 == 0 {
@@ -230,25 +238,25 @@ fn big(n: usize) -> Workbench {
             message: format!("missing reference {i}"),
             build_version: Some(BuildId("b1".into())),
         })
-        .collect();
-    let mut sink = wb.sink();
-    sink(Envelope {
+        .collect()
+}
+
+fn failed(seq: u64, phase: BuildPhase, diagnostics: Vec<Diagnostic>) -> Envelope {
+    Envelope {
         workspace: WorkspaceId("t".into()),
         snapshot_epoch: SnapshotEpoch(1),
-        build_id: Some(BuildId("b1".into())),
+        build_id: Some(BuildId(format!("b{seq}"))),
         cursor: Cursor {
             session: SessionId("t".into()),
-            seq: 1,
+            seq,
         },
-        event_id: EventId("big-1".into()),
+        event_id: EventId(format!("big-{seq}")),
         payload: AppEvent::Engine(EngineEvent::BuildFailed {
-            phase: BuildPhase::Initial,
+            phase,
             diagnostics,
             recoverable: true,
         }),
-    });
-    wb.drain();
-    wb
+    }
 }
 
 /// Scroll the active list for 120 frames; returns the sorted frame times.
@@ -317,6 +325,67 @@ fn five_thousand_rows_scroll_at_frame_budget() {
             let budget = Duration::from_micros(16_667);
             assert!(p95 < budget, "{module}: p95 frame {p95:?} over {budget:?}");
         }
+    }
+}
+
+/// Activity mounted over an `n`-row river while watch rebuilds land in
+/// bursts: every frame first receives `BURST` rebuild envelopes (each
+/// re-reporting 50 standing diagnostics), then drains + lays out. Returns
+/// sorted frame times (drain + layout).
+fn rebuild_burst(n: usize) -> Vec<Duration> {
+    const BURST: u64 = 8;
+    let wb = big(n);
+    let mut sink = wb.sink();
+    let mut h = Harness::new(wb);
+    show(h.state_mut(), "activity");
+    h.state_mut().set_nav("all");
+    let rows = h.state().list_len();
+    let all = river(n);
+    let mut seq = 2;
+    let mut frames = Vec::new();
+    let mut t = 1.0;
+    for f in 0..120usize {
+        for _ in 0..BURST {
+            let at = (seq as usize * 50) % n;
+            sink(failed(seq, BuildPhase::Rebuild, all[at..at + 50].to_vec()));
+            seq += 1;
+        }
+        t += 1.0 / 60.0;
+        let start = Instant::now();
+        h.rt.frame(t);
+        frames.push(start.elapsed());
+        let mounted =
+            h.rt.elements()
+                .iter()
+                .filter(|e| e.key.as_deref().is_some_and(|k| k.starts_with("row-")))
+                .count();
+        assert!(mounted < 200, "burst {f}: bounded mount ({mounted})");
+    }
+    assert!(!h.state_mut().drain(), "every burst was drained in-frame");
+    // Rebuilds fold into one burst entry; re-reported diagnostics fold
+    // into their open entry. The river does not grow with the bursts.
+    assert_eq!(h.state().list_len(), rows + 1, "one rebuild-burst entry");
+    frames.sort();
+    frames
+}
+
+/// Gate: 5,000 pages + a 5,000-diagnostic river + rebuild bursts hold the
+/// frame budget (same debug/release split as the scroll gate above).
+#[test]
+fn rebuild_bursts_over_5k_river_hold_frame_budget() {
+    let big = rebuild_burst(5_000);
+    let (p50, p95) = (big[big.len() / 2], big[big.len() * 95 / 100]);
+    let small = rebuild_burst(500);
+    let base = small[small.len() / 2];
+    eprintln!("burst: 5k p50 {p50:?} p95 {p95:?}; 500-row p50 {base:?}");
+    if cfg!(debug_assertions) {
+        assert!(
+            p50 < base * 2 + Duration::from_millis(5),
+            "5k-river burst frame {p50:?} vs 500-row {base:?} — cost scales with river length"
+        );
+    } else {
+        let budget = Duration::from_micros(16_667);
+        assert!(p95 < budget, "burst p95 frame {p95:?} over {budget:?}");
     }
 }
 

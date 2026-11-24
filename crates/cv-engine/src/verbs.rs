@@ -34,16 +34,7 @@ pub fn writes_html(verb: &Verb) -> bool {
 }
 
 pub fn verb_name(verb: &Verb) -> String {
-    match verb {
-        Verb::Build => "build".into(),
-        Verb::Validate => "validate".into(),
-        Verb::Check => "check".into(),
-        Verb::Plan => "plan".into(),
-        Verb::Graph => "graph".into(),
-        Verb::Export { kind } => format!("export:{kind:?}").to_lowercase(),
-        Verb::Publish { target } => format!("publish:{target}"),
-        Verb::Custom { name, .. } => name.clone(),
-    }
+    verb.name()
 }
 
 fn looks_like_secret(arg: &str) -> bool {

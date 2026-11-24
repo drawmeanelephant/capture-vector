@@ -147,12 +147,26 @@ impl PagesModule {
         }
     }
 
+    /// O(pages + diagnostics): runs on every build event, so a rebuild
+    /// burst over a large project must not pay pages × diagnostics.
     fn reindex_issues(&mut self) {
+        let cited: std::collections::BTreeSet<&str> = self
+            .diagnostics
+            .iter()
+            .filter_map(|d| d.span.as_ref().map(|s| s.path.as_str()))
+            .collect();
         self.issues = self
             .order
             .iter()
             .copied()
-            .filter(|&i| !self.diagnostics_for(&self.pages[i].path).is_empty())
+            .filter(|&i| {
+                let path = self.pages[i].path.as_str();
+                if path == PROJECT_KEY {
+                    !self.diagnostics_for(path).is_empty()
+                } else {
+                    cited.contains(path)
+                }
+            })
             .collect();
     }
 
