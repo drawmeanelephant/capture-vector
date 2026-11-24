@@ -48,8 +48,18 @@ pub enum PromoteError {
     Multiline(&'static str),
     #[error("{0} is empty")]
     Empty(&'static str),
+    #[error("{0} cannot be represented in frontmatter (raw \" or a line separator)")]
+    Unquotable(&'static str),
     #[error("target {0} is not a content path")]
     Path(String),
+}
+
+/// Emit `s` as a Boris `dquoted` scalar: `"…"`. Boris strips the
+/// surrounding quotes with no escape sequences, so a raw `"` can never
+/// appear inside — callers reject it via `scalar` first.
+fn quoted(s: &str) -> String {
+    debug_assert!(!s.contains('"'));
+    format!("\"{}\"", s.trim())
 }
 
 /// `promote(note) -> PageDraft` with the default plan under `content/`.
@@ -61,31 +71,43 @@ pub fn promote_with(note: &Note, spec: &PromoteSpec) -> Result<PageDraft, Promot
     if note.format != Format::Markdown {
         return Err(PromoteError::Format(note.format));
     }
-    let one_line = |what: &'static str, s: &str| {
+    // Scalar validation. Beyond \n/\r, YAML also breaks lines on
+    // U+0085/U+2028/U+2029, and a raw `"` is illegal inside Boris's
+    // `dquoted` (which supports no escapes). Quoting every emitted
+    // scalar keeps `|`, `>`, `,`, `yes`/`123` coercion, and other
+    // YAML-plain-scalar traps inert — no semantic validation here,
+    // Boris stays the judge.
+    let scalar = |what: &'static str, s: &str| {
         if s.trim().is_empty() {
             Err(PromoteError::Empty(what))
         } else if s.contains(['\n', '\r']) {
             Err(PromoteError::Multiline(what))
+        } else if s.contains(['"', '\u{85}', '\u{2028}', '\u{2029}']) {
+            Err(PromoteError::Unquotable(what))
         } else {
             Ok(())
         }
     };
-    one_line("title", &note.title)?;
-    one_line("page id", &spec.page.0)?;
+    scalar("title", &note.title)?;
+    scalar("page id", &spec.page.0)?;
     let p = &spec.path;
     if p.starts_with(".cv/") || p.starts_with('/') || p.split('/').any(|c| c == "..") {
         return Err(PromoteError::Path(p.clone()));
     }
-    let mut fm = format!("---\nid: {}\ntitle: {}\n", spec.page.0, note.title.trim());
+    let mut fm = format!(
+        "---\nid: {}\ntitle: {}\n",
+        quoted(&spec.page.0),
+        quoted(&note.title)
+    );
     if let Some(parent) = &spec.parent {
-        one_line("parent", &parent.0)?;
-        fm.push_str(&format!("parent: {}\n", parent.0));
+        scalar("parent", &parent.0)?;
+        fm.push_str(&format!("parent: {}\n", quoted(&parent.0)));
     }
     if !note.tags.is_empty() {
         for t in &note.tags {
-            one_line("tag", t)?;
+            scalar("tag", t)?;
         }
-        let tags: Vec<&str> = note.tags.iter().map(String::as_str).collect();
+        let tags: Vec<String> = note.tags.iter().map(|t| quoted(t)).collect();
         fm.push_str(&format!("tags: [{}]\n", tags.join(", ")));
     }
     fm.push_str("---\n\n");

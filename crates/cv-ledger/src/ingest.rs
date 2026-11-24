@@ -24,6 +24,21 @@ fn read(dir: &Path, name: &str) -> Result<Option<Vec<u8>>> {
     }
 }
 
+/// Boris pins `schema_version = 1` on every proof-pack file
+/// (`docs/contracts/publication-{artifacts,checks,claims}.md`). Ingest
+/// refuses anything else rather than silently lifting drifted nouns.
+const PROOF_SCHEMA: u32 = 1;
+
+fn schema(what: &str, got: u32) -> Result<()> {
+    if got == PROOF_SCHEMA {
+        Ok(())
+    } else {
+        Err(LedgerError::Proof(format!(
+            "{what}: schema_version {got} unsupported (want {PROOF_SCHEMA})"
+        )))
+    }
+}
+
 /// Parse proof JSON bytes (any may be absent — an absent file yields no
 /// nouns, never invented ones).
 pub fn from_bytes(
@@ -36,6 +51,7 @@ pub fn from_bytes(
     let mut out = ProofNouns::default();
     if let Some(b) = artifacts {
         let idx: ArtifactIndex = serde_json::from_slice(b).map_err(|e| bad("artifacts.json", e))?;
+        schema("artifacts.json", idx.schema_version)?;
         for a in idx.artifacts {
             out.artifacts.push(ArtifactNoun {
                 id: derive_id("art", &[&run.0, &idx.target, &a.path, &a.sha256]),
@@ -52,6 +68,7 @@ pub fn from_bytes(
     }
     if let Some(b) = checks {
         let f: ChecksFile = serde_json::from_slice(b).map_err(|e| bad("checks.json", e))?;
+        schema("checks.json", f.schema_version)?;
         let inv = f.artifact_inventory.as_ref().map(|d| d.sha256.clone());
         for c in f.checks {
             let counts = c.counts.as_ref();
@@ -71,6 +88,7 @@ pub fn from_bytes(
     }
     if let Some(b) = claims {
         let f: EvidenceFile = serde_json::from_slice(b).map_err(|e| bad("claims.json", e))?;
+        schema("claims.json", f.schema_version)?;
         let report = f
             .inputs
             .get("publication_checks")
