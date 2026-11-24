@@ -9,6 +9,7 @@
 //! fallthrough to the next candidate (no BYO engine).
 
 use crate::error::{EngineError, Result};
+use crate::exit::ExitOutcome;
 use crate::proc::{CancelToken, boris_command, run_captured};
 use cv_contracts::build_info::BuildInfo;
 use cv_core::engine::EngineSource;
@@ -170,15 +171,33 @@ pub fn is_executable(p: &Path) -> bool {
 }
 
 fn revision_matches(found: &str, pinned: &str) -> bool {
-    !found.is_empty() && (found.starts_with(pinned) || pinned.starts_with(found))
+    if found == pinned {
+        return !found.is_empty();
+    }
+    let (short, long) = if found.len() < pinned.len() {
+        (found, pinned)
+    } else {
+        (pinned, found)
+    };
+    // Abbreviated revisions must clear git's 7-char minimum; a 1-char
+    // "match" proves nothing.
+    short.len() >= 7 && long.starts_with(short)
 }
 
 /// `--version` gate, then `--build-info` recorded verbatim.
+///
+/// Anti-accident, not a security boundary: identity is self-reported
+/// stdout from a local binary with no signature, and the path is not
+/// re-verified per spawn (a local attacker who can swap the binary
+/// between this gate and a later verb already owns the checkout).
 pub fn gate(source: EngineSource, path: &Path, cwd: &Path, pin: Pin) -> Result<EngineIdentity> {
     let never = CancelToken::new();
     let mut v = boris_command(path, cwd);
     v.arg("--version");
     let out = run_captured(v, None, &never)?;
+    if !matches!(out.outcome, ExitOutcome::Exited { code: 0 }) {
+        return Err(EngineError::Abnormal(out.outcome).into());
+    }
     let version = String::from_utf8_lossy(&out.stdout)
         .lines()
         .next()
@@ -189,6 +208,9 @@ pub fn gate(source: EngineSource, path: &Path, cwd: &Path, pin: Pin) -> Result<E
     let mut b = boris_command(path, cwd);
     b.arg("--build-info");
     let bi = run_captured(b, None, &never)?;
+    if !matches!(bi.outcome, ExitOutcome::Exited { code: 0 }) {
+        return Err(EngineError::Abnormal(bi.outcome).into());
+    }
     let raw = String::from_utf8_lossy(&bi.stdout).trim().to_string();
     let info: Option<BuildInfo> = serde_json::from_str(&raw).ok().filter(BuildInfo::is_boris);
 
@@ -383,5 +405,34 @@ mod tests {
         assert!(revision_matches("66efcfb", "66efcfb586b4"));
         assert!(!revision_matches("ce40d78", "66efcfb"));
         assert!(!revision_matches("", "66efcfb"));
+        // Sub-7-char abbreviations prove nothing — git's minimum.
+        assert!(!revision_matches("6", "66efcfb"));
+        assert!(!revision_matches("66efcf", "66efcfb"));
+        assert!(!revision_matches("66efcfb", "66efcf"));
+        assert!(!revision_matches("", ""));
+    }
+
+    /// A binary that prints the right strings but exits non-zero must
+    /// not pass the gate.
+    #[cfg(unix)]
+    #[test]
+    fn gate_rejects_nonzero_exit_despite_valid_stdout() {
+        use std::os::unix::fs::PermissionsExt;
+        let t = tempfile::tempdir().unwrap();
+        let bin = t.path().join("boris");
+        std::fs::write(
+            &bin,
+            "#!/bin/sh\ncase \"$1\" in\n\
+             --version) printf 'boris/0.9.0\\n'; exit 3;;\n\
+             --build-info) printf '%s\\n' '{\"format\":\"boris-build-info\",\"schemaVersion\":\"1\",\"version\":\"boris/0.9.0\",\"vcsRevision\":\"66efcfb\"}'; exit 0;;\n\
+             esac\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let err = gate(EngineSource::EnvOverride, &bin, t.path(), PINNED).unwrap_err();
+        assert!(
+            matches!(err, EngineError::Abnormal(ExitOutcome::Exited { code: 3 })),
+            "{err:?}"
+        );
     }
 }
