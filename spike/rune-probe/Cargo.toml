@@ -14,3 +14,5 @@ sctk-adwaita = { path = "../vendor/rune/vendor/sctk-adwaita" }
 parley_engine = { path = "../vendor/rune/vendor/parley_engine" }
 accesskit_windows = { path = "../vendor/rune/vendor/accesskit_windows" }
 accesskit_macos = { path = "../vendor/rune/vendor/accesskit_macos" }
+
+[workspace]
