@@ -5,6 +5,7 @@ mod fixture_notes;
 #[path = "support/research.rs"]
 mod research;
 
+use cv_core::id::StableId;
 use cv_notes::{Format, PageIndex, PromoteError, promote, promote_with};
 use fixture_notes::*;
 
@@ -114,4 +115,52 @@ fn default_plan_and_refusals() {
         promote_with(&field_note(), &spec),
         Err(PromoteError::Path(_))
     ));
+}
+
+#[test]
+fn scalars_emit_quoted_so_yaml_traps_stay_inert() {
+    // Plain-scalar traps — leading block indicators, coercion words,
+    // commas — must survive as literal text inside Boris dquotes.
+    let mut note = field_note();
+    note.title = "| yes, 123: still a string".into();
+    note.tags = ["a, b".to_string(), "x".to_string()].into_iter().collect();
+    let draft = promote(&note).unwrap();
+    assert!(
+        draft.body.starts_with("---\nid: \""),
+        "id must be quoted:\n{}",
+        draft.body
+    );
+    assert!(
+        draft
+            .body
+            .contains("title: \"| yes, 123: still a string\"\n")
+    );
+    assert!(draft.body.contains("tags: [\"a, b\", \"x\"]\n"));
+}
+
+#[test]
+fn scalars_boris_cannot_quote_are_refused() {
+    // Boris's dquoted has no escapes: a raw `"` is illegal, and
+    // U+0085/U+2028/U+2029 split lines for YAML readers. Refuse rather
+    // than emit frontmatter Boris or a YAML tool would misparse.
+    let mut note = field_note();
+    for bad in ['"', '\u{85}', '\u{2028}', '\u{2029}'] {
+        note.title = format!("a{bad}b");
+        assert_eq!(
+            promote(&note).unwrap_err(),
+            PromoteError::Unquotable("title"),
+            "input with {bad:?} must be refused"
+        );
+    }
+    let mut spec = promoted_spec(&field_note());
+    spec.parent = Some(StableId("bad\"parent".into()));
+    assert_eq!(
+        promote_with(&field_note(), &spec).unwrap_err(),
+        PromoteError::Unquotable("parent")
+    );
+    let mut note = field_note();
+    note.tags = ["ok".to_string(), "bad\u{2028}tag".to_string()]
+        .into_iter()
+        .collect();
+    assert_eq!(promote(&note).unwrap_err(), PromoteError::Unquotable("tag"));
 }

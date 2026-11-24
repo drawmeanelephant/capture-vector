@@ -1,8 +1,8 @@
 ---
-id: field-notes-graph-first-research
-title: Field notes: graph-first research
-parent: guides/getting-started
-tags: [graphs, research]
+id: "field-notes-graph-first-research"
+title: "Field notes: graph-first research"
+parent: "guides/getting-started"
+tags: ["graphs", "research"]
 ---
 
 # Graph-first research
