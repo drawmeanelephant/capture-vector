@@ -9,7 +9,9 @@ use cv_core::events::shell::DegradedReason;
 use cv_model::module::{ReadingModel, RowModel, Slot, Tone};
 use cv_model::theme::{Mode, Rgba, Theme};
 use cv_model::workbench::Workbench;
-use rune::{Color, Cx, Edge, El, GrowthSpec, ScrollSpec, Transition, col, icon, row, spacer, text};
+use rune::{
+    Color, Cx, Edge, El, GrowthSpec, Icon, ScrollSpec, Transition, col, icon, row, spacer, text,
+};
 use rune_kit::{Markdown, RollingText, Toast, ToastRegion};
 use std::borrow::Cow;
 
@@ -180,29 +182,30 @@ fn rail(s: &Workbench) -> El {
             (_, true) => t.colors.accent_text,
             _ => t.colors.text,
         };
-        let mut item = row()
+        let mut item = col()
             .key(format!("rail-{key}"))
             .role("tab")
             .w_full()
             .px(t.spacing.unit * 3.0)
             .py(t.spacing.unit * 1.5)
+            .gap(t.spacing.unit)
             .fill(if active { color(t.colors.accent) } else { rest });
         if active {
             let g = t.gradients.rail_active;
             item = item.gradient(color(g.start), color(g.end));
         }
-        item = item.child(
-            text(title)
-                .font(font(t.type_.title))
-                .color(color(fg))
-                .single_line(),
+        // Icon above the label: "Research" beside a 16 pt icon overflows the 88 pt rail.
+        let mut head = row().w_full().items_center().child(
+            icon(rail_icon(&key), 16.0)
+                .key(format!("rail-{key}-icon"))
+                .color(color(fg)),
         );
         if let Some(n) = idx
             .and_then(|i| s.registry.get(i))
             .and_then(|m| m.badge())
             .filter(|n| *n > 0)
         {
-            item = item.child(spacer()).child(
+            head = head.child(spacer()).child(
                 text(n.to_string())
                     .key(format!("rail-{key}-badge"))
                     .font(font(t.type_.label))
@@ -210,6 +213,12 @@ fn rail(s: &Workbench) -> El {
                     .single_line(),
             );
         }
+        item = item.child(head).child(
+            text(title)
+                .font(font(t.type_.title))
+                .color(color(fg))
+                .single_line(),
+        );
         if let Some(i) = idx {
             item = item
                 .states(t)
@@ -225,6 +234,19 @@ fn rail(s: &Workbench) -> El {
         rail = rail.child(item);
     }
     rail
+}
+
+fn rail_icon(key: &str) -> &'static Icon {
+    match key {
+        "pages" => &icons::FILES,
+        "research" => &icons::NOTEBOOK_PEN,
+        "audit" => &icons::SHIELD_CHECK,
+        "publish" => &icons::SEND,
+        "outputs" => &icons::PACKAGE,
+        "activity" => &icons::ACTIVITY,
+        cv_model::modules::demo::ID => &icons::PLAY,
+        _ => &icons::CIRCLE,
+    }
 }
 
 fn nav(s: &Workbench) -> El {

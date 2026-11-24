@@ -198,18 +198,42 @@
         0.0,
         40.0,
         88.0,
-        28.3
+        48.3
       ],
       "role": "tab"
     },
     {
-      "color": "#001018ff",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-pages/#0",
       "rect": [
         12.0,
         46.0,
-        38.7,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#001018ff",
+      "key": "rail-pages-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages/#0/rail-pages-icon",
+      "rect": [
+        12.0,
+        46.0,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#001018ff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages/#1",
+      "rect": [
+        12.0,
+        66.0,
+        64.0,
         16.3
       ],
       "role": "text",
@@ -222,20 +246,44 @@
       "path": "shell/body/rail/rail-research",
       "rect": [
         0.0,
-        72.3,
+        92.3,
         88.0,
-        28.3
+        48.3
       ],
       "role": "tab"
     },
     {
-      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-research/#0",
       "rect": [
         12.0,
-        78.3,
-        58.8,
+        98.3,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-research-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research/#0/rail-research-icon",
+      "rect": [
+        12.0,
+        98.3,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research/#1",
+      "rect": [
+        12.0,
+        118.3,
+        64.0,
         16.3
       ],
       "role": "text",
@@ -248,33 +296,44 @@
       "path": "shell/body/rail/rail-audit",
       "rect": [
         0.0,
-        104.5,
+        144.5,
         88.0,
-        28.3
+        48.3
       ],
       "role": "tab"
     },
     {
-      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-audit/#0",
       "rect": [
         12.0,
-        110.5,
-        33.5,
-        16.3
+        150.5,
+        64.0,
+        16.0
       ],
-      "role": "text",
-      "text": "Audit"
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-audit-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#0/rail-audit-icon",
+      "rect": [
+        12.0,
+        150.5,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/rail/rail-audit/#1",
+      "path": "shell/body/rail/rail-audit/#0/#1",
       "rect": [
-        45.5,
-        110.5,
-        23.5,
-        16.3
+        28.0,
+        158.5,
+        41.1,
+        0.0
       ],
       "role": "group"
     },
@@ -282,15 +341,28 @@
       "color": "#e6e9efff",
       "key": "rail-audit-badge",
       "opacity": 1.0,
-      "path": "shell/body/rail/rail-audit/rail-audit-badge",
+      "path": "shell/body/rail/rail-audit/#0/rail-audit-badge",
       "rect": [
         69.1,
-        110.5,
+        151.6,
         6.9,
-        16.3
+        13.8
       ],
       "role": "text",
       "text": "8"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#1",
+      "rect": [
+        12.0,
+        170.5,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Audit"
     },
     {
       "fill": "#08090cff",
@@ -300,20 +372,44 @@
       "path": "shell/body/rail/rail-publish",
       "rect": [
         0.0,
-        136.8,
+        196.8,
         88.0,
-        28.3
+        48.3
       ],
       "role": "tab"
     },
     {
-      "color": "#8a93a3ff",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-publish/#0",
       "rect": [
         12.0,
-        142.8,
-        46.4,
+        202.8,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "rail-publish-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish/#0/rail-publish-icon",
+      "rect": [
+        12.0,
+        202.8,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish/#1",
+      "rect": [
+        12.0,
+        222.8,
+        64.0,
         16.3
       ],
       "role": "text",
@@ -326,20 +422,44 @@
       "path": "shell/body/rail/rail-outputs",
       "rect": [
         0.0,
-        169.0,
+        249.0,
         88.0,
-        28.3
+        48.3
       ],
       "role": "tab"
     },
     {
-      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-outputs/#0",
       "rect": [
         12.0,
-        175.0,
-        50.2,
+        255.0,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-outputs-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs/#0/rail-outputs-icon",
+      "rect": [
+        12.0,
+        255.0,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs/#1",
+      "rect": [
+        12.0,
+        275.0,
+        64.0,
         16.3
       ],
       "role": "text",
@@ -352,20 +472,44 @@
       "path": "shell/body/rail/rail-activity",
       "rect": [
         0.0,
-        201.3,
+        301.3,
         88.0,
-        28.3
+        48.3
       ],
       "role": "tab"
     },
     {
-      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-activity/#0",
       "rect": [
         12.0,
-        207.3,
-        48.4,
+        307.3,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-activity-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity/#0/rail-activity-icon",
+      "rect": [
+        12.0,
+        307.3,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity/#1",
+      "rect": [
+        12.0,
+        327.3,
+        64.0,
         16.3
       ],
       "role": "text",
@@ -378,20 +522,44 @@
       "path": "shell/body/rail/rail-demo",
       "rect": [
         0.0,
-        233.5,
+        353.5,
         88.0,
-        28.3
+        48.3
       ],
       "role": "tab"
     },
     {
-      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-demo/#0",
       "rect": [
         12.0,
-        239.5,
-        36.7,
+        359.5,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-demo-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo/#0/rail-demo-icon",
+      "rect": [
+        12.0,
+        359.5,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo/#1",
+      "rect": [
+        12.0,
+        379.5,
+        64.0,
         16.3
       ],
       "role": "text",
