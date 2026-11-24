@@ -10,7 +10,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REV="${CV_RUNE_REV:-2a59b0f95b82972478a497c42151dbcb3ca5c69f}"
 DEST="$ROOT/vendor/rune"
 
-if [ ! -d "$DEST/.git" ]; then
+# .git is a file, not a dir, when the vendor is a linked worktree.
+if ! git -C "$DEST" rev-parse --git-dir >/dev/null 2>&1; then
   git clone --no-checkout https://github.com/anomalyco/rune "$DEST"
 fi
 git -C "$DEST" fetch --depth 1 origin "$REV" || git -C "$DEST" fetch origin "$REV"
