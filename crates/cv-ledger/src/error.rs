@@ -12,6 +12,8 @@ pub enum LedgerError {
     Index(#[from] rusqlite::Error),
     #[error("ledger is locked by another writer: {0}")]
     Locked(String),
+    #[error("schema: {0}")]
+    Schema(#[from] cv_store::sidecar::SidecarError),
     #[error("proof pack: {0}")]
     Proof(String),
 }

@@ -6,6 +6,7 @@ use crate::{LedgerError, Result};
 use cv_core::id::StableId;
 use cv_core::publish::{PreflightGrant, RunState};
 use cv_core::sys::{Hash, Timestamp};
+use cv_store::sidecar::{self, Namespace};
 use serde::{Deserialize, Serialize};
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -13,6 +14,15 @@ use std::path::{Path, PathBuf};
 
 /// Project-relative journal location.
 pub const JOURNAL_REL: &str = ".cv/ledger/ledger.jsonl";
+
+/// `.cv/ledger/` sidecar schema. v1 = [`Record`] lines in `ledger.jsonl`
+/// (+ the rebuildable index); v0 is the same shape, unstamped.
+pub const SIDECAR: Namespace = Namespace {
+    name: "ledger",
+    dir: ".cv/ledger",
+    current: 1,
+    migrations: &[sidecar::ADOPT_UNSTAMPED],
+};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Record {
@@ -113,7 +123,11 @@ impl Journal {
     /// Open (creating if absent). A final line without its newline is a
     /// torn append — never committed — and is truncated away; a corrupt
     /// committed line fails loudly. Holds an exclusive lock until drop.
+    /// The `.cv/ledger/` schema stamp is checked (and migrated) first.
     pub fn open(project_root: &Path) -> Result<Self> {
+        // Before anything is created: an unreadable (newer) schema must
+        // fail with the directory exactly as found.
+        sidecar::ensure(project_root, &SIDECAR)?;
         let path = Self::path_for(project_root);
         if let Some(dir) = path.parent() {
             std::fs::create_dir_all(dir)?;

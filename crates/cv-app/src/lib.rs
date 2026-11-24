@@ -2,6 +2,7 @@
 //! (`cv_model::workbench`) and hands it to `cv_widgets::app::run`. No
 //! rune import here; scenes are shared by the binary and golden tests.
 
+pub mod build_info;
 pub mod editor;
 pub mod live;
 pub mod snapshot;
