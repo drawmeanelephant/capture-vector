@@ -60,10 +60,48 @@ pub(crate) fn boris_command(bin: &Path, cwd: &Path) -> Command {
     };
     let mut cmd = Command::new(&bin);
     cmd.current_dir(cwd);
-    for k in SCRUBBED_ENV {
-        cmd.env_remove(k);
+    // The child's environment is an allowlist, not "inherit minus
+    // credentials": any other secret in the process env (CI tokens,
+    // cloud keys) must not flow into the engine.
+    cmd.env_clear();
+    for (k, v) in std::env::vars_os() {
+        if env_allowed(&k) {
+            cmd.env(&k, v);
+        }
     }
     cmd
+}
+
+/// Env names the engine child may see: process essentials, locale,
+/// temp dirs, network egress (publish targets), and the engine's own
+/// `BORIS_*` namespace. Compared case-insensitively (Windows env keys
+/// vary in case); `LC_*` passes for locale.
+const ENV_ALLOW: &[&str] = &[
+    "PATH",
+    "HOME",
+    "USERPROFILE",
+    "LANG",
+    "LC_ALL",
+    "TMPDIR",
+    "TEMP",
+    "TMP",
+    "TERM",
+    "SYSTEMROOT",
+    "COMSPEC",
+    "PATHEXT",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "NO_PROXY",
+    "ALL_PROXY",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+];
+
+fn env_allowed(k: &std::ffi::OsStr) -> bool {
+    let k = k.to_string_lossy();
+    ENV_ALLOW.iter().any(|a| k.eq_ignore_ascii_case(a))
+        || k.starts_with("LC_")
+        || k.starts_with("BORIS_")
 }
 
 /// A spawned child that owns its process tree.
@@ -392,6 +430,49 @@ mod tests {
         let result = run_captured(shell_command("sleep 2 & exit 0"), None, &cancel);
         t.join().unwrap();
         assert!(matches!(result, Err(EngineError::Cancelled)));
+    }
+
+    #[test]
+    fn child_env_is_an_allowlist_not_inherit_minus_scrub() {
+        use std::ffi::OsStr;
+        for allowed in [
+            "PATH",
+            "HOME",
+            "LANG",
+            "LC_ALL",
+            "LC_CTYPE",
+            "TMPDIR",
+            "HTTP_PROXY",
+            "SSL_CERT_FILE",
+            "BORIS_HOME",
+        ] {
+            assert!(env_allowed(OsStr::new(allowed)), "{allowed}");
+        }
+        for denied in [
+            "AWS_SECRET_ACCESS_KEY",
+            "GITHUB_TOKEN",
+            "CV_NOSTR_NSEC",
+            "CV_BSKY_APP_PASSWORD",
+            "RANDOM_APP_KEY",
+        ] {
+            assert!(!env_allowed(OsStr::new(denied)), "{denied}");
+        }
+    }
+
+    #[test]
+    fn non_allowlisted_env_never_reaches_child() {
+        // SAFETY: name is unique to this test; other tests don't read it.
+        unsafe { std::env::set_var("CV_TEST_UNLISTED", "shouldnotleak") };
+        let mut cmd = boris_command(
+            Path::new(if cfg!(windows) { "cmd" } else { "sh" }),
+            Path::new("."),
+        );
+        #[cfg(unix)]
+        cmd.arg("-c").arg("env");
+        #[cfg(windows)]
+        cmd.arg("/C").arg("set");
+        let c = run_captured(cmd, None, &CancelToken::new()).unwrap();
+        assert!(!String::from_utf8_lossy(&c.stdout).contains("shouldnotleak"));
     }
 
     #[test]
