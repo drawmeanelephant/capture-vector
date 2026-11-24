@@ -12,7 +12,7 @@ use cv_core::diagnostic::Diagnostic;
 use cv_core::events::engine::{BuildPhase, EngineEvent};
 use cv_core::events::shell::DegradedReason;
 use cv_core::events::{AppEvent, Envelope};
-use cv_core::id::{AccountId, NounId, NounKind, StableId};
+use cv_core::id::{AccountId, NounId, NounKind, StableId, noun_kind};
 
 pub const ID: &str = "demo";
 /// The 5k-page virtualization envelope.
@@ -291,14 +291,11 @@ impl Module for DemoModule {
     fn noun(&self, key: &str) -> Option<NounId> {
         Some(NounId {
             account: AccountId("demo".into()),
-            kind: NounKind(
-                if key.starts_with("page-") {
-                    "page"
-                } else {
-                    "event"
-                }
-                .into(),
-            ),
+            kind: NounKind::register(if key.starts_with("page-") {
+                noun_kind::PAGE
+            } else {
+                noun_kind::EVENT
+            }),
             stable: StableId(key.into()),
         })
     }

@@ -272,7 +272,7 @@ mod tests {
     fn failed(tier: AuthorityTier, severity: Severity) -> Finding {
         let subject = NounId {
             account: crate::id::AccountId("acct".into()),
-            kind: crate::id::NounKind::new("page".into()),
+            kind: crate::id::NounKind::register(crate::id::noun_kind::PAGE),
             stable: crate::id::StableId("p".into()),
         };
         Finding {
