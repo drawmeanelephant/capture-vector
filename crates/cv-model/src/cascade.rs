@@ -11,7 +11,12 @@ use cv_core::events::engine::{EngineEvent, WatchEndReason};
 use cv_core::events::shell::{DegradedReason, ShellEvent};
 use cv_core::events::{AppEvent, Envelope};
 
-/// The Boris version this build is ratified against.
+/// The Boris version this build is ratified against. Compared against
+/// the `hello` event's `compiler` string only — the event carries no
+/// vcs revision. The revision pin is enforced earlier, at the spawn
+/// gate (`cv-engine`'s `locate` requires version + vcs match before a
+/// session can start); this check is the display-level recheck on the
+/// only datum the event carries.
 pub const WANT_ENGINE: &str = "0.9.0";
 
 /// `boris/0.9.0` → `0.9.0`.

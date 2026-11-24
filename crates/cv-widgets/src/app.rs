@@ -1,9 +1,9 @@
 //! Native boot: one primary window + companion windows (editor popouts
 //! host). Headless runs (`--tree`, `--snap`, `--scene`) open no companions.
 
+use crate::editor;
 use crate::shell::view;
 use crate::theme::{color, font};
-use crate::{editor, harness};
 use cv_model::module::ReadingModel;
 use cv_model::theme::Theme;
 use cv_model::windows::WindowId;
@@ -237,10 +237,36 @@ fn serve_requests(s: &mut Workbench, tx: &mut Tx) -> bool {
     changed
 }
 
+/// Window size the shell boots at — also the harness's frame size.
+pub const SIZE: (f32, f32) = (1280.0, 800.0);
+
+/// rune `on_key` plumbing: keymap lives in cv-model; reveal the newly
+/// selected row. Shared by the real window and the (feature-gated)
+/// headless harness — it is product input handling, not QA machinery.
+pub(crate) fn input_on_key(s: &mut Workbench, ev: &rune::KeyEvent, tx: &mut Tx) -> bool {
+    let Some(k) = crate::keys::map(ev) else {
+        return false;
+    };
+    let before = s.selected_key().map(str::to_string);
+    let used = s.key(&k);
+    if let Some(key) = s.selected_key()
+        && before.as_deref() != Some(key)
+    {
+        tx.scroll_into_view_in("list-pane", format!("row-{key}"));
+    }
+    used
+}
+
+/// rune `poll` plumbing: drain engine envelopes; true when visible
+/// state changed.
+pub(crate) fn input_poll(s: &mut Workbench, _t: f64, _tx: &mut Tx) -> bool {
+    s.drain()
+}
+
 /// Palette commands and chords can queue requests; serve them now so a
 /// dialog opens on this keypress's frame.
 fn on_key(s: &mut Workbench, ev: &rune::KeyEvent, tx: &mut Tx) -> bool {
-    let used = harness::on_key(s, ev, tx);
+    let used = input_on_key(s, ev, tx);
     serve_requests(s, tx) || used
 }
 
@@ -251,7 +277,7 @@ fn shutdown(s: &mut Workbench, _: &mut Tx) {
 }
 
 fn poll(s: &mut Workbench, t: f64, tx: &mut Tx) -> bool {
-    let changed = harness::poll(s, t, tx);
+    let changed = input_poll(s, t, tx);
     let served = serve_requests(s, tx);
     sync_companions(s) || changed || served
 }
@@ -267,7 +293,7 @@ pub fn run(l: Launch) {
         poll: Some(poll),
         on_key: Some(on_key),
         min_size: Some((960.0, 560.0)),
-        ..AppSpec::new(l.title, harness::SIZE, l.init, view)
+        ..AppSpec::new(l.title, SIZE, l.init, view)
     });
     let handle = app.handle();
     app.on_quit(shutdown)
