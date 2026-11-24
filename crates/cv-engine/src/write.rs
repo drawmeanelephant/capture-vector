@@ -126,6 +126,25 @@ pub fn write_staged(
 mod tests {
     use super::*;
 
+    /// A planted link below the root: a Unix symlink or a Windows directory
+    /// symlink/junction — all carry the reparse attribute `is_link` checks.
+    #[cfg(unix)]
+    fn link_dir(target: &Path, link: &Path) -> std::io::Result<()> {
+        std::os::unix::fs::symlink(target, link)
+    }
+    #[cfg(windows)]
+    fn link_dir(target: &Path, link: &Path) -> std::io::Result<()> {
+        std::os::windows::fs::symlink_dir(target, link)
+    }
+    #[cfg(unix)]
+    fn link_file(target: &Path, link: &Path) -> std::io::Result<()> {
+        std::os::unix::fs::symlink(target, link)
+    }
+    #[cfg(windows)]
+    fn link_file(target: &Path, link: &Path) -> std::io::Result<()> {
+        std::os::windows::fs::symlink_file(target, link)
+    }
+
     #[test]
     fn create_then_update_then_stale() {
         let t = tempfile::tempdir().unwrap();
@@ -176,12 +195,11 @@ mod tests {
         assert!(resolve(t.path(), r"C:\x.md").is_err());
     }
 
-    #[cfg(unix)]
     #[test]
     fn staged_write_refuses_linked_parent_before_creating_directories() {
         let root = tempfile::tempdir().unwrap();
         let other = tempfile::tempdir().unwrap();
-        std::os::unix::fs::symlink(other.path(), root.path().join("linked")).unwrap();
+        link_dir(other.path(), &root.path().join("linked")).unwrap();
 
         assert!(matches!(
             write_staged(root.path(), "linked/new/page.md", b"draft", None),
@@ -191,7 +209,6 @@ mod tests {
     }
 
     /// Every entry under `dir` with file contents, for "unchanged" checks.
-    #[cfg(unix)]
     fn tree(dir: &Path) -> Vec<(PathBuf, Option<Vec<u8>>)> {
         let mut out = Vec::new();
         for entry in std::fs::read_dir(dir).unwrap() {
@@ -208,14 +225,13 @@ mod tests {
         out
     }
 
-    #[cfg(unix)]
     #[test]
     fn staged_write_through_an_escaping_directory_link_leaves_the_outside_untouched() {
         let root = tempfile::tempdir().unwrap();
         let outside = tempfile::tempdir().unwrap();
         std::fs::write(outside.path().join("authorized_keys"), b"theirs").unwrap();
         std::fs::create_dir(outside.path().join("sub")).unwrap();
-        std::os::unix::fs::symlink(outside.path(), root.path().join("link")).unwrap();
+        link_dir(outside.path(), &root.path().join("link")).unwrap();
         let before = tree(outside.path());
         let base = fingerprint(&outside.path().join("authorized_keys")).unwrap();
 
@@ -237,12 +253,11 @@ mod tests {
         assert_eq!(tree(outside.path()), before);
     }
 
-    #[cfg(unix)]
     #[test]
     fn staged_write_refuses_a_directory_link_that_stays_inside_the_root() {
         let root = tempfile::tempdir().unwrap();
         std::fs::create_dir(root.path().join("real")).unwrap();
-        std::os::unix::fs::symlink(root.path().join("real"), root.path().join("alias")).unwrap();
+        link_dir(&root.path().join("real"), &root.path().join("alias")).unwrap();
 
         assert!(matches!(
             write_staged(root.path(), "alias/page.md", b"draft", None),
@@ -254,7 +269,6 @@ mod tests {
         );
     }
 
-    #[cfg(unix)]
     #[test]
     fn staged_write_refuses_a_linked_final_target_and_keeps_the_link() {
         let root = tempfile::tempdir().unwrap();
@@ -262,7 +276,7 @@ mod tests {
         let victim = outside.path().join("victim.md");
         std::fs::write(&victim, b"theirs").unwrap();
         let link = root.path().join("page.md");
-        std::os::unix::fs::symlink(&victim, &link).unwrap();
+        link_file(&victim, &link).unwrap();
 
         assert!(matches!(
             write_staged(root.path(), "page.md", b"draft", None),
@@ -277,13 +291,12 @@ mod tests {
         );
     }
 
-    #[cfg(unix)]
     #[test]
     fn staged_write_works_when_the_root_is_reached_through_a_link() {
         let real = tempfile::tempdir().unwrap();
         let holder = tempfile::tempdir().unwrap();
         let root = holder.path().join("workspace");
-        std::os::unix::fs::symlink(real.path(), &root).unwrap();
+        link_dir(real.path(), &root).unwrap();
 
         assert!(matches!(
             write_staged(&root, "content/new/page.md", b"draft", None),

@@ -155,6 +155,18 @@ fn portable_name(name: &str) -> bool {
 mod tests {
     use super::*;
 
+    /// Directory links only: a Windows directory symlink or junction and a
+    /// Unix symlink all carry the reparse bit `is_link` checks. std has no
+    /// cross-platform link API, so the tests share one helper.
+    #[cfg(unix)]
+    fn link_dir(target: &Path, link: &Path) -> io::Result<()> {
+        std::os::unix::fs::symlink(target, link)
+    }
+    #[cfg(windows)]
+    fn link_dir(target: &Path, link: &Path) -> io::Result<()> {
+        std::os::windows::fs::symlink_dir(target, link)
+    }
+
     #[test]
     fn paths_have_the_same_interpretation_across_platforms() {
         for path in ["content/index.html", "posts/東京.html", ".cv/publish"] {
@@ -175,12 +187,11 @@ mod tests {
         }
     }
 
-    #[cfg(unix)]
     #[test]
     fn project_path_validation_refuses_linked_directories() {
         let root = tempfile::tempdir().unwrap();
         let other = tempfile::tempdir().unwrap();
-        std::os::unix::fs::symlink(other.path(), root.path().join("linked")).unwrap();
+        link_dir(other.path(), &root.path().join("linked")).unwrap();
 
         assert!(confined_file(root.path(), Path::new("linked/nested/page.md")).is_err());
         assert_eq!(std::fs::read_dir(other.path()).unwrap().count(), 0);
@@ -196,12 +207,11 @@ mod tests {
         assert!(!target.exists());
     }
 
-    #[cfg(unix)]
     #[test]
     fn staged_parent_creation_refuses_a_linked_directory_without_creating_outside() {
         let root = tempfile::tempdir().unwrap();
         let other = tempfile::tempdir().unwrap();
-        std::os::unix::fs::symlink(other.path(), root.path().join("linked")).unwrap();
+        link_dir(other.path(), &root.path().join("linked")).unwrap();
 
         let err = create_confined_parent(root.path(), Path::new("linked/new/deeper/page.md"))
             .unwrap_err();
@@ -209,26 +219,24 @@ mod tests {
         assert_eq!(std::fs::read_dir(other.path()).unwrap().count(), 0);
     }
 
-    #[cfg(unix)]
     #[test]
     fn staged_parent_creation_works_when_the_root_is_reached_through_a_link() {
         let real = tempfile::tempdir().unwrap();
         let holder = tempfile::tempdir().unwrap();
         let root = holder.path().join("workspace");
-        std::os::unix::fs::symlink(real.path(), &root).unwrap();
+        link_dir(real.path(), &root).unwrap();
 
         create_confined_parent(&root, Path::new("content/new/page.md")).unwrap();
         assert!(real.path().join("content/new").is_dir());
     }
 
-    #[cfg(unix)]
     #[test]
     fn confirmation_refuses_a_directory_swapped_for_a_link_after_creation() {
         let root = tempfile::tempdir().unwrap();
         let other = tempfile::tempdir().unwrap();
         create_confined_parent(root.path(), Path::new("content/page.md")).unwrap();
         std::fs::rename(root.path().join("content"), root.path().join("moved")).unwrap();
-        std::os::unix::fs::symlink(other.path(), root.path().join("content")).unwrap();
+        link_dir(other.path(), &root.path().join("content")).unwrap();
 
         let err = confirm_confined_file(root.path(), Path::new("content/page.md")).unwrap_err();
         assert_eq!(err.kind(), ErrorKind::InvalidInput);
