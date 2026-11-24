@@ -4,8 +4,7 @@
 //! and the gate has to execute a binary (`--version`) to learn its
 //! identity — so it is searched only when `CV_BORIS_SIBLING=1` opts in
 //! (a developer with a trusted boris checkout beside their corpora). The
-//! first
-//! candidate that exists is gated; a mismatch is a typed error, never a
+//! first candidate that exists is gated; a mismatch is a typed error, never a
 //! fallthrough to the next candidate (no BYO engine).
 
 use crate::error::{EngineError, Result};

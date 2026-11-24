@@ -12,7 +12,8 @@ cv-engine.workspace = true
 cv-model.workspace = true
 cv-notes.workspace = true
 cv-store.workspace = true
-cv-widgets.workspace = true
+# default-features=false keeps the QA harness out of the shipped binary.
+cv-widgets = { workspace = true, default-features = false }
 cv-ui-editor.workspace = true
 # Wave-0 canary: StubEngine replays captured Boris watch sessions until
 # cv-engine's real adapter is wired by the integrator.
@@ -21,5 +22,5 @@ serde_json.workspace = true
 
 
 [dev-dependencies]
-cv-widgets = { workspace = true, features = ["reference"] }
+cv-widgets = { workspace = true, features = ["reference", "harness"] }
 tempfile.workspace = true

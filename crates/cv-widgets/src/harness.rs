@@ -2,34 +2,16 @@
 //! dump element-tree / layout JSON, compare against goldens.
 //! Bless: `CV_BLESS=1 cargo test`. Mismatches write `<name>.actual.json`.
 
+use crate::app::{input_on_key, input_poll};
 use crate::{keys, shell, tree};
 use cv_model::theme::Mode;
 use cv_model::workbench::Workbench;
-use rune::{Env, KeyEvent, Runtime, Tx};
+use rune::{Env, Runtime};
 use serde_json::Value;
 use std::path::Path;
 
-pub const SIZE: (f32, f32) = (1280.0, 800.0);
-
-/// rune `on_key`: keymap lives in cv-model; reveal the selected row.
-pub fn on_key(s: &mut Workbench, ev: &KeyEvent, tx: &mut Tx) -> bool {
-    let Some(k) = keys::map(ev) else {
-        return false;
-    };
-    let before = s.selected_key().map(str::to_string);
-    let used = s.key(&k);
-    if let Some(key) = s.selected_key()
-        && before.as_deref() != Some(key)
-    {
-        tx.scroll_into_view_in("list-pane", format!("row-{key}"));
-    }
-    used
-}
-
-/// rune `poll`: drain engine envelopes; true when visible state changed.
-pub fn poll(s: &mut Workbench, _t: f64, _tx: &mut Tx) -> bool {
-    s.drain()
-}
+/// The frame size harnesses boot at — mirrors `app::SIZE`.
+pub use crate::app::SIZE;
 
 pub struct Harness {
     pub rt: Runtime<Workbench>,
@@ -47,8 +29,8 @@ impl Harness {
         };
         let reduced = wb.theme.motion.reduced;
         let mut rt = Runtime::new(wb, shell::view, size, env);
-        rt.poll = Some(poll);
-        rt.on_key = Some(on_key);
+        rt.poll = Some(input_poll);
+        rt.on_key = Some(input_on_key);
         rt.set_system_reduced_motion(reduced);
         let mut h = Self { rt };
         h.settle();
