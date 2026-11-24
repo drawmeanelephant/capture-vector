@@ -374,7 +374,6 @@ fn list(s: &Workbench) -> El {
 }
 
 fn reading(s: &Workbench) -> El {
-    let t = &s.theme;
     let model = s
         .selected_key()
         .and_then(|k| s.registry.get(s.active).map(|m| m.reading(k)))
@@ -382,8 +381,13 @@ fn reading(s: &Workbench) -> El {
             title: "Nothing selected".into(),
             ..Default::default()
         });
+    reading_pane(&s.theme, "reading", model)
+}
+
+/// A reading model as the reading pane draws it; reading companions too.
+pub(crate) fn reading_pane(t: &Theme, key: &str, model: ReadingModel) -> El {
     let mut pane = col()
-        .key("reading")
+        .key(key)
         .grow(1.0)
         .min_w(0.0)
         .h_full()

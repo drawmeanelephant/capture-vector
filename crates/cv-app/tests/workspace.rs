@@ -6,7 +6,9 @@
 use cv_app::{WorkspaceEnv, init, open_workspace};
 use cv_core::events::shell::DegradedReason;
 use cv_engine::locate::Locator;
-use cv_model::workbench::{ShellRequest, Workbench};
+use cv_model::windows::Companion;
+use cv_model::workbench::{KeyInput, KeyPress, ShellRequest, Workbench};
+use cv_widgets::editor::{self, host};
 use cv_widgets::harness::Harness;
 use cv_widgets::shell::degraded_text;
 use std::path::{Path, PathBuf};
@@ -535,4 +537,111 @@ fn installed_package_without_fixtures_boots_empty() {
     let mut wb = init();
     cv_app::boot_without_workspace(&mut wb, cv_app::demo_available());
     assert_ne!(wb.app.snapshot_epoch, 0, "checkout fixtures load the demo");
+}
+
+/// Select `page` in Pages and press Enter, serving the requests it queues
+/// as the native shell does. The companion that opened for it.
+fn enter_on_page(wb: &mut Workbench, page: &str) -> Companion {
+    wb.select_key(page);
+    assert_eq!(wb.selected_key(), Some(page));
+    assert!(wb.key(&KeyPress::new(KeyInput::Enter)));
+    for r in std::mem::take(&mut wb.requests) {
+        match r {
+            ShellRequest::EditPage(p) => (cv_app::launch().edit)(wb, &p),
+            other => panic!("unexpected request {other:?}"),
+        }
+    }
+    wb.windows
+        .companions
+        .last()
+        .cloned()
+        .expect("a companion opened")
+}
+
+fn happy_workspace() -> (tempfile::TempDir, tempfile::TempDir, Workbench) {
+    let ws = workspace("happy");
+    let cfg = tempfile::tempdir().unwrap();
+    let mut wb = init();
+    open(&mut wb, ws.path(), &absent_env(cfg.path()));
+    (ws, cfg, wb)
+}
+
+#[test]
+fn enter_on_a_pages_row_opens_the_editor_on_that_page() {
+    let (ws, _cfg, mut wb) = happy_workspace();
+    let c = enter_on_page(&mut wb, "guides/getting-started.md");
+    assert_eq!(
+        (c.module.as_str(), c.key.as_str()),
+        (editor::MODULE, "content/guides/getting-started.md")
+    );
+    let disk = std::fs::read_to_string(ws.path().join(&c.key)).unwrap();
+    let w = host::window(c.id, &c.key, &wb.theme).expect("buffer open for the companion");
+    assert_eq!(w.error(), None);
+    assert!(w.writer.is_some(), "saves have somewhere to go");
+    let ses = host::session();
+    assert_eq!(ses.borrow().get(w.buffer).unwrap().buffer.text(), disk);
+}
+
+#[test]
+fn a_companion_editor_from_pages_shows_every_panel_at_its_initial_size() {
+    let (_ws, _cfg, mut wb) = happy_workspace();
+    let c = enter_on_page(&mut wb, "index.md");
+    let w = host::window(c.id, &c.key, &wb.theme).expect("buffer open for the companion");
+    let mut rt = editor::runtime(w);
+    rt.frame(1.0 / 30.0);
+    let (w, h) = editor::SIZE;
+    assert!(w >= 960.0 && h >= 560.0, "{:?}", editor::SIZE);
+    for key in [
+        "editor-header",
+        "editor-form",
+        "editor-body",
+        "problems",
+        "draft-sketch",
+    ] {
+        let (x, y) = rt.find(key).unwrap_or_else(|| panic!("no {key}"));
+        assert!(x > 0.0 && x < w && y > 0.0 && y < h, "{key} at ({x}, {y})");
+    }
+}
+
+#[test]
+fn typing_and_saving_in_a_companion_editor_from_pages_writes_the_page() {
+    let (ws, _cfg, mut wb) = happy_workspace();
+    let c = enter_on_page(&mut wb, "guides/getting-started.md");
+    let path = ws.path().join(&c.key);
+    let before = std::fs::read_to_string(&path).unwrap();
+    let mut rt = editor::runtime(host::window(c.id, &c.key, &wb.theme).unwrap());
+    for _ in 0..40 {
+        rt.frame(1.0 / 30.0);
+    }
+    let (x, y) = rt.find("editor-body").expect("body editor");
+    rt.pointer_down(x, y);
+    rt.pointer_up(x, y);
+    rt.frame(1.0 / 30.0);
+    rt.state.body.set_caret(0);
+    let body_at = before.len() - rt.state.body.text.len();
+    rt.paste("Edited from Pages. ");
+    rt.frame(1.0 / 30.0);
+    assert!(rt.state.is_dirty());
+    rt.key(cv_widgets::keys::parse("mod+s").remove(0));
+    rt.frame(0.0);
+    rt.state.wait_save();
+    rt.frame(0.0);
+    assert!(!rt.state.is_dirty(), "{:?}", rt.state.save_status());
+    assert_eq!(
+        std::fs::read_to_string(&path).unwrap(),
+        format!(
+            "{}Edited from Pages. {}",
+            &before[..body_at],
+            &before[body_at..]
+        )
+    );
+}
+
+#[test]
+fn pages_and_cv_edit_open_one_editor_for_the_same_page() {
+    let (ws, _cfg, mut wb) = happy_workspace();
+    let booted = cv_app::editor::open_page(&mut wb, ws.path(), "content/index.md").unwrap();
+    let c = enter_on_page(&mut wb, "index.md");
+    assert_eq!(c.id, booted);
+    assert_eq!(wb.windows.companions.len(), 1);
 }
