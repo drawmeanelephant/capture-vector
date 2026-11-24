@@ -35,4 +35,26 @@ for s in "${SCENES[@]}"; do
     fail=1
   fi
 done
+
+# Signature effects (issue #57) need the `effects` build. Lavapipe renders
+# them deterministically; the effects scene snaps 0.3 s in, while the
+# build glow is up. The canary is re-checked under that build too: with
+# no effect slots the compositor draws Rune's default frame.
+cargo build -q -p cv-app --features effects 2>/dev/null || cargo build -p cv-app --features effects
+for s in effects canary; do
+  at=()
+  [ "$s" = effects ] && at=(--at 0.3)
+  if ! ./target/debug/cv-app --scene "$s" "${at[@]}" --snap "$OUT/$s.fx.png" >"$OUT/$s.fx.log" 2>&1; then
+    echo "check-ui-png: effects build --scene $s --snap failed:"
+    cat "$OUT/$s.fx.log"
+    exit 2
+  fi
+  if [ "${CV_BLESS:-}" = "1" ] && [ "$s" = effects ]; then
+    cp "$OUT/$s.fx.png" "$GOLD/$s.png"
+    echo "blessed $GOLD/$s.png"
+  elif ! ./target/debug/xtask png-diff "$GOLD/$s.png" "$OUT/$s.fx.png" --tolerance 8 --max-ratio 0.002; then
+    echo "  actual: $OUT/$s.fx.png"
+    fail=1
+  fi
+done
 exit "$fail"

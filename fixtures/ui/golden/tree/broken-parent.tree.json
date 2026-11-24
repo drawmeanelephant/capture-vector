@@ -665,7 +665,7 @@
       "role": "group"
     },
     {
-      "color": "#eff0f2ff",
+      "color": "#e6e9efff",
       "key": "b0",
       "opacity": 1.0,
       "path": "shell/body/reading/sketch/#0/b0",
@@ -679,7 +679,7 @@
       "text": "Orphan"
     },
     {
-      "color": "#eff0f2ff",
+      "color": "#e6e9efff",
       "key": "b1",
       "opacity": 1.0,
       "path": "shell/body/reading/sketch/#0/b1",
@@ -1185,12 +1185,37 @@
       "role": "group"
     },
     {
-      "color": "#8a93a3ff",
+      "fill": "#1a1e26ff",
       "key": "status-0",
       "opacity": 1.0,
       "path": "shell/status/status-0",
       "rect": [
-        12.0,
+        8.0,
+        780.0,
+        85.4,
+        18.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#3dff9aff",
+      "key": "status-dot",
+      "opacity": 1.0,
+      "path": "shell/status/status-0/status-dot",
+      "rect": [
+        16.0,
+        786.0,
+        6.0,
+        6.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/status/status-0/#1",
+      "rect": [
+        28.0,
         782.1,
         57.4,
         13.8
@@ -1199,98 +1224,232 @@
       "text": "boris/0.9.0"
     },
     {
-      "color": "#8a93a3ff",
       "key": "status-1",
+      "label": "4 events",
       "opacity": 1.0,
       "path": "shell/status/status-1",
       "rect": [
-        81.4,
-        782.1,
-        45.2,
-        13.8
+        102.1,
+        780.5,
+        51.8,
+        17.0
       ],
       "role": "text",
       "text": "4 events"
     },
     {
       "color": "#8a93a3ff",
+      "key": "status-1.11",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.11",
+      "rect": [
+        105.4,
+        782.1,
+        7.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "4"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.2",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.2",
+      "rect": [
+        112.6,
+        782.1,
+        2.9,
+        13.8
+      ],
+      "role": "text",
+      "text": " "
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.3",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.3",
+      "rect": [
+        115.5,
+        782.1,
+        6.3,
+        13.8
+      ],
+      "role": "text",
+      "text": "e"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.4",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.4",
+      "rect": [
+        121.8,
+        782.1,
+        6.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "v"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.5",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.5",
+      "rect": [
+        127.9,
+        782.1,
+        6.5,
+        13.8
+      ],
+      "role": "text",
+      "text": "e"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.6",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.6",
+      "rect": [
+        134.4,
+        782.1,
+        6.6,
+        13.8
+      ],
+      "role": "text",
+      "text": "n"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.7",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.7",
+      "rect": [
+        141.0,
+        782.1,
+        3.6,
+        13.8
+      ],
+      "role": "text",
+      "text": "t"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.8",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.8",
+      "rect": [
+        144.6,
+        782.1,
+        5.9,
+        13.8
+      ],
+      "role": "text",
+      "text": "s"
+    },
+    {
+      "fill": "#1a1e26ff",
       "key": "status-2",
       "opacity": 1.0,
       "path": "shell/status/status-2",
       "rect": [
-        138.5,
+        162.5,
         782.1,
-        40.4,
+        52.1,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/status/status-2/#0",
+      "rect": [
+        168.5,
+        782.1,
+        40.1,
         13.8
       ],
       "role": "text",
       "text": "epoch 1"
     },
     {
-      "color": "#8a93a3ff",
-      "key": "status-3",
       "opacity": 1.0,
-      "path": "shell/status/status-3",
+      "path": "shell/status/#3",
       "rect": [
-        190.9,
-        782.1,
-        23.6,
-        13.8
-      ],
-      "role": "text",
-      "text": "dark"
-    },
-    {
-      "color": "#8a93a3ff",
-      "key": "status-4",
-      "opacity": 1.0,
-      "path": "shell/status/status-4",
-      "rect": [
-        226.5,
-        782.1,
-        36.2,
-        13.8
-      ],
-      "role": "text",
-      "text": "motion"
-    },
-    {
-      "opacity": 1.0,
-      "path": "shell/status/#5",
-      "rect": [
-        274.8,
+        226.7,
         789.0,
-        867.1,
+        870.2,
         0.0
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
-      "key": "status-msg",
       "opacity": 1.0,
-      "path": "shell/status/status-msg",
+      "path": "shell/status/#4",
       "rect": [
-        1153.9,
-        782.1,
-        2.9,
-        13.8
-      ],
-      "role": "text",
-      "text": ""
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/status/#7",
-      "rect": [
-        1168.8,
+        1108.8,
         782.1,
         99.2,
         13.8
       ],
       "role": "text",
       "text": "mod+K commands"
+    },
+    {
+      "key": "status-3",
+      "label": "Switch to light theme",
+      "opacity": 1.0,
+      "path": "shell/status/status-3",
+      "rect": [
+        1220.0,
+        779.0,
+        20.0,
+        20.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "icon",
+      "opacity": 1.0,
+      "path": "shell/status/status-3/icon",
+      "rect": [
+        1222.0,
+        781.0,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "key": "status-4",
+      "label": "Motion on — reduce motion",
+      "opacity": 1.0,
+      "path": "shell/status/status-4",
+      "rect": [
+        1252.0,
+        779.0,
+        20.0,
+        20.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "icon",
+      "opacity": 1.0,
+      "path": "shell/status/status-4/icon",
+      "rect": [
+        1254.0,
+        781.0,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
     }
   ],
   "schema": 1

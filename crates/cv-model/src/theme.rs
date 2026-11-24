@@ -91,8 +91,66 @@ pub struct Spacing {
     pub list_w: f32,
     pub inspector_w: f32,
     pub row_h: f32,
-    pub radius: f32,
     pub palette_w: f32,
+}
+
+/// Corner radius scale (points). `continuous` asks for squircle corners.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Shape {
+    pub xs: f32,
+    pub sm: f32,
+    pub md: f32,
+    pub lg: f32,
+    pub pill: f32,
+    pub continuous: bool,
+}
+
+/// One box-shadow layer (CSS semantics: blur is the blur radius).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct ShadowTok {
+    pub x: f32,
+    pub y: f32,
+    pub blur: f32,
+    pub spread: f32,
+    pub color: Rgba,
+    pub inset: bool,
+}
+
+/// Depth levels, each a stack of shadow layers.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Elevation {
+    /// Cards and chips resting on a pane.
+    pub raised: Vec<ShadowTok>,
+    /// Menus, toasts, popovers.
+    pub floating: Vec<ShadowTok>,
+    /// Modal surfaces (command palette).
+    pub overlay: Vec<ShadowTok>,
+}
+
+/// Interaction overlays: translucent colours painted over a surface.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct States {
+    pub hover: Rgba,
+    pub press: Rgba,
+    pub focus_ring: Rgba,
+    /// Selection in a pane that does not have focus.
+    pub selection_inactive: Rgba,
+}
+
+/// Two-stop gradient: `start` at the top (or left), `end` at the bottom (or right).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct GradientTok {
+    pub start: Rgba,
+    pub end: Rgba,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Gradients {
+    pub selection: GradientTok,
+    pub rail_active: GradientTok,
+    pub banner: GradientTok,
+    /// Subtle top-lit sheen over a pane.
+    pub pane_sheen: GradientTok,
 }
 
 /// A spring as (perceptual duration s, bounce). `duration == 0` = instant.
@@ -109,6 +167,10 @@ pub struct Motion {
     pub snap: SpringTok,
     /// Panel open/close (inspector, palette).
     pub panel: SpringTok,
+    /// Presses and confirmations — a little overshoot.
+    pub pop: SpringTok,
+    /// Larger panel travel.
+    pub glide: SpringTok,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -119,7 +181,15 @@ pub struct Theme {
     #[serde(rename = "type")]
     pub type_: Type,
     pub spacing: Spacing,
+    pub shape: Shape,
+    pub elevation: Elevation,
+    pub states: States,
+    pub gradients: Gradients,
     pub motion: Motion,
+    /// Opt-in signature moments (GPU effects, glows, pulses). Off by
+    /// default; reduced motion overrides it (see [`Theme::effects_on`]).
+    #[serde(default)]
+    pub effects: bool,
 }
 
 const INSTANT: SpringTok = SpringTok {
@@ -139,6 +209,14 @@ impl Motion {
                 duration: 0.18,
                 bounce: 0.05,
             },
+            pop: SpringTok {
+                duration: 0.25,
+                bounce: 0.15,
+            },
+            glide: SpringTok {
+                duration: 0.32,
+                bounce: 0.0,
+            },
         }
     }
     /// Reduced motion: every spring collapses to instant.
@@ -147,6 +225,8 @@ impl Motion {
             reduced: true,
             snap: INSTANT,
             panel: INSTANT,
+            pop: INSTANT,
+            glide: INSTANT,
         }
     }
 }
@@ -170,9 +250,50 @@ fn spacing() -> Spacing {
         list_w: 320.0,
         inspector_w: 240.0,
         row_h: 22.0,
-        radius: 2.0,
         palette_w: 440.0,
     }
+}
+
+fn shape() -> Shape {
+    Shape {
+        xs: 2.0,
+        sm: 4.0,
+        md: 6.0,
+        lg: 10.0,
+        pill: 999.0,
+        continuous: true,
+    }
+}
+
+const fn shadow(y: f32, blur: f32, spread: f32, color: Rgba) -> ShadowTok {
+    ShadowTok {
+        x: 0.0,
+        y,
+        blur,
+        spread,
+        color,
+        inset: false,
+    }
+}
+
+/// Black drop shadows at per-level alpha `shade`, plus a 1pt hairline `ring`.
+fn elevation(shade: [u8; 3], ring: Rgba) -> Elevation {
+    let black = |a| Rgba(0, 0, 0, a);
+    Elevation {
+        raised: vec![shadow(1.0, 2.0, 0.0, black(shade[0]))],
+        floating: vec![
+            shadow(4.0, 12.0, 0.0, black(shade[1])),
+            shadow(0.0, 0.0, 1.0, ring),
+        ],
+        overlay: vec![
+            shadow(12.0, 32.0, 0.0, black(shade[2])),
+            shadow(0.0, 0.0, 1.0, ring),
+        ],
+    }
+}
+
+const fn grad(start: Rgba, end: Rgba) -> GradientTok {
+    GradientTok { start, end }
 }
 
 impl Theme {
@@ -199,7 +320,22 @@ impl Theme {
             },
             type_: type_ramp(),
             spacing: spacing(),
+            shape: shape(),
+            elevation: elevation([0x66, 0x80, 0xa6], Rgba(0xff, 0xff, 0xff, 0x14)),
+            states: States {
+                hover: Rgba(0xff, 0xff, 0xff, 0x0f),
+                press: Rgba(0xff, 0xff, 0xff, 0x1a),
+                focus_ring: Rgba::rgb(0x00, 0xd1, 0xff),
+                selection_inactive: Rgba(0xff, 0xff, 0xff, 0x14),
+            },
+            gradients: Gradients {
+                selection: grad(Rgba(0x00, 0xd1, 0xff, 0x40), Rgba(0x00, 0xd1, 0xff, 0x26)),
+                rail_active: grad(Rgba::rgb(0x33, 0xdc, 0xff), Rgba::rgb(0x00, 0xb4, 0xe0)),
+                banner: grad(Rgba::rgb(0x5a, 0x1a, 0x2c), Rgba::rgb(0x3a, 0x1a, 0x24)),
+                pane_sheen: grad(Rgba(0xff, 0xff, 0xff, 0x08), Rgba(0xff, 0xff, 0xff, 0x00)),
+            },
             motion: Motion::standard(),
+            effects: false,
         }
     }
 
@@ -226,8 +362,28 @@ impl Theme {
             },
             type_: type_ramp(),
             spacing: spacing(),
+            shape: shape(),
+            elevation: elevation([0x1f, 0x29, 0x38], Rgba(0x00, 0x00, 0x00, 0x14)),
+            states: States {
+                hover: Rgba(0x00, 0x00, 0x00, 0x0a),
+                press: Rgba(0x00, 0x00, 0x00, 0x14),
+                focus_ring: Rgba::rgb(0x00, 0x6e, 0xd6),
+                selection_inactive: Rgba(0x00, 0x00, 0x00, 0x0f),
+            },
+            gradients: Gradients {
+                selection: grad(Rgba(0x00, 0x6e, 0xd6, 0x30), Rgba(0x00, 0x6e, 0xd6, 0x1c)),
+                rail_active: grad(Rgba::rgb(0x1a, 0x80, 0xe0), Rgba::rgb(0x00, 0x5f, 0xbd)),
+                banner: grad(Rgba::rgb(0xfb, 0xd0, 0xdb), Rgba::rgb(0xfd, 0xe4, 0xea)),
+                pane_sheen: grad(Rgba(0xff, 0xff, 0xff, 0x80), Rgba(0xff, 0xff, 0xff, 0x00)),
+            },
             motion: Motion::standard(),
+            effects: false,
         }
+    }
+
+    /// Effects are drawn only when opted in and motion is not reduced.
+    pub fn effects_on(&self) -> bool {
+        self.effects && !self.motion.reduced
     }
 
     pub fn for_mode(mode: Mode, reduced_motion: bool) -> Self {
@@ -248,10 +404,17 @@ mod tests {
 
     #[test]
     fn themes_roundtrip_as_data() {
-        for t in [Theme::dark(), Theme::light()] {
+        let mut fx = Theme::dark();
+        fx.effects = true;
+        for t in [Theme::dark(), Theme::light(), fx] {
             let json = serde_json::to_string(&t).unwrap();
             let back: Theme = serde_json::from_str(&json).unwrap();
             assert_eq!(t, back);
+            for key in ["shape", "elevation", "states", "gradients", "effects"] {
+                assert!(json.contains(&format!("\"{key}\"")), "{key} missing");
+            }
+            assert_eq!(back.elevation.overlay.len(), 2);
+            assert!(back.shape.continuous);
         }
     }
 
@@ -261,7 +424,14 @@ mod tests {
         assert!(t.motion.reduced);
         assert_eq!(t.motion.panel.duration, 0.0);
         assert_eq!(t.motion.snap.duration, 0.0);
+        assert_eq!(t.motion.pop.duration, 0.0);
+        assert_eq!(t.motion.glide.duration, 0.0);
         assert_eq!(t.mode, Mode::Light);
+        let mut fx = Theme::for_mode(Mode::Dark, true);
+        fx.effects = true;
+        assert!(!fx.effects_on(), "reduced motion gates effects");
+        fx.motion = Motion::standard();
+        assert!(fx.effects_on());
     }
 
     #[test]

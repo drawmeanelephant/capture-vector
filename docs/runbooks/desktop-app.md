@@ -74,6 +74,22 @@ the folder picker; the recent list lives under the platform config dir
 - Closing a dirty companion asks save/discard; a crash loses unsaved
   buffer text.
 
+## Signature effects (opt-in)
+
+The GPU effects (rail aurora in dark mode, a glow on Activity when a
+build finishes, a breathing engine chip while a watch session is live)
+are off by default and never run under reduced motion. To look at them:
+
+```sh
+cargo run -p cv-app --features effects -- --scene effects   # scripted
+CV_EFFECTS=1 cargo run -p cv-app --features effects           # live app
+```
+
+Without `--features effects` the flag still adds the chip pulse and glow
+gradient, but the rune-fx layers draw nothing. If an effect misbehaves on
+a GPU, build without the feature or unset `CV_EFFECTS`; the plain shell
+is unchanged.
+
 ## Rollback a bad build
 
 This app is not deployed, so rollback is a local checkout operation:

@@ -880,11 +880,13 @@ dependencies = [
  "cv-ui-editor",
  "png 0.18.1",
  "rune",
+ "rune-fx",
  "rune-kit",
  "rune-ref",
  "serde",
  "serde_json",
  "tempfile",
+ "wgpu",
 ]
 
 [[package]]

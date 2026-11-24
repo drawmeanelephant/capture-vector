@@ -327,6 +327,14 @@ fn canary(wb: &mut Workbench) {
     wb.select_row(1);
 }
 
+/// Signature effects on (issue #57): the canary with the opt-in flag set,
+/// a live watch session and finished builds. Draws rune-fx layers only in
+/// a build with the `effects` feature.
+fn effects(wb: &mut Workbench) {
+    wb.set_effects(true);
+    canary(wb);
+}
+
 fn pages_5k(wb: &mut Workbench) {
     demo(wb);
     wb.set_nav("pages");
@@ -488,6 +496,7 @@ pub const SCENES: &[Scene] = &[
     ("audit", audit),
     ("audit-detail", audit_detail),
     ("audit-degraded", audit_degraded),
+    ("effects", effects),
 ];
 
 pub fn launch() -> Launch {

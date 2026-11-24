@@ -35,6 +35,7 @@ pub fn dispatch(state: &mut AppState, env: &Envelope) -> bool {
     match &env.payload {
         AppEvent::Engine(EngineEvent::WatchSessionStarted { compiler, .. }) => {
             state.engine = Some(compiler.clone());
+            state.watch_live = true;
             let found = engine_version(compiler);
             if found != WANT_ENGINE {
                 state.degraded = Some(DegradedReason::EngineVersionMismatch {
@@ -52,14 +53,16 @@ pub fn dispatch(state: &mut AppState, env: &Envelope) -> bool {
             }
         }
         AppEvent::Engine(EngineEvent::WatchSessionEnded { reason }) => {
+            state.watch_live = false;
             if *reason != WatchEndReason::CleanExit {
                 state.degraded = Some(DegradedReason::WatchDead);
             }
         }
-        AppEvent::Engine(EngineEvent::BuildFinished { .. })
-            if state.degraded == Some(DegradedReason::BuildFailed) =>
-        {
-            state.degraded = None;
+        AppEvent::Engine(EngineEvent::BuildFinished { .. }) => {
+            state.builds_finished += 1;
+            if state.degraded == Some(DegradedReason::BuildFailed) {
+                state.degraded = None;
+            }
         }
         AppEvent::Shell(ShellEvent::Degraded { reason }) => {
             state.degraded = Some(reason.clone());
@@ -127,6 +130,52 @@ mod tests {
         };
         dispatch(&mut state, &started("boris/0.9.0"));
         assert_eq!(state.degraded, Some(DegradedReason::StoreCorrupt));
+    }
+
+    #[test]
+    fn watch_liveness_and_finished_builds_are_tracked() {
+        let mut state = AppState::default();
+        dispatch(&mut state, &started("boris/0.9.0"));
+        assert!(state.watch_live);
+        let finished = env(
+            1,
+            AppEvent::Engine(EngineEvent::BuildFinished {
+                phase: cv_core::events::engine::BuildPhase::Rebuild,
+                pages_written: 1,
+                diagnostics: vec![],
+                duration_ms: 1,
+            }),
+        );
+        dispatch(&mut state, &finished);
+        assert_eq!(state.builds_finished, 1);
+        let ended = env(
+            2,
+            AppEvent::Engine(EngineEvent::WatchSessionEnded {
+                reason: WatchEndReason::CleanExit,
+            }),
+        );
+        dispatch(&mut state, &ended);
+        assert!(!state.watch_live);
+    }
+
+    #[test]
+    fn recovery_build_clears_build_failed_and_still_counts() {
+        let mut state = AppState {
+            degraded: Some(DegradedReason::BuildFailed),
+            ..Default::default()
+        };
+        let finished = env(
+            1,
+            AppEvent::Engine(EngineEvent::BuildFinished {
+                phase: cv_core::events::engine::BuildPhase::Rebuild,
+                pages_written: 1,
+                diagnostics: vec![],
+                duration_ms: 1,
+            }),
+        );
+        dispatch(&mut state, &finished);
+        assert_eq!(state.degraded, None);
+        assert_eq!(state.builds_finished, 1);
     }
 
     #[test]

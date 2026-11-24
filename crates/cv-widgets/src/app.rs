@@ -174,6 +174,9 @@ fn sync_companions(s: &mut Workbench) -> bool {
 }
 
 fn setup(s: &mut Workbench, w: Waker) {
+    if std::env::var_os("CV_EFFECTS").is_some_and(|v| v == "1") {
+        s.set_effects(true);
+    }
     let _ = WAKE.set(w.clone());
     editor::host::set_waker(w.clone());
     s.set_waker(w);
@@ -295,6 +298,8 @@ pub fn run(l: Launch) {
         min_size: Some((960.0, 560.0)),
         ..AppSpec::new(l.title, SIZE, l.init, view)
     });
+    #[cfg(feature = "effects")]
+    let app = app.compositor(crate::fx::gfx::Gfx::default());
     let handle = app.handle();
     app.on_quit(shutdown)
         .on_close(shutdown)
