@@ -43,7 +43,10 @@ fn second_writer_cannot_repair_journals_or_change_index_until_first_drops() {
             .write_all(tail)
             .unwrap();
     }
-    let index = dir.join(disk::INDEX);
+    // The FTS index lives in OS app-data keyed by project, not `.cv/`.
+    let index = cv_store::paths::project_index_dir(ws.path(), "research")
+        .unwrap()
+        .join(disk::INDEX);
     let index_before = fs::read(&index).unwrap();
     let Err(DiskError::Locked(lock_path)) = open(ws.path()) else {
         panic!("second writer must be rejected with a lock error");

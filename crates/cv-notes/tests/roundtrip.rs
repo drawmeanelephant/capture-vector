@@ -141,8 +141,14 @@ fn inbox_promote_rebuild_backlink_restart() {
     drop(r);
 
     // Lose the index and tear the journal tail: both recover.
+    // (The index lives in OS app-data, not `.cv/`.)
     let dir = ws.path().join(disk::DIR);
-    std::fs::remove_file(dir.join(disk::INDEX)).unwrap();
+    std::fs::remove_file(
+        cv_store::paths::project_index_dir(ws.path(), "research")
+            .unwrap()
+            .join(disk::INDEX),
+    )
+    .unwrap();
     let mut j = std::fs::OpenOptions::new()
         .append(true)
         .open(dir.join(disk::NOTES))

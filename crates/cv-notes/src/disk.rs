@@ -1,6 +1,8 @@
 //! `.cv/research/` on disk: `notes.jsonl` + `provenance.jsonl` are truth
-//! (append-only, fsync'd, torn tail dropped on open); `index.sqlite` is a
-//! FTS5 index rebuilt from them whenever it is missing, corrupt or stale.
+//! (append-only, fsync'd, torn tail dropped on open). `index.sqlite` is a
+//! FTS5 index in OS app-data (never under `.cv/` — sync folders corrupt
+//! SQLite journal artifacts), rebuilt whenever it is missing, corrupt
+//! or stale.
 //! One writer lock covers both journals and the index.
 
 use crate::notebook::Notebook;
@@ -342,7 +344,13 @@ pub fn open(
             report.rejected += 1;
         }
     }
-    let mut index = FtsIndex::open_or_reset(&dir.join(INDEX))?;
+    let index_dir = cv_store::paths::create_project_index_dir(root, "research")?;
+    let mut index = FtsIndex::open_or_reset(&index_dir.join(INDEX))?;
+    // Drop a pre-app-data index (and its journal artifacts); it
+    // rebuilds from the journals.
+    for suffix in ["", "-journal", "-wal", "-shm"] {
+        let _ = std::fs::remove_file(dir.join(format!("{INDEX}{suffix}")));
+    }
     if index.journal_lines()? != Some(notes.lines()) {
         index.rebuild(&nb, notes.lines())?;
         report.index_rebuilt = true;
