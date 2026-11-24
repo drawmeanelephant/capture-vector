@@ -41,6 +41,7 @@ const TREE_SCENES: &[&str] = &[
     "audit",
     "audit-detail",
     "audit-degraded",
+    "effects",
 ];
 
 #[test]
@@ -165,6 +166,26 @@ fn transient_status_shows_as_a_closable_toast() {
     h.script(&["click:close"]);
     assert!(!h.has("status-msg"));
     assert!(h.state().status.is_empty());
+}
+
+#[test]
+fn effects_are_opt_in_and_off_under_reduced_motion() {
+    let plain = scene("canary");
+    assert!(!plain.has("fx-rail"), "no effect slots without the flag");
+    let mut h = scene("effects");
+    assert!(h.has("fx-rail"), "dark rail aurora slot");
+    let builds = h.state().app.builds_finished;
+    assert!(builds > 0);
+    assert!(
+        h.has(&format!("fx-build-{builds}")),
+        "build glow on Activity"
+    );
+    h.script(&["cmd:shell.motion.toggle"]);
+    assert!(h.state().theme.effects, "flag survives the motion toggle");
+    assert!(!h.has("fx-rail") && !h.has(&format!("fx-build-{builds}")));
+    h.script(&["cmd:shell.motion.toggle", "cmd:shell.theme.toggle"]);
+    assert!(!h.has("fx-rail"), "aurora is dark-only");
+    assert!(h.has(&format!("fx-build-{builds}")));
 }
 
 #[test]

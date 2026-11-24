@@ -20,12 +20,18 @@ serde_json.workspace = true
 # probe). Never enabled in the shipped app.
 rune-ref = { workspace = true, optional = true }
 png = { workspace = true, optional = true }
+# Opt-in signature effects (issue #57): the compositor that draws rune-fx
+# layers at the shell's effect slots. Off by default; the slots themselves
+# are emitted only when Theme::effects_on().
+rune-fx = { workspace = true, optional = true }
+wgpu = { workspace = true, optional = true }
 
 [features]
 # `harness` is on for cv-widgets' own tests; dependents ship without it.
 default = ["harness"]
 harness = []
 reference = ["dep:rune-ref", "dep:png"]
+effects = ["dep:rune-fx", "dep:wgpu"]
 
 [dev-dependencies]
 cv-fixtures.workspace = true

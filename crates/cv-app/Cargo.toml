@@ -20,6 +20,9 @@ cv-ui-editor.workspace = true
 cv-fixtures.workspace = true
 serde_json.workspace = true
 
+[features]
+# GPU layers for the opt-in signature effects (issue #57). Off by default.
+effects = ["cv-widgets/effects"]
 
 [dev-dependencies]
 cv-widgets = { workspace = true, features = ["reference", "harness"] }

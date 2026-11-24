@@ -4,7 +4,7 @@
 
 use crate::diagnostic;
 use crate::theme::{self, Level, Size, Styled, color, font};
-use crate::{controls, icons};
+use crate::{controls, fx, icons};
 use cv_core::events::shell::DegradedReason;
 use cv_model::module::{ReadingModel, RowModel, Slot, Tone};
 use cv_model::theme::{Mode, Rgba, Theme};
@@ -140,6 +140,16 @@ fn rail(s: &Workbench) -> El {
         .fill(color(t.colors.rail))
         .py(t.spacing.unit * 2.0)
         .gap(t.spacing.unit);
+    let aurora = fx::rail_aurora(t);
+    // Items at rest let the aurora show through instead of repainting the rail.
+    let rest = if aurora.is_some() {
+        Color::TRANSPARENT
+    } else {
+        color(t.colors.rail)
+    };
+    if let Some(a) = aurora {
+        rail = rail.child(a);
+    }
     let mut entries: Vec<(String, String, Option<usize>)> = Slot::CORE
         .iter()
         .map(|slot| {
@@ -169,11 +179,7 @@ fn rail(s: &Workbench) -> El {
             .w_full()
             .px(t.spacing.unit * 3.0)
             .py(t.spacing.unit * 1.5)
-            .fill(color(if active {
-                t.colors.accent
-            } else {
-                t.colors.rail
-            }));
+            .fill(if active { color(t.colors.accent) } else { rest });
         if active {
             let g = t.gradients.rail_active;
             item = item.gradient(color(g.start), color(g.end));
@@ -203,6 +209,11 @@ fn rail(s: &Workbench) -> El {
                 .on_press(move |s: &mut Workbench| s.activate(i));
         } else {
             item = item.label("not registered");
+        }
+        if key == "activity"
+            && let Some(glow) = fx::build_glow(t, s.app.builds_finished)
+        {
+            item = item.child(glow);
         }
         rail = rail.child(item);
     }
@@ -545,23 +556,23 @@ fn engine_chip(s: &Workbench) -> El {
     let t = &s.theme;
     let engine = s.app.engine.clone().unwrap_or_else(|| "no engine".into());
     let tn = engine_tone(s);
-    let dot = 6.0;
-    row()
+    let side = 6.0;
+    let chip = row()
         .key("status-0")
         .h(t.spacing.row_h - t.spacing.unit)
         .px(t.spacing.unit * 2.0)
         .gap(t.spacing.unit * 1.5)
         .items_center()
         .fill(color(t.colors.pane_alt))
-        .rounded(t, Size::Pill)
-        .child(
-            col()
-                .key("status-dot")
-                .w(dot)
-                .h(dot)
-                .fill(tone(t, tn))
-                .rounded(t, Size::Pill),
-        )
+        .rounded(t, Size::Pill);
+    let dot = col()
+        .key("status-dot")
+        .w(side)
+        .h(side)
+        .fill(tone(t, tn))
+        .rounded(t, Size::Pill);
+    let (chip, dot) = fx::live_chip(t, chip, dot, s.app.watch_live);
+    chip.child(dot)
         .child(label(t, engine).color(color(t.colors.text)))
 }
 

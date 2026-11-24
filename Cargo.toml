@@ -54,6 +54,11 @@ png = "0.18"
 # cv-widgets; cargo-deny enforces the firewall.
 rune = { path = "vendor/rune/crates/rune" }
 rune-kit = { path = "vendor/rune/crates/rune-kit", default-features = false }
+# GPU effect layers for the opt-in signature moments (cv-widgets `effects`
+# feature). wgpu is rune's own pin; cv-widgets names it only to drive the
+# compositor hook, and rune turns on its backends.
+rune-fx = { path = "vendor/rune/crates/rune-fx" }
+wgpu = { version = "~30.0.1", default-features = false }
 # Scalar CPU reference renderer — test-only (cv-widgets `reference` feature).
 rune-ref = { path = "vendor/rune/crates/rune-ref", features = ["gpu"] }
 
