@@ -35,8 +35,7 @@ lanes and CI don't each improvise the checkout.
 ## NOT YET PROVEN
 
 - `rune_kit::markdown::Markdown` — **PROVEN 2026-11-23 (Linux)**, see below.
-- Multi-window — tooling knows windows (`--window KEY` picks which window
-  `--tree`/`--scene` describe), untested in the probe.
+- Multi-window — **PROVEN 2026-11-24 (Linux, real winit windows)**, see below.
 - IME composition — lives in rune-edit state machines; needs a per-OS real-window
   pass; cannot be probed headless meaningfully.
 - Windows/Linux — all results above are macOS-only. Nothing here can be claimed
@@ -46,8 +45,38 @@ lanes and CI don't each improvise the checkout.
 - `rune-ref` — **PROBED 2026-11-23 (Linux)**: works headless and reproducibly, but is
   not a drop-in Lavapipe replacement. See below.
 
-Multi-window and IME stay open: both need a real window on macOS/Windows, which the
+IME stays open: it needs a real OS input method, which the
 Linux VM and headless harness can't give (issue #26).
+
+## 2026-11-24 — issue #26 multi-window probe (Linux, real windows)
+
+Driven on a live X desktop (`DISPLAY=:0`, debug cv-app, `CV_PROJECT=<happy
+corpus> CV_EDIT=content/guides/getting-started.md`). All real winit windows,
+no headless harness:
+
+- Boot companion (`CV_EDIT`) opens beside the main window at launch — two real
+  windows, both rendering.
+- Windows take input independently: typed into the editor companion (buffer
+  marked unsaved, live preview updated) and switched modules in the main
+  window while the companion stayed open.
+- Dirty-close: native close on an unsaved editor destroys the window host and
+  reopens a fresh window carrying the same buffer + the Save/Discard/Keep
+  prompt (the known rune `on_close`-can't-veto path). `Discard and close`
+  then closes the window; the main window keeps running.
+- Post-boot companion: palette `Open selection in companion window` on a Pages
+  row opens a reader companion mid-run; closing it natively leaves the app
+  alive.
+- Quit: closing the main window exits the process; no orphaned `boris watch`
+  or window hosts.
+
+Side observations: the engine version gate works on a real launch (PATH boris
+0.8.2 → degraded banner "found boris 0.8.2, want 0.9.0"). rune logs a11y
+warnings for the editor's `fm-*` fields and `editor-body` — focusable text
+fields with no screen-reader name (`El::label`/`labelled_by` missing).
+
+Unproven on this OS: native portal folder dialog (GTK portal was present but
+unexercised), IME, and the Windows/macOS window behaviors (per-OS surface
+creation, WARP second-surface race).
 
 ## 2026-11-23 — issue #26 Linux probes
 
