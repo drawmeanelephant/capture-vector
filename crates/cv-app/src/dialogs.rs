@@ -37,7 +37,7 @@ pub fn choose(wb: &mut Workbench) {
     crate::boot(wb);
     wb.recent = ["field-notes", "handbook", "dogfood"]
         .iter()
-        .map(|n| PathBuf::from("/Users/demo/sites").join(n))
+        .map(|n| PathBuf::from(format!("/Users/demo/sites/{n}")))
         .collect();
     wb.run_command("shell.workspace.recent");
     type_text(wb, "no");
