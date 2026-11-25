@@ -28,6 +28,11 @@ const CLOCK: FixedClock = FixedClock(Timestamp(1_700_000_000_000));
 pub(super) struct CapturedBuild {
     pub(super) root: PathBuf,
     pub(super) check: ExitClass,
+    /// Hosted-target scene shapes synthesize a committed robots.txt because
+    /// hosted deploy profiles genuinely require one. Static-dist is an
+    /// unhosted copy of Boris's real default output: five committed
+    /// artifacts, no robots — synthesizing one would be fictional evidence.
+    pub(super) robots: bool,
 }
 
 fn flag<'a>(args: &'a [String], name: &str) -> cv_core::Result<&'a str> {
@@ -86,8 +91,11 @@ impl Engine for CapturedBuild {
                 let dist = cv_fixtures::fixtures_root().join("captures/happy/dist/dist");
                 let out = self.root.join(flag(args, "--html-dir")?);
                 copy_tree(&dist, &out).map_err(io)?;
-                // The scene engine synthesizes hosted-target output: robots.txt
-                // is only consistent evidence when the inventory commits it.
+                if !self.robots {
+                    return Ok(ExitClass::Ok);
+                }
+                // Hosted scene shapes synthesize robots.txt; it is only
+                // consistent evidence when the inventory commits it.
                 let robots = b"User-agent: *\n";
                 std::fs::write(out.join("robots.txt"), robots).map_err(io)?;
                 let inventory = out.join("_boris/proof/artifacts.json");
@@ -202,10 +210,17 @@ pub fn seed(root: &Path) {
     let ok = CapturedBuild {
         root: root.into(),
         check: ExitClass::Ok,
+        robots: false,
+    };
+    let ok_hosted = CapturedBuild {
+        root: root.into(),
+        check: ExitClass::Ok,
+        robots: true,
     };
     let failing = CapturedBuild {
         root: root.into(),
         check: ExitClass::ContentFailure,
+        robots: true,
     };
     let mut ids = SeqIdGen::new("run");
     let preflight = |p: &mut Publisher<'_>, cfg: &TargetConfig, ids: &mut SeqIdGen| {
@@ -231,14 +246,14 @@ pub fn seed(root: &Path) {
     drop(p);
 
     let cfg = config(Target::NostrNip23, HTTP_POST, "https://relay.example.test/");
-    let mut p = open(root, &ok).with_adapter(LostOutcome);
+    let mut p = open(root, &ok_hosted).with_adapter(LostOutcome);
     let run = granted(preflight(&mut p, &cfg, &mut ids));
     p.approve(&run, "local").expect("scene approval");
     p.publish(&run, &cfg, &SceneRules).expect("scene dispatch");
     drop(p);
 
     let cfg = config(Target::StandardSite, HTTP_POST, "https://pds.example.test/");
-    let mut p = open(root, &ok);
+    let mut p = open(root, &ok_hosted);
     let run = granted(preflight(&mut p, &cfg, &mut ids));
     p.approve(&run, "local").expect("scene approval");
 }
@@ -327,6 +342,7 @@ pub fn writer(root: &Path) -> super::write::Writer {
         engine: Box::new(CapturedBuild {
             root: root.into(),
             check: ExitClass::Ok,
+            robots: false,
         }),
         rules: Box::new(super::write::AuditRules::shipped()),
         clock: Box::new(CLOCK),
@@ -354,6 +370,7 @@ pub fn seed_unknown_copy(root: &Path) {
     let engine = CapturedBuild {
         root: root.into(),
         check: ExitClass::Ok,
+        robots: false,
     };
     let cfg = super::write::delivery_config(Target::StaticDist).expect("static-dist delivers");
     let mut p = open(root, &engine).with_adapter(LostCopy);

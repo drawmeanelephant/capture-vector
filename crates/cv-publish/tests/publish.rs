@@ -179,25 +179,34 @@ fn run_ids_must_be_single_components() {
     assert!(graph_file(&run).is_err());
 }
 
+/// The sealed-plan grammar is the host's: traversal, absolute, and empty
+/// spellings are refused on every host. Windows-syntax separators are host
+/// grammar — on unix they are ordinary confined file names; on Windows the
+/// component parser refuses the same traversal shapes there.
 #[test]
-fn sealed_inventory_rejects_nonportable_file_names() {
-    let dir = tempfile::tempdir().unwrap();
-    let plan = SealedPlan {
-        target: "static-dist".into(),
-        adapter: COPY_TO_FOLDER.into(),
-        destination: "out".into(),
-        site: "site".into(),
-        files: vec![PlanFile {
-            kind: None,
-            path: r"guides\one.html".into(),
-            bytes: 0,
-            sha256: Hash([0; 32]),
-        }],
-    };
-    assert!(matches!(
-        load_sealed(dir.path(), &plan),
-        Err(PublishError::Refused(_))
-    ));
+fn sealed_inventory_rejects_escaping_file_names() {
+    for path in ["../one.html", "/one.html", "", "nested/../../one.html"] {
+        let dir = tempfile::tempdir().unwrap();
+        let plan = SealedPlan {
+            target: "static-dist".into(),
+            adapter: COPY_TO_FOLDER.into(),
+            destination: "out".into(),
+            site: "site".into(),
+            files: vec![PlanFile {
+                kind: None,
+                path: path.into(),
+                bytes: 0,
+                sha256: Hash([0; 32]),
+            }],
+        };
+        assert!(
+            matches!(
+                load_sealed(dir.path(), &plan),
+                Err(PublishError::Refused(_))
+            ),
+            "{path:?} must be refused"
+        );
+    }
 }
 
 #[test]

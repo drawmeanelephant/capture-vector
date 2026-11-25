@@ -1332,7 +1332,7 @@
     },
     {
       "color": "#8a93a3ff",
-      "help": "6 files · 12614 B",
+      "help": "5 files · 12600 B",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-run-000000-0/#2",
       "rect": [
@@ -1342,7 +1342,7 @@
         13.8
       ],
       "role": "text",
-      "text": "6 files · 12614 B"
+      "text": "5 files · 12600 B"
     },
     {
       "color": "#3dff9aff",
@@ -1651,7 +1651,7 @@
         13.8
       ],
       "role": "text",
-      "text": "6 files · 12614 B → deployed"
+      "text": "5 files · 12600 B → deployed"
     },
     {
       "key": "line-5",
@@ -2236,7 +2236,7 @@
         13.8
       ],
       "role": "text",
-      "text": "6"
+      "text": "5"
     },
     {
       "key": "field-bytes",
@@ -2274,7 +2274,7 @@
         13.8
       ],
       "role": "text",
-      "text": "12614"
+      "text": "12600"
     },
     {
       "key": "field-artifacts",
@@ -2312,7 +2312,7 @@
         13.8
       ],
       "role": "text",
-      "text": "6"
+      "text": "5"
     },
     {
       "key": "field-artifact set",
@@ -2341,7 +2341,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "ea89f212c50eaeaa563f2c0370e8ec4ac684e6fc63684de6d16e850cace7051d",
+      "help": "c571db908a64a4ad4262f127a4fd024e10b91436aa1c8098404eeb42193ab598",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-artifact set/#1",
       "rect": [
@@ -2351,7 +2351,7 @@
         13.8
       ],
       "role": "text",
-      "text": "ea89f212c50eaeaa563f2c0370e8ec4ac684e6fc63684de6d16e850cace7051d"
+      "text": "c571db908a64a4ad4262f127a4fd024e10b91436aa1c8098404eeb42193ab598"
     },
     {
       "key": "field-graph",
@@ -2419,7 +2419,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "7d4ad80b7cb5a74bcd4bad8e93af59e476f6af15272ba4edbef49cac1b89dbb6",
+      "help": "376b842e2684e1b40b992b0294d9e2a83fd15998c2230f2998f7f74ea0767b92",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-plan/#1",
       "rect": [
@@ -2429,7 +2429,7 @@
         13.8
       ],
       "role": "text",
-      "text": "7d4ad80b7cb5a74bcd4bad8e93af59e476f6af15272ba4edbef49cac1b89dbb6"
+      "text": "376b842e2684e1b40b992b0294d9e2a83fd15998c2230f2998f7f74ea0767b92"
     },
     {
       "key": "field-target cfg",

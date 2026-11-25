@@ -617,8 +617,15 @@ fn a_burst_of_watch_builds_runs_one_ir_projection_and_pages_show_boris_fields() 
     for seq in 0..8 {
         sink(finished(seq));
     }
-    wb.drain();
-    assert!(page_titles(&wb).contains(&"Mini Site (English)".to_string()));
+    // Snapshot production is the cv-resync worker thread: eventual
+    // consistency by design. Await the scan instead of assuming it won
+    // the race against the drain.
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !page_titles(&wb).contains(&"Mini Site (English)".to_string()) {
+        assert!(Instant::now() < deadline, "pages never showed the scan");
+        std::thread::sleep(Duration::from_millis(10));
+        wb.drain();
+    }
 
     let argv = root.path().join("argv.log");
     wait_for_ir_graph(&root, &mut wb);

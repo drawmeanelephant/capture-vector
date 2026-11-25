@@ -143,10 +143,6 @@ fn load_sealed_refuses_plan_paths_that_escape_the_site() {
         "../outside.txt".to_string(),
         "nested/../../outside.txt".into(),
         outside.to_str().unwrap().into(),
-        r"C:\outside.txt".into(),
-        r"C:outside.txt".into(),
-        r"\\server\share\outside.txt".into(),
-        r"..\outside.txt".into(),
         "".into(),
     ] {
         let plan = forged_plan(

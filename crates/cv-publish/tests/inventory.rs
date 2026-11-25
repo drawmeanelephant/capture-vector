@@ -288,3 +288,165 @@ fn case_colliding_artifact_paths_block_the_grant() {
         "{blocks:?}"
     );
 }
+
+/// Direct completeness probe: a planted output file with no inventory
+/// record blocks the grant rather than being silently dropped or shipped.
+#[test]
+fn a_planted_uninventoried_output_file_blocks_the_grant() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    eng.plant_uninventoried = true;
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+    let out = p
+        .preflight(
+            &PreflightRequest { config: cfg() },
+            &Rules::ok(),
+            &mut ids("run"),
+        )
+        .unwrap();
+    let PreflightOutcome::Blocked { blocks, .. } = out else {
+        panic!("uninventoried output must block: {out:?}")
+    };
+    assert!(
+        blocks.iter().any(|b| b.contains("not-in-the-inventory.txt")
+            && b.contains("no committed inventory record")),
+        "{blocks:?}"
+    );
+}
+
+/// Direct completeness probe: removing the CSS record from the inventory
+/// while the file remains in the output blocks the grant.
+#[test]
+fn an_omitted_css_inventory_record_blocks_the_grant() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    eng.omit_css_record = true;
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+    let out = p
+        .preflight(
+            &PreflightRequest { config: cfg() },
+            &Rules::ok(),
+            &mut ids("run"),
+        )
+        .unwrap();
+    let PreflightOutcome::Blocked { blocks, .. } = out else {
+        panic!("omitted css record must block: {out:?}")
+    };
+    assert!(
+        blocks
+            .iter()
+            .any(|b| b.contains("assets/css/boris.css")
+                && b.contains("no committed inventory record")),
+        "{blocks:?}"
+    );
+}
+
+/// Compiler-cache content is a reserved namespace: an inventory record for
+/// `.boris-cache/` is never payload.
+#[test]
+fn a_compiler_cache_record_blocks_the_grant() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    eng.cache_record = true;
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+    let out = p
+        .preflight(
+            &PreflightRequest { config: cfg() },
+            &Rules::ok(),
+            &mut ids("run"),
+        )
+        .unwrap();
+    let PreflightOutcome::Blocked { blocks, .. } = out else {
+        panic!("cache record must block: {out:?}")
+    };
+    assert!(
+        blocks
+            .iter()
+            .any(|b| b.contains(".boris-cache") && b.contains("reserved namespace")),
+        "{blocks:?}"
+    );
+}
+
+/// A payload file that is a hardlink alias of proof bytes ships evidence
+/// with no lexical tell; file identity is the only sound detection.
+#[cfg(unix)]
+#[test]
+fn a_hardlink_alias_of_proof_bytes_blocks_the_grant() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    eng.hardlink_alias = true;
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+    let out = p
+        .preflight(
+            &PreflightRequest { config: cfg() },
+            &Rules::ok(),
+            &mut ids("run"),
+        )
+        .unwrap();
+    let PreflightOutcome::Blocked { blocks, .. } = out else {
+        panic!("hardlink alias must block: {out:?}")
+    };
+    assert!(
+        blocks
+            .iter()
+            .any(|b| b.contains("hardlink alias") || b.contains("multiply linked")),
+        "{blocks:?}"
+    );
+}
+
+/// A payload file with links outside the sealed tree can mutate after
+/// sealing without touching any sealed path.
+#[cfg(unix)]
+#[test]
+fn a_multiply_linked_payload_file_blocks_the_grant() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    eng.multiply_linked = true;
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+    let out = p
+        .preflight(
+            &PreflightRequest { config: cfg() },
+            &Rules::ok(),
+            &mut ids("run"),
+        )
+        .unwrap();
+    let PreflightOutcome::Blocked { blocks, .. } = out else {
+        panic!("multiply linked payload must block: {out:?}")
+    };
+    assert!(
+        blocks.iter().any(|b| b.contains("multiply linked")),
+        "{blocks:?}"
+    );
+}
+
+/// Real Boris 0.9.0 commits `aux.html` and `guides/a:b.html` as `html-page`
+/// artifacts (probe-verified). Host-valid output must survive inventory,
+/// preflight, and copy-to-folder delivery on unix hosts.
+#[test]
+fn host_valid_boris_page_names_deploy_end_to_end() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = FakeEngine::new(dir.path());
+    eng.pages = vec![
+        ("index.html", "<h1>home</h1>"),
+        ("aux.html", "<h1>aux</h1>"),
+        ("guides/a:b.html", "<h1>colon</h1>"),
+    ];
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets)
+        .unwrap()
+        .with_adapter(cv_publish::adapters::CopyToFolder::new(dir.path()));
+    let out = p
+        .preflight(
+            &PreflightRequest { config: cfg() },
+            &Rules::ok(),
+            &mut ids("run"),
+        )
+        .unwrap();
+    let PreflightOutcome::Granted { run, .. } = out else {
+        panic!("host-valid real Boris names must grant: {out:?}")
+    };
+    p.approve(&run, "tester").unwrap();
+    p.publish(&run, &cfg(), &Rules::ok()).unwrap();
+    let dest = dir.path().join("deployed");
+    assert!(dest.join("aux.html").exists());
+    assert!(dest.join("guides/a:b.html").exists());
+}

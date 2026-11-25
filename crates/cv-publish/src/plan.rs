@@ -3,7 +3,7 @@
 
 use crate::{PublishError, Result};
 use cv_core::sys::Hash;
-use cv_store::paths::{confined_file, is_link, portable_relative};
+use cv_store::paths::{confined_file, is_link};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::path::Path;
@@ -18,6 +18,17 @@ pub struct PlanFile {
     /// through the proof inventory; `None` for uninventoried walks. Sealed
     /// into the plan hash, so page-ness downstream never falls back to the
     /// file extension.
+    ///
+    /// Compatibility is a conscious decision, not an accident: `None` is
+    /// the safe direction. Kind only ever *narrows* what is treated as a
+    /// page — a plan written before this field existed degrades to "no
+    /// page projection" (no URL list entries, no Audit HtmlPage parsing)
+    /// rather than falsely claiming page-ness for content assets. The
+    /// artifact-set seal independently binds the inventory bytes carrying
+    /// the authoritative kinds, so a missing cached kind can never make
+    /// the seal lie. Journals are per-project runtime evidence written and
+    /// read by the same build, and this PR is unmerged, so no migration is
+    /// required.
     #[serde(default)]
     pub kind: Option<String>,
 }
@@ -43,7 +54,7 @@ pub fn hash_json<T: Serialize>(v: &T) -> Result<Hash> {
 impl SealedPlan {
     pub(crate) fn validate_file_paths(&self) -> Result<()> {
         for f in &self.files {
-            safe_rel_path(&f.path)?;
+            host_relative(&f.path)?;
         }
         Ok(())
     }
@@ -65,11 +76,6 @@ impl SealedPlan {
     pub fn file(&self, path: &str) -> Option<&PlanFile> {
         self.files.iter().find(|f| f.path == path)
     }
-}
-
-pub(crate) fn safe_rel_path(path: &str) -> Result<&Path> {
-    portable_relative(path)
-        .map_err(|_| PublishError::Refused(format!("invalid relative publish path: {path:?}")))
 }
 
 /// Host-valid output-relative publish path. Copy-to-folder delivers on the
@@ -139,7 +145,7 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<PlanFile>) -> Result<()> {
                 .collect::<Option<Vec<_>>>()
                 .ok_or_else(|| PublishError::Refused("non-UTF-8 path in output".into()))?
                 .join("/");
-            safe_rel_path(&rel)?;
+            host_relative(&rel)?;
             let bytes = std::fs::read(&p)?;
             out.push(PlanFile {
                 kind: None,

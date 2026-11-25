@@ -250,6 +250,11 @@ pub struct CapturedEngine {
     pub proof_payload_entry: bool,
     pub duplicate_entry: bool,
     pub case_collision_entry: bool,
+    pub plant_uninventoried: bool,
+    pub omit_css_record: bool,
+    pub cache_record: bool,
+    pub hardlink_alias: bool,
+    pub multiply_linked: bool,
 }
 
 impl CapturedEngine {
@@ -262,6 +267,11 @@ impl CapturedEngine {
             proof_payload_entry: false,
             duplicate_entry: false,
             case_collision_entry: false,
+            plant_uninventoried: false,
+            omit_css_record: false,
+            cache_record: false,
+            hardlink_alias: false,
+            multiply_linked: false,
         }
     }
 
@@ -335,6 +345,60 @@ impl Engine for CapturedEngine {
                     sorted.sort_by(|a, b| a["path"].as_str().cmp(&b["path"].as_str()));
                     idx["artifacts"] = serde_json::json!(sorted);
                     std::fs::write(&path, serde_json::to_vec_pretty(&idx).unwrap()).unwrap();
+                }
+                if self.plant_uninventoried {
+                    std::fs::write(out.join("not-in-the-inventory.txt"), b"planted").unwrap();
+                }
+                if self.omit_css_record {
+                    let path = out.join("_boris/proof/artifacts.json");
+                    let mut idx: serde_json::Value =
+                        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+                    idx["artifacts"]
+                        .as_array_mut()
+                        .unwrap()
+                        .retain(|a| a["path"].as_str() != Some("assets/css/boris.css"));
+                    std::fs::write(&path, serde_json::to_vec_pretty(&idx).unwrap()).unwrap();
+                }
+                if self.cache_record {
+                    let path = out.join("_boris/proof/artifacts.json");
+                    let mut idx: serde_json::Value =
+                        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+                    let mut entry = idx["artifacts"][0].clone();
+                    entry["path"] = serde_json::json!(".boris-cache/sitemap-output-path");
+                    idx["artifacts"].as_array_mut().unwrap().push(entry);
+                    let mut sorted = idx["artifacts"].as_array().unwrap().clone();
+                    sorted.sort_by(|a, b| a["path"].as_str().cmp(&b["path"].as_str()));
+                    idx["artifacts"] = serde_json::json!(sorted);
+                    std::fs::write(&path, serde_json::to_vec_pretty(&idx).unwrap()).unwrap();
+                }
+                #[cfg(unix)]
+                if self.hardlink_alias {
+                    let proof_file = out.join("_boris/proof/index.html");
+                    if !proof_file.exists() {
+                        std::fs::write(&proof_file, b"proof").unwrap();
+                    }
+                    std::fs::hard_link(&proof_file, out.join("alias.html")).unwrap();
+                    let bytes = std::fs::read(&proof_file).unwrap();
+                    let path = out.join("_boris/proof/artifacts.json");
+                    let mut idx: serde_json::Value =
+                        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+                    let mut entry = idx["artifacts"][0].clone();
+                    entry["path"] = serde_json::json!("alias.html");
+                    entry["bytes"] = serde_json::json!(bytes.len());
+                    entry["sha256"] = serde_json::json!(cv_publish::plan::sha256(&bytes).to_hex());
+                    idx["artifacts"].as_array_mut().unwrap().push(entry);
+                    let mut sorted = idx["artifacts"].as_array().unwrap().clone();
+                    sorted.sort_by(|a, b| a["path"].as_str().cmp(&b["path"].as_str()));
+                    idx["artifacts"] = serde_json::json!(sorted);
+                    std::fs::write(&path, serde_json::to_vec_pretty(&idx).unwrap()).unwrap();
+                }
+                #[cfg(unix)]
+                if self.multiply_linked {
+                    std::fs::hard_link(
+                        out.join("index.html"),
+                        self.root.join("outside-the-tree-copy.html"),
+                    )
+                    .unwrap();
                 }
                 if self.proof_payload_entry {
                     let path = out.join("_boris/proof/artifacts.json");
