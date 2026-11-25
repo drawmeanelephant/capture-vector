@@ -1,0 +1,115 @@
+{
+  "schemaVersion": "0.2.0",
+  "frozen": true,
+  "nodes": [
+    {
+      "index": 0,
+      "id": "guide",
+      "sourcePath": "guide.md",
+      "role": "satellite",
+      "parent": "index",
+      "parentIndex": 1,
+      "title": "Guide",
+      "status": null,
+      "tags": [],
+      "bodyOffset": 35
+    },
+    {
+      "index": 1,
+      "id": "index",
+      "sourcePath": "index.md",
+      "role": "trunk",
+      "parent": null,
+      "parentIndex": null,
+      "title": "Parity Probe",
+      "status": null,
+      "tags": ["editor"],
+      "bodyOffset": 43
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "type": "page",
+        "value": "guide"
+      },
+      "to": {
+        "type": "page",
+        "value": "index"
+      },
+      "kind": "parent"
+    },
+    {
+      "from": {
+        "type": "page",
+        "value": "guide"
+      },
+      "to": {
+        "type": "page",
+        "value": "index"
+      },
+      "kind": "reference"
+    },
+    {
+      "from": {
+        "type": "page",
+        "value": "index"
+      },
+      "to": {
+        "type": "page",
+        "value": "guide"
+      },
+      "kind": "reference"
+    },
+    {
+      "from": {
+        "type": "page",
+        "value": "index"
+      },
+      "to": {
+        "type": "source",
+        "value": "includes/note.md"
+      },
+      "kind": "include"
+    }
+  ],
+  "reverseIndex": [
+    {
+      "target": {
+        "type": "page",
+        "value": "guide"
+      },
+      "incomingEdges": [2]
+    },
+    {
+      "target": {
+        "type": "page",
+        "value": "index"
+      },
+      "incomingEdges": [0, 1]
+    },
+    {
+      "target": {
+        "type": "source",
+        "value": "includes/note.md"
+      },
+      "incomingEdges": [3]
+    }
+  ],
+  "nav": [
+    {
+      "index": 0,
+      "id": "guide",
+      "breadcrumb": [1, 0],
+      "children": [],
+      "siblings": []
+    },
+    {
+      "index": 1,
+      "id": "index",
+      "breadcrumb": [1],
+      "children": [0],
+      "siblings": []
+    }
+  ]
+}

@@ -54,6 +54,23 @@ fn card(h: &Harness) -> Vec<Value> {
         .collect()
 }
 
+/// Absolute tree rects are rounded to 0.1 pt before `card` subtracts the
+/// origin, so one card at two offsets can differ by a rounding step.
+fn same_card(a: &[Value], b: &[Value]) -> bool {
+    a.len() == b.len()
+        && a.iter().zip(b).all(|(x, y)| {
+            let (mut x, mut y) = (x.clone(), y.clone());
+            let (rx, ry) = (x["rect"].take(), y["rect"].take());
+            let (rx, ry) = (rx.as_array().unwrap(), ry.as_array().unwrap());
+            x == y
+                && rx.len() == ry.len()
+                && rx
+                    .iter()
+                    .zip(ry)
+                    .all(|(p, q)| (p.as_f64().unwrap() - q.as_f64().unwrap()).abs() <= 0.11)
+        })
+}
+
 #[test]
 fn every_broken_corpus_surfaces_its_boris_diagnostic_in_pages_and_activity() {
     for corpus in BROKEN {
@@ -123,7 +140,11 @@ fn same_diagnostic_renders_identically_in_activity_and_pages() {
         .inspector(&kp)
         .diagnostics;
     assert_eq!(da, dp, "same Diagnostic value");
-    assert_eq!(card(&a), card(&p), "same rendered subtree");
+    let (ca, cp) = (card(&a), card(&p));
+    assert!(
+        same_card(&ca, &cp),
+        "same rendered subtree:\n{ca:?}\n{cp:?}"
+    );
 }
 
 #[test]

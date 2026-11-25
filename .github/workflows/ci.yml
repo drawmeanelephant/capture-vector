@@ -51,6 +51,18 @@ jobs:
 
       # A mismatch keeps the Lavapipe renders, so a deliberate visual change
       # is blessed from the canonical rasterizer, never a local GPU.
+      # Same idea as the PNG renders: scene_goldens writes *.actual.json
+      # next to the goldens, so a failed run hands back the canonical
+      # render for blessing instead of needing a second machine.
+      - name: upload golden actuals
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: golden-actuals-${{ matrix.os }}
+          path: fixtures/ui/golden/tree/*.actual.json
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: upload PNG renders
         if: failure() && matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v7
