@@ -19,6 +19,8 @@ pub mod controls;
 pub mod diagnostic;
 pub mod dialog;
 pub mod editor;
+#[cfg(test)]
+mod font_asset;
 #[doc(hidden)]
 pub mod fonts;
 pub mod fx;

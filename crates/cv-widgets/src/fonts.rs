@@ -71,6 +71,25 @@ mod tests {
     }
 
     #[test]
+    fn compressed_fallback_asset_verifies_to_the_embedded_font() {
+        let compressed = include_bytes!("../assets/fonts/DroidSansFallback.ttf.gz");
+        let raw = crate::font_asset::decode_bounded(compressed).unwrap();
+        assert_eq!(raw.as_slice(), DROID_SANS_FALLBACK);
+    }
+
+    #[test]
+    fn corrupted_fallback_asset_is_rejected() {
+        let mut compressed = include_bytes!("../assets/fonts/DroidSansFallback.ttf.gz").to_vec();
+        let at = compressed.len() / 2;
+        compressed[at] ^= 1;
+        let err = crate::font_asset::decode_bounded(&compressed).unwrap_err();
+        assert!(
+            err.contains("gzip") || err.contains("sha256") || err.contains("length"),
+            "{err}"
+        );
+    }
+
+    #[test]
     fn latin_text_still_resolves_outside_the_cjk_fallback() {
         let glyphs = shaped("Capture Vector");
         assert!(!glyphs.is_empty());
