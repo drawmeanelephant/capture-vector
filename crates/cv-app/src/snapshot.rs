@@ -153,6 +153,14 @@ fn split_frontmatter(raw: &str) -> Option<(&str, &str)> {
 /// One page record guessed from source, marked `FieldSource::Source`.
 /// Without an explicit `id` the path (sans extension) stands in,
 /// matching the `[[guides/x]]` links the corpora use.
+///
+/// `explicit_id` conformance: the accepted `id` spellings here are exactly
+/// the ones Boris 0.9.0 binds — verified against the real engine as oracle
+/// (`validate` + duplicate-detection probes, see snapshot tests): plain,
+/// no-space, space-before-colon, and double-quoted values bind; indented
+/// lines, uppercase keys, single-quoted and empty values are
+/// `EFRONTMATTER` rejections in Boris, so any residual scanner divergence
+/// on them is unobservable in a workspace that validates.
 pub fn page(path: &str, raw: &str) -> PageRecord {
     let (fm, body) = split_frontmatter(raw).unwrap_or(("", raw));
     let mut p = PageRecord {
@@ -163,6 +171,12 @@ pub fn page(path: &str, raw: &str) -> PageRecord {
         ..Default::default()
     };
     for (k, v) in fm.lines().filter_map(|l| l.split_once(':')) {
+        // Boris rejects indented frontmatter lines outright ("no nested
+        // mappings"); trailing space before the colon is accepted. Match
+        // that exactly: a leading-whitespace line is no key at all.
+        if k.starts_with(char::is_whitespace) {
+            continue;
+        }
         let v = v.trim().to_string();
         match k.trim() {
             "id" => {

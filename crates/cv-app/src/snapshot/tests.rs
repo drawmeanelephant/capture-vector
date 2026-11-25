@@ -25,6 +25,57 @@ fn unclosed_fence_is_no_frontmatter() {
     assert_eq!(p.id, "a");
 }
 
+/// Frontmatter `id` spelling conformance, probed against Boris 0.9.0
+/// (`zig-out/bin/boris validate`) as the authoritative oracle in
+/// November 2026: every spelling variant Boris accepts binds exactly as
+/// the scanner reads it, and every spelling the scanner reads
+/// differently is one Boris hard-fails (`EFRONTMATTER`) — so over the
+/// domain of workspaces Boris accepts at all, the scanner's notion of an
+/// explicit id is exactly Boris's. The negative cases below pin the
+/// scanner behavior for content that can never survive validation.
+#[test]
+fn explicit_id_spelling_variants_match_boris_acceptance() {
+    // Variants Boris accepts and binds (duplicate-detection probes):
+    for (name, fm, want) in [
+        ("plain", "id: xx-a", "xx-a"),
+        ("no space after colon", "id:xx-b", "xx-b"),
+        ("space before colon", "id : xx-c", "xx-c"),
+        ("double-quoted", "id: \"xx-d\"", "xx-d"),
+    ] {
+        let p = page("some/path.md", &format!("---\n{fm}\n---\nbody\n"));
+        assert_eq!(p.id, want, "{name}");
+        assert!(p.explicit_id, "{name} is explicit");
+    }
+}
+
+/// Spellings Boris rejects with `EFRONTMATTER`: the scanner's reading is
+/// unobservable in any workspace that validates, but pin it so a drift
+/// in either direction is a deliberate diff, not an accident.
+#[test]
+fn boris_rejected_spellings_are_pinned_as_unobservable() {
+    // Single-quoted: Boris hard-fails; the scanner keeps the quotes as
+    // literal bytes — divergent in principle, unreachable in practice.
+    let p = page("x.md", "---\nid: 'xx-e'\n---\nbody\n");
+    assert!(
+        p.explicit_id,
+        "scanner marks it, but Boris rejects the file"
+    );
+    // Empty: Boris hard-fails (`non-empty` required); the scanner treats
+    // it as absent and falls back to the path.
+    let p = page("x.md", "---\nid:\n---\nbody\n");
+    assert!(!p.explicit_id);
+    assert_eq!(p.id, "x");
+    // Uppercase key / indented line: Boris hard-fails as unknown keys or
+    // unsupported nesting; the scanner reads neither as an id.
+    let p = page("x.md", "---\nID: xx-f\n---\nbody\n");
+    assert!(!p.explicit_id);
+    let p = page("x.md", "---\n  id: xx-g\n---\nbody\n");
+    assert!(
+        !p.explicit_id,
+        "indented lines are no key at all, like Boris"
+    );
+}
+
 fn write(root: &Path, rel: &str, body: impl AsRef<[u8]>) {
     let path = root.join(rel);
     fs::create_dir_all(path.parent().unwrap()).unwrap();
