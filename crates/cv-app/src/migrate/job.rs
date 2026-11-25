@@ -11,19 +11,6 @@ use cv_store::imports::{self as store, RunRecord};
 use std::thread::JoinHandle;
 
 fn execute(job: &ImportJob, lab_override: Option<LabIdentity>) -> Result<(), String> {
-    // Ownership is the write capability for every run-record mutation.
-    // Re-acquiring here is cheap (cached per active workspace) and re-proves
-    // the capability at the moment of writing: a foreign-held or unsafe
-    // workspace writes nothing at all. Unchecked platforms keep their
-    // honestly-unproven best-effort behavior.
-    let ownership = cv_engine::wlock::ownership(&job.workspace);
-    use cv_engine::wlock::Ownership;
-    if matches!(ownership, Ownership::Foreign | Ownership::Unsafe) {
-        return Err(format!(
-            "workspace {} is not owned by this process ({ownership:?}); the import cannot run here",
-            job.workspace.display()
-        ));
-    }
     let mode = engine_lab::mode(&job.mode)
         .ok_or_else(|| format!("migration mode {} is not registered", job.mode))?;
     let lab = match lab_override {
@@ -108,7 +95,8 @@ pub fn run_stub_lab(
 ) -> Result<RunRecord, String> {
     let mode = engine_lab::mode(mode_name)
         .ok_or_else(|| format!("migration mode {mode_name} is not registered"))?;
-    let dir = store::run_dir(root, run_id).map_err(|e| e.to_string())?;
+    let lock = store::claim_run(root, run_id).map_err(|e| e.to_string())?;
+    let dir = lock.dir().to_path_buf();
     let run = engine_lab::LabRun {
         mode,
         inputs,
@@ -139,8 +127,7 @@ pub fn run_stub_lab(
         .iter()
         .map(|a| a.to_string_lossy().into_owned())
         .collect();
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    store::write(root, &rec).map_err(|e| e.to_string())?;
+    store::write(&lock, &rec).map_err(|e| e.to_string())?;
     let done = match lab.run(mode_name, &run.out) {
         Ok(done) => done,
         Err(cv_fixtures::lab::StubLabError::NoCapture(mode)) => {
@@ -156,7 +143,7 @@ pub fn run_stub_lab(
                 outcome: "stub replay refused".into(),
                 duration_ms: 0,
             });
-            store::write(root, &rec).map_err(|e| e.to_string())?;
+            store::write(&lock, &rec).map_err(|e| e.to_string())?;
             return Ok(rec);
         }
     };
@@ -175,41 +162,6 @@ pub fn run_stub_lab(
         outcome: format!("exited {}", done.exit_code),
         duration_ms: 0,
     });
-    store::write(root, &rec).map_err(|e| e.to_string())?;
+    store::write(&lock, &rec).map_err(|e| e.to_string())?;
     Ok(rec)
-}
-
-#[cfg(test)]
-mod tests {
-    #[cfg(unix)]
-    #[test]
-    fn execute_refuses_an_unsafe_workspace_before_writing_anything() {
-        // A symlinked `.cv` makes the workspace Unsafe without needing a
-        // second process: the same matches!(Foreign | Unsafe) branch covers
-        // foreign-held workspaces, whose cross-process exclusion is proven
-        // in cv-engine's wlock tests.
-        let t = tempfile::tempdir().unwrap();
-        let root = std::fs::canonicalize(t.path()).unwrap();
-        let outside = t.path().join("outside");
-        std::fs::create_dir_all(&outside).unwrap();
-        std::os::unix::fs::symlink(&outside, root.join(".cv")).unwrap();
-        let job = cv_model::command::ImportJob {
-            workspace: root.clone(),
-            run_id: "r1".into(),
-            mode: "hugo".into(),
-            phase: cv_model::command::ImportPhase::Emit,
-            inputs: vec![("--root".into(), root.clone())],
-            extras: Vec::new(),
-            cancel: cv_engine::proc::CancelToken::new(),
-        };
-        let err = super::execute(&job, None).unwrap_err();
-        assert!(err.contains("not owned"), "{err}");
-        assert!(
-            !root.join(".cv").join("imports").exists()
-                || std::fs::read_dir(root.join(".cv").join("imports"))
-                    .map(|mut d| d.next().is_none())
-                    .unwrap_or(true),
-            "nothing was written"
-        );
-    }
 }

@@ -7,6 +7,59 @@ fn load(root: &Path) -> Imports {
     DiskPort::open(root, LabState::NoWorkspace).load()
 }
 
+/// A pre-lock legacy run on disk: valid record bytes and output, but no
+/// `run.lock`. Test setup writes bytes directly because it is constructing
+/// the foreign past the read-only projection must handle, not performing an
+/// app write.
+fn legacy_unfinished_run(root: &Path, id: &str) -> PathBuf {
+    let dir = store::run_dir(root, id).unwrap();
+    std::fs::create_dir_all(dir.join(store::OUT)).unwrap();
+    let rec = RunRecord::started(
+        id,
+        "hugo",
+        store::RecordedLab {
+            tool_id: "lab".into(),
+            source: "test".into(),
+            path: "/lab".into(),
+        },
+        7,
+    );
+    let mut bytes = serde_json::to_vec_pretty(&rec).unwrap();
+    bytes.push(b'\n');
+    std::fs::write(dir.join(store::RECORD), bytes).unwrap();
+    std::fs::write(dir.join(store::OUT).join("partial.txt"), b"partial").unwrap();
+    dir
+}
+
+fn run_folder_bytes(dir: &Path) -> Vec<(String, Vec<u8>)> {
+    let mut out = Vec::new();
+    for entry in std::fs::read_dir(dir).unwrap() {
+        let path = entry.unwrap().path();
+        if path.is_file() {
+            out.push((
+                path.file_name().unwrap().to_string_lossy().into_owned(),
+                std::fs::read(&path).unwrap(),
+            ));
+        } else if path.is_dir() {
+            for nested in std::fs::read_dir(&path).unwrap() {
+                let nested = nested.unwrap().path();
+                if nested.is_file() {
+                    out.push((
+                        format!(
+                            "{}/{}",
+                            path.file_name().unwrap().to_string_lossy(),
+                            nested.file_name().unwrap().to_string_lossy()
+                        ),
+                        std::fs::read(&nested).unwrap(),
+                    ));
+                }
+            }
+        }
+    }
+    out.sort();
+    out
+}
+
 #[test]
 fn every_captured_mode_projects_a_readable_run() {
     let d = tempfile::tempdir().unwrap();
@@ -95,60 +148,61 @@ fn an_unmirrored_report_schema_is_disclosed_not_guessed() {
 }
 
 #[test]
-fn run_status_follows_the_record() {
+fn run_status_follows_the_recorded_outcome() {
     let d = tempfile::tempdir().unwrap();
     let id = seed_run(d.path(), "jekyll", 1);
     let mut rec = match &store::scan(d.path()).unwrap()[0].record {
         Ok(r) => r.clone(),
         Err(e) => panic!("{e}"),
     };
+    let lock = store::lock_run(d.path(), &id).unwrap();
     for (exit, want) in [
         ("ok", RunStatus::Ok),
         ("usage", RunStatus::Refused),
         ("io", RunStatus::Failed),
     ] {
         rec.finished.as_mut().unwrap().exit = exit.into();
-        store::write(d.path(), &rec).unwrap();
+        store::write(&lock, &rec).unwrap();
         assert_eq!(load(d.path()).runs[0].status, want, "{exit}");
     }
     rec.adopted = Some(store::Adopted {
         at_ms: 2,
         workspace: "/w".into(),
     });
-    store::write(d.path(), &rec).unwrap();
+    store::write(&lock, &rec).unwrap();
     assert_eq!(load(d.path()).runs[0].status, RunStatus::Adopted);
     rec.adopted = None;
     rec.finished = None;
-    store::write(d.path(), &rec).unwrap();
-    // An unfinished record can no longer be observed as `running` through a
-    // fresh open: workers die with the app, so the open-time sweep closes
-    // it as interrupted. In-session runs still display Running because the
-    // sweep only fires once, at open, before any worker exists.
+    store::write(&lock, &rec).unwrap();
+    drop(lock);
     let r = &load(d.path()).runs[0];
-    assert_eq!(r.status, RunStatus::Failed);
+    assert_eq!(r.status, RunStatus::Unfinished);
     assert_eq!(r.id, id);
 }
 
 #[test]
-fn a_run_left_unfinished_by_a_quit_is_closed_as_interrupted_on_open() {
+fn an_unfinished_record_without_a_lock_projects_unfinished_without_rewriting() {
     let d = tempfile::tempdir().unwrap();
-    let id = seed_run(d.path(), "jekyll", 1);
-    let mut rec = store::scan(d.path()).unwrap()[0].record.clone().unwrap();
-    rec.finished = None;
-    store::write(d.path(), &rec).unwrap();
-
-    // First open after the "quit": the orphaned record is closed honestly.
+    let dir = legacy_unfinished_run(d.path(), "legacy");
+    let before = run_folder_bytes(&dir);
     let r = &load(d.path()).runs[0];
-    assert_eq!(r.status, RunStatus::Failed);
-    let rec = store::scan(d.path()).unwrap()[0].record.clone().unwrap();
-    let f = rec.finished.expect("sweep wrote a finish");
-    assert_eq!(f.exit, "interrupted");
+    assert_eq!(r.status, RunStatus::Unfinished);
+    assert_eq!(run_folder_bytes(&dir), before);
     assert!(
-        f.outcome.contains("quitting is not cancellation"),
-        "{}",
-        f.outcome
+        !dir.join(store::RUN_LOCK).exists(),
+        "read-only projection must not create a lock"
     );
-    let _ = id;
+}
+
+#[test]
+fn a_held_run_lock_projects_running_and_release_projects_unfinished() {
+    let d = tempfile::tempdir().unwrap();
+    let dir = legacy_unfinished_run(d.path(), "legacy");
+    assert!(!dir.join(store::RUN_LOCK).exists());
+    let lock = store::lock_run(d.path(), "legacy").unwrap();
+    assert_eq!(load(d.path()).runs[0].status, RunStatus::Running);
+    drop(lock);
+    assert_eq!(load(d.path()).runs[0].status, RunStatus::Unfinished);
 }
 
 #[test]
@@ -262,7 +316,7 @@ fn cancelled_exit_projects_as_cancelled_instead_of_a_lab_failure() {
         outcome: "cancelled; child process group killed".into(),
         duration_ms: 3,
     });
-    assert_eq!(status(&rec), RunStatus::Cancelled);
+    assert_eq!(status(Path::new("/unused"), &rec), RunStatus::Cancelled);
 }
 
 #[test]
@@ -353,80 +407,29 @@ fn a_valid_inventory_carries_count_evidence() {
     );
 }
 
-/// The sweep-gating half of the stale-write race coverage: a foreign-owned
-/// workspace is never swept and discloses itself; an owned workspace is
-/// swept. The cross-process exclusion half — a live holder really does
-/// exclude other processes until it dies — is proven in cv-engine's wlock
-/// tests, because processes spawn only inside cv-engine.
 #[test]
-fn a_foreign_owned_workspace_is_never_swept() {
-    let d = tempfile::tempdir().unwrap();
-    let root = std::fs::canonicalize(d.path()).unwrap();
-    seed_run(&root, "jekyll", 1);
-    let mut rec = store::scan(&root).unwrap()[0].record.clone().unwrap();
-    rec.finished = None;
-    store::write(&root, &rec).unwrap();
-
-    let port = DiskPort::open_with_ownership(&root, LabState::NoWorkspace, Ownership::Foreign);
-    let i = migrate_port_load(port);
-    assert!(
-        i.error
-            .as_deref()
-            .unwrap_or("")
-            .contains("another Capture Vector process"),
-        "{:?}",
-        i.error
-    );
-    let rec = store::scan(&root).unwrap()[0].record.clone().unwrap();
-    assert!(
-        rec.finished.is_none(),
-        "a foreign-owned record is never rewritten: {rec:?}"
-    );
-
-    // Ownership acquired (the other process exited, releasing the flock):
-    // the sweep applies and the orphaned record closes as interrupted.
-    let port = DiskPort::open_with_ownership(&root, LabState::NoWorkspace, Ownership::Owned);
-    let _ = migrate_port_load(port);
-    let rec = store::scan(&root).unwrap()[0].record.clone().unwrap();
-    assert_eq!(
-        rec.finished.as_ref().map(|f| f.exit.as_str()),
-        Some("interrupted"),
-        "the orphaned record is closed once owned: {rec:?}"
-    );
-}
-
-fn migrate_port_load(mut port: DiskPort) -> Imports {
-    port.load()
-}
-
-#[test]
-fn foreign_review_writes_are_refused_and_owned_writes_work() {
+fn a_second_review_writer_is_read_only_and_refuses_decisions() {
     let d = tempfile::tempdir().unwrap();
     let root = std::fs::canonicalize(d.path()).unwrap();
     let id = seed_run(&root, "jekyll", 1);
     let item = load(&root).runs[0].review.first().map(|i| i.id.clone());
+    let Some(item) = item else {
+        panic!("jekyll capture has review items")
+    };
 
-    let mut foreign =
-        DiskPort::open_with_ownership(&root, LabState::NoWorkspace, Ownership::Foreign);
-    if let Some(item) = &item {
-        let err = foreign
-            .record(&id, item, ReviewState::Accepted)
-            .unwrap_err();
-        assert!(err.contains("not owned"), "{err}");
-    }
-    let mut unsafe_port =
-        DiskPort::open_with_ownership(&root, LabState::NoWorkspace, Ownership::Unsafe);
-    if let Some(item) = &item {
-        assert!(
-            unsafe_port
-                .record(&id, item, ReviewState::Accepted)
-                .is_err()
-        );
-    }
-    let mut owned = DiskPort::open_with_ownership(&root, LabState::NoWorkspace, Ownership::Owned);
-    if let Some(item) = &item {
-        owned.record(&id, item, ReviewState::Accepted).unwrap();
-    }
+    let mut writer = DiskPort::open(&root, LabState::NoWorkspace);
+    let mut loser = DiskPort::open(&root, LabState::NoWorkspace);
+    writer.record(&id, &item, ReviewState::Accepted).unwrap();
+    let err = loser.record(&id, &item, ReviewState::Deferred).unwrap_err();
+    assert!(err.contains("read-only"), "{err}");
+    drop(writer);
+    // A handle that lost the race does not become a writer later in-place;
+    // only a fresh open after the holder closes can win the lock.
+    let err = loser.record(&id, &item, ReviewState::Deferred).unwrap_err();
+    assert!(err.contains("read-only"), "{err}");
+    drop(loser);
+    let mut fresh = DiskPort::open(&root, LabState::NoWorkspace);
+    fresh.record(&id, &item, ReviewState::Deferred).unwrap();
 }
 
 #[test]

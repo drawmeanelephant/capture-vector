@@ -76,6 +76,8 @@ pub struct Family {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RunStatus {
     Running,
+    /// No outcome is recorded and no live writer holds the run lock.
+    Unfinished,
     Ok,
     Cancelled,
     Refused,
@@ -87,6 +89,7 @@ impl RunStatus {
     pub fn label(self) -> &'static str {
         match self {
             Self::Running => "running",
+            Self::Unfinished => "unfinished",
             Self::Ok => "ok",
             Self::Cancelled => "cancelled",
             Self::Refused => "refused",
@@ -98,7 +101,7 @@ impl RunStatus {
         match self {
             Self::Running => Tone::Dim,
             Self::Ok | Self::Adopted => Tone::Ok,
-            Self::Cancelled | Self::Refused => Tone::Warn,
+            Self::Cancelled | Self::Refused | Self::Unfinished => Tone::Warn,
             Self::Failed => Tone::Error,
         }
     }
@@ -569,7 +572,7 @@ impl MigrateModule {
         let rail = match (r.problem.is_some(), r.status) {
             (true, _) => Some(Tone::Warn),
             (_, RunStatus::Failed) => Some(Tone::Error),
-            (_, RunStatus::Refused) => Some(Tone::Warn),
+            (_, RunStatus::Refused | RunStatus::Unfinished) => Some(Tone::Warn),
             _ => None,
         };
         let badge = if r.problem.is_some() && r.status == RunStatus::Ok {
@@ -701,7 +704,12 @@ impl MigrateModule {
         }
         if r.status == RunStatus::Running {
             lines.push(note(
-                "No exit was recorded yet. A run whose app quit before the lab ended stays running.",
+                "No exit was recorded yet. This run's lock is still held by a live import operation.",
+            ));
+        }
+        if r.status == RunStatus::Unfinished {
+            lines.push(note(
+                "Capture Vector quit or crashed before the lab reported an outcome, or the run lock can no longer be inspected. The output may be partial. This run cannot be adopted; start a new import to retry. On macOS and Linux, quitting is not cancelling, so the lab may continue writing this run's output.",
             ));
         }
         for input in &r.inputs {

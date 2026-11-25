@@ -227,6 +227,7 @@ fn cancelling_progress_kills_the_lab_and_records_a_cancelled_run() {
     let identity =
         engine_lab::gate(EngineSource::EnvOverride, &bin, lab_dir.path(), PINNED).unwrap();
     std::fs::write(lab_dir.path().join("hold"), "hold\n").unwrap();
+    let _ = std::fs::remove_file(lab_dir.path().join("argv.log"));
 
     let mut h = harness(&root);
     h.script(&["cmd:migrate.new"]);
@@ -268,4 +269,98 @@ fn cancelling_progress_kills_the_lab_and_records_a_cancelled_run() {
         Some(format!("run:{}", inventory.run_id).as_str())
     );
     assert!(h.state().status.contains("cancelled"));
+}
+
+#[cfg(unix)]
+#[test]
+fn switching_workspaces_during_import_keeps_the_run_lock_and_record_intact() {
+    use cv_core::engine::EngineSource;
+    use cv_engine::lab::{self as engine_lab, PINNED};
+    use std::os::unix::fs::PermissionsExt;
+
+    const FAKE: &str = include_str!("../../cv-engine/tests/fake-lab/boris-migration-lab");
+
+    let (_t, root) = workspace();
+    let (_t2, other_root) = workspace();
+    let hugo = root.join("hugo-source");
+    std::fs::create_dir_all(hugo.join("content")).unwrap();
+    let lab_dir = tempfile::tempdir().unwrap();
+    let bin = lab_dir.path().join(engine_lab::exe_name());
+    std::fs::write(&bin, FAKE).unwrap();
+    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+    std::fs::write(
+        lab_dir.path().join("version.txt"),
+        format!("{}\n", PINNED.tool_id),
+    )
+    .unwrap();
+    let identity =
+        engine_lab::gate(EngineSource::EnvOverride, &bin, lab_dir.path(), PINNED).unwrap();
+    std::fs::write(lab_dir.path().join("hold"), "hold\n").unwrap();
+    let _ = std::fs::remove_file(lab_dir.path().join("argv.log"));
+
+    let mut h = harness(&root);
+    h.script(&["cmd:migrate.new"]);
+    choose(&mut h, "static");
+    choose(&mut h, "hugo");
+    h.state_mut().dialog_browse(0);
+    let request = take_request(&mut h);
+    let ShellRequest::PickFolder { purpose } = request else {
+        panic!("hugo --root must pick a folder");
+    };
+    h.state_mut().picked(purpose, Some(hugo));
+    h.settle();
+    h.script(&["key:enter"]);
+    let inventory = take_import(&mut h);
+    let worker =
+        cv_app::migrate::spawn_import_with(h.state_mut(), inventory.clone(), Some(identity))
+            .expect("import worker spawned");
+    for _ in 0..100 {
+        if lab_dir.path().join("argv.log").exists() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(lab_dir.path().join("argv.log").exists(), "fake lab started");
+    let mut held = false;
+    for _ in 0..150 {
+        if store::probe_run(&root, &inventory.run_id).ok() == Some(store::RunProbe::Held) {
+            held = true;
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(held, "the live import owns exactly its narrow per-run lock");
+    let run_dir = root.join(store::DIR).join(&inventory.run_id);
+    let before_record = std::fs::read(run_dir.join(store::RECORD)).unwrap();
+
+    // Opening another workspace used to drop a process-wide workspace lock.
+    // The import must survive that switch because its RunLock is an
+    // independent capability held by the worker.
+    let env = cv_app::WorkspaceEnv {
+        locator: Some(cv_engine::locate::Locator::default()),
+        recent_file: Some(other_root.join("recent-workspaces.json")),
+    };
+    if let Some(boot) = cv_app::open_workspace(h.state_mut(), other_root.clone(), &env) {
+        boot.join().unwrap();
+    }
+    assert_eq!(
+        store::probe_run(&root, &inventory.run_id).unwrap(),
+        store::RunProbe::Held,
+        "workspace switching must not release the import run lock"
+    );
+    assert_eq!(
+        std::fs::read(run_dir.join(store::RECORD)).unwrap(),
+        before_record,
+        "workspace switching must not rewrite the active run record"
+    );
+
+    inventory.cancel.cancel();
+    worker.join().unwrap();
+    let rec = run_record(&root, &inventory.run_id);
+    assert_eq!(rec.finished.expect("finished record").exit, "cancelled");
+    assert_eq!(
+        store::probe_run(&root, &inventory.run_id).unwrap(),
+        store::RunProbe::Free,
+        "the worker releases only its per-run lock at the end"
+    );
 }

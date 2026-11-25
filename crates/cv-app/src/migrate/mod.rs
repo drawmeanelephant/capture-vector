@@ -168,7 +168,6 @@ pub struct DiskPort {
     log: Option<ReviewLog>,
     states: HashMap<(String, String), ReviewState>,
     log_error: Option<String>,
-    ownership: Ownership,
 }
 
 fn to_model(s: store::ReviewState) -> ReviewState {
@@ -187,8 +186,6 @@ fn to_store(s: ReviewState) -> store::ReviewState {
     }
 }
 
-pub use cv_engine::wlock::Ownership;
-
 impl DiskPort {
     /// No workspace: no runs, the lab unchecked.
     pub fn none() -> Self {
@@ -202,55 +199,17 @@ impl DiskPort {
             log: None,
             states: HashMap::new(),
             log_error: None,
-            ownership: Ownership::Unchecked,
         }
     }
 
     /// Runs under `root/.cv/imports/`; triage persists beside them.
     ///
-    /// Opening a workspace is the one moment no import worker of this
-    /// process can be alive. Any run record still unfinished here is no
-    /// longer being observed — an earlier quit, or potentially a second
-    /// Capture Vector process that had the same workspace open; either
-    /// way this process cannot know its true state, so it is honestly
-    /// closed as interrupted instead of displaying `running` forever.
-    /// Multi-process workspace sharing is not yet prevented by a lock.
+    /// Opening is read-only with respect to run directories: unfinished
+    /// records are projected from their per-run locks, never rewritten by a
+    /// workspace-wide sweep. Review-log opening may claim its own narrow
+    /// writer lock, but it never writes inside any run folder.
     pub fn open(root: &Path, lab: LabState) -> Self {
-        let ownership = cv_engine::wlock::ownership(root);
-        // The sweep rewrites unfinished records. Only an owning process may
-        // do that: flock guarantees no other live process can have workers
-        // writing here, so the stale-write race is structurally impossible —
-        // not merely narrowed. Unchecked platforms sweep best-effort, which
-        // matches their honestly-unproven status.
-        if matches!(ownership, Ownership::Owned | Ownership::Unchecked) {
-            sweep_interrupted(root);
-        }
         let mut port = Self::detached(lab);
-        port.ownership = ownership;
-        port.root = Some(root.to_path_buf());
-        match ReviewLog::open(root) {
-            Ok((log, states, _)) => {
-                port.log = Some(log);
-                port.states = states.into_iter().map(|(k, s)| (k, to_model(s))).collect();
-            }
-            Err(e) => port.log_error = Some(e.to_string()),
-        }
-        port
-    }
-}
-
-impl DiskPort {
-    /// Test-only: ownership is normally taken from the engine lock, but the
-    /// sweep-gating contract must be exercisable without spawning processes
-    /// (cv-app never spawns; the cross-process exclusion proof lives in
-    /// cv-engine's wlock tests).
-    #[cfg(test)]
-    pub fn open_with_ownership(root: &Path, lab: LabState, ownership: Ownership) -> Self {
-        if matches!(ownership, Ownership::Owned | Ownership::Unchecked) {
-            sweep_interrupted(root);
-        }
-        let mut port = Self::detached(lab);
-        port.ownership = ownership;
         port.root = Some(root.to_path_buf());
         match ReviewLog::open(root) {
             Ok((log, states, _)) => {
@@ -280,21 +239,12 @@ impl MigratePort for DiskPort {
         let Some(root) = &self.root else {
             return out;
         };
-        if self.ownership == Ownership::Foreign {
-            out.error = Some(
-                concat!(
-                    "another Capture Vector process has this workspace open; run state here ",
-                    "is read-only observation and may belong to that process"
-                )
-                .into(),
-            );
-        }
         match store::scan(root) {
             Ok(dirs) => {
                 out.runs = dirs
                     .iter()
                     .map(|d| {
-                        let mut r = project(d);
+                        let mut r = project(root, d);
                         for i in &mut r.review {
                             if let Some(s) = self.states.get(&(r.id.clone(), i.id.clone())) {
                                 i.state = *s;
@@ -310,54 +260,25 @@ impl MigratePort for DiskPort {
     }
 
     fn record(&mut self, run: &str, item: &str, to: ReviewState) -> Result<(), String> {
-        // Ownership is a write capability, not advisory metadata: a
-        // foreign-held or unsafe workspace is read-only observation in
-        // fact, for triage exactly as for run records and the sweep.
-        // Adoption (#210) must consume the same capability before writing.
-        if matches!(self.ownership, Ownership::Foreign | Ownership::Unsafe) {
-            return Err(
-                "this workspace is not owned by this process, so review decisions cannot be written here"
-                    .into(),
-            );
-        }
-        if let Some(log) = &mut self.log {
-            log.append(run, item, to_store(to))
-                .map_err(|e| e.to_string())?;
-        }
+        let Some(log) = &mut self.log else {
+            return Err(format!(
+                "review decisions are not persisted: {}",
+                self.log_error
+                    .as_deref()
+                    .unwrap_or("review log unavailable")
+            ));
+        };
+        log.append(run, item, to_store(to)).map_err(|e| {
+            format!(
+                "review decision was not written for {run}/{item}: {e}; this window is read-only or the log is unavailable"
+            )
+        })?;
         self.states.insert((run.into(), item.into()), to);
         Ok(())
     }
 }
 
-/// Close every run record the last session left unfinished. Only called
-/// from `DiskPort::open`, before any worker of this session can exist.
-fn sweep_interrupted(root: &Path) {
-    let Ok(dirs) = store::scan(root) else {
-        return;
-    };
-    for d in dirs {
-        let Ok(mut rec) = d.record else {
-            continue;
-        };
-        if rec.finished.is_some() || rec.refused.is_some() {
-            continue;
-        }
-        rec.finished = Some(store::Finished {
-            exit_code: None,
-            exit: "interrupted".into(),
-            outcome: concat!(
-                "Capture Vector stopped observing this run before it finished ",
-                "(the app quit or closed; quitting is not cancellation). ",
-                "Whatever output exists remains in the output directory."
-            )
-            .into(),
-            duration_ms: 0,
-        });
-        let _ = store::write(root, &rec);
-    }
-}
-
-fn status(rec: &RunRecord) -> RunStatus {
+fn status(root: &Path, rec: &RunRecord) -> RunStatus {
     if rec.adopted.is_some() {
         return RunStatus::Adopted;
     }
@@ -365,7 +286,13 @@ fn status(rec: &RunRecord) -> RunStatus {
         return RunStatus::Refused;
     }
     match rec.finished.as_ref().map(|f| f.exit.as_str()) {
-        None => RunStatus::Running,
+        // A recorded outcome is authoritative even if lock state has changed
+        // since the worker wrote it. Only outcome-less records are projected
+        // through the per-run lock, read-only.
+        None => match store::probe_run(root, &rec.run_id) {
+            Ok(store::RunProbe::Held) => RunStatus::Running,
+            Ok(store::RunProbe::Free | store::RunProbe::Missing) | Err(_) => RunStatus::Unfinished,
+        },
         Some("ok") => RunStatus::Ok,
         Some("cancelled") => RunStatus::Cancelled,
         Some("usage") => RunStatus::Refused,
@@ -694,7 +621,7 @@ fn read_documents(out: &Path, run: &mut ImportRun) -> Result<bool, String> {
     Ok(false)
 }
 
-fn project(d: &RunDir) -> ImportRun {
+fn project(root: &Path, d: &RunDir) -> ImportRun {
     let rel = format!("{}/{}", store::DIR, d.id);
     let rec = match &d.record {
         Ok(r) => r,
@@ -706,7 +633,7 @@ fn project(d: &RunDir) -> ImportRun {
             return run;
         }
     };
-    let mut run = ImportRun::new(&d.id, status(rec));
+    let mut run = ImportRun::new(&d.id, status(root, rec));
     run.mode = rec.mode.clone();
     run.inputs = rec
         .inputs
@@ -954,7 +881,8 @@ pub fn run_lab(
     // narrow normalization that keeps `.cv/imports` reachable on macOS
     // alias mount points without ever flattening a user-selected input.
     let root = &std::fs::canonicalize(root).map_err(|e| RunError::Store(e.into()))?;
-    let dir = store::run_dir(root, run_id).map_err(RunError::Store)?;
+    let lock = store::claim_run(root, run_id).map_err(RunError::Store)?;
+    let dir = lock.dir().to_path_buf();
     let run = LabRun {
         mode,
         inputs,
@@ -967,12 +895,11 @@ pub fn run_lab(
         .iter()
         .map(|(f, p)| store::input(f, &p.display().to_string()))
         .collect();
-    std::fs::create_dir_all(&dir).map_err(|e| RunError::Store(e.into()))?;
     let prepared = match run.prepare() {
         Ok(p) => p,
         Err(e) => {
             rec.refused = Some(plain_prepare_refusal(&e));
-            store::write(root, &rec).map_err(RunError::Store)?;
+            store::write(&lock, &rec).map_err(RunError::Store)?;
             return Ok(rec);
         }
     };
@@ -986,7 +913,7 @@ pub fn run_lab(
             prepared.out.display(),
             confined.display()
         ));
-        store::write(root, &rec).map_err(RunError::Store)?;
+        store::write(&lock, &rec).map_err(RunError::Store)?;
         return Ok(rec);
     }
     rec.inputs = prepared
@@ -999,7 +926,7 @@ pub fn run_lab(
         .iter()
         .map(|a| a.to_string_lossy().into_owned())
         .collect();
-    store::write(root, &rec).map_err(RunError::Store)?;
+    store::write(&lock, &rec).map_err(RunError::Store)?;
     let wait_started = std::time::Instant::now();
     let out = match engine_lab::run(lab, &run, cancel) {
         Ok(out) => out,
@@ -1011,7 +938,7 @@ pub fn run_lab(
                 outcome: e.to_string(),
                 duration_ms: wait_started.elapsed().as_millis() as u64,
             });
-            store::write(root, &rec).map_err(RunError::Store)?;
+            store::write(&lock, &rec).map_err(RunError::Store)?;
             return Ok(rec);
         }
         Err(e) => {
@@ -1019,7 +946,7 @@ pub fn run_lab(
             // and cv-engine's validation immediately before the spawn. That
             // is still a pre-spawn refusal, not a lab failure.
             rec.refused = Some(plain_prepare_refusal(&e));
-            store::write(root, &rec).map_err(RunError::Store)?;
+            store::write(&lock, &rec).map_err(RunError::Store)?;
             return Ok(rec);
         }
     };
@@ -1038,7 +965,7 @@ pub fn run_lab(
         outcome,
         duration_ms: out.duration_ms,
     });
-    store::write(root, &rec).map_err(RunError::Store)?;
+    store::write(&lock, &rec).map_err(RunError::Store)?;
     Ok(rec)
 }
 

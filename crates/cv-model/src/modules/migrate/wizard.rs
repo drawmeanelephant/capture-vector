@@ -232,7 +232,7 @@ impl MigrateModule {
         body.extend(mode.safety.iter().map(|n| format!("• {n}")));
         body.push("• The source is never copied into the workspace or repository; the run records only its path and hash.".into());
         body.push(
-            "• Output is staged under .cv/imports/<run-id>/out and ownership-marked by the lab."
+            "• Output is staged under .cv/imports/<run-id>/out and the active run is held by its own narrow lock."
                 .into(),
         );
         let mut d = DialogSpec::new(
@@ -566,7 +566,20 @@ impl MigrateModule {
             self.wizard.reset();
             return vec![
                 Intent::Status(format!(
-                    "The {} stopped before the lab reported an outcome; the run is marked unfinished",
+                    "The {} worker ended before the lab reported an outcome, but the run lock is still held; inspect the run before retrying",
+                    phase.label()
+                )),
+                Intent::Reveal {
+                    module: super::ID.into(),
+                    key: format!("run:{run_id}"),
+                },
+            ];
+        }
+        if run.status == RunStatus::Unfinished {
+            self.wizard.reset();
+            return vec![
+                Intent::Status(format!(
+                    "The {} stopped before the lab reported an outcome; the unfinished run's output may be partial, it cannot be adopted, and a new import is the retry",
                     phase.label()
                 )),
                 Intent::Reveal {

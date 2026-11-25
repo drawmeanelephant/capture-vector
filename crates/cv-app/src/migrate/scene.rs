@@ -20,7 +20,8 @@ pub fn seed_run(root: &Path, mode: &str, started_ms: i64) -> String {
     let id = format!("{started_ms}-{mode}");
     // The lab refuses an output path under a symlink (macOS /var).
     let root = &root.canonicalize().expect("scene root");
-    let dir = store::run_dir(root, &id).expect("scene run id");
+    let lock = store::claim_run(root, &id).expect("scene run claim");
+    let dir = lock.dir().to_path_buf();
     let t = StubLab::new()
         .run(mode, &dir.join(store::OUT))
         .expect("captured lab mode");
@@ -55,7 +56,7 @@ pub fn seed_run(root: &Path, mode: &str, started_ms: i64) -> String {
         outcome: format!("exited {}", t.exit_code),
         duration_ms: 0,
     });
-    store::write(root, &rec).expect("scene run record");
+    store::write(&lock, &rec).expect("scene run record");
     id
 }
 
