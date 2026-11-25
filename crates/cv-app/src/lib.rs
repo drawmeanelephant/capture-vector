@@ -15,11 +15,12 @@ pub mod new_workspace;
 pub mod pages;
 pub mod publish;
 pub mod snapshot;
+pub mod verbs;
 pub mod workspace;
 
 use cv_core::engine::{Engine, Verb};
-use cv_core::events::Envelope;
 use cv_core::events::shell::DegradedReason;
+use cv_core::events::{Envelope, EventId};
 use cv_fixtures::stub_engine::StubEngine;
 use cv_fixtures::stub_store::StubStore;
 use cv_model::module::{ProjectSnapshot, Registry};
@@ -55,6 +56,7 @@ fn init_ports(
 ) -> Workbench {
     cv_model::modules::audit::install(Box::new(audit::DiskPort::ephemeral()));
     cv_model::modules::publish::install(publish);
+    cv_model::modules::engine::detach();
     cv_model::modules::migrate::install(migrate);
     doctor::install(None);
     Workbench::new(Registry::with_all()).with_store(Box::new(StubStore::new()))
@@ -70,11 +72,26 @@ fn publish_warning(port: &publish::DiskPort) -> Option<String> {
 /// Locate the engine, start its watch session into the shell's sink.
 /// Engine-absent is disclosed, never fatal.
 pub fn attach_engine(wb: &mut Workbench, engine: &dyn Engine) {
+    attach_engine_tapped(wb, engine, |_| {});
+}
+
+fn attach_engine_tapped(
+    wb: &mut Workbench,
+    engine: &dyn Engine,
+    mut tap: impl FnMut(&Envelope) + Send + 'static,
+) {
     match engine.locate() {
-        Ok(_) => match engine.watch(cv_widgets::editor::host::tee_builds(wb.sink())) {
-            Ok(h) => wb.attach_watch(h),
-            Err(_) => wb.disclose(DegradedReason::WatchDead),
-        },
+        Ok(_) => {
+            let mut forward = cv_widgets::editor::host::tee_builds(wb.sink());
+            let watch = engine.watch(Box::new(move |e| {
+                tap(&e);
+                forward(e);
+            }));
+            match watch {
+                Ok(h) => wb.attach_watch(h),
+                Err(_) => wb.disclose(DegradedReason::WatchDead),
+            }
+        }
         Err(_) => wb.disclose(DegradedReason::EngineAbsent),
     }
     wb.drain();
@@ -185,6 +202,7 @@ pub fn open_workspace(
     wb.registry = Registry::default();
     let slot = live::EngineSlot::default();
     let input = snapshot::content_input(&root);
+    cv_model::modules::engine::install(Box::new(live::SlotVerbs(slot.clone())));
     cv_model::modules::pages::install_in(
         Box::new(pages::WorkspacePages::new(&root, slot.clone())),
         &input,
@@ -377,6 +395,7 @@ pub fn boot_without_workspace(wb: &mut Workbench, demo: bool) {
         let _ = open_corpus(wb, CANARY_CORPUS);
         format!("No workspace open — showing the fixture demo. {how}")
     } else {
+        cv_model::modules::engine::detach();
         wb.reset_project(workspace_registry());
         format!("No workspace open. {how}")
     };
@@ -405,10 +424,22 @@ fn open_native(wb: &mut Workbench, root: PathBuf) {
 
 /// Load the corpus' page/output snapshot, then replay its watch session.
 pub fn open_corpus(wb: &mut Workbench, corpus: &str) -> StubEngine {
+    open_corpus_tapped(wb, corpus, |_| {})
+}
+
+fn open_corpus_tapped(
+    wb: &mut Workbench,
+    corpus: &str,
+    tap: impl FnMut(&Envelope) + Send + 'static,
+) -> StubEngine {
     wb.load_snapshot(&snapshot::corpus_snapshot(corpus));
     let engine = StubEngine::new(corpus);
+    cv_model::modules::engine::install(Box::new(verbs::FixtureVerbs::new(
+        engine.clone(),
+        wb.inbox(),
+    )));
     cv_model::modules::doctor::installed().update(|f| f.engine = doctor::fixture(corpus, &engine));
-    attach_engine(wb, &engine);
+    attach_engine_tapped(wb, &engine, tap);
     engine
 }
 
@@ -425,15 +456,35 @@ pub fn open_broken_recovered(wb: &mut Workbench, corpus: &str) {
 }
 
 fn open_broken_inner(wb: &mut Workbench, corpus: &str, stop_watch: bool) {
-    let engine = open_corpus(wb, corpus);
+    use cv_core::events::AppEvent;
+    use cv_core::events::engine::EngineEvent;
+    use std::sync::{Arc, Mutex};
+
+    let fatal = Arc::new(Mutex::new(None::<EventId>));
+    let seen_fatal = fatal.clone();
+    let engine = open_corpus_tapped(wb, corpus, move |e| {
+        if matches!(
+            &e.payload,
+            AppEvent::Engine(EngineEvent::BuildFailed {
+                diagnostics,
+                recoverable: false,
+                ..
+            }) if diagnostics.is_empty()
+        ) {
+            *seen_fatal.lock().unwrap_or_else(|e| e.into_inner()) = Some(e.event_id.clone());
+        }
+    });
     // Recover stderr diagnostics only when the watch session failed
     // without any: the one-shot build must not replace located ones.
     if !has_watch_diagnostics(wb) {
         if stop_watch {
             wb.stop_watch();
             wb.drain();
+            let cause = fatal.lock().unwrap_or_else(|e| e.into_inner()).clone();
+            let _ = engine.run_caused(&Verb::Build, wb.sink(), cause.as_ref());
+        } else {
+            let _ = engine.run(&Verb::Build, wb.sink());
         }
-        let _ = engine.run(&Verb::Build, wb.sink());
         wb.drain();
     }
 }
@@ -689,6 +740,11 @@ pub const SCENES: &[Scene] = &[
     ("migrate-review", migrate::scene::review),
     ("migrate-lab-absent", migrate::scene::lab_absent),
     ("migrate-undecodable", migrate::scene::undecodable),
+    ("verb-build", verbs::scene::build),
+    ("verb-content-failure", verbs::scene::content_failure),
+    ("verb-usage-error", verbs::scene::usage_error),
+    ("verb-impact", verbs::scene::impact),
+    ("verb-check-audit", verbs::scene::check),
 ];
 
 pub fn launch() -> Launch {

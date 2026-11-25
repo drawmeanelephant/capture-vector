@@ -10,8 +10,8 @@ use cv_core::engine::EventSink;
 use cv_core::events::engine::{BuildPhase, EngineEvent};
 use cv_core::events::{AppEvent, BuildId, Cursor, Envelope, EventId, SessionId, SnapshotEpoch};
 use cv_core::id::WorkspaceId;
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Condvar, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 static SESSION_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -29,11 +29,17 @@ struct State {
     session: SessionId,
     seq: u64,
     epoch: u64,
+    /// Never resets on rotation: the total emission order the delivery
+    /// sequencer below preserves across concurrent producer threads.
+    minted: u64,
 }
 
 pub struct Emitter {
     workspace: WorkspaceId,
     state: Mutex<State>,
+    /// Index of the next minted envelope allowed to enter its sink.
+    delivery: Mutex<u64>,
+    delivered: Condvar,
     ring: EventRing,
 }
 
@@ -45,7 +51,10 @@ impl Emitter {
                 session: new_session_id(),
                 seq: 0,
                 epoch: 0,
+                minted: 0,
             }),
+            delivery: Mutex::new(0),
+            delivered: Condvar::new(),
             ring: EventRing::new(ring_capacity),
         }
     }
@@ -95,13 +104,26 @@ impl Emitter {
         build_id: Option<BuildId>,
         payload: EngineEvent,
     ) -> bool {
-        let env = {
+        self.emit_caused(sink, only_in, build_id, payload, None)
+    }
+
+    pub fn emit_caused(
+        &self,
+        sink: &mut EventSink,
+        only_in: Option<&SessionId>,
+        build_id: Option<BuildId>,
+        payload: EngineEvent,
+        cause: Option<&EventId>,
+    ) -> bool {
+        let (env, order) = {
             let mut s = self.state.lock().unwrap();
             if only_in.is_some_and(|sid| *sid != s.session) {
                 return false;
             }
             let seq = s.seq;
             s.seq += 1;
+            let order = s.minted;
+            s.minted += 1;
             let env = Envelope {
                 workspace: self.workspace.clone(),
                 snapshot_epoch: SnapshotEpoch(s.epoch),
@@ -111,13 +133,27 @@ impl Emitter {
                     seq,
                 },
                 event_id: EventId(format!("{}:{seq}", s.session.0)),
+                cause: cause.cloned(),
                 payload: AppEvent::Engine(payload),
             };
             // Recorded under the lock so ring order == seq order.
             self.ring.record(&env);
-            env
+            (env, order)
         };
+        // Mint order is the cursor's stream order. Concurrent watch and
+        // one-shot producers must not enter their sinks in the reverse
+        // order, or a consumer sees a false gap and drops the late event
+        // as a duplicate. The sink contract is a nonblocking channel sink;
+        // it must not re-enter `emit` (a reentrant emit would be ordered
+        // behind this one).
+        let mut next = self.delivery.lock().unwrap();
+        while *next != order {
+            next = self.delivered.wait(next).unwrap();
+        }
         sink(env);
+        *next += 1;
+        drop(next);
+        self.delivered.notify_all();
         true
     }
 }
@@ -214,4 +250,68 @@ pub fn map_watch_event(ev: &WatchEvent, build: Option<&BuildId>) -> Option<Engin
             return None;
         }
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cv_core::engine::ExitClass;
+    use std::sync::{Arc, Condvar, Mutex};
+
+    fn payload() -> EngineEvent {
+        EngineEvent::VerbFinished {
+            verb: "ir".into(),
+            exit: ExitClass::Ok,
+        }
+    }
+
+    #[test]
+    fn concurrent_producers_enter_sinks_in_cursor_order() {
+        let emitter = Arc::new(Emitter::new(WorkspaceId("w".into()), 8));
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let gate = Arc::new((Mutex::new(false), Condvar::new()));
+        let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+
+        let first = {
+            let emitter = emitter.clone();
+            let seen = seen.clone();
+            let gate = gate.clone();
+            std::thread::spawn(move || {
+                let mut sink: EventSink = Box::new(move |env| {
+                    if env.cursor.seq == 0 {
+                        entered_tx.send(()).unwrap();
+                        let (lock, wake) = &*gate;
+                        let mut open = lock.lock().unwrap();
+                        while !*open {
+                            open = wake.wait(open).unwrap();
+                        }
+                    }
+                    seen.lock().unwrap().push(env.cursor.seq);
+                });
+                emitter.emit(&mut sink, None, None, payload());
+            })
+        };
+        entered_rx
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .unwrap();
+
+        let second = {
+            let emitter = emitter.clone();
+            let seen = seen.clone();
+            std::thread::spawn(move || {
+                let mut sink: EventSink = Box::new(move |env| {
+                    seen.lock().unwrap().push(env.cursor.seq);
+                });
+                emitter.emit(&mut sink, None, None, payload());
+            })
+        };
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        assert!(seen.lock().unwrap().is_empty());
+
+        *gate.0.lock().unwrap() = true;
+        gate.1.notify_all();
+        first.join().unwrap();
+        second.join().unwrap();
+        assert_eq!(*seen.lock().unwrap(), vec![0, 1]);
+    }
 }

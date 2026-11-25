@@ -48,6 +48,10 @@ if exist "%D%verbs\%V%\stderr.txt" type "%D%verbs\%V%\stderr.txt" 1>&2
 if exist "%D%verbs\%V%\hold" ping -n 300 127.0.0.1 >NUL
 set "C=0"
 if exist "%D%verbs\%V%\exit-code.txt" set /p C=<"%D%verbs\%V%\exit-code.txt"
+if "%V%"=="build-out" if "%C%"=="0" if exist "%D%verbs\%V%\graph.json" (
+  if not exist "%~3\" mkdir "%~3"
+  copy /y "%D%verbs\%V%\graph.json" "%~3\graph.json" >NUL
+)
 exit /b %C%
 
 :usage

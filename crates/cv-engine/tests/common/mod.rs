@@ -79,6 +79,14 @@ impl FakeBoris {
         for f in ["stdout.txt", "stderr.txt", "exit-code.txt"] {
             self.set_bytes(&format!("verbs/build-out/{f}"), &ir.file(f));
         }
+        if cv_fixtures::fixtures_root()
+            .join("ir/captures")
+            .join(name)
+            .join("graph.json")
+            .is_file()
+        {
+            self.set_bytes("verbs/build-out/graph.json", &ir.file("graph.json"));
+        }
     }
 
     pub fn path(&self, rel: &str) -> PathBuf {

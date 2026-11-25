@@ -135,15 +135,20 @@ pub fn ir_capture(name: &str) -> Corpus {
 /// it has no sources, builds or watch session.
 pub const INIT: &str = "init";
 
+/// The palette-verb captures: `<corpus>/<key>/` with `argv.txt` (one
+/// argument per line), `stdout.txt`, `stderr.txt` and `exit-code.txt`
+/// of one run from the corpus root. Not a corpus either.
+pub const VERBS: &str = "verbs";
+
 /// Every Boris corpus name present on disk (neither the lab captures nor
-/// the init pseudo-capture).
+/// the init and verbs pseudo-captures).
 pub fn corpora() -> Vec<String> {
     let mut v: Vec<_> = std::fs::read_dir(fixtures_root().join("captures"))
         .unwrap()
         .filter_map(|e| e.ok())
         .filter(|e| e.path().is_dir() && e.file_name() != lab::LAB_DIR)
         .map(|e| e.file_name().to_string_lossy().into_owned())
-        .filter(|n| n != INIT)
+        .filter(|n| n != INIT && n != VERBS)
         .collect();
     v.sort();
     v

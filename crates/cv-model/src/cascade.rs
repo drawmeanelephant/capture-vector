@@ -116,6 +116,7 @@ mod tests {
 
     fn env(n: u64, payload: AppEvent) -> Envelope {
         Envelope {
+            cause: None,
             workspace: WorkspaceId("t".into()),
             snapshot_epoch: SnapshotEpoch(0),
             build_id: Some(BuildId(format!("b{n}"))),

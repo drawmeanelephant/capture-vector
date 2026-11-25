@@ -21,7 +21,7 @@ use cv_core::rules::{
     ArtifactKind, AuthorityTier, CheckStatus, DedupKey, FindingLifecycle, Severity,
 };
 use cv_core::sys::Hash;
-use cv_rules::{ArtifactSet, AuditFinding, Export, HtmlPage, IrGraph, Ruleset};
+use cv_rules::{ArtifactSet, AuditFinding, Export, HtmlPage, IrGraph, Ruleset, boris_check};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -385,6 +385,11 @@ impl AuditModule {
             next.push(Entry { id, af, state });
         }
         for (_, mut e) in prev {
+            // Boris check findings change only when check runs again.
+            if e.af.pack == boris_check::PACK {
+                next.push(e);
+                continue;
+            }
             if !e.failed() {
                 continue;
             }
@@ -402,20 +407,49 @@ impl AuditModule {
             e.state = FindingLifecycle::Fixed;
             next.push(e);
         }
-        next.sort_by(|a, b| {
-            let k = |e: &Entry| {
-                (
-                    e.af.pack.clone(),
-                    e.af.finding.code.clone(),
-                    e.af.finding.subject.clone(),
-                    e.af.finding.key.target_hash,
-                )
-            };
-            k(a).cmp(&k(b))
-        });
+        sort_entries(&mut next);
         self.entries = next;
         self.refresh = Some(r);
         self.reindex();
+    }
+
+    /// Replace the Boris check findings with `report`'s; one that is gone
+    /// from the newer report is fixed. `false` when `report` is not a
+    /// check report (a usage error prints prose instead).
+    fn merge_check(&mut self, report: &str) -> bool {
+        let Ok(found) = boris_check::check_findings(report) else {
+            return false;
+        };
+        let (mut prev, mut next): (Vec<Entry>, Vec<Entry>) = std::mem::take(&mut self.entries)
+            .into_iter()
+            .partition(|e| e.af.pack == boris_check::PACK);
+        for af in found {
+            let id = key_id(&af.finding.key);
+            let state = match prev.iter().position(|e| e.id == id) {
+                Some(i) if prev[i].state != FindingLifecycle::Fixed => prev.remove(i).state,
+                Some(i) => {
+                    prev.remove(i);
+                    self.overrides
+                        .get(&id)
+                        .copied()
+                        .unwrap_or(FindingLifecycle::Open)
+                }
+                None => self
+                    .overrides
+                    .get(&id)
+                    .copied()
+                    .unwrap_or(FindingLifecycle::Open),
+            };
+            next.push(Entry { id, af, state });
+        }
+        for mut e in prev {
+            e.state = FindingLifecycle::Fixed;
+            next.push(e);
+        }
+        sort_entries(&mut next);
+        self.entries = next;
+        self.reindex();
+        true
     }
 
     fn reindex(&mut self) {
@@ -533,6 +567,20 @@ impl AuditModule {
     }
 }
 
+fn sort_entries(entries: &mut [Entry]) {
+    entries.sort_by(|a, b| {
+        let k = |e: &Entry| {
+            (
+                e.af.pack.clone(),
+                e.af.finding.code.clone(),
+                e.af.finding.subject.clone(),
+                e.af.finding.key.target_hash,
+            )
+        };
+        k(a).cmp(&k(b))
+    });
+}
+
 impl Module for AuditModule {
     fn spec(&self) -> ModuleSpec {
         ModuleSpec {
@@ -552,6 +600,9 @@ impl Module for AuditModule {
                 let was = self.stale;
                 self.stale = self.hashes.is_some();
                 was != self.stale
+            }
+            AppEvent::Engine(EngineEvent::VerbReported(r)) if r.verb == "check" => {
+                self.merge_check(&r.stderr)
             }
             _ => false,
         }
@@ -683,7 +734,13 @@ impl Module for AuditModule {
         if let Some(fix) = &f.fix {
             lines.push(line("fix", fix.description.clone(), false));
         }
-        if let Some((_, rule)) = self.rules.rule(&f.code) {
+        if e.af.pack == boris_check::PACK {
+            lines.push(line(
+                "source",
+                "Boris check (boris check --format json)".into(),
+                false,
+            ));
+        } else if let Some((_, rule)) = self.rules.rule(&f.code) {
             lines.push(line("source", rule.citation.source.clone(), false));
             lines.push(line("citation", rule.citation.url.clone(), true));
         }

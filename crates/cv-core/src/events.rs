@@ -62,6 +62,11 @@ pub struct Envelope {
     pub build_id: Option<BuildId>,
     pub cursor: Cursor,
     pub event_id: EventId,
+    /// The event that caused this one, when a caller explicitly correlated
+    /// a follow-up run at the engine port. Absent for watch output and
+    /// uncorrelated one-shot verbs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cause: Option<EventId>,
     pub payload: AppEvent,
 }
 
@@ -85,6 +90,7 @@ mod tests {
     #[test]
     fn envelope_roundtrips() {
         let env = Envelope {
+            cause: None,
             workspace: WorkspaceId("ws".into()),
             snapshot_epoch: SnapshotEpoch(3),
             build_id: Some(BuildId("b9".into())),
