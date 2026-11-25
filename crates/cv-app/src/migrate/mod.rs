@@ -485,10 +485,25 @@ fn items(entries: Vec<Entry<'_>>) -> Vec<ReviewItem> {
         .collect()
 }
 
+fn expected_lab_format(mode: &str) -> String {
+    format!(
+        "boris-{}-migration-lab",
+        mode.trim_end_matches("-inventory")
+    )
+}
+
 fn report_facts(r: &Report, run: &mut ImportRun) {
     let k = r.key();
     run.format = Some((k.format.into(), k.schema_version));
     run.tool_version = Some(r.tool_version().into());
+    let expected = expected_lab_format(&run.mode);
+    if k.format != expected {
+        run.problem = Some(format!(
+            "report.json is a {} document but this run is mode {}; a wrong-family report supplies no count evidence",
+            k.format, run.mode
+        ));
+        return;
+    }
     let pages = r.pages();
     match r {
         Report::Hugo(h) => {
@@ -598,27 +613,75 @@ fn named(rel: &str, e: impl std::fmt::Display) -> String {
 /// it as a valid zero-count outcome.
 fn read_documents(out: &Path, run: &mut ImportRun) -> Result<bool, String> {
     let read = |rel: &str| read_capped(&out.join(rel), MAX_DOC_BYTES);
-    if let Some(bytes) = read("report.json") {
-        let bytes = bytes.map_err(|e| format!("report.json: {e}"))?;
-        let r = Report::decode(&bytes).map_err(|e| named("report.json", e))?;
-        report_facts(&r, run);
-        return Ok(true);
+    let inventory_mode = run.mode.ends_with("-inventory");
+    let (primary, wrong_role, role) = if inventory_mode {
+        ("inventory.json", "report.json", "inventory")
+    } else {
+        ("report.json", "inventory.json", "emit")
+    };
+    let mut wrong_problem = None;
+    let mut wrong_exact_family = false;
+    if let Some(bytes) = read(wrong_role) {
+        let bytes = bytes.map_err(|e| format!("{wrong_role}: {e}"))?;
+        let decoded_family = if inventory_mode {
+            let r = Report::decode(&bytes).map_err(|e| named(wrong_role, e))?;
+            r.key().format.to_string()
+        } else {
+            let i = Inventory::decode(&bytes).map_err(|e| named(wrong_role, e))?;
+            match &i {
+                Inventory::Hugo(x) => x.format.clone(),
+                Inventory::Jekyll(x) => x.format.clone(),
+                Inventory::Substack(x) => x.format.clone(),
+                Inventory::Enex(x) => x.format.clone(),
+            }
+        };
+        let expected = expected_lab_format(&run.mode);
+        wrong_exact_family = decoded_family == expected;
+        let family = if wrong_exact_family {
+            "right-family"
+        } else {
+            "wrong-family"
+        };
+        wrong_problem = Some(format!(
+            "{wrong_role} is a {family} document but this is a {role} run in mode {}; wrong-role artifacts supply no count evidence",
+            run.mode
+        ));
     }
-    if let Some(bytes) = read("inventory.json") {
-        let bytes = bytes.map_err(|e| format!("inventory.json: {e}"))?;
-        let i = Inventory::decode(&bytes).map_err(|e| named("inventory.json", e))?;
-        inventory_facts(&i, run);
-        return Ok(true);
-    }
-    for rel in OTHER_DOCS {
-        if let Some(bytes) = read(rel) {
-            let bytes = bytes.map_err(|e| format!("{rel}: {e}"))?;
-            let d = Document::decode(rel, &bytes).map_err(|e| named(rel, e))?;
-            other_facts(&d, run);
-            return Ok(true);
+    let mut decoded = false;
+    if let Some(bytes) = read(primary) {
+        let bytes = bytes.map_err(|e| format!("{primary}: {e}"))?;
+        if inventory_mode {
+            let i = Inventory::decode(&bytes).map_err(|e| named(primary, e))?;
+            inventory_facts(&i, run);
+        } else {
+            let r = Report::decode(&bytes).map_err(|e| named(primary, e))?;
+            report_facts(&r, run);
+        }
+        decoded = true;
+    } else {
+        for rel in OTHER_DOCS {
+            if let Some(bytes) = read(rel) {
+                let bytes = bytes.map_err(|e| format!("{rel}: {e}"))?;
+                let d = Document::decode(rel, &bytes).map_err(|e| named(rel, e))?;
+                other_facts(&d, run);
+                decoded = true;
+                break;
+            }
         }
     }
-    Ok(false)
+    if let Some(problem) = wrong_problem {
+        // Emit modes can legitimately leave their exact-family inventory as
+        // auxiliary evidence beside the authoritative report. A wrong-role
+        // artifact only fails closed when it is all the run offers; a
+        // wrong-family artifact is always a visible mismatch.
+        if !decoded {
+            return Err(problem);
+        }
+        if !wrong_exact_family {
+            run.problem = Some(problem);
+        }
+    }
+    Ok(decoded)
 }
 
 fn project(root: &Path, d: &RunDir) -> ImportRun {

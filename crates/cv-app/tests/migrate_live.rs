@@ -61,9 +61,9 @@ fn real_lab_runs_project_like_the_captures() {
     }
 }
 
-/// Every inventory-first mode the wizard exposes must really decode: the
-/// regression for the reviewer's ghost/mkdocs/mastodon/atproto/tinderbox
-/// dead ends, which are no longer offered.
+/// The only inventory-first mode the narrowed #172 wizard exposes must
+/// really decode. Other families remain intentionally out of scope until
+/// their own issues widen the wizard.
 #[test]
 #[ignore = "needs a real boris-migration-lab"]
 fn real_inventory_modes_decode_with_count_evidence() {
@@ -77,13 +77,8 @@ fn real_inventory_modes_decode_with_count_evidence() {
     )
     .expect("pinned lab");
 
-    // The exposed inventory-first families and their fixture inputs.
-    let cases: &[(&str, &str, &str)] = &[
-        ("hugo-inventory", "--root", "mini-hugo"),
-        ("jekyll-inventory", "--root", "mini-jekyll"),
-        ("substack-inventory", "--root", "mini-substack"),
-        ("enex-inventory", "--root", "mini-enex"),
-    ];
+    // The exposed inventory-first family and its fixture input.
+    let cases: &[(&str, &str, &str)] = &[("hugo-inventory", "--root", "mini-hugo")];
     for (i, (mode, flag, input)) in cases.iter().enumerate() {
         let spec = engine_lab::mode(mode).unwrap();
         // Sanity: this mode is actually exposed through the wizard projection.

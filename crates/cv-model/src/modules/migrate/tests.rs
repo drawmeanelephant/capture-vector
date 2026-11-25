@@ -574,6 +574,49 @@ fn inventory_completion_never_emits_without_an_explicit_decision() {
 }
 
 #[test]
+fn internal_companion_and_out_of_stage_answers_are_rejected() {
+    let mut m = wizard_module();
+    // A deep MODE answer before the wizard is at that step is a no-op.
+    assert!(
+        m.answer(MODE, &answer(Some("choose"), &[(CHOICE, "hugo-inventory")]))
+            .is_empty()
+    );
+
+    m.run(NEW);
+    m.answer(FAMILY, &answer(Some("choose"), &[(CHOICE, "static-site")]));
+    let out = m.answer(MODE, &answer(Some("choose"), &[(CHOICE, "hugo-inventory")]));
+    assert!(
+        import_job(&out).is_none(),
+        "internal companion never starts"
+    );
+    assert_eq!(
+        dialog_id(&out),
+        Some(MODE),
+        "caller is returned to offered choices"
+    );
+    assert!(m.wizard.mode.is_none());
+}
+
+#[test]
+fn stale_inventory_emit_answer_does_not_start_concurrent_emit() {
+    let (mut m, _appeared) = dynamic_wizard_module();
+    let _inventory = drive_hugo_to_inventory(&mut m);
+    assert!(matches!(
+        m.wizard.stage,
+        wizard::WizardStage::Running { .. }
+    ));
+    let out = m.answer(INVENTORY, &answer(Some("emit"), &[]));
+    assert!(
+        out.is_empty(),
+        "stale/deep inventory answer is ignored: {out:?}"
+    );
+    assert!(matches!(
+        m.wizard.stage,
+        wizard::WizardStage::Running { .. }
+    ));
+}
+
+#[test]
 fn choosing_emit_after_the_inventory_starts_the_emitting_mode() {
     let (mut m, appeared) = dynamic_wizard_module();
     let run_id = drive_hugo_to_inventory(&mut m);
@@ -720,6 +763,9 @@ fn clearing_an_optional_input_stays_cleared_after_a_failed_submit() {
             ],
         ),
     );
+    // Keep the white-box fixture at the input step after the first valid
+    // submit; production cannot submit input while the worker is Running.
+    m.wizard.stage = wizard::WizardStage::Input;
     // validation failure on resubmit with media cleared
     let failed = m.answer(INPUT, &answer(Some("go"), &[("wxr", ""), ("media", "")]));
     assert!(

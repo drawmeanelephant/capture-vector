@@ -433,6 +433,71 @@ fn a_second_review_writer_is_read_only_and_refuses_decisions() {
 }
 
 #[test]
+fn wrong_role_or_wrong_family_primary_artifacts_never_supply_count_evidence() {
+    let d = tempfile::tempdir().unwrap();
+    let root = std::fs::canonicalize(d.path()).unwrap();
+    let hugo_emit = seed_run(&root, "hugo", 1);
+    let hugo_inventory = seed_run(&root, "hugo-inventory", 2);
+    let jekyll_emit = seed_run(&root, "jekyll", 3);
+    let base = root.join(".cv").join("imports");
+    let out = |id: &str| base.join(id).join("out");
+
+    // Exact-family inventory in an emit run is the wrong role.
+    std::fs::copy(
+        out(&hugo_inventory).join("inventory.json"),
+        out(&hugo_emit).join("inventory.json"),
+    )
+    .unwrap();
+    std::fs::remove_file(out(&hugo_emit).join("report.json")).unwrap();
+
+    // Exact-family report in an inventory run is the wrong role.
+    let runs = load(&root).runs;
+    let emit = runs.iter().find(|r| r.id == hugo_emit).unwrap();
+    assert!(!emit.count_evidence);
+    assert!(emit.counts.iter().all(|(_, n)| *n == 0));
+    assert!(
+        emit.problem.as_deref().unwrap_or("").contains("wrong-role"),
+        "emit wrong role is visible: {:?}",
+        emit.problem
+    );
+
+    // Wrong-family report in a Hugo emit run is not positive evidence.
+    let wrong_emit = seed_run(&root, "hugo", 4);
+    std::fs::copy(
+        out(&jekyll_emit).join("report.json"),
+        out(&wrong_emit).join("report.json"),
+    )
+    .unwrap();
+    let wrong_inv = seed_run(&root, "hugo-inventory", 5);
+    let hugo_good_emit = seed_run(&root, "hugo", 6);
+    std::fs::copy(
+        out(&hugo_good_emit).join("report.json"),
+        out(&wrong_inv).join("report.json"),
+    )
+    .unwrap();
+    std::fs::remove_file(out(&wrong_inv).join("inventory.json")).unwrap();
+
+    let runs = load(&root).runs;
+    for (id, needle) in [(wrong_emit, "wrong-family"), (wrong_inv, "wrong-role")] {
+        let run = runs.iter().find(|r| r.id == id).unwrap();
+        assert!(!run.count_evidence, "{id} evidence");
+        assert!(run.counts.iter().all(|(_, n)| *n == 0), "{id} counts");
+        assert!(
+            run.problem.as_deref().unwrap_or("").contains(needle),
+            "{id} problem: {:?}",
+            run.problem
+        );
+    }
+
+    // The untouched exact-family Hugo inventory remains valid-zero evidence.
+    let valid = runs.iter().find(|r| r.id == hugo_inventory).unwrap();
+    assert!(
+        valid.count_evidence,
+        "valid-zero Hugo inventory remains evidence"
+    );
+}
+
+#[test]
 fn the_wizard_offers_exactly_the_issue_172_scope() {
     use cv_model::command::Intent;
     use cv_model::module::Module;
@@ -499,7 +564,17 @@ fn the_wizard_offers_exactly_the_issue_172_scope() {
         let cv_model::dialog::DialogKind::Choose(choices) = &d.kind else {
             panic!("mode step is a choice dialog");
         };
-        choices.iter().map(|c| c.id.clone()).collect::<Vec<_>>()
+        let ids = choices.iter().map(|c| c.id.clone()).collect::<Vec<_>>();
+        // Return the shared module to the family step for the next probe.
+        m.answer(
+            "migrate.new.mode",
+            &cv_model::dialog::DialogAnswer {
+                action: None,
+                ..Default::default()
+            },
+        );
+        m.run(NEW);
+        ids
     };
 
     assert_eq!(

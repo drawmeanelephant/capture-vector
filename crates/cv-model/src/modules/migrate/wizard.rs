@@ -22,6 +22,9 @@ pub(crate) const PROGRESS: &str = "migrate.new.progress";
 pub(crate) enum WizardStage {
     #[default]
     Idle,
+    ChoosingFamily,
+    ChoosingMode,
+    Input,
     Running {
         phase: ImportPhase,
         run_id: String,
@@ -92,6 +95,7 @@ impl MigrateModule {
             return vec![Intent::Status(format!("New import is unavailable: {why}"))];
         }
         self.wizard.reset();
+        self.wizard.stage = WizardStage::ChoosingFamily;
         vec![Intent::dialog(self.family_dialog(None))]
     }
 
@@ -415,6 +419,9 @@ impl MigrateModule {
     pub(crate) fn answer_wizard(&mut self, command: &str, answer: &DialogAnswer) -> Vec<Intent> {
         match command {
             FAMILY => {
+                if !matches!(self.wizard.stage, WizardStage::ChoosingFamily) {
+                    return Vec::new();
+                }
                 if answer.action.is_none() {
                     self.wizard.reset();
                     return vec![Intent::Status("New import cancelled".into())];
@@ -426,28 +433,53 @@ impl MigrateModule {
                     )))];
                 }
                 self.wizard.family = Some(family.clone());
+                self.wizard.stage = WizardStage::ChoosingMode;
                 vec![Intent::dialog(self.mode_dialog(&family, None))]
             }
             MODE => {
+                if !matches!(self.wizard.stage, WizardStage::ChoosingMode) {
+                    return Vec::new();
+                }
                 if answer.action.is_none() {
                     self.wizard.reset();
                     return vec![Intent::Status("New import cancelled".into())];
                 }
                 if answer.action.as_deref() == Some("back") {
+                    self.wizard.stage = WizardStage::ChoosingFamily;
                     return vec![Intent::dialog(self.family_dialog(None))];
                 }
                 let name = action_value(answer, CHOICE);
-                let Some(mode) = mode_ref(&self.imports, &name).cloned() else {
-                    let family = self.wizard.family.clone().unwrap_or_default();
+                let family = self.wizard.family.clone().unwrap_or_default();
+                let companions: std::collections::BTreeSet<&str> = self
+                    .imports
+                    .modes
+                    .iter()
+                    .filter_map(|m| m.inventory.as_deref())
+                    .collect();
+                let Some(mode) = self
+                    .imports
+                    .modes
+                    .iter()
+                    .find(|m| {
+                        m.name == name
+                            && m.family == family
+                            && !companions.contains(m.name.as_str())
+                    })
+                    .cloned()
+                else {
                     return vec![Intent::dialog(self.mode_dialog(
                         &family,
                         Some("choose one of the listed modes".into()),
                     ))];
                 };
                 self.wizard.mode = Some(name);
+                self.wizard.stage = WizardStage::Input;
                 vec![Intent::dialog(self.input_dialog(&mode, None))]
             }
             INPUT => {
+                if !matches!(self.wizard.stage, WizardStage::Input) {
+                    return Vec::new();
+                }
                 if answer.action.is_none() {
                     self.wizard.reset();
                     return vec![Intent::Status("New import cancelled".into())];
@@ -470,6 +502,7 @@ impl MigrateModule {
                         .family
                         .clone()
                         .unwrap_or_else(|| mode.family.clone());
+                    self.wizard.stage = WizardStage::ChoosingMode;
                     return vec![Intent::dialog(self.mode_dialog(&family, None))];
                 }
                 // Snapshot every field of this mode from the answer first:
@@ -506,6 +539,9 @@ impl MigrateModule {
                 }
             }
             INVENTORY => {
+                if !matches!(self.wizard.stage, WizardStage::AwaitingEmit { .. }) {
+                    return Vec::new();
+                }
                 if answer.action.as_deref() == Some("emit") {
                     let Some(mode) = self.wizard.mode.clone() else {
                         self.wizard.reset();
