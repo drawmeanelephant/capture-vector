@@ -118,6 +118,8 @@ pub enum LabError {
         input: PathBuf,
         out: PathBuf,
     },
+    #[error("{flag} must be an absolute path, got {}", path.display())]
+    InputRelative { flag: &'static str, path: PathBuf },
     #[error("{flag} must be {}", kind.noun())]
     ExtraValue {
         flag: &'static str,
@@ -306,7 +308,7 @@ impl LabRun {
             }
             let valid = match spec.kind {
                 modes::ExtraKind::Text => !value.is_empty(),
-                modes::ExtraKind::Count => value.parse::<usize>().is_ok(),
+                modes::ExtraKind::Count => value.parse::<usize>().is_ok_and(|n| n > 0),
             };
             if !valid {
                 return Err(LabError::ExtraValue {
@@ -346,6 +348,15 @@ impl LabRun {
 /// existing component, then the kind check. The validated spelling itself —
 /// never its canonical form — is what argv and the run record carry.
 fn validate_input_spelling(spec: &InputSpec, path: &Path) -> Result<PathBuf, LabError> {
+    // A relative spelling must never resolve against the app process cwd:
+    // that could import a different tree than the one the user picked, and
+    // `~/site` is not shell-expanded here either. Absolute or refusal.
+    if !path.is_absolute() {
+        return Err(LabError::InputRelative {
+            flag: spec.flag,
+            path: path.to_path_buf(),
+        });
+    }
     let abs = std::path::absolute(path).map_err(|source| LabError::InputPath {
         flag: spec.flag,
         path: path.to_path_buf(),
@@ -378,13 +389,15 @@ fn validate_input_spelling(spec: &InputSpec, path: &Path) -> Result<PathBuf, Lab
     Ok(spelling)
 }
 
-/// Narrow platform policy: rewrite a leading `/tmp`, `/var` or `/etc`
-/// component when it really is a symlink (macOS aliases them into
+/// Narrow macOS-only platform policy: rewrite a leading `/tmp`, `/var` or
+/// `/etc` component when it really is a symlink (macOS aliases them into
 /// `/private`). Exactly that component is replaced by its link target;
 /// every other component of the spelling is preserved verbatim, so a
 /// user-planted symlink can never be flattened by this normalization.
-/// Where those names are real directories (Linux, most systems) this is a
-/// no-op.
+/// On every other platform this is a strict no-op: a symlinked `/tmp`
+/// there is user evidence the pinned lab must see and refuse, never
+/// something the adapter flattens.
+#[cfg(target_os = "macos")]
 fn normalize_system_aliases(path: &Path) -> PathBuf {
     let mut out = PathBuf::new();
     let mut components = path.components();
@@ -410,6 +423,11 @@ fn normalize_system_aliases(path: &Path) -> PathBuf {
         }
     }
     out
+}
+
+#[cfg(not(target_os = "macos"))]
+fn normalize_system_aliases(path: &Path) -> PathBuf {
+    path.to_path_buf()
 }
 
 /// The first symlink component in a spelling, checked with no-follow
@@ -502,8 +520,10 @@ fn canonical_out(out: &Path) -> Result<(PathBuf, PathBuf), LabError> {
 /// The lab's exit codes at the pin: `0` success, `2` usage, `3` I/O error.
 /// Safety refusals such as `InputSymlink`, `OutputSymlink` and
 /// `InputOutputOverlap` are reported on stderr as `migration-lab (<mode>)
-/// failed: <ErrorName>` and exit 3; exit 2 is reserved for command-line
-/// usage failures.
+/// failed: <ErrorName>` — at exit 2 or 3 depending on whether the mode's
+/// own validation or validateRoots fires first (probed against the real
+/// pinned lab). The error name, never the exit code, is the refusal
+/// signal.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LabExit {
     Ok,
@@ -1054,6 +1074,29 @@ mod tests {
         assert!(matches!(
             run.prepare(),
             Err(LabError::DuplicateInput { .. })
+        ));
+    }
+
+    #[test]
+    fn relative_input_spellings_are_refused_before_any_cwd_resolution() {
+        let t = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(t.path()).unwrap();
+        let mut run = LabRun {
+            mode: mode("jekyll").unwrap(),
+            inputs: vec![("--root".into(), PathBuf::from("site"))],
+            extras: Vec::new(),
+            out: root.join("out"),
+        };
+        // A bare relative spelling must not resolve against process cwd.
+        assert!(matches!(
+            run.prepare(),
+            Err(LabError::InputRelative { flag: "--root", .. })
+        ));
+        // `~/site` is not shell-expanded either: it is not absolute here.
+        run.inputs = vec![("--root".into(), PathBuf::from("~/site"))];
+        assert!(matches!(
+            run.prepare(),
+            Err(LabError::InputRelative { flag: "--root", .. })
         ));
     }
 }

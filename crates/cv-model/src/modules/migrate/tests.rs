@@ -519,6 +519,14 @@ fn hugo_starts_its_read_only_inventory_companion_first() {
 fn inventory_lands(appeared: &std::rc::Rc<std::cell::RefCell<Vec<ImportRun>>>, run_id: &str) {
     let mut done = ImportRun::new(run_id, RunStatus::Ok);
     done.mode = "hugo-inventory".into();
+    // A decoded inventory carries the count classes even when every count
+    // is zero; that is the positive evidence the emit gate requires.
+    done.counts = vec![
+        ("exact".into(), 0),
+        ("transformed".into(), 0),
+        ("unsupported".into(), 0),
+        ("human_review".into(), 0),
+    ];
     appeared.borrow_mut().push(done);
 }
 
@@ -710,6 +718,7 @@ fn count_extras_are_type_checked_and_passed_through() {
     // into the emitting mode's job.
     let mut done = ImportRun::new(&inv.run_id, RunStatus::Ok);
     done.mode = "hugo-inventory".into();
+    done.counts = vec![("transformed".into(), 3)];
     appeared.borrow_mut().push(done);
     m.run(FINISHED);
     let out = m.answer(INVENTORY, &answer(Some("emit"), &[]));
@@ -750,5 +759,35 @@ fn inventory_with_unreadable_report_blocks_emit() {
         m.wizard,
         wizard::Wizard::default(),
         "the wizard resets rather than sitting in a dead end"
+    );
+}
+
+#[test]
+fn inventory_with_no_decoded_counts_blocks_emit_even_without_a_problem() {
+    let (mut m, appeared) = dynamic_wizard_module();
+    let run_id = drive_hugo_to_inventory(&mut m);
+    // The inventory exits 0 but leaves no decodable count evidence — the
+    // absent-report case. Projection may not always surface a problem, so
+    // the wizard gate itself must require positive count evidence.
+    let mut done = ImportRun::new(&run_id, RunStatus::Ok);
+    done.mode = "hugo-inventory".into();
+    appeared.borrow_mut().push(done);
+
+    let finished = m.run(FINISHED);
+    assert!(
+        import_job(&finished).is_none(),
+        "no emit without count evidence: {finished:?}"
+    );
+    assert!(
+        finished
+            .iter()
+            .any(|i| matches!(i, Intent::Status(s) if s.contains("emit is blocked"))),
+        "the block is disclosed: {finished:?}"
+    );
+    assert!(
+        finished
+            .iter()
+            .any(|i| matches!(i, Intent::Status(s) if s.contains("no count data"))),
+        "the missing-data reason is named: {finished:?}"
     );
 }

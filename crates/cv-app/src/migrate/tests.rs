@@ -144,7 +144,7 @@ fn a_run_left_unfinished_by_a_quit_is_closed_as_interrupted_on_open() {
     let f = rec.finished.expect("sweep wrote a finish");
     assert_eq!(f.exit, "interrupted");
     assert!(
-        f.outcome.contains("Quitting is not cancellation"),
+        f.outcome.contains("quitting is not cancellation"),
         "{}",
         f.outcome
     );
@@ -263,4 +263,37 @@ fn cancelled_exit_projects_as_cancelled_instead_of_a_lab_failure() {
         duration_ms: 3,
     });
     assert_eq!(status(&rec), RunStatus::Cancelled);
+}
+
+#[test]
+fn a_successful_run_with_no_decodable_output_document_is_a_problem() {
+    let d = tempfile::tempdir().unwrap();
+    let id = seed_run(d.path(), "jekyll", 1);
+    // Remove every lab document but leave the record reporting success.
+    let out = d.path().join(".cv").join("imports").join(&id).join("out");
+    for f in std::fs::read_dir(&out).unwrap() {
+        let f = f.unwrap().path();
+        if f.is_file() {
+            std::fs::remove_file(&f).unwrap();
+        }
+    }
+    let r = &load(d.path()).runs[0];
+    assert_eq!(r.status, RunStatus::Ok);
+    assert!(
+        r.problem
+            .as_deref()
+            .unwrap_or("")
+            .contains("no report.json"),
+        "{:?}",
+        r.problem
+    );
+}
+
+#[test]
+fn a_valid_zero_count_inventory_is_not_a_problem() {
+    let d = tempfile::tempdir().unwrap();
+    seed_run(d.path(), "hugo", 1);
+    let r = &load(d.path()).runs[0];
+    assert_eq!(r.problem, None);
+    assert!(!r.counts.is_empty(), "decoded counts are positive evidence");
 }

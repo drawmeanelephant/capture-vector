@@ -68,6 +68,9 @@ fn live_pinned_lab_converts_one_fixture_into_a_temp_dir() {
 /// validateRoots runs) — the error NAME is the stable refusal signal,
 /// which is why the adapter keys refusal detection on it instead of the
 /// exit code. WordPress probes use `mini-wxr` so validateRoots itself fires.
+/// Unix-only: the probe is built on `std::os::unix::fs::symlink`. Windows
+/// cancellation and symlink behavior remain honestly unproven.
+#[cfg(unix)]
 #[test]
 #[ignore = "needs the pinned lab via CV_MIGRATION_LAB_BIN"]
 fn live_pinned_lab_refuses_symlinked_input_and_output() {

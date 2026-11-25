@@ -181,11 +181,13 @@ impl DiskPort {
 
     /// Runs under `root/.cv/imports/`; triage persists beside them.
     ///
-    /// Opening a workspace is the one moment no import worker can be
-    /// alive: workers are in-process threads that die with the app. Any
-    /// run record still unfinished here is therefore orphaned by an
-    /// earlier quit — quitting is not cancellation — and is honestly
+    /// Opening a workspace is the one moment no import worker of this
+    /// process can be alive. Any run record still unfinished here is no
+    /// longer being observed — an earlier quit, or potentially a second
+    /// Capture Vector process that had the same workspace open; either
+    /// way this process cannot know its true state, so it is honestly
     /// closed as interrupted instead of displaying `running` forever.
+    /// Multi-process workspace sharing is not yet prevented by a lock.
     pub fn open(root: &Path, lab: LabState) -> Self {
         sweep_interrupted(root);
         let mut port = Self::detached(lab);
@@ -265,9 +267,9 @@ fn sweep_interrupted(root: &Path) {
             exit_code: None,
             exit: "interrupted".into(),
             outcome: concat!(
-                "Capture Vector quit before this run finished. Quitting is not ",
-                "cancellation: the lab process did not survive, and whatever it ",
-                "wrote before that is still in the output directory."
+                "Capture Vector stopped observing this run before it finished ",
+                "(the app quit or closed; quitting is not cancellation). ",
+                "Whatever output exists remains in the output directory."
             )
             .into(),
             duration_ms: 0,
@@ -553,29 +555,33 @@ fn named(rel: &str, e: impl std::fmt::Display) -> String {
 }
 
 /// Decode the run's main document; `Err` names the file and why.
-fn read_documents(out: &Path, run: &mut ImportRun) -> Result<(), String> {
+/// Returns `true` when at least one lab document was decoded. A run that
+/// exits 0 but leaves nothing decodable is missing the evidence every
+/// downstream decision rests on — the caller must surface that, not treat
+/// it as a valid zero-count outcome.
+fn read_documents(out: &Path, run: &mut ImportRun) -> Result<bool, String> {
     let read = |rel: &str| read_capped(&out.join(rel), MAX_DOC_BYTES);
     if let Some(bytes) = read("report.json") {
         let bytes = bytes.map_err(|e| format!("report.json: {e}"))?;
         let r = Report::decode(&bytes).map_err(|e| named("report.json", e))?;
         report_facts(&r, run);
-        return Ok(());
+        return Ok(true);
     }
     if let Some(bytes) = read("inventory.json") {
         let bytes = bytes.map_err(|e| format!("inventory.json: {e}"))?;
         let i = Inventory::decode(&bytes).map_err(|e| named("inventory.json", e))?;
         inventory_facts(&i, run);
-        return Ok(());
+        return Ok(true);
     }
     for rel in OTHER_DOCS {
         if let Some(bytes) = read(rel) {
             let bytes = bytes.map_err(|e| format!("{rel}: {e}"))?;
             let d = Document::decode(rel, &bytes).map_err(|e| named(rel, e))?;
             other_facts(&d, run);
-            return Ok(());
+            return Ok(true);
         }
     }
-    Ok(())
+    Ok(false)
 }
 
 fn project(d: &RunDir) -> ImportRun {
@@ -627,8 +633,16 @@ fn project(d: &RunDir) -> ImportRun {
     } else if out.join("provenance").is_dir() {
         run.provenance = Some(format!("{}/provenance/", run.out));
     }
-    if let Err(e) = read_documents(&out, &mut run) {
-        run.problem = Some(e);
+    match read_documents(&out, &mut run) {
+        Err(e) => run.problem = Some(e),
+        Ok(false) if run.status == RunStatus::Ok => {
+            run.problem = Some(
+                "the lab reported success but the output contains no report.json,                  inventory.json, or other decodable lab document"
+                    .into(),
+            );
+        }
+        Ok(false) => {}
+        Ok(true) => {}
     }
     run.report = REPORTS_MD.iter().find_map(|name| {
         let bytes = read_capped(&out.join(name), MAX_REPORT_BYTES)?.ok()?;
@@ -729,6 +743,10 @@ pub(crate) fn plain_prepare_refusal(e: &LabError) -> String {
             expected.noun(),
             show(path)
         ),
+        LabError::InputRelative { flag, path } => format!(
+            "{flag} must be an absolute path, but {} is relative — it cannot be interpreted without guessing. Type or pick the full path; the run was not started.",
+            show(path)
+        ),
         LabError::InputSymlink {
             flag,
             input,
@@ -751,7 +769,10 @@ pub(crate) fn plain_prepare_refusal(e: &LabError) -> String {
     }
 }
 
-/// The lab reports refusals as exit 2 plus a stable error name on stderr.
+/// The lab reports refusals with a stable error name on stderr; the exit
+/// code is mode-dependent (2 when mode-specific validation fires first,
+/// 3 once validateRoots runs — both proven against the real pinned lab),
+/// so the name, not the exit code, is the refusal signal.
 /// Keep stderr verbatim in the record and put the actionable explanation,
 /// including the relevant path, in `refused`.
 /// The pinned lab's refusal error names, as `migration-lab (<mode>)

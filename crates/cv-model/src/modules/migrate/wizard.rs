@@ -358,7 +358,7 @@ impl MigrateModule {
             }
             if !value.is_empty()
                 && extra.kind == ImportExtraKind::Count
-                && value.parse::<usize>().is_err()
+                && value.parse::<usize>().map_or(true, |n| n == 0)
             {
                 return Err(format!(
                     "{} must be a positive integer, or empty for the lab default.",
@@ -376,9 +376,16 @@ impl MigrateModule {
                     input.flag, input.label
                 ));
             }
+
             if !value.is_empty() && value.trim().is_empty() {
                 return Err(format!(
-                    "{} is only whitespace, which is not a usable path here.                      Clear the field entirely to leave it out.",
+                    "{} is only whitespace, which is not a usable path here. Clear the field entirely to leave it out.",
+                    input.flag
+                ));
+            }
+            if !value.is_empty() && !std::path::Path::new(&value).is_absolute() {
+                return Err(format!(
+                    "{} must be an absolute path; relative paths and ~/ are not expanded here.",
                     input.flag
                 ));
             }
@@ -565,17 +572,23 @@ impl MigrateModule {
         }
         match (phase, run.status) {
             (ImportPhase::Inventory, RunStatus::Ok) => {
-                // A finished inventory whose report is missing or
-                // undecodable proves nothing about the source: emit is
-                // blocked rather than merely confirmed, because the counts
-                // the decision rests on are unavailable. This is distinct
-                // from a valid inventory that simply counted zero.
-                if run.problem.is_some() {
+                // Emit requires positive decoded-count evidence: a decoded
+                // inventory document carries the count classes even when
+                // every count is zero, so empty counts means nothing
+                // count-bearing was decoded at all — as does a problem in
+                // projection. Both are blocked outright rather than merely
+                // confirmed, and both are distinct from a valid inventory
+                // that simply counted zero.
+                let missing = run.problem.is_none() && run.counts.is_empty();
+                if run.problem.is_some() || missing {
                     self.wizard.reset();
+                    let why = match run.problem.as_deref() {
+                        Some(p) => format!("its report is unreadable — {p}"),
+                        None => "no count data could be decoded from its output".to_string(),
+                    };
                     return vec![
                         Intent::Status(format!(
-                            "The inventory finished but its report is unreadable, so there are no counts to base an emit on; emit is blocked. Inspect the run in Runs — {}.",
-                            run.problem.as_deref().unwrap_or("report problem")
+                            "The inventory finished but {why}, so there are no counts to base an emit on; emit is blocked. Inspect the run in Runs."
                         )),
                         Intent::Reveal {
                             module: super::ID.into(),
