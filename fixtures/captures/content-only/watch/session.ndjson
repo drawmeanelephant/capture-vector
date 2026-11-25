@@ -1,0 +1,3 @@
+{"event":"hello","watch_events_schema":1,"compiler":"boris/0.9.0"}
+{"event":"build-started","phase":"initial","mode":"html","targets":["default"]}
+{"event":"build-failed","phase":"initial","mode":"html","targets":["default"],"errors":1,"diagnostics":[{"severity":"error","code":"ELAYOUT","message":"failed to load layout themes/boris/layouts/main.html: FileNotFound","remediation":"Fix the layout template and retry the build","sourcePath":"themes/boris/layouts/main.html","line":null,"column":null,"id":null}],"recoverable":false,"duration_ms":0}

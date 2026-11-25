@@ -50,6 +50,11 @@ pub fn location(d: &Diagnostic) -> String {
     }
 }
 
+/// A diagnostic row's title in the river.
+pub fn diagnostic_title(code: &str, message: &str) -> String {
+    format!("{code}: {message}")
+}
+
 /// One diagnostic's identity across rebuilds: everything but the build.
 type DiagIdentity = (String, String, String, String);
 
@@ -124,7 +129,7 @@ impl Entry {
                 ok: false,
                 ..
             } => format!("Build failed ({})", phase(p)),
-            EntryKind::Diagnostic(d) => format!("{}: {}", d.code, d.message),
+            EntryKind::Diagnostic(d) => diagnostic_title(&d.code, &d.message),
             EntryKind::Verb { verb, .. } => format!("{} finished", verb.to_lowercase()),
             EntryKind::WatchEnded(r) => format!("Watch session ended ({r:?})"),
             EntryKind::Malformed(_) => "Malformed engine line".into(),
