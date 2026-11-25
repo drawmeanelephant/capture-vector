@@ -1,0 +1,23 @@
+{
+  "format": "boris-jekyll-migration-lab",
+  "schema_version": 1,
+  "source_root": "/CAPTURE_ROOT/src/mini-jekyll",
+  "source_path": "_posts/2024-02-10-permalink-post.md",
+  "kind": "post",
+  "collection": null,
+  "entity_id": "posts/permalink-post",
+  "class": "transformed",
+  "review": [],
+  "filename_date": "2024-02-10",
+  "slug": "permalink-post",
+  "summary_source": "first_paragraph",
+  "permalink": "/custom/permalink-post/",
+  "config_permalink": "pretty",
+  "config_baseurl": "",
+  "categories": ["news"],
+  "layout": null,
+  "provenance_keys": ["categories", "permalink"],
+  "raw_frontmatter": "title: Permalink Post\npermalink: /custom/permalink-post/\ncategories:\n  - news\ntags:\n  - links\n",
+  "assets": [],
+  "liquid_sites": []
+}

@@ -1,0 +1,70 @@
+{
+  "format": "boris-enex-migration-lab",
+  "schema_version": 1,
+  "mode": "emit",
+  "tool_version": "0.1.0",
+  "source": { "root": "/CAPTURE_ROOT/src/mini-enex", "enex_file_count": 2, "note_count": 4 },
+  "dispositions": [
+    { "construct": "<en-export> metadata (export-date, application, version)", "class": "unsupported", "count": 2 },
+    { "construct": ".enex notebook file (<notebook>.enex)", "class": "transformed", "count": 2 },
+    { "construct": "<note> entry and <title>", "class": "transformed", "count": 4 },
+    { "construct": "<created> (YYYYMMDDTHHMMSSZ)", "class": "transformed", "count": 4 },
+    { "construct": "<updated> (YYYYMMDDTHHMMSSZ)", "class": "unsupported", "count": 4 },
+    { "construct": "<tag>", "class": "exact", "count": 4 },
+    { "construct": "<note-attributes> author / source / source-url", "class": "unsupported", "count": 9 },
+    { "construct": "<note-attributes> latitude / longitude", "class": "unsupported", "count": 1 },
+    { "construct": "<note-attributes> reminder-order", "class": "unsupported", "count": 1 },
+    { "construct": "<note-attributes> content-class", "class": "unsupported", "count": 2 },
+    { "construct": "<content> CDATA + DOCTYPE wrapper", "class": "transformed", "count": 4 },
+    { "construct": "Standard ENML markup", "class": "transformed", "count": 42 },
+    { "construct": "<table>", "class": "transformed", "count": 1 },
+    { "construct": "<en-todo> (checked/unchecked)", "class": "transformed", "count": 2 },
+    { "construct": "<en-media> image matching <resource>", "class": "transformed", "count": 3 },
+    { "construct": "<en-media> non-image matching <resource>", "class": "transformed", "count": 1 },
+    { "construct": "<resource> without <file-name>", "class": "transformed", "count": 1 },
+    { "construct": "<resource> with <recognition> OCR XML", "class": "unsupported", "count": 1 },
+    { "construct": "Dangling <en-media> (no matching <resource>)", "class": "human_review", "count": 1 },
+    { "construct": "Unreferenced <resource>", "class": "human_review", "count": 1 },
+    { "construct": "<en-crypt>", "class": "human_review", "count": 1 },
+    { "construct": "Internal evernote:// note link", "class": "human_review", "count": 1 },
+    { "construct": "Unsafe HTML (script/iframe/style/object/embed/form/on*/javascript:)", "class": "human_review", "count": 0 },
+    { "construct": "Literal Boris-syntax text ([[, {{, <Capitalized)", "class": "transformed", "count": 3 }
+  ],
+  "trunks": [
+    { "entity_id": "clips", "output": "content/clips.md", "source_file": "clips.enex", "note_count": 2 },
+    { "entity_id": "notebook", "output": "content/notebook.md", "source_file": "notebook.enex", "note_count": 2 }
+  ],
+  "pages": [
+    { "entity_id": "clips/quick-capture", "parent": "clips", "output": "content/clips/quick-capture.md", "boris_status": "draft", "conversion": "unsupported" },
+    { "entity_id": "clips/web-clip-with-ocr-scan", "parent": "clips", "output": "content/clips/web-clip-with-ocr-scan.md", "boris_status": "draft", "conversion": "unsupported" },
+    { "entity_id": "notebook/architecture-overview", "parent": "notebook", "output": "content/notebook/architecture-overview.md", "boris_status": "draft", "conversion": "unsupported" },
+    { "entity_id": "notebook/encrypted-and-internal-links", "parent": "notebook", "output": "content/notebook/encrypted-and-internal-links.md", "boris_status": "draft", "conversion": "human_review" }
+  ],
+  "findings": [
+    { "entity_id": "clips/quick-capture", "code": "note_attributes_provenance_only", "class": "unsupported", "detail": "Evernote <note-attributes> kept out of Boris frontmatter and body" },
+    { "entity_id": "clips/quick-capture", "code": "published_at_needs_summary", "class": "transformed", "detail": "no summary present; Boris requires summary with published_at, <created> kept in provenance" },
+    { "entity_id": "clips/quick-capture", "code": "updated_provenance_only", "class": "unsupported", "detail": "20250310T180500Z" },
+    { "entity_id": "clips/web-clip-with-ocr-scan", "code": "note_attributes_provenance_only", "class": "unsupported", "detail": "Evernote <note-attributes> kept out of Boris frontmatter and body" },
+    { "entity_id": "clips/web-clip-with-ocr-scan", "code": "published_at_needs_summary", "class": "transformed", "detail": "no summary present; Boris requires summary with published_at, <created> kept in provenance" },
+    { "entity_id": "clips/web-clip-with-ocr-scan", "code": "recognition_ocr_dropped", "class": "unsupported", "detail": "OCR <recognition> block on 912a61bf3c65883bc23d60d4fade3f21 not injected into body" },
+    { "entity_id": "clips/web-clip-with-ocr-scan", "code": "resource_filename_fallback", "class": "transformed", "detail": "missing file-name (image/jpeg) -> 6e0acc08d8e5.jpg" },
+    { "entity_id": "clips/web-clip-with-ocr-scan", "code": "updated_provenance_only", "class": "unsupported", "detail": "20250305T082000Z" },
+    { "entity_id": "notebook/architecture-overview", "code": "note_attributes_provenance_only", "class": "unsupported", "detail": "Evernote <note-attributes> kept out of Boris frontmatter and body" },
+    { "entity_id": "notebook/architecture-overview", "code": "published_at_needs_summary", "class": "transformed", "detail": "no summary present; Boris requires summary with published_at, <created> kept in provenance" },
+    { "entity_id": "notebook/architecture-overview", "code": "updated_provenance_only", "class": "unsupported", "detail": "20250201T141500Z" },
+    { "entity_id": "notebook/encrypted-and-internal-links", "code": "boris_syntax_neutralized", "class": "transformed", "detail": "neutralized literal Boris syntax outside fenced code" },
+    { "entity_id": "notebook/encrypted-and-internal-links", "code": "dangling_en_media", "class": "human_review", "detail": "deadbeefdeadbeefdeadbeefdeadbeef" },
+    { "entity_id": "notebook/encrypted-and-internal-links", "code": "encrypted_block", "class": "human_review", "detail": "synthetic-hint" },
+    { "entity_id": "notebook/encrypted-and-internal-links", "code": "evernote_internal_link", "class": "human_review", "detail": "evernote:///view/10001/s1/00000000-0000-4000-8000-000000000001/00000000-0000-4000-8000-000000000001/" },
+    { "entity_id": "notebook/encrypted-and-internal-links", "code": "note_attributes_provenance_only", "class": "unsupported", "detail": "Evernote <note-attributes> kept out of Boris frontmatter and body" },
+    { "entity_id": "notebook/encrypted-and-internal-links", "code": "published_at_needs_summary", "class": "transformed", "detail": "no summary present; Boris requires summary with published_at, <created> kept in provenance" },
+    { "entity_id": "notebook/encrypted-and-internal-links", "code": "unreferenced_resource", "class": "human_review", "detail": "orphan-handout.pdf (bf9d6d007add12db4be03a82c7e70f83)" },
+    { "entity_id": "notebook/encrypted-and-internal-links", "code": "updated_provenance_only", "class": "unsupported", "detail": "20250211T164500Z" }
+  ],
+  "assets": [
+    { "entity_id": "clips/web-clip-with-ocr-scan", "md5": "6e0acc08d8e594291c82676e09b12aa4", "mime": "image/jpeg", "original_name": null, "output": "content/clips/web-clip-with-ocr-scan.assets/6e0acc08d8e5.jpg", "bytes": 20 },
+    { "entity_id": "clips/web-clip-with-ocr-scan", "md5": "912a61bf3c65883bc23d60d4fade3f21", "mime": "image/png", "original_name": "scan.png", "output": "content/clips/web-clip-with-ocr-scan.assets/scan.png", "bytes": 17 },
+    { "entity_id": "notebook/architecture-overview", "md5": "78dc75bbdaf576f1f4f214d0f0f1b1ea", "mime": "image/png", "original_name": "diagram.png", "output": "content/notebook/architecture-overview.assets/diagram.png", "bytes": 12 },
+    { "entity_id": "notebook/architecture-overview", "md5": "d16d8ec1f1e82c2e97702fbf474c903d", "mime": "text/plain", "original_name": "notes.txt", "output": "content/notebook/architecture-overview.assets/notes.txt", "bytes": 47 }
+  ]
+}

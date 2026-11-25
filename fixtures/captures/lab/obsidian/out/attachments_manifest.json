@@ -1,0 +1,12 @@
+{
+  "format": "boris-obsidian-attachments-manifest",
+  "schema_version": 1,
+  "entries": [
+    {
+      "source_path": "Attachments/diagram.png",
+      "output_path": "assets/Attachments/diagram.png",
+      "referenced": true,
+      "copied": true
+    }
+  ]
+}

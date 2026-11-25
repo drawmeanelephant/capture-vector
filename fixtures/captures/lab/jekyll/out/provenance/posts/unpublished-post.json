@@ -1,0 +1,23 @@
+{
+  "format": "boris-jekyll-migration-lab",
+  "schema_version": 1,
+  "source_root": "/CAPTURE_ROOT/src/mini-jekyll",
+  "source_path": "_posts/2024-03-15-unpublished-post.md",
+  "kind": "post",
+  "collection": null,
+  "entity_id": "posts/unpublished-post",
+  "class": "transformed",
+  "review": [],
+  "filename_date": "2024-03-15",
+  "slug": "unpublished-post",
+  "summary_source": "first_paragraph",
+  "permalink": null,
+  "config_permalink": "pretty",
+  "config_baseurl": "",
+  "categories": [],
+  "layout": null,
+  "provenance_keys": ["published"],
+  "raw_frontmatter": "title: Unpublished Post\npublished: false\ntags:\n  - hidden\n",
+  "assets": [],
+  "liquid_sites": []
+}

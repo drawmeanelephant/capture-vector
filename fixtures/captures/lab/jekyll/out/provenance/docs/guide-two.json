@@ -1,0 +1,27 @@
+{
+  "format": "boris-jekyll-migration-lab",
+  "schema_version": 1,
+  "source_root": "/CAPTURE_ROOT/src/mini-jekyll",
+  "source_path": "_docs/guide-two.md",
+  "kind": "collection",
+  "collection": "docs",
+  "entity_id": "docs/guide-two",
+  "class": "transformed",
+  "review": [],
+  "filename_date": null,
+  "slug": null,
+  "summary_source": null,
+  "permalink": null,
+  "config_permalink": "pretty",
+  "config_baseurl": "",
+  "categories": [],
+  "layout": null,
+  "provenance_keys": [],
+  "raw_frontmatter": "title: Guide Two\n",
+  "assets": [
+    { "source": "assets/images/hero.png", "dest": "content/docs/guide-two.assets/images/hero.png" }
+  ],
+  "liquid_sites": [
+    { "line": 7, "construct": "_data/*.yml referenced via {{ site.data.<file>.<key> }}", "class": "transformed", "text": "{{ site.data.team.maintainer.name }}", "landing": "verbatim; data not inlined" }
+  ]
+}

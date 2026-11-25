@@ -1,0 +1,22 @@
+{
+  "format": "boris-hugo-migration-lab",
+  "schema_version": 1,
+  "entity_id": "en/posts",
+  "source": "content/en/posts/_index.md",
+  "kind": "section",
+  "language": "en",
+  "hugo_path": "posts",
+  "front_matter_format": "yaml",
+  "role": "trunk",
+  "parent": null,
+  "class": "unsupported",
+  "published_at_source": "none",
+  "summary_source": "none",
+  "provenance_fields": {
+    "weight": "10"
+  },
+  "dropped_keys": [],
+  "assets": [],
+  "shortcodes": [],
+  "notes": []
+}

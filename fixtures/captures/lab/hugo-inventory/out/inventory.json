@@ -1,0 +1,217 @@
+{
+  "format": "boris-hugo-migration-lab",
+  "schema_version": 1,
+  "mode": "inventory",
+  "tool_version": "0.1.0",
+  "source": {
+    "root": "/CAPTURE_ROOT/src/mini-hugo"
+  },
+  "config": {
+    "file": "config.toml",
+    "format": "toml",
+    "base_url": "https://example.com/",
+    "title": "Mini Hugo Lab Site",
+    "default_content_language": "en"
+  },
+  "languages": [
+    { "code": "en", "name": "English", "content_dir": "content/en", "weight": 1},
+    { "code": "fr", "name": "Français", "content_dir": "content/fr", "weight": 2}
+  ],
+  "counts": {
+    "pages": 12,
+    "sections": 5,
+    "leaf_bundles": 2,
+    "branch_bundles": 1,
+    "single_pages": 4,
+    "page_resources": 2,
+    "aliases": 2,
+    "languages": 2,
+    "static_assets": 2,
+    "layout_shortcodes": 1,
+    "optional_files": 0,
+    "unclassified": 0
+  },
+  "class_counts": {
+    "exact": 0,
+    "transformed": 6,
+    "unsupported": 3,
+    "human_review": 3
+  },
+  "shortcodes": [
+    { "name": "callout", "delimiter": "{{%", "count": 1 },
+    { "name": "callout", "delimiter": "{{<", "count": 1 },
+    { "name": "figure", "delimiter": "{{<", "count": 1 },
+    { "name": "ref", "delimiter": "{{<", "count": 1 },
+    { "name": "relref", "delimiter": "{{<", "count": 1 }
+  ],
+  "fenced_shortcode_names": ["figure"],
+  "static_assets": ["static/assets/site-logo.png", "static/files/notes.txt"],
+  "layout_shortcodes": ["callout"],
+  "optional_dirs": [
+  ],
+  "unclassified": [
+  ],
+  "pages": [
+    {
+      "path": "content/en/_index.md",
+      "language": "en",
+      "kind": "section",
+      "depth": 0,
+      "class": "transformed",
+      "front_matter_format": "yaml",
+      "front_matter_keys": ["description", "title"],
+      "aliases": [],
+      "resources": [],
+      "shortcodes": [
+      ]
+    },
+    {
+      "path": "content/en/about.md",
+      "language": "en",
+      "kind": "single",
+      "depth": 0,
+      "class": "transformed",
+      "front_matter_format": "yaml",
+      "front_matter_keys": ["categories", "date", "tags", "title"],
+      "aliases": [],
+      "resources": [],
+      "shortcodes": [
+        { "name": "ref", "delimiter": "{{<", "count": 1 },
+        { "name": "relref", "delimiter": "{{<", "count": 1 }
+      ]
+    },
+    {
+      "path": "content/en/guides/_index.md",
+      "language": "en",
+      "kind": "branch_bundle",
+      "depth": 1,
+      "class": "unsupported",
+      "front_matter_format": "yaml",
+      "front_matter_keys": ["title", "weight"],
+      "aliases": [],
+      "resources": ["cover.png"],
+      "shortcodes": [
+      ]
+    },
+    {
+      "path": "content/en/guides/inner/_index.md",
+      "language": "en",
+      "kind": "section",
+      "depth": 2,
+      "class": "human_review",
+      "front_matter_format": "yaml",
+      "front_matter_keys": ["title"],
+      "aliases": [],
+      "resources": [],
+      "shortcodes": [
+      ]
+    },
+    {
+      "path": "content/en/guides/inner/deep-page.md",
+      "language": "en",
+      "kind": "single",
+      "depth": 2,
+      "class": "transformed",
+      "front_matter_format": "yaml",
+      "front_matter_keys": ["date", "title"],
+      "aliases": [],
+      "resources": [],
+      "shortcodes": [
+      ]
+    },
+    {
+      "path": "content/en/posts/_index.md",
+      "language": "en",
+      "kind": "section",
+      "depth": 1,
+      "class": "unsupported",
+      "front_matter_format": "yaml",
+      "front_matter_keys": ["title", "weight"],
+      "aliases": [],
+      "resources": [],
+      "shortcodes": [
+      ]
+    },
+    {
+      "path": "content/en/posts/draft-note.md",
+      "language": "en",
+      "kind": "single",
+      "depth": 1,
+      "class": "human_review",
+      "front_matter_format": "yaml",
+      "front_matter_keys": ["date", "draft", "tags", "title"],
+      "aliases": [],
+      "resources": [],
+      "shortcodes": [
+        { "name": "callout", "delimiter": "{{<", "count": 1 }
+      ]
+    },
+    {
+      "path": "content/en/posts/hello-bundle/index.md",
+      "language": "en",
+      "kind": "leaf_bundle",
+      "depth": 2,
+      "class": "unsupported",
+      "front_matter_format": "toml",
+      "front_matter_keys": ["aliases", "categories", "date", "draft", "slug", "tags", "title", "weight"],
+      "aliases": ["/legacy/hb", "/old/hello-bundle/"],
+      "resources": ["banner.png"],
+      "shortcodes": [
+        { "name": "figure", "delimiter": "{{<", "count": 1 }
+      ]
+    },
+    {
+      "path": "content/en/posts/markup-shortcode.md",
+      "language": "en",
+      "kind": "single",
+      "depth": 1,
+      "class": "human_review",
+      "front_matter_format": "yaml",
+      "front_matter_keys": ["date", "title"],
+      "aliases": [],
+      "resources": [],
+      "shortcodes": [
+        { "name": "callout", "delimiter": "{{%", "count": 1 }
+      ]
+    },
+    {
+      "path": "content/fr/_index.md",
+      "language": "fr",
+      "kind": "section",
+      "depth": 0,
+      "class": "transformed",
+      "front_matter_format": "yaml",
+      "front_matter_keys": ["title"],
+      "aliases": [],
+      "resources": [],
+      "shortcodes": [
+      ]
+    },
+    {
+      "path": "content/fr/posts/_index.md",
+      "language": "fr",
+      "kind": "section",
+      "depth": 1,
+      "class": "transformed",
+      "front_matter_format": "yaml",
+      "front_matter_keys": ["title"],
+      "aliases": [],
+      "resources": [],
+      "shortcodes": [
+      ]
+    },
+    {
+      "path": "content/fr/posts/bonjour/index.md",
+      "language": "fr",
+      "kind": "leaf_bundle",
+      "depth": 2,
+      "class": "transformed",
+      "front_matter_format": "toml",
+      "front_matter_keys": ["date", "draft", "tags", "title"],
+      "aliases": [],
+      "resources": [],
+      "shortcodes": [
+      ]
+    }
+  ]
+}

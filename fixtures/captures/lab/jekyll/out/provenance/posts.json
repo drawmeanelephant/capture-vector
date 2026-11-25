@@ -1,0 +1,23 @@
+{
+  "format": "boris-jekyll-migration-lab",
+  "schema_version": 1,
+  "source_root": "/CAPTURE_ROOT/src/mini-jekyll",
+  "source_path": null,
+  "kind": "generated_trunk",
+  "collection": null,
+  "entity_id": "posts",
+  "class": "transformed",
+  "review": [],
+  "filename_date": null,
+  "slug": null,
+  "summary_source": null,
+  "permalink": null,
+  "config_permalink": "pretty",
+  "config_baseurl": "",
+  "categories": [],
+  "layout": null,
+  "provenance_keys": [],
+  "raw_frontmatter": "",
+  "assets": [],
+  "liquid_sites": []
+}

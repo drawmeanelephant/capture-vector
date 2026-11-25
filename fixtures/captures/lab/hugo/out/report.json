@@ -1,0 +1,45 @@
+{
+  "format": "boris-hugo-migration-lab",
+  "schema_version": 1,
+  "tool_version": "0.1.0",
+  "mode": "hugo",
+  "source_root": "/CAPTURE_ROOT/src/mini-hugo",
+  "config": {"file": "config.toml", "base_url": "https://example.com/", "title": "Mini Hugo Lab Site", "default_content_language": "en", "disposition": "transformed: inventoried, not emitted"},
+  "languages": [
+    {"code": "en", "content_dir": "content/en", "entity_id_prefix": "en"},
+    {"code": "fr", "content_dir": "content/fr", "entity_id_prefix": "fr"}
+  ],
+  "summary": {
+    "pages_emitted": 12,
+    "trunks": 6,
+    "satellites": 6,
+    "synthesized_landings": 0,
+    "by_class": {"exact": 0, "transformed": 5, "unsupported": 3, "human_review": 4},
+    "shortcodes_transformed": 3,
+    "shortcodes_preserved": 2,
+    "page_assets": 2,
+    "static_assets": 2,
+    "redirects": 3
+  },
+  "pages": [
+    {"entity_id": "en", "output": "content/en.md", "source": "content/en/_index.md", "kind": "section", "language": "en", "role": "trunk", "parent": null, "class": "transformed", "dropped_keys": [], "preserved_shortcodes": [], "notes": ["link /posts/ → [[en/posts]]", "link /guides/ → [[en/guides]]"]},
+    {"entity_id": "en/about", "output": "content/en/about.md", "source": "content/en/about.md", "kind": "single", "language": "en", "role": "trunk", "parent": null, "class": "transformed", "dropped_keys": [], "preserved_shortcodes": [], "notes": []},
+    {"entity_id": "en/guides", "output": "content/en/guides.md", "source": "content/en/guides/_index.md", "kind": "branch_bundle", "language": "en", "role": "trunk", "parent": null, "class": "unsupported", "dropped_keys": [], "preserved_shortcodes": [], "notes": ["image cover.png → guides.assets/cover.png"]},
+    {"entity_id": "en/guides/inner", "output": "content/en/guides/inner.md", "source": "content/en/guides/inner/_index.md", "kind": "section", "language": "en", "role": "satellite", "parent": "en/guides", "class": "human_review", "dropped_keys": [], "preserved_shortcodes": [], "notes": ["nested section guides/inner flattened: Satellite of en/guides (Boris graph is two-level)"]},
+    {"entity_id": "en/guides/inner/deep-page", "output": "content/en/guides/inner/deep-page.md", "source": "content/en/guides/inner/deep-page.md", "kind": "single", "language": "en", "role": "satellite", "parent": "en/guides", "class": "human_review", "dropped_keys": [], "preserved_shortcodes": [], "notes": ["page in nested section guides/inner flattened: Satellite of en/guides (Boris graph is two-level)"]},
+    {"entity_id": "en/posts", "output": "content/en/posts.md", "source": "content/en/posts/_index.md", "kind": "section", "language": "en", "role": "trunk", "parent": null, "class": "unsupported", "dropped_keys": [], "preserved_shortcodes": [], "notes": []},
+    {"entity_id": "en/posts/draft-note", "output": "content/en/posts/draft-note.md", "source": "content/en/posts/draft-note.md", "kind": "single", "language": "en", "role": "satellite", "parent": "en/posts", "class": "human_review", "dropped_keys": [], "preserved_shortcodes": ["custom {{< callout >}} shortcode preserved (no Boris target)"], "notes": []},
+    {"entity_id": "en/posts/hello-bundle", "output": "content/en/posts/hello-bundle.md", "source": "content/en/posts/hello-bundle/index.md", "kind": "leaf_bundle", "language": "en", "role": "satellite", "parent": "en/posts", "class": "unsupported", "dropped_keys": [], "preserved_shortcodes": [], "notes": ["image banner.png → hello-bundle.assets/banner.png"]},
+    {"entity_id": "en/posts/markup-shortcode", "output": "content/en/posts/markup-shortcode.md", "source": "content/en/posts/markup-shortcode.md", "kind": "single", "language": "en", "role": "satellite", "parent": "en/posts", "class": "human_review", "dropped_keys": [], "preserved_shortcodes": ["custom {{% callout %}} shortcode preserved (no Boris target)"], "notes": []},
+    {"entity_id": "fr", "output": "content/fr.md", "source": "content/fr/_index.md", "kind": "section", "language": "fr", "role": "trunk", "parent": null, "class": "transformed", "dropped_keys": [], "preserved_shortcodes": [], "notes": []},
+    {"entity_id": "fr/posts", "output": "content/fr/posts.md", "source": "content/fr/posts/_index.md", "kind": "section", "language": "fr", "role": "trunk", "parent": null, "class": "transformed", "dropped_keys": [], "preserved_shortcodes": [], "notes": []},
+    {"entity_id": "fr/posts/bonjour", "output": "content/fr/posts/bonjour.md", "source": "content/fr/posts/bonjour/index.md", "kind": "leaf_bundle", "language": "fr", "role": "satellite", "parent": "fr/posts", "class": "transformed", "dropped_keys": [], "preserved_shortcodes": [], "notes": []}
+  ],
+  "static_assets": [
+    {"source": "static/assets/site-logo.png", "output": "assets/assets/site-logo.png"},
+    {"source": "static/files/notes.txt", "output": "assets/files/notes.txt"}
+  ],
+  "unsupported": {"layout_shortcodes": ["callout"], "optional_dirs": []},
+  "fenced_shortcode_names": ["figure"],
+  "unclassified": []
+}

@@ -1,0 +1,28 @@
+{
+  "format": "boris-hugo-migration-lab",
+  "schema_version": 1,
+  "entity_id": "en/posts/hello-bundle",
+  "source": "content/en/posts/hello-bundle/index.md",
+  "kind": "leaf_bundle",
+  "language": "en",
+  "hugo_path": "posts/hello-bundle",
+  "front_matter_format": "toml",
+  "role": "satellite",
+  "parent": "en/posts",
+  "class": "unsupported",
+  "published_at_source": "date",
+  "summary_source": "body",
+  "provenance_fields": {
+    "slug": "hello-custom-slug",
+    "weight": "5",
+    "aliases": ["/old/hello-bundle/", "/legacy/hb"]
+  },
+  "dropped_keys": [],
+  "assets": [
+    {"source": "content/en/posts/hello-bundle/banner.png", "output": "content/en/posts/hello-bundle.assets/banner.png"}
+  ],
+  "shortcodes": [
+    {"name": "figure", "delimiter": "{{<", "disposition": "transformed", "detail": "→ image hello-bundle.assets/banner.png"}
+  ],
+  "notes": ["image banner.png → hello-bundle.assets/banner.png"]
+}

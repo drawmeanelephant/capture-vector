@@ -1,0 +1,22 @@
+{
+  "format": "boris-hugo-migration-lab",
+  "schema_version": 1,
+  "entity_id": "en/posts/draft-note",
+  "source": "content/en/posts/draft-note.md",
+  "kind": "single",
+  "language": "en",
+  "hugo_path": "posts/draft-note",
+  "front_matter_format": "yaml",
+  "role": "satellite",
+  "parent": "en/posts",
+  "class": "human_review",
+  "published_at_source": "date",
+  "summary_source": "body",
+  "provenance_fields": {},
+  "dropped_keys": [],
+  "assets": [],
+  "shortcodes": [
+    {"name": "callout", "delimiter": "{{<", "disposition": "preserved", "detail": "custom {{< callout >}} shortcode preserved (no Boris target)"}
+  ],
+  "notes": []
+}
