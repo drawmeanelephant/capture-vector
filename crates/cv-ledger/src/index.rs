@@ -1,6 +1,14 @@
 //! SQLite projection of the journal. Disposable: delete it and
 //! [`LedgerIndex::open`] rebuilds it from JSONL. Never written to except
 //! by replaying journal records.
+//!
+//! Ownership: a `LedgerIndex` is a point-in-time snapshot handle. A
+//! rebuild installs a brand-new file by rename, so a handle opened
+//! before the rebuild keeps reading the pre-replacement inode (or a
+//! deleted file on Windows). Owners must be dropped before a rebuild
+//! and re-opened after it; the composition root enforces this by
+//! rebuilding only while reopening a workspace, when every store owner
+//! of the previous session has been dropped.
 
 use crate::Result;
 use crate::journal::{Entry, Journal, Record};
@@ -59,12 +67,42 @@ impl LedgerIndex {
         Self::connect(&path)
     }
 
+    /// Column names of `table` in order; empty when the table is absent.
+    fn table_columns(conn: &Connection, table: &str) -> Result<Vec<String>> {
+        let mut st = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+        let cols = st
+            .query_map([], |r| r.get::<_, String>(1))?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        Ok(cols)
+    }
+
+    /// Whether the opened database is exactly the owned projection
+    /// shape: the meta, nouns and runs tables with their expected
+    /// columns and nothing else. Foreign debris or wrong columns mean
+    /// the file cannot be trusted however fresh its metadata counters
+    /// look.
+    fn owned_schema_valid(conn: &Connection) -> Result<bool> {
+        let mut st = conn.prepare(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+        )?;
+        let mut tables: Vec<String> = st
+            .query_map([], |r| r.get::<_, String>(0))?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        tables.sort();
+        if tables != ["meta", "nouns", "runs"] {
+            return Ok(false);
+        }
+        Ok(Self::table_columns(conn, "meta")? == ["k", "v"]
+            && Self::table_columns(conn, "nouns")? == ["kind", "id", "run", "target", "json"]
+            && Self::table_columns(conn, "runs")? == ["run", "target", "phase"])
+    }
+
     /// Whether the index at `path` cannot stand in for a replay of
-    /// `records`: missing, unreadable, foreign, wrong schema version or
-    /// a stale journal length. The probe connection is always closed
-    /// before returning, so the caller may replace the file immediately
-    /// afterwards (a rename over it would otherwise trip Windows sharing
-    /// discipline).
+    /// `records`: missing, unreadable, foreign, wrong-shaped, wrong
+    /// schema version or a stale journal length. The probe connection
+    /// is always closed before returning, so the caller may replace the
+    /// file immediately afterwards (a rename over it would otherwise
+    /// trip Windows sharing discipline).
     fn needs_rebuild(path: &Path, records: &[Record]) -> bool {
         if !path.is_file() {
             return true;
@@ -72,7 +110,8 @@ impl LedgerIndex {
         (|| -> Result<bool> {
             let idx = Self::connect(path)?;
             let stale = idx.schema_version()? != Some(INDEX_SCHEMA_VERSION)
-                || idx.indexed_len()? != Some(records.len() as u64);
+                || idx.indexed_len()? != Some(records.len() as u64)
+                || !Self::owned_schema_valid(&idx.conn)?;
             idx.close()?;
             Ok(stale)
         })()

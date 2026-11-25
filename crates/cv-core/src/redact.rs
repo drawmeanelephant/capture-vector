@@ -9,7 +9,7 @@ use serde_json::Value;
 /// kebab, camel, dot and path separators interchangeably, and flatten
 /// nested objects into dotted or slashed key paths.
 fn is_separator(c: char) -> bool {
-    matches!(c, '-' | '_' | '.' | '/' | '\\')
+    matches!(c, '-' | '_' | '.' | '/' | '\\') || c.is_whitespace()
 }
 
 /// Split a key into words across camelCase, digit and separator
@@ -76,12 +76,18 @@ pub fn is_secret_key(key: &str) -> bool {
     // `privateSigningKey` is as secret as `clientPrivateKey`, while
     // `publicKey` stays innocent. The fused contiguous case is already
     // caught above; this catches `private` followed by `key`/`keys`
-    // with intervening words such as `signing`.
+    // with intervening words such as `signing`. A `key` immediately
+    // preceded by `public` names public-key material — `private/publicKey`
+    // flattened paths are a private namespace, not a credential — so the
+    // pair does not match there.
     let words = key_words(key);
-    words
-        .iter()
-        .enumerate()
-        .any(|(i, w)| w == "private" && words[i + 1..].iter().any(|w| w == "key" || w == "keys"))
+    words.iter().enumerate().any(|(i, w)| {
+        w == "private"
+            && words[i + 1..]
+                .iter()
+                .enumerate()
+                .any(|(off, w)| (w == "key" || w == "keys") && words[i + off] != "public")
+    })
 }
 
 /// Drop every object field, at any depth, whose key [`is_secret_key`].
@@ -174,6 +180,40 @@ mod tests {
             "keyboard",
         ] {
             assert!(!is_secret_key(key), "{key}");
+        }
+    }
+
+    #[test]
+    fn whitespace_private_key_spellings_are_secret() {
+        // Exact spellings from the post-#204 verification probe: canonical
+        // human `private key` in lowercase, mixed and uppercase.
+        for key in [
+            "private key",
+            "client private key",
+            "PRIVATE KEY",
+            "Private Key",
+            "my private  key",
+            "private\tsigning\tkey",
+        ] {
+            assert!(is_secret_key(key), "{key}");
+        }
+    }
+
+    #[test]
+    fn terminal_public_key_in_a_private_namespace_is_innocent() {
+        // `private`/`publicKey` flattened paths hold public-key material in
+        // a private namespace: never a credential. Key ids and fingerprints
+        // stay redacted conservatively — they cannot be distinguished from
+        // key material structurally.
+        for key in [
+            "private/publicKey",
+            "private.publicKey",
+            "private public key",
+        ] {
+            assert!(!is_secret_key(key), "{key}");
+        }
+        for key in ["privateKeyId", "privateKeyFingerprint"] {
+            assert!(is_secret_key(key), "{key}");
         }
     }
 
