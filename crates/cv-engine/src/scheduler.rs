@@ -249,10 +249,17 @@ impl<E: Engine + Sync> EngineScheduler<E> {
     }
 
     /// Run one logical mutation batch under the writer lock, so a
-    /// multi-write operation (migration adoption) is atomic against page
-    /// edits, moves, builds, and watch starts instead of interleaving
-    /// per file. The closure must not call back into the scheduler —
-    /// the lock is not reentrant and doing so deadlocks.
+    /// multi-write operation (migration adoption) cannot interleave with
+    /// page edits, moves, deletes, builds, or watch starts instead of
+    /// interleaving per file. The closure must not call back into the
+    /// scheduler — the lock is not reentrant and doing so deadlocks.
+    ///
+    /// Scope, honestly: this serializes scheduler-mediated mutations
+    /// only. An already-running watch is a separate process whose
+    /// filesystem reactions do not take this lock; callers that need
+    /// the batch unobserved (migration adoption) stop the watch first
+    /// and restore it afterwards — see the composition root's
+    /// `batch_watch_safe`.
     pub fn mutation_batch<R>(&self, f: impl FnOnce() -> R) -> R {
         let _w = self.rw.write().unwrap();
         f()

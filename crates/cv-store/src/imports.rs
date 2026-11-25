@@ -634,9 +634,18 @@ pub fn read_pending(root: &Path, run: &str) -> Result<Option<PendingAdoption>, S
             h.schema_version
         ));
     }
-    serde_json::from_slice(&bytes)
-        .map(Some)
-        .map_err(|e| format!("{PENDING} is not valid: {e}"))
+    let parsed: PendingAdoption =
+        serde_json::from_slice(&bytes).map_err(|e| format!("{PENDING} is not valid: {e}"))?;
+    // The journal lives inside the run's own directory; if the embedded
+    // run id names anything else, the file is foreign or tampered and
+    // must never drive a recovery decision for this run.
+    if parsed.run_id != run {
+        return Err(format!(
+            "{PENDING} names run {:?} but lies in {run:?}'s directory",
+            parsed.run_id
+        ));
+    }
+    Ok(Some(parsed))
 }
 
 /// Delete the recovery unit after the adoption it covers is durable.

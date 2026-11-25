@@ -100,6 +100,28 @@ fn run_gate_fresh(
     adopt::validate_then_build(&run, &sink).map_err(|e| e.to_string())
 }
 
+/// Run one scheduler mutation batch with the workspace watch paused for
+/// the batch's duration. `mutation_batch` alone serializes only
+/// scheduler-mediated mutations and watch starts; an already-running
+/// watch would still react to each file as it lands, firing builds of a
+/// half-copied tree. Stopping the watch first means nothing observes the
+/// intermediate state, the explicit post-batch resync delivers disk truth
+/// once, and the watch is restored with the same contract the palette
+/// verb route honors — in every outcome, refusal included.
+pub(crate) fn batch_watch_safe<R>(
+    slot: &crate::live::EngineSlot,
+    sched: &Arc<crate::live::Scheduler>,
+    batch: impl FnOnce() -> R,
+) -> R {
+    let watching = sched.watch_session();
+    if let Some(session) = &watching {
+        sched.stop_watch_session(session);
+    }
+    let out = sched.mutation_batch(batch);
+    slot.restore_watch(watching, "adoption copy".into());
+    out
+}
+
 fn finish_report(
     workspace: &Path,
     tx: &TxReport,
@@ -140,19 +162,18 @@ fn execute(
             // Preflight through copy, provenance, and sidecars as one
             // serialized, journaled transaction: no page edit, move,
             // build, or watch start can interleave with the batch.
-            let tx = sched
-                .mutation_batch(|| {
-                    adopt::transact(
-                        &root,
-                        &src,
-                        &input,
-                        Some(subfolder),
-                        "existing",
-                        &ids,
-                        at_ms,
-                    )
-                })
-                .map_err(err)?;
+            let tx = batch_watch_safe(&slot, &sched, || {
+                adopt::transact(
+                    &root,
+                    &src,
+                    &input,
+                    Some(subfolder),
+                    "existing",
+                    &ids,
+                    at_ms,
+                )
+            })
+            .map_err(err)?;
             // Content writes emit no engine events of their own; queue
             // disk truth explicitly so Pages reflects the merge even
             // before the watch's own rebuild lands.
@@ -182,13 +203,31 @@ fn execute(
             }
             let root = out.target;
             let input = crate::snapshot::content_input(&root);
-            adopt::clear_new_workspace_content(&root, &input).map_err(err)?;
+            // Cancellation semantics: checked at phase boundaries. The
+            // copy transaction itself is atomic — once started it runs to
+            // convergence, because a half-written tree is exactly what the
+            // journal exists to prevent; cancelling then decides whether
+            // the gate runs and the workspace opens, never whether the
+            // copy is half-done. Starter deletion is inside the journaled
+            // transaction, so there is no unrecoverable window.
             // Nothing else can mutate a workspace that does not exist in
             // any live session yet, so the transaction needs no scheduler
             // batch here; the journal still makes a crash resumable.
             let tx = adopt::transact(&root, &src, &input, None, "new", &BTreeMap::new(), at_ms)
                 .map_err(err)?;
+            if creation.cancel.is_cancelled() {
+                return Err(
+                    "adoption cancelled after the content converged; the workspace is adopted but was not opened"
+                        .into(),
+                );
+            }
             let gate = run_gate_fresh(&root, &locator, inbox, &creation.cancel)?;
+            if creation.cancel.is_cancelled() {
+                return Err(
+                    "adoption cancelled during validation; the workspace is adopted but was not opened"
+                        .into(),
+                );
+            }
             Ok(finish_report(&root, &tx, gate, true))
         }
     }

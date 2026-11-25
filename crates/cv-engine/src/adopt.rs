@@ -277,6 +277,10 @@ pub fn plan(
 pub enum CollisionKind {
     Path,
     Id,
+    /// A parent component of an intended target is a file, a link, or
+    /// unresolvable — a deterministic shape conflict detected before any
+    /// write rather than a mid-copy failure after partial content landed.
+    ParentShape,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -301,6 +305,13 @@ impl std::fmt::Display for Collision {
                 "page id {} is already used by {}",
                 self.incoming, self.existing
             ),
+            CollisionKind::ParentShape => {
+                write!(
+                    f,
+                    "path {} cannot be written: {}",
+                    self.incoming, self.existing
+                )
+            }
         }
     }
 }
@@ -326,6 +337,67 @@ fn bytes_identical(target: &Path, source: &Path) -> bool {
 /// every existing target path is a collision — even byte-identical ones,
 /// because nothing distinguishes them from the user's own pre-existing
 /// content. Returns the files that still need copying in resume mode.
+/// Classification of one parent component of an intended target.
+/// Preflight must distinguish these exactly: an absent component will be
+/// created, an ordinary directory is fine, and everything else — an
+/// ordinary file, a link, or a resolution failure — is a deterministic
+/// conflict that must refuse the adoption *before the first write*,
+/// never surface as a mid-copy failure after partial content landed.
+fn blocked_parents(target_root: &Path, rel_targets: &[String]) -> Vec<Collision> {
+    let mut seen = BTreeSet::new();
+    let mut out = Vec::new();
+    for target in rel_targets {
+        let rel = Path::new(target);
+        let mut ancestors: Vec<&Path> = rel.ancestors().skip(1).collect();
+        ancestors.reverse();
+        for parent in ancestors {
+            if parent.as_os_str().is_empty() || !seen.insert(parent.to_path_buf()) {
+                continue;
+            }
+            let abs = target_root.join(parent);
+            match std::fs::symlink_metadata(&abs) {
+                Ok(meta) if meta.file_type().is_symlink() => {
+                    out.push(Collision {
+                        kind: CollisionKind::ParentShape,
+                        incoming: target.clone(),
+                        existing: format!(
+                            "{} is a link, so nothing may be written below it",
+                            parent.display()
+                        ),
+                    });
+                    break;
+                }
+                Ok(meta) if meta.is_dir() => {}
+                Ok(_) => {
+                    out.push(Collision {
+                        kind: CollisionKind::ParentShape,
+                        incoming: target.clone(),
+                        existing: format!(
+                            "{} is not a directory, so nothing may be written below it",
+                            parent.display()
+                        ),
+                    });
+                    break;
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                    // Absent components are created by the staged writer,
+                    // and nothing can exist below a missing directory.
+                    break;
+                }
+                Err(e) => {
+                    out.push(Collision {
+                        kind: CollisionKind::ParentShape,
+                        incoming: target.clone(),
+                        existing: format!("{} cannot be resolved: {e}", parent.display()),
+                    });
+                    break;
+                }
+            }
+        }
+    }
+    out
+}
+
 pub fn collisions(
     target_root: &Path,
     src: &AdoptionSource,
@@ -336,6 +408,28 @@ pub fn collisions(
     let mut out = Vec::new();
     let mut incoming_ids = BTreeSet::new();
     let mut needs_copy = Vec::new();
+
+    // Parent-shape preflight over every byte the transaction intends to
+    // write: content targets, the provenance mirror, and the journal /
+    // sidecar files themselves. A file, link, or unresolvable component
+    // anywhere in those chains is a deterministic conflict and must
+    // surface here — before the journal and the first content byte —
+    // rather than as a mid-copy failure over partial output.
+    let mut rel_targets: Vec<String> = planned.iter().map(|p| p.target.clone()).collect();
+    rel_targets.push(format!("{}/{}/{}", store::DIR, src.run_id, store::PENDING));
+    for source in provenance_paths(&src.out)? {
+        let rel = source.strip_prefix(&src.out).map_err(|_| {
+            AdoptError::Content(format!("{} is outside the run output", source.display()))
+        })?;
+        rel_targets.push(format!(
+            "{}/{}/{}",
+            store::DIR,
+            src.run_id,
+            rel.to_string_lossy().replace('\\', "/")
+        ));
+    }
+    out.extend(blocked_parents(target_root, &rel_targets));
+
     for p in planned {
         let exists = confined_file(target_root, Path::new(&p.target))
             .ok()
@@ -438,7 +532,13 @@ pub fn clear_new_workspace_content(
     let path = confined(target_root, Path::new(input)).map_err(|e| {
         AdoptError::Content(format!("content input {input:?} is not confined: {e}"))
     })?;
-    let meta = std::fs::symlink_metadata(&path)?;
+    let meta = match std::fs::symlink_metadata(&path) {
+        Ok(m) => m,
+        // Already gone — a previous interrupted attempt cleared it, or
+        // the starter never had one. Either way the end state holds.
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(e.into()),
+    };
     if cv_store::paths::is_link(&meta) || !meta.is_dir() {
         return Err(AdoptError::Content(format!(
             "{} is not an ordinary starter content directory",
@@ -593,9 +693,12 @@ pub struct TxReport {
 }
 
 /// One crash-aware adoption transaction: preflight, journal, content,
-/// provenance, sidecars, journal cleanup — in that order, so an
-/// interruption at any point is either fully before the first write or
-/// resumable by re-running the same request.
+/// provenance, sidecars, journal cleanup — ordered so an interruption is
+/// either fully before the first write or resumable by re-running the
+/// same request. This is resumable-interruption atomicity, not failure
+/// atomicity: deterministic conflicts (path/id/parent-shape/journal)
+/// are pre-write refusals, and once bytes land the operation converges
+/// by resume rather than rollback.
 ///
 /// Crash semantics:
 /// - before the journal is durable there is nothing to resume and nothing
@@ -603,17 +706,18 @@ pub struct TxReport {
 /// - with the journal durable, a retry of the same target shape treats
 ///   byte-identical targets as already-written (staged writes are atomic
 ///   per file, so identical bytes can only be the interrupted attempt's
-///   own completed writes) and still refuses any different bytes;
-/// - a retry naming a different target shape refuses instead of mixing
-///   two operations' partial state;
-/// - provenance copies and the adoption/run records are inside the unit:
-///   they are re-run idempotently on resume and the journal is deleted
-///   only after they are durable.
+///   own work), refuses targets whose bytes differ, and re-checks the
+///   journal itself against the live operation before trusting it;
+/// - for a `new` workspace the starter deletion is inside the recovery
+///   unit: the journal lands first, then the clear. Because the adoption
+///   owns the workspace until it is first opened, resume completes the
+///   clear wholesale and the copy restarts — byte-resume is a merge
+///   affordance, and this is the convergent replacement semantic.
 ///
-/// Concurrency: this function performs no scheduler calls, so the caller
-/// can — and the live workspace worker must — run the whole transaction
-/// inside `EngineScheduler::mutation_batch`, serializing preflight and
-/// every write against page edits, moves, builds, and watch starts.
+/// What this does not serialize: filesystem reactions of an already
+/// running watch are the caller's concern (the composition root stops
+/// and restores the watch around the batch); see the scheduler's
+/// `mutation_batch` for the write-lock half.
 pub fn transact(
     target_root: &Path,
     src: &AdoptionSource,
@@ -644,22 +748,103 @@ pub fn transact(
             )));
         }
     };
-    let needs_copy = collisions(target_root, src, &planned, existing_ids, resume)?;
-
-    // The recovery unit lands before the first content byte. Hashes are
-    // of the candidate source bytes: the journal is evidence of what the
-    // operation meant to write, and resume compares live bytes anyway.
-    let mut journal = store::PendingAdoption::new(&src.run_id, target_kind, input_norm);
-    journal.content_subfolder = subfolder_name.clone();
-    for p in &planned {
-        let bytes = std::fs::read(&p.source)?;
-        journal.files.push(store::PendingFile {
-            target: p.target.clone(),
-            sha256: store::sha256_hex(&bytes),
-            bytes: bytes.len() as u64,
-        });
+    // Journal enforcement, resume only: the recovery unit is evidence
+    // that must prove itself against the live operation before a single
+    // byte is trusted or skipped.
+    if resume {
+        let journal = pending.as_ref().expect("resume implies a journal");
+        // 1. Every recorded target must be a portable, confined relative
+        //    path — an unauthenticated entry means the journal is foreign
+        //    or tampered, never a recovery input.
+        let mut journal_targets = BTreeSet::new();
+        for f in &journal.files {
+            if portable_relative(&f.target).is_err() {
+                return Err(AdoptError::Run(format!(
+                    "{} records {:?}, which is not a portable confined target;                      remove {} or repair it before retrying",
+                    store::PENDING,
+                    f.target,
+                    store::PENDING
+                )));
+            }
+            journal_targets.insert(f.target.clone());
+        }
+        // 2. The recorded file set must be exactly this operation's plan:
+        //    a subset or superset is a different operation's journal.
+        let planned_targets: BTreeSet<String> = planned.iter().map(|p| p.target.clone()).collect();
+        if journal_targets != planned_targets {
+            return Err(AdoptError::Run(format!(
+                "{} records {} file(s) but this adoption plans {}; the interrupted                  operation is not this one — remove {} or complete it first",
+                store::PENDING,
+                journal_targets.len(),
+                planned_targets.len(),
+                store::PENDING
+            )));
+        }
+        // 3. Every recorded hash must match the live source bytes: the
+        //    sha256 entries are enforced integrity evidence, not decor.
+        //    A run output is immutable, so a mismatch means the journal
+        //    was written for different content — never resume from it.
+        for f in &journal.files {
+            let planned_file = planned
+                .iter()
+                .find(|p| p.target == f.target)
+                .expect("sets are equal");
+            let bytes = std::fs::read(&planned_file.source)?;
+            let live = store::sha256_hex(&bytes);
+            if live != f.sha256 || bytes.len() as u64 != f.bytes {
+                return Err(AdoptError::Run(format!(
+                    "{} records different bytes for {} than the run output holds;                      the journal is not evidence of this operation — remove {} to start over",
+                    store::PENDING,
+                    f.target,
+                    store::PENDING
+                )));
+            }
+        }
     }
-    store::write_pending(target_root, &journal)?;
+
+    // For a new workspace the starter content is replaced wholesale, so
+    // the deletion is part of the recovery unit: the journal lands FIRST,
+    // then the starter tree is cleared (idempotently — an interrupted
+    // attempt may have removed some or all of it already), and only then
+    // does preflight run, against the clean tree. A crash anywhere in
+    // that sequence is exactly what resume converges; there is no
+    // journal-less mutation window. For an existing-workspace merge
+    // nothing is deleted, so preflight can — and must — refuse before
+    // the journal and the first write.
+    let new_workspace = target_kind == "new";
+    let needs_copy = if new_workspace {
+        let mut journal = store::PendingAdoption::new(&src.run_id, target_kind, input_norm);
+        journal.content_subfolder = subfolder_name.clone();
+        for p in &planned {
+            let bytes = std::fs::read(&p.source)?;
+            journal.files.push(store::PendingFile {
+                target: p.target.clone(),
+                sha256: store::sha256_hex(&bytes),
+                bytes: bytes.len() as u64,
+            });
+        }
+        store::write_pending(target_root, &journal)?;
+        clear_new_workspace_content(target_root, input_norm)?;
+        collisions(target_root, src, &planned, existing_ids, resume)?
+    } else {
+        let needs_copy = collisions(target_root, src, &planned, existing_ids, resume)?;
+
+        // The recovery unit lands before the first content byte. Hashes are
+        // of the candidate source bytes: the journal is evidence of what the
+        // operation meant to write, and resume compares live bytes anyway.
+        let mut journal = store::PendingAdoption::new(&src.run_id, target_kind, input_norm);
+        journal.content_subfolder = subfolder_name.clone();
+        for p in &planned {
+            let bytes = std::fs::read(&p.source)?;
+            journal.files.push(store::PendingFile {
+                target: p.target.clone(),
+                sha256: store::sha256_hex(&bytes),
+                bytes: bytes.len() as u64,
+            });
+        }
+        store::write_pending(target_root, &journal)?;
+        needs_copy
+    };
 
     let (written, skipped) = copy_content(target_root, &planned, &needs_copy)?;
     let provenance = copy_provenance(src, target_root)?;

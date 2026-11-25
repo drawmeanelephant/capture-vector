@@ -67,13 +67,20 @@ fn adopt_to_new_copies_content_provenance_and_runs_validate_then_build() {
     );
     assert!(!src.pages.is_empty(), "hugo report names emitted pages");
 
-    // The starter was just initialized; its content tree is replaced.
+    // The starter was just initialized; its content tree is replaced
+    // by the transaction itself — inside the journaled recovery unit,
+    // never before it.
     std::fs::create_dir_all(root.join("content")).unwrap();
     std::fs::write(root.join("content/index.md"), "starter\n").unwrap();
-    adopt::clear_new_workspace_content(&root, "content").unwrap();
-    assert!(!root.join("content").exists());
 
     let tx = adopt::transact(&root, &src, "content", None, "new", &BTreeMap::new(), 42).unwrap();
+    let starter_survives = walk_files(&root.join("content"))
+        .iter()
+        .any(|f| std::fs::read(root.join("content").join(f)).unwrap_or_default() == b"starter\n");
+    assert!(
+        !starter_survives,
+        "the starter tree is replaced inside the transaction"
+    );
     assert_eq!(tx.written, src.files.len());
     assert_eq!(tx.resumed, 0);
     // Byte-for-byte copy, including binary assets.
@@ -299,8 +306,7 @@ fn resume_tolerates_its_own_ids_in_the_workspace_scan() {
     let src = adopt::source(source_ws.path(), &run_id).unwrap();
     let planned = adopt::plan(&src, "content", Some("imported")).unwrap();
 
-    let mut journal = store::PendingAdoption::new(&run_id, "existing", "content");
-    journal.content_subfolder = Some("imported".into());
+    let journal = pending_for(&root, &run_id, &src);
     store::write_pending(&root, &journal).unwrap();
     let n = 2.min(planned.len());
     adopt::copy_content(&root, &planned[..n], &[true; 2][..n]).unwrap();
@@ -341,8 +347,7 @@ fn resume_still_refuses_ids_owned_elsewhere() {
     let root = target.path().canonicalize().unwrap();
     let src = adopt::source(source_ws.path(), &run_id).unwrap();
 
-    let mut journal = store::PendingAdoption::new(&run_id, "existing", "content");
-    journal.content_subfolder = Some("imported".into());
+    let journal = pending_for(&root, &run_id, &src);
     store::write_pending(&root, &journal).unwrap();
 
     let first = src.pages[0].entity_id.clone();
@@ -364,6 +369,339 @@ fn resume_still_refuses_ids_owned_elsewhere() {
     );
 }
 
+fn pending_for(
+    root: &std::path::Path,
+    run_id: &str,
+    src: &adopt::AdoptionSource,
+) -> store::PendingAdoption {
+    let mut journal = store::PendingAdoption::new(run_id, "existing", "content");
+    journal.content_subfolder = Some("imported".into());
+    let planned = adopt::plan(src, "content", Some("imported")).unwrap();
+    for p in &planned {
+        let bytes = std::fs::read(&p.source).unwrap();
+        journal.files.push(store::PendingFile {
+            target: p.target.clone(),
+            sha256: store::sha256_hex(&bytes),
+            bytes: bytes.len() as u64,
+        });
+    }
+    let _ = root;
+    journal
+}
+
+/// Journal enforcement: an embedded run id that does not match the run
+/// directory the journal lies in is foreign, never recovery input.
+#[test]
+fn a_journal_naming_a_different_run_is_rejected() {
+    let (source_ws, run_id) = hugo_source();
+    let target = tempfile::tempdir().unwrap();
+    let root = target.path().canonicalize().unwrap();
+    let src = adopt::source(source_ws.path(), &run_id).unwrap();
+    let mut journal = pending_for(&root, &run_id, &src);
+    store::write_pending(&root, &journal).unwrap();
+    // Rewrite the file with a foreign embedded id.
+    journal.run_id = "somebody-else".into();
+    let dir = store::run_dir(&root, &run_id).unwrap();
+    std::fs::write(
+        dir.join(store::PENDING),
+        serde_json::to_vec_pretty(&journal).unwrap(),
+    )
+    .unwrap();
+
+    let err = store::read_pending(&root, &run_id).unwrap_err();
+    assert!(err.contains("somebody-else"), "{err}");
+}
+
+/// Journal enforcement: an entry target that is not a portable confined
+/// path means the journal is tampered, and the retry refuses.
+#[test]
+fn a_journal_with_an_unportable_target_refuses_the_resume() {
+    let (source_ws, run_id) = hugo_source();
+    let target = tempfile::tempdir().unwrap();
+    let root = target.path().canonicalize().unwrap();
+    let src = adopt::source(source_ws.path(), &run_id).unwrap();
+    let mut journal = pending_for(&root, &run_id, &src);
+    journal.files[0].target = "../escape.md".into();
+    store::write_pending(&root, &journal).unwrap();
+
+    let err = adopt::transact(
+        &root,
+        &src,
+        "content",
+        Some("imported"),
+        "existing",
+        &BTreeMap::new(),
+        7,
+    )
+    .unwrap_err();
+    assert!(
+        err.to_string().contains("portable confined"),
+        "unportable entry refuses: {err}"
+    );
+}
+
+/// Journal enforcement: a file set that differs from the operation's
+/// plan is a different operation's journal.
+#[test]
+fn a_journal_with_a_different_file_set_refuses_the_resume() {
+    let (source_ws, run_id) = hugo_source();
+    let target = tempfile::tempdir().unwrap();
+    let root = target.path().canonicalize().unwrap();
+    let src = adopt::source(source_ws.path(), &run_id).unwrap();
+    let mut journal = pending_for(&root, &run_id, &src);
+    journal.files.pop();
+    store::write_pending(&root, &journal).unwrap();
+
+    let err = adopt::transact(
+        &root,
+        &src,
+        "content",
+        Some("imported"),
+        "existing",
+        &BTreeMap::new(),
+        7,
+    )
+    .unwrap_err();
+    assert!(
+        err.to_string().contains("not this one"),
+        "file-set mismatch refuses: {err}"
+    );
+}
+
+/// Journal enforcement: the recorded sha256 must match the live source
+/// bytes — hash entries are enforced integrity evidence, not decor.
+#[test]
+fn a_journal_whose_hashes_differ_from_the_source_refuses_the_resume() {
+    let (source_ws, run_id) = hugo_source();
+    let target = tempfile::tempdir().unwrap();
+    let root = target.path().canonicalize().unwrap();
+    let src = adopt::source(source_ws.path(), &run_id).unwrap();
+    let mut journal = pending_for(&root, &run_id, &src);
+    journal.files[0].sha256 = store::sha256_hex(b"not the real bytes");
+    store::write_pending(&root, &journal).unwrap();
+
+    let err = adopt::transact(
+        &root,
+        &src,
+        "content",
+        Some("imported"),
+        "existing",
+        &BTreeMap::new(),
+        7,
+    )
+    .unwrap_err();
+    assert!(
+        err.to_string().contains("different bytes"),
+        "hash mismatch refuses: {err}"
+    );
+}
+
+/// And the positive control: a faithful journal still resumes.
+#[test]
+fn a_faithful_journal_still_resumes() {
+    let (source_ws, run_id) = hugo_source();
+    let target = tempfile::tempdir().unwrap();
+    let root = target.path().canonicalize().unwrap();
+    let src = adopt::source(source_ws.path(), &run_id).unwrap();
+    let journal = pending_for(&root, &run_id, &src);
+    store::write_pending(&root, &journal).unwrap();
+    // Land one byte-identical file as the interrupted attempt did.
+    let planned = adopt::plan(&src, "content", Some("imported")).unwrap();
+    adopt::copy_content(&root, &planned[..1], &[true]).unwrap();
+
+    let tx = adopt::transact(
+        &root,
+        &src,
+        "content",
+        Some("imported"),
+        "existing",
+        &BTreeMap::new(),
+        7,
+    )
+    .expect("a faithful journal resumes");
+    assert_eq!(tx.resumed, 1);
+}
+
+/// Adopt-to-new crash window: the starter tree is already cleared, the
+/// journal durable, the copy incomplete. Because deletion is inside the
+/// recovery unit, the retry converges without any starter restoration
+/// ritual — and the absent content dir does not confuse the re-clear.
+#[test]
+fn adopt_to_new_crash_after_clearing_resumes_to_convergence() {
+    let (source_ws, run_id) = hugo_source();
+    let target = tempfile::tempdir().unwrap();
+    let root = target.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    std::fs::write(root.join("content/index.md"), "starter\n").unwrap();
+    let src = adopt::source(source_ws.path(), &run_id).unwrap();
+
+    // First attempt crashes after the clear but mid-copy: emulate by
+    // running the transaction against a source whose copy we interrupt
+    // manually — journal + clear + one file, then stop.
+    let mut journal = store::PendingAdoption::new(&run_id, "new", "content");
+    let planned = adopt::plan(&src, "content", None).unwrap();
+    for p in &planned {
+        let bytes = std::fs::read(&p.source).unwrap();
+        journal.files.push(store::PendingFile {
+            target: p.target.clone(),
+            sha256: store::sha256_hex(&bytes),
+            bytes: bytes.len() as u64,
+        });
+    }
+    store::write_pending(&root, &journal).unwrap();
+    adopt::clear_new_workspace_content(&root, "content").unwrap();
+    assert!(
+        !root.join("content").exists(),
+        "the starter is already gone"
+    );
+    adopt::copy_content(&root, &planned[..1], &[true]).unwrap();
+
+    // The retry must converge. For a new workspace the recovery semantic
+    // is deliberately total: the adoption owns the workspace until it is
+    // first opened, so the re-clear completes wholesale and the copy
+    // restarts — byte-resume is a merge affordance, not a replacement
+    // one. Convergence never needs user intervention.
+    let tx = adopt::transact(&root, &src, "content", None, "new", &BTreeMap::new(), 42)
+        .expect("crash after clearing is exactly what resume converges");
+    assert_eq!(tx.written, planned.len(), "the copy restarts completely");
+    for f in &src.files {
+        let landed = root.join("content").join(&f.relative);
+        assert_eq!(
+            std::fs::read(&landed).unwrap(),
+            std::fs::read(&f.source).unwrap(),
+            "{}",
+            f.relative
+        );
+    }
+    assert!(store::read_pending(&root, &run_id).unwrap().is_none());
+}
+
+/// The reviewer probe: `content/imported/en` exists as a regular FILE
+/// while the incoming tree needs it as a directory. Preflight must
+/// refuse before the journal and before the first content byte — never
+/// fail mid-copy over partial output.
+#[test]
+fn a_file_blocking_a_parent_directory_refuses_before_any_write() {
+    let (source_ws, run_id) = hugo_source();
+    let target = tempfile::tempdir().unwrap();
+    let root = target.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content/imported")).unwrap();
+    std::fs::write(
+        root.join("content/imported/en"),
+        "i am a file, not a directory",
+    )
+    .unwrap();
+    let src = adopt::source(source_ws.path(), &run_id).unwrap();
+    assert!(
+        src.files.iter().any(|f| f.relative.starts_with("en/")),
+        "the hugo capture really does need en/ as a directory"
+    );
+
+    let err = adopt::transact(
+        &root,
+        &src,
+        "content",
+        Some("imported"),
+        "existing",
+        &BTreeMap::new(),
+        7,
+    )
+    .unwrap_err();
+    let AdoptError::Collisions(collisions) = &err else {
+        panic!("parent-shape conflict must be a collision refusal: {err}");
+    };
+    assert!(
+        collisions
+            .iter()
+            .any(|c| c.kind == adopt::CollisionKind::ParentShape),
+        "the collision names the parent shape: {collisions:?}"
+    );
+
+    // Nothing was written: no partial content, no journal, no provenance.
+    assert_eq!(
+        std::fs::read_to_string(root.join("content/imported/en")).unwrap(),
+        "i am a file, not a directory",
+        "the blocking file is untouched"
+    );
+    assert!(
+        !root.join("content/imported").join("en").is_dir(),
+        "no directory was created over the file"
+    );
+    let content_files = walk_files(&root.join("content"));
+    assert_eq!(
+        content_files,
+        vec![std::path::PathBuf::from("imported/en")],
+        "only the user's own blocker file remains — no partial content"
+    );
+    assert!(
+        store::read_pending(&root, &run_id).unwrap().is_none(),
+        "no journal: there is nothing to resume because nothing was written"
+    );
+
+    // And the workspace is exactly as it was, so a retry after the user
+    // removes the blocker converges without any cleanup ritual.
+    std::fs::remove_file(root.join("content/imported/en")).unwrap();
+    let tx = adopt::transact(
+        &root,
+        &src,
+        "content",
+        Some("imported"),
+        "existing",
+        &BTreeMap::new(),
+        7,
+    )
+    .expect("after removing the blocker the merge converges");
+    assert_eq!(tx.written, src.files.len());
+}
+
+/// A symlinked parent component is refused the same way.
+#[cfg(unix)]
+#[test]
+fn a_symlink_blocking_a_parent_directory_refuses_before_any_write() {
+    let (source_ws, run_id) = hugo_source();
+    let target = tempfile::tempdir().unwrap();
+    let root = target.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content/imported")).unwrap();
+    let elsewhere = tempfile::tempdir().unwrap();
+    std::os::unix::fs::symlink(elsewhere.path(), root.join("content/imported/en")).unwrap();
+    let src = adopt::source(source_ws.path(), &run_id).unwrap();
+
+    let err = adopt::transact(
+        &root,
+        &src,
+        "content",
+        Some("imported"),
+        "existing",
+        &BTreeMap::new(),
+        7,
+    )
+    .unwrap_err();
+    assert!(
+        matches!(err, AdoptError::Collisions(_)),
+        "symlinked parent refuses pre-write: {err}"
+    );
+    assert!(store::read_pending(&root, &run_id).unwrap().is_none());
+}
+
+fn walk_files(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let mut out = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for e in entries.flatten() {
+            let path = e.path();
+            if path.is_dir() {
+                out.extend(walk_files(&path));
+            } else {
+                out.push(
+                    path.strip_prefix(dir.parent().unwrap())
+                        .unwrap_or(&path)
+                        .to_path_buf(),
+                );
+            }
+        }
+    }
+    out
+}
+
 /// A crash victim whose bytes differ can only be foreign data — a user
 /// edit after the interruption or corruption — and must still refuse.
 #[test]
@@ -374,11 +712,7 @@ fn resume_refuses_targets_whose_bytes_differ() {
     let src = adopt::source(source_ws.path(), &run_id).unwrap();
     let planned = adopt::plan(&src, "content", Some("imported")).unwrap();
 
-    let journal = {
-        let mut j = store::PendingAdoption::new(&run_id, "existing", "content");
-        j.content_subfolder = Some("imported".into());
-        j
-    };
+    let journal = pending_for(&root, &run_id, &src);
     store::write_pending(&root, &journal).unwrap();
     let victim = root.join(&planned[0].target);
     std::fs::create_dir_all(victim.parent().unwrap()).unwrap();

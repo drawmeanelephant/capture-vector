@@ -192,6 +192,13 @@ pub struct PageRecord {
     pub path: String,
     /// Graph id as authored (`id:` frontmatter or the content path stem).
     pub id: String,
+    /// Whether `id` was authored explicitly in frontmatter. Only explicit
+    /// ids are stable identity for provenance: the path-stem fallback
+    /// belongs to whatever file happens to sit at that path, so matching
+    /// sidecar provenance against it would let an unrelated squatter
+    /// inherit a migration's Imported from.
+    #[serde(default)]
+    pub explicit_id: bool,
     pub title: String,
     pub parent: Option<String>,
     pub tags: Vec<String>,

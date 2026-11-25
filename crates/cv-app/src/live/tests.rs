@@ -937,3 +937,131 @@ esac
     assert!(sched.stop_watch_session(&session));
     drop(wb);
 }
+
+/// Finding-3 probe: the adoption batch pauses the live watch for its
+/// whole duration — no intermediate file state can be observed by a
+/// watch build — and restores it afterwards in every outcome.
+#[cfg(unix)]
+#[test]
+fn a_mutation_batch_runs_with_the_watch_paused_and_restored() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let root = tempfile::tempdir().unwrap();
+    let bin = root.path().join("boris");
+    std::fs::write(
+        &bin,
+        r#"#!/bin/sh
+case "$1" in
+watch) echo '{"event":"hello","watch_events_schema":1,"compiler":"boris/0.9.0"}' >&2; sleep 30;;
+validate) exit 0;;
+build) exit 0;;
+*) exit 2;;
+esac
+"#,
+    )
+    .unwrap();
+    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+    let wb = Workbench::new(Registry::with_all());
+    let delivery = test_delivery(root.path(), WatchMode::Native, &wb);
+    let sched = Arc::new(EngineScheduler::new(
+        delivery.engine.clone(),
+        SeatPolicy::StopWatch,
+    ));
+    let slot = EngineSlot::default();
+    let _ = slot.sched.set(sched.clone());
+    let _ = slot.verbs.set(VerbRoute {
+        delivery: delivery.clone(),
+        warning: None,
+    });
+
+    let session = sched.start_watch(Box::new(|_| {})).unwrap();
+
+    // A slowed multi-file batch: several writes with real time between
+    // them, exactly the shape a migration copy has.
+    let sched_in_batch = sched.clone();
+    let mut observed_none = 0;
+    crate::migrate::adopt::batch_watch_safe(&slot, &sched, || {
+        for i in 0..3 {
+            std::thread::sleep(Duration::from_millis(40));
+            assert!(
+                sched_in_batch.watch_session().is_none(),
+                "the watch is paused for the whole batch (write {i})"
+            );
+            observed_none += 1;
+        }
+        "batch-done"
+    });
+    assert_eq!(observed_none, 3);
+
+    let deadline = std::time::Instant::now() + Duration::from_secs(3);
+    while sched.watch_session().is_none() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the watch is restored after the batch"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let restored = sched.watch_session().unwrap();
+    assert_ne!(
+        restored,
+        session.clone(),
+        "a replacement session, not the stopped corpse"
+    );
+    assert!(sched.stop_watch_session(&restored));
+    drop(wb);
+}
+
+/// The matching refusal path: a batch that fails still ends with the
+/// watch restored — a collision refusal must not strand it either.
+#[cfg(unix)]
+#[test]
+fn a_refused_mutation_batch_still_restores_the_watch() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let root = tempfile::tempdir().unwrap();
+    let bin = root.path().join("boris");
+    std::fs::write(
+        &bin,
+        r#"#!/bin/sh
+case "$1" in
+watch) echo '{"event":"hello","watch_events_schema":1,"compiler":"boris/0.9.0"}' >&2; sleep 30;;
+*) exit 2;;
+esac
+"#,
+    )
+    .unwrap();
+    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+    let wb = Workbench::new(Registry::with_all());
+    let delivery = test_delivery(root.path(), WatchMode::Native, &wb);
+    let sched = Arc::new(EngineScheduler::new(
+        delivery.engine.clone(),
+        SeatPolicy::StopWatch,
+    ));
+    let slot = EngineSlot::default();
+    let _ = slot.sched.set(sched.clone());
+    let _ = slot.verbs.set(VerbRoute {
+        delivery: delivery.clone(),
+        warning: None,
+    });
+
+    let session = sched.start_watch(Box::new(|_| {})).unwrap();
+    let result: Result<(), &str> = crate::migrate::adopt::batch_watch_safe(&slot, &sched, || {
+        Err("collision refusal before any write")
+    });
+    assert!(result.is_err());
+
+    let deadline = std::time::Instant::now() + Duration::from_secs(3);
+    while sched.watch_session().is_none() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "even a refused batch restores the watch"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let restored = sched.watch_session().unwrap();
+    assert_ne!(restored, session.clone());
+    assert!(sched.stop_watch_session(&restored));
+    drop(wb);
+}
