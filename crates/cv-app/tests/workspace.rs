@@ -102,6 +102,12 @@ fn new_workspace_from_an_archetype_creates_and_opens_the_workspace() {
     );
 
     open(&mut wb, &root, &env);
+    #[cfg(windows)]
+    assert!(
+        !root.to_string_lossy().starts_with(r"\\?\"),
+        "workspace creation exposes a display path, not a verbatim path: {}",
+        root.display()
+    );
     assert_eq!(wb.workspace.as_deref(), Some(root.as_path()));
     assert!(wb.dialogs.open().is_none(), "creation progress closed");
     assert!(

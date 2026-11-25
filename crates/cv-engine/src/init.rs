@@ -52,7 +52,8 @@ pub fn parse_help(help: &str) -> Starters {
     }
 }
 
-/// A finished `boris init`, plus the canonical folder it was asked to write.
+/// A finished `boris init`, plus the canonical folder it was asked to write,
+/// in display form (no Windows drive-letter verbatim prefix).
 #[derive(Debug, Clone)]
 pub struct InitOutcome {
     pub target: PathBuf,
@@ -168,7 +169,13 @@ impl Initializer {
             archetype: archetype.to_string(),
         };
         let output = run_argv(&self.identity.path, &parent, &argv(&verb)?, cancel)?;
-        Ok(InitOutcome { target, output })
+        // Validation and the spawn used the fully canonical target. Only the
+        // path handed onward is display-normalized, so the symlink/traversal
+        // decisions above are unchanged.
+        Ok(InitOutcome {
+            target: crate::paths::strip_verbatim(target),
+            output,
+        })
     }
 }
 

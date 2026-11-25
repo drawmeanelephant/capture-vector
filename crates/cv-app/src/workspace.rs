@@ -115,17 +115,7 @@ impl RecentList {
 /// `canonicalize` without Windows' `\\?\` verbatim prefix, which child
 /// processes and humans both read badly.
 pub fn normalize(root: &Path) -> std::io::Result<PathBuf> {
-    let p = std::fs::canonicalize(root)?;
-    #[cfg(windows)]
-    {
-        let s = p.to_string_lossy();
-        if let Some(rest) = s.strip_prefix(r"\\?\")
-            && rest.as_bytes().get(1) == Some(&b':')
-        {
-            return Ok(PathBuf::from(rest));
-        }
-    }
-    Ok(p)
+    cv_engine::paths::canonical_display(root)
 }
 
 #[cfg(test)]

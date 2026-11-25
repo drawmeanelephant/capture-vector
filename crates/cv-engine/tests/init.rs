@@ -63,8 +63,12 @@ fn create_runs_init_from_the_parent_with_the_folder_name() {
     assert!(out.output.stderr.contains("verified: starter compiled"));
     assert_eq!(
         out.target,
-        std::fs::canonicalize(fake.root()).unwrap().join("site")
+        cv_engine::paths::canonical_display(fake.root())
+            .unwrap()
+            .join("site")
     );
+    #[cfg(windows)]
+    assert!(!out.target.to_string_lossy().starts_with(r"\\?\"));
     assert!(
         fake.read("argv.log")
             .lines()

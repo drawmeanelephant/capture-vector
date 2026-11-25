@@ -16,6 +16,7 @@ pub mod exit;
 pub mod fallback;
 pub mod init;
 pub mod locate;
+pub mod paths;
 pub mod probe;
 pub mod proc;
 pub mod ring;
