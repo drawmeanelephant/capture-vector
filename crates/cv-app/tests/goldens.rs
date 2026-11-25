@@ -325,3 +325,32 @@ fn watch_dead_banner_offers_a_restart_that_reports_when_nothing_is_open() {
         "only a dead watch offers it"
     );
 }
+
+#[test]
+fn nothing_draws_under_the_macos_traffic_lights() {
+    let lights = Harness::traffic_lights().expect("headless runs report the default chrome");
+    let hit = |r: &[f64], l: &[f32; 4]| {
+        let (x, y, w, h) = (l[0] as f64, l[1] as f64, l[2] as f64, l[3] as f64);
+        r[0] < x + w && x < r[0] + r[2] && r[1] < y + h && y < r[1] + r[3]
+    };
+    for name in ["canary", "pages", "pages-watch-dead", "audit", "light"] {
+        let tree = scene(name).tree();
+        for n in tree["nodes"].as_array().expect("nodes") {
+            let role = n["role"].as_str().unwrap_or_default();
+            if !matches!(role, "text" | "icon" | "button" | "tab" | "treeitem") {
+                continue;
+            }
+            let r: Vec<f64> = n["rect"]
+                .as_array()
+                .expect("rect")
+                .iter()
+                .filter_map(|v| v.as_f64())
+                .collect();
+            assert!(
+                !lights.iter().any(|l| hit(&r, l)),
+                "{name}: {} sits under the traffic lights",
+                n["path"]
+            );
+        }
+    }
+}

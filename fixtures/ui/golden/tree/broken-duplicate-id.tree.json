@@ -39,14 +39,15 @@
       "role": "group"
     },
     {
-      "fill": "#00d1ffff",
+      "fill": "#08090cff",
       "key": "rail-pages",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-pages",
+      "radius": 6.0,
       "rect": [
-        0.0,
-        8.0,
-        88.0,
+        4.0,
+        28.0,
+        80.0,
         48.3
       ],
       "role": "tab"
@@ -56,32 +57,32 @@
       "path": "shell/body/rail/rail-pages/#0",
       "rect": [
         12.0,
-        14.0,
+        34.0,
         64.0,
         16.0
       ],
       "role": "group"
     },
     {
-      "color": "#001018ff",
+      "color": "#00d1ffff",
       "key": "rail-pages-icon",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-pages/#0/rail-pages-icon",
       "rect": [
         12.0,
-        14.0,
+        34.0,
         16.0,
         16.0
       ],
       "role": "icon"
     },
     {
-      "color": "#001018ff",
+      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-pages/#1",
       "rect": [
         12.0,
-        34.0,
+        54.0,
         64.0,
         16.3
       ],
@@ -93,10 +94,11 @@
       "key": "rail-research",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-research",
+      "radius": 6.0,
       "rect": [
-        0.0,
-        60.3,
-        88.0,
+        4.0,
+        80.3,
+        80.0,
         48.3
       ],
       "role": "tab"
@@ -106,7 +108,7 @@
       "path": "shell/body/rail/rail-research/#0",
       "rect": [
         12.0,
-        66.3,
+        86.3,
         64.0,
         16.0
       ],
@@ -119,7 +121,7 @@
       "path": "shell/body/rail/rail-research/#0/rail-research-icon",
       "rect": [
         12.0,
-        66.3,
+        86.3,
         16.0,
         16.0
       ],
@@ -131,7 +133,7 @@
       "path": "shell/body/rail/rail-research/#1",
       "rect": [
         12.0,
-        86.3,
+        106.3,
         64.0,
         16.3
       ],
@@ -143,10 +145,11 @@
       "key": "rail-audit",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-audit",
+      "radius": 6.0,
       "rect": [
-        0.0,
-        112.5,
-        88.0,
+        4.0,
+        132.5,
+        80.0,
         48.3
       ],
       "role": "tab"
@@ -156,7 +159,7 @@
       "path": "shell/body/rail/rail-audit/#0",
       "rect": [
         12.0,
-        118.5,
+        138.5,
         64.0,
         16.0
       ],
@@ -169,7 +172,7 @@
       "path": "shell/body/rail/rail-audit/#0/rail-audit-icon",
       "rect": [
         12.0,
-        118.5,
+        138.5,
         16.0,
         16.0
       ],
@@ -181,7 +184,7 @@
       "path": "shell/body/rail/rail-audit/#1",
       "rect": [
         12.0,
-        138.5,
+        158.5,
         64.0,
         16.3
       ],
@@ -190,14 +193,16 @@
     },
     {
       "fill": "#08090cff",
+      "help": "Not registered in this build",
       "key": "rail-publish",
       "label": "not registered",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-publish",
+      "radius": 6.0,
       "rect": [
-        0.0,
-        164.8,
-        88.0,
+        4.0,
+        184.8,
+        80.0,
         48.3
       ],
       "role": "tab"
@@ -207,32 +212,32 @@
       "path": "shell/body/rail/rail-publish/#0",
       "rect": [
         12.0,
-        170.8,
+        190.8,
         64.0,
         16.0
       ],
       "role": "group"
     },
     {
-      "color": "#8a93a3ff",
+      "color": "#e6e9efff",
       "key": "rail-publish-icon",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-publish/#0/rail-publish-icon",
       "rect": [
         12.0,
-        170.8,
+        190.8,
         16.0,
         16.0
       ],
       "role": "icon"
     },
     {
-      "color": "#8a93a3ff",
+      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-publish/#1",
       "rect": [
         12.0,
-        190.8,
+        210.8,
         64.0,
         16.3
       ],
@@ -244,10 +249,11 @@
       "key": "rail-outputs",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-outputs",
+      "radius": 6.0,
       "rect": [
-        0.0,
-        217.0,
-        88.0,
+        4.0,
+        237.0,
+        80.0,
         48.3
       ],
       "role": "tab"
@@ -257,7 +263,7 @@
       "path": "shell/body/rail/rail-outputs/#0",
       "rect": [
         12.0,
-        223.0,
+        243.0,
         64.0,
         16.0
       ],
@@ -270,7 +276,7 @@
       "path": "shell/body/rail/rail-outputs/#0/rail-outputs-icon",
       "rect": [
         12.0,
-        223.0,
+        243.0,
         16.0,
         16.0
       ],
@@ -282,7 +288,7 @@
       "path": "shell/body/rail/rail-outputs/#1",
       "rect": [
         12.0,
-        243.0,
+        263.0,
         64.0,
         16.3
       ],
@@ -294,10 +300,11 @@
       "key": "rail-activity",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-activity",
+      "radius": 6.0,
       "rect": [
-        0.0,
-        269.3,
-        88.0,
+        4.0,
+        289.3,
+        80.0,
         48.3
       ],
       "role": "tab"
@@ -307,7 +314,7 @@
       "path": "shell/body/rail/rail-activity/#0",
       "rect": [
         12.0,
-        275.3,
+        295.3,
         64.0,
         16.0
       ],
@@ -320,7 +327,7 @@
       "path": "shell/body/rail/rail-activity/#0/rail-activity-icon",
       "rect": [
         12.0,
-        275.3,
+        295.3,
         16.0,
         16.0
       ],
@@ -332,7 +339,7 @@
       "path": "shell/body/rail/rail-activity/#1",
       "rect": [
         12.0,
-        295.3,
+        315.3,
         64.0,
         16.3
       ],
@@ -344,10 +351,11 @@
       "key": "rail-demo",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-demo",
+      "radius": 6.0,
       "rect": [
-        0.0,
-        321.5,
-        88.0,
+        4.0,
+        341.5,
+        80.0,
         48.3
       ],
       "role": "tab"
@@ -357,7 +365,7 @@
       "path": "shell/body/rail/rail-demo/#0",
       "rect": [
         12.0,
-        327.5,
+        347.5,
         64.0,
         16.0
       ],
@@ -370,7 +378,7 @@
       "path": "shell/body/rail/rail-demo/#0/rail-demo-icon",
       "rect": [
         12.0,
-        327.5,
+        347.5,
         16.0,
         16.0
       ],
@@ -382,7 +390,7 @@
       "path": "shell/body/rail/rail-demo/#1",
       "rect": [
         12.0,
-        347.5,
+        367.5,
         64.0,
         16.3
       ],
@@ -420,6 +428,7 @@
       "key": "nav-all",
       "opacity": 1.0,
       "path": "shell/body/nav/nav-all",
+      "radius": 4.0,
       "rect": [
         96.0,
         28.3,
@@ -446,21 +455,34 @@
       "path": "shell/body/nav/nav-all/#1",
       "rect": [
         160.4,
-        32.3,
-        80.9,
-        15.0
+        39.8,
+        68.9,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-all/#2",
+      "radius": 999.0,
+      "rect": [
+        233.2,
+        32.9,
+        18.8,
+        13.8
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-all/#2",
+      "path": "shell/body/nav/nav-all/#2/#0",
       "rect": [
-        245.2,
-        32.3,
+        239.2,
+        32.9,
         6.8,
-        15.0
+        13.8
       ],
       "role": "text",
       "text": "2"
@@ -470,6 +492,7 @@
       "key": "nav-trunks",
       "opacity": 1.0,
       "path": "shell/body/nav/nav-trunks",
+      "radius": 4.0,
       "rect": [
         96.0,
         55.3,
@@ -496,30 +519,44 @@
       "path": "shell/body/nav/nav-trunks/#1",
       "rect": [
         146.7,
-        59.3,
-        94.5,
-        15.0
+        66.8,
+        82.5,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-trunks/#2",
+      "radius": 999.0,
+      "rect": [
+        233.2,
+        59.9,
+        18.8,
+        13.8
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-trunks/#2",
+      "path": "shell/body/nav/nav-trunks/#2/#0",
       "rect": [
-        245.2,
-        59.3,
+        239.2,
+        59.9,
         6.8,
-        15.0
+        13.8
       ],
       "role": "text",
       "text": "2"
     },
     {
-      "fill": "#00d1ff33",
+      "fill": "#ffffff14",
       "key": "nav-issues",
       "opacity": 1.0,
       "path": "shell/body/nav/nav-issues",
+      "radius": 4.0,
       "rect": [
         96.0,
         82.3,
@@ -535,7 +572,7 @@
       "rect": [
         104.0,
         86.3,
-        94.1,
+        97.3,
         15.0
       ],
       "role": "text",
@@ -545,22 +582,35 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-issues/#1",
       "rect": [
-        202.1,
-        86.3,
-        41.3,
-        15.0
+        205.3,
+        93.8,
+        26.2,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-issues/#2",
+      "radius": 999.0,
+      "rect": [
+        235.4,
+        86.9,
+        16.6,
+        13.8
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-issues/#2",
+      "path": "shell/body/nav/nav-issues/#2/#0",
       "rect": [
-        247.4,
-        86.3,
+        241.4,
+        86.9,
         4.6,
-        15.0
+        13.8
       ],
       "role": "text",
       "text": "1"
@@ -570,6 +620,7 @@
       "key": "nav-orphans",
       "opacity": 1.0,
       "path": "shell/body/nav/nav-orphans",
+      "radius": 4.0,
       "rect": [
         96.0,
         109.3,
@@ -596,21 +647,34 @@
       "path": "shell/body/nav/nav-orphans/#1",
       "rect": [
         191.7,
-        113.3,
-        49.2,
-        15.0
+        120.8,
+        37.2,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-orphans/#2",
+      "radius": 999.0,
+      "rect": [
+        232.9,
+        113.9,
+        19.1,
+        13.8
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-orphans/#2",
+      "path": "shell/body/nav/nav-orphans/#2/#0",
       "rect": [
-        244.9,
-        113.3,
+        238.9,
+        113.9,
         7.1,
-        15.0
+        13.8
       ],
       "role": "text",
       "text": "0"

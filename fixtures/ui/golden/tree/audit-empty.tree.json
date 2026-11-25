@@ -43,10 +43,11 @@
       "key": "rail-pages",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-pages",
+      "radius": 6.0,
       "rect": [
-        0.0,
-        8.0,
-        88.0,
+        4.0,
+        28.0,
+        80.0,
         48.3
       ],
       "role": "tab"
@@ -56,7 +57,7 @@
       "path": "shell/body/rail/rail-pages/#0",
       "rect": [
         12.0,
-        14.0,
+        34.0,
         64.0,
         16.0
       ],
@@ -69,7 +70,7 @@
       "path": "shell/body/rail/rail-pages/#0/rail-pages-icon",
       "rect": [
         12.0,
-        14.0,
+        34.0,
         16.0,
         16.0
       ],
@@ -81,7 +82,7 @@
       "path": "shell/body/rail/rail-pages/#1",
       "rect": [
         12.0,
-        34.0,
+        54.0,
         64.0,
         16.3
       ],
@@ -93,10 +94,11 @@
       "key": "rail-research",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-research",
+      "radius": 6.0,
       "rect": [
-        0.0,
-        60.3,
-        88.0,
+        4.0,
+        80.3,
+        80.0,
         48.3
       ],
       "role": "tab"
@@ -106,7 +108,7 @@
       "path": "shell/body/rail/rail-research/#0",
       "rect": [
         12.0,
-        66.3,
+        86.3,
         64.0,
         16.0
       ],
@@ -119,7 +121,7 @@
       "path": "shell/body/rail/rail-research/#0/rail-research-icon",
       "rect": [
         12.0,
-        66.3,
+        86.3,
         16.0,
         16.0
       ],
@@ -131,7 +133,7 @@
       "path": "shell/body/rail/rail-research/#1",
       "rect": [
         12.0,
-        86.3,
+        106.3,
         64.0,
         16.3
       ],
@@ -139,14 +141,15 @@
       "text": "Research"
     },
     {
-      "fill": "#00d1ffff",
+      "fill": "#08090cff",
       "key": "rail-audit",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-audit",
+      "radius": 6.0,
       "rect": [
-        0.0,
-        112.5,
-        88.0,
+        4.0,
+        132.5,
+        80.0,
         48.3
       ],
       "role": "tab"
@@ -156,32 +159,32 @@
       "path": "shell/body/rail/rail-audit/#0",
       "rect": [
         12.0,
-        118.5,
+        138.5,
         64.0,
         16.0
       ],
       "role": "group"
     },
     {
-      "color": "#001018ff",
+      "color": "#00d1ffff",
       "key": "rail-audit-icon",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-audit/#0/rail-audit-icon",
       "rect": [
         12.0,
-        118.5,
+        138.5,
         16.0,
         16.0
       ],
       "role": "icon"
     },
     {
-      "color": "#001018ff",
+      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-audit/#1",
       "rect": [
         12.0,
-        138.5,
+        158.5,
         64.0,
         16.3
       ],
@@ -190,14 +193,16 @@
     },
     {
       "fill": "#08090cff",
+      "help": "Not registered in this build",
       "key": "rail-publish",
       "label": "not registered",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-publish",
+      "radius": 6.0,
       "rect": [
-        0.0,
-        164.8,
-        88.0,
+        4.0,
+        184.8,
+        80.0,
         48.3
       ],
       "role": "tab"
@@ -207,32 +212,32 @@
       "path": "shell/body/rail/rail-publish/#0",
       "rect": [
         12.0,
-        170.8,
+        190.8,
         64.0,
         16.0
       ],
       "role": "group"
     },
     {
-      "color": "#8a93a3ff",
+      "color": "#e6e9efff",
       "key": "rail-publish-icon",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-publish/#0/rail-publish-icon",
       "rect": [
         12.0,
-        170.8,
+        190.8,
         16.0,
         16.0
       ],
       "role": "icon"
     },
     {
-      "color": "#8a93a3ff",
+      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-publish/#1",
       "rect": [
         12.0,
-        190.8,
+        210.8,
         64.0,
         16.3
       ],
@@ -244,10 +249,11 @@
       "key": "rail-outputs",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-outputs",
+      "radius": 6.0,
       "rect": [
-        0.0,
-        217.0,
-        88.0,
+        4.0,
+        237.0,
+        80.0,
         48.3
       ],
       "role": "tab"
@@ -257,7 +263,7 @@
       "path": "shell/body/rail/rail-outputs/#0",
       "rect": [
         12.0,
-        223.0,
+        243.0,
         64.0,
         16.0
       ],
@@ -270,7 +276,7 @@
       "path": "shell/body/rail/rail-outputs/#0/rail-outputs-icon",
       "rect": [
         12.0,
-        223.0,
+        243.0,
         16.0,
         16.0
       ],
@@ -282,7 +288,7 @@
       "path": "shell/body/rail/rail-outputs/#1",
       "rect": [
         12.0,
-        243.0,
+        263.0,
         64.0,
         16.3
       ],
@@ -294,10 +300,11 @@
       "key": "rail-activity",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-activity",
+      "radius": 6.0,
       "rect": [
-        0.0,
-        269.3,
-        88.0,
+        4.0,
+        289.3,
+        80.0,
         48.3
       ],
       "role": "tab"
@@ -307,7 +314,7 @@
       "path": "shell/body/rail/rail-activity/#0",
       "rect": [
         12.0,
-        275.3,
+        295.3,
         64.0,
         16.0
       ],
@@ -320,7 +327,7 @@
       "path": "shell/body/rail/rail-activity/#0/rail-activity-icon",
       "rect": [
         12.0,
-        275.3,
+        295.3,
         16.0,
         16.0
       ],
@@ -332,7 +339,7 @@
       "path": "shell/body/rail/rail-activity/#1",
       "rect": [
         12.0,
-        295.3,
+        315.3,
         64.0,
         16.3
       ],
@@ -344,10 +351,11 @@
       "key": "rail-demo",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-demo",
+      "radius": 6.0,
       "rect": [
-        0.0,
-        321.5,
-        88.0,
+        4.0,
+        341.5,
+        80.0,
         48.3
       ],
       "role": "tab"
@@ -357,7 +365,7 @@
       "path": "shell/body/rail/rail-demo/#0",
       "rect": [
         12.0,
-        327.5,
+        347.5,
         64.0,
         16.0
       ],
@@ -370,7 +378,7 @@
       "path": "shell/body/rail/rail-demo/#0/rail-demo-icon",
       "rect": [
         12.0,
-        327.5,
+        347.5,
         16.0,
         16.0
       ],
@@ -382,7 +390,7 @@
       "path": "shell/body/rail/rail-demo/#1",
       "rect": [
         12.0,
-        347.5,
+        367.5,
         64.0,
         16.3
       ],
@@ -416,10 +424,11 @@
       "text": "Audit"
     },
     {
-      "fill": "#00d1ff33",
+      "fill": "#ffffff14",
       "key": "nav-open",
       "opacity": 1.0,
       "path": "shell/body/nav/nav-open",
+      "radius": 4.0,
       "rect": [
         96.0,
         28.3,
@@ -435,7 +444,7 @@
       "rect": [
         104.0,
         32.3,
-        30.6,
+        31.2,
         15.0
       ],
       "role": "text",
@@ -445,22 +454,35 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-open/#1",
       "rect": [
-        138.6,
-        32.3,
-        102.3,
-        15.0
+        139.2,
+        39.8,
+        89.7,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-open/#2",
+      "radius": 999.0,
+      "rect": [
+        232.9,
+        32.9,
+        19.1,
+        13.8
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-open/#2",
+      "path": "shell/body/nav/nav-open/#2/#0",
       "rect": [
-        244.9,
-        32.3,
+        238.9,
+        32.9,
         7.1,
-        15.0
+        13.8
       ],
       "role": "text",
       "text": "0"
@@ -470,6 +492,7 @@
       "key": "nav-blocking",
       "opacity": 1.0,
       "path": "shell/body/nav/nav-blocking",
+      "radius": 4.0,
       "rect": [
         96.0,
         55.3,
@@ -496,21 +519,34 @@
       "path": "shell/body/nav/nav-blocking/#1",
       "rect": [
         156.8,
-        59.3,
-        84.1,
-        15.0
+        66.8,
+        72.1,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-blocking/#2",
+      "radius": 999.0,
+      "rect": [
+        232.9,
+        59.9,
+        19.1,
+        13.8
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-blocking/#2",
+      "path": "shell/body/nav/nav-blocking/#2/#0",
       "rect": [
-        244.9,
-        59.3,
+        238.9,
+        59.9,
         7.1,
-        15.0
+        13.8
       ],
       "role": "text",
       "text": "0"
@@ -520,6 +556,7 @@
       "key": "nav-error",
       "opacity": 1.0,
       "path": "shell/body/nav/nav-error",
+      "radius": 4.0,
       "rect": [
         96.0,
         82.3,
@@ -546,21 +583,34 @@
       "path": "shell/body/nav/nav-error/#1",
       "rect": [
         142.3,
-        86.3,
-        98.6,
-        15.0
+        93.8,
+        86.6,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-error/#2",
+      "radius": 999.0,
+      "rect": [
+        232.9,
+        86.9,
+        19.1,
+        13.8
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-error/#2",
+      "path": "shell/body/nav/nav-error/#2/#0",
       "rect": [
-        244.9,
-        86.3,
+        238.9,
+        86.9,
         7.1,
-        15.0
+        13.8
       ],
       "role": "text",
       "text": "0"
@@ -570,6 +620,7 @@
       "key": "nav-warning",
       "opacity": 1.0,
       "path": "shell/body/nav/nav-warning",
+      "radius": 4.0,
       "rect": [
         96.0,
         109.3,
@@ -596,21 +647,34 @@
       "path": "shell/body/nav/nav-warning/#1",
       "rect": [
         161.4,
-        113.3,
-        79.5,
-        15.0
+        120.8,
+        67.5,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-warning/#2",
+      "radius": 999.0,
+      "rect": [
+        232.9,
+        113.9,
+        19.1,
+        13.8
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-warning/#2",
+      "path": "shell/body/nav/nav-warning/#2/#0",
       "rect": [
-        244.9,
-        113.3,
+        238.9,
+        113.9,
         7.1,
-        15.0
+        13.8
       ],
       "role": "text",
       "text": "0"
@@ -620,6 +684,7 @@
       "key": "nav-info",
       "opacity": 1.0,
       "path": "shell/body/nav/nav-info",
+      "radius": 4.0,
       "rect": [
         96.0,
         136.3,
@@ -646,21 +711,34 @@
       "path": "shell/body/nav/nav-info/#1",
       "rect": [
         129.6,
-        140.3,
-        111.3,
-        15.0
+        147.8,
+        99.3,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-info/#2",
+      "radius": 999.0,
+      "rect": [
+        232.9,
+        140.9,
+        19.1,
+        13.8
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-info/#2",
+      "path": "shell/body/nav/nav-info/#2/#0",
       "rect": [
-        244.9,
-        140.3,
+        238.9,
+        140.9,
         7.1,
-        15.0
+        13.8
       ],
       "role": "text",
       "text": "0"
@@ -670,6 +748,7 @@
       "key": "nav-snoozed",
       "opacity": 1.0,
       "path": "shell/body/nav/nav-snoozed",
+      "radius": 4.0,
       "rect": [
         96.0,
         163.3,
@@ -696,21 +775,34 @@
       "path": "shell/body/nav/nav-snoozed/#1",
       "rect": [
         157.8,
-        167.3,
-        83.1,
-        15.0
+        174.8,
+        71.1,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-snoozed/#2",
+      "radius": 999.0,
+      "rect": [
+        232.9,
+        167.9,
+        19.1,
+        13.8
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-snoozed/#2",
+      "path": "shell/body/nav/nav-snoozed/#2/#0",
       "rect": [
-        244.9,
-        167.3,
+        238.9,
+        167.9,
         7.1,
-        15.0
+        13.8
       ],
       "role": "text",
       "text": "0"
@@ -720,6 +812,7 @@
       "key": "nav-wontfix",
       "opacity": 1.0,
       "path": "shell/body/nav/nav-wontfix",
+      "radius": 4.0,
       "rect": [
         96.0,
         190.3,
@@ -746,21 +839,34 @@
       "path": "shell/body/nav/nav-wontfix/#1",
       "rect": [
         158.3,
-        194.3,
-        82.6,
-        15.0
+        201.8,
+        70.6,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-wontfix/#2",
+      "radius": 999.0,
+      "rect": [
+        232.9,
+        194.9,
+        19.1,
+        13.8
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-wontfix/#2",
+      "path": "shell/body/nav/nav-wontfix/#2/#0",
       "rect": [
-        244.9,
-        194.3,
+        238.9,
+        194.9,
         7.1,
-        15.0
+        13.8
       ],
       "role": "text",
       "text": "0"
@@ -770,6 +876,7 @@
       "key": "nav-fixed",
       "opacity": 1.0,
       "path": "shell/body/nav/nav-fixed",
+      "radius": 4.0,
       "rect": [
         96.0,
         217.3,
@@ -796,21 +903,34 @@
       "path": "shell/body/nav/nav-fixed/#1",
       "rect": [
         138.6,
-        221.3,
-        102.3,
-        15.0
+        228.8,
+        90.3,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-fixed/#2",
+      "radius": 999.0,
+      "rect": [
+        232.9,
+        221.9,
+        19.1,
+        13.8
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-fixed/#2",
+      "path": "shell/body/nav/nav-fixed/#2/#0",
       "rect": [
-        244.9,
-        221.3,
+        238.9,
+        221.9,
         7.1,
-        15.0
+        13.8
       ],
       "role": "text",
       "text": "0"
@@ -820,6 +940,7 @@
       "key": "nav-limited",
       "opacity": 1.0,
       "path": "shell/body/nav/nav-limited",
+      "radius": 4.0,
       "rect": [
         96.0,
         244.3,
@@ -846,21 +967,34 @@
       "path": "shell/body/nav/nav-limited/#1",
       "rect": [
         180.0,
-        248.3,
-        60.9,
-        15.0
+        255.8,
+        48.9,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-limited/#2",
+      "radius": 999.0,
+      "rect": [
+        232.9,
+        248.9,
+        19.1,
+        13.8
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-limited/#2",
+      "path": "shell/body/nav/nav-limited/#2/#0",
       "rect": [
-        244.9,
-        248.3,
+        238.9,
+        248.9,
         7.1,
-        15.0
+        13.8
       ],
       "role": "text",
       "text": "0"
@@ -870,6 +1004,7 @@
       "key": "nav-pack:a11y-content",
       "opacity": 1.0,
       "path": "shell/body/nav/nav-pack:a11y-content",
+      "radius": 4.0,
       "rect": [
         96.0,
         271.3,
@@ -896,21 +1031,34 @@
       "path": "shell/body/nav/nav-pack:a11y-content/#1",
       "rect": [
         216.9,
-        275.3,
-        24.0,
-        15.0
+        282.8,
+        12.0,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-pack:a11y-content/#2",
+      "radius": 999.0,
+      "rect": [
+        232.9,
+        275.9,
+        19.1,
+        13.8
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-pack:a11y-content/#2",
+      "path": "shell/body/nav/nav-pack:a11y-content/#2/#0",
       "rect": [
-        244.9,
-        275.3,
+        238.9,
+        275.9,
         7.1,
-        15.0
+        13.8
       ],
       "role": "text",
       "text": "0"
@@ -920,6 +1068,7 @@
       "key": "nav-pack:aeo-llm",
       "opacity": 1.0,
       "path": "shell/body/nav/nav-pack:aeo-llm",
+      "radius": 4.0,
       "rect": [
         96.0,
         298.3,
@@ -946,21 +1095,34 @@
       "path": "shell/body/nav/nav-pack:aeo-llm/#1",
       "rect": [
         188.8,
-        302.3,
-        52.1,
-        15.0
+        309.8,
+        40.1,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-pack:aeo-llm/#2",
+      "radius": 999.0,
+      "rect": [
+        232.9,
+        302.9,
+        19.1,
+        13.8
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-pack:aeo-llm/#2",
+      "path": "shell/body/nav/nav-pack:aeo-llm/#2/#0",
       "rect": [
-        244.9,
-        302.3,
+        238.9,
+        302.9,
         7.1,
-        15.0
+        13.8
       ],
       "role": "text",
       "text": "0"
@@ -970,6 +1132,7 @@
       "key": "nav-pack:seo-core",
       "opacity": 1.0,
       "path": "shell/body/nav/nav-pack:seo-core",
+      "radius": 4.0,
       "rect": [
         96.0,
         325.3,
@@ -996,21 +1159,34 @@
       "path": "shell/body/nav/nav-pack:seo-core/#1",
       "rect": [
         197.5,
-        329.3,
-        43.4,
-        15.0
+        336.8,
+        31.4,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-pack:seo-core/#2",
+      "radius": 999.0,
+      "rect": [
+        232.9,
+        329.9,
+        19.1,
+        13.8
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-pack:seo-core/#2",
+      "path": "shell/body/nav/nav-pack:seo-core/#2/#0",
       "rect": [
-        244.9,
-        329.3,
+        238.9,
+        329.9,
         7.1,
-        15.0
+        13.8
       ],
       "role": "text",
       "text": "0"

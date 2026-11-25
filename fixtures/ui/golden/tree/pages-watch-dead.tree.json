@@ -31,7 +31,7 @@
       "opacity": 1.0,
       "path": "shell/banner/#0",
       "rect": [
-        12.0,
+        75.0,
         9.0,
         14.0,
         14.0
@@ -45,7 +45,7 @@
       "path": "shell/banner/banner-chip",
       "radius": 999.0,
       "rect": [
-        34.0,
+        97.0,
         9.1,
         72.2,
         13.8
@@ -57,7 +57,7 @@
       "opacity": 1.0,
       "path": "shell/banner/banner-chip/#0",
       "rect": [
-        40.0,
+        103.0,
         9.1,
         60.2,
         13.8
@@ -70,7 +70,7 @@
       "opacity": 1.0,
       "path": "shell/banner/#2",
       "rect": [
-        114.2,
+        177.2,
         8.5,
         258.8,
         15.0
@@ -82,9 +82,9 @@
       "opacity": 1.0,
       "path": "shell/banner/#3",
       "rect": [
-        381.0,
+        444.0,
         16.0,
-        717.5,
+        654.5,
         0.0
       ],
       "role": "group"
@@ -190,14 +190,15 @@
       "role": "group"
     },
     {
-      "fill": "#00d1ffff",
+      "fill": "#08090cff",
       "key": "rail-pages",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-pages",
+      "radius": 6.0,
       "rect": [
-        0.0,
+        4.0,
         40.0,
-        88.0,
+        80.0,
         48.3
       ],
       "role": "tab"
@@ -214,7 +215,7 @@
       "role": "group"
     },
     {
-      "color": "#001018ff",
+      "color": "#00d1ffff",
       "key": "rail-pages-icon",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-pages/#0/rail-pages-icon",
@@ -227,7 +228,7 @@
       "role": "icon"
     },
     {
-      "color": "#001018ff",
+      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-pages/#1",
       "rect": [
@@ -244,10 +245,11 @@
       "key": "rail-research",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-research",
+      "radius": 6.0,
       "rect": [
-        0.0,
+        4.0,
         92.3,
-        88.0,
+        80.0,
         48.3
       ],
       "role": "tab"
@@ -294,10 +296,11 @@
       "key": "rail-audit",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-audit",
+      "radius": 6.0,
       "rect": [
-        0.0,
+        4.0,
         144.5,
-        88.0,
+        80.0,
         48.3
       ],
       "role": "tab"
@@ -332,18 +335,31 @@
       "rect": [
         28.0,
         158.5,
-        41.1,
+        29.1,
         0.0
       ],
       "role": "group"
     },
     {
-      "color": "#e6e9efff",
+      "fill": "#00d1ffff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#0/#2",
+      "radius": 999.0,
+      "rect": [
+        57.1,
+        151.6,
+        18.9,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#001018ff",
       "key": "rail-audit-badge",
       "opacity": 1.0,
-      "path": "shell/body/rail/rail-audit/#0/rail-audit-badge",
+      "path": "shell/body/rail/rail-audit/#0/#2/rail-audit-badge",
       "rect": [
-        69.1,
+        63.1,
         151.6,
         6.9,
         13.8
@@ -366,14 +382,16 @@
     },
     {
       "fill": "#08090cff",
+      "help": "Not registered in this build",
       "key": "rail-publish",
       "label": "not registered",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-publish",
+      "radius": 6.0,
       "rect": [
-        0.0,
+        4.0,
         196.8,
-        88.0,
+        80.0,
         48.3
       ],
       "role": "tab"
@@ -390,7 +408,7 @@
       "role": "group"
     },
     {
-      "color": "#8a93a3ff",
+      "color": "#e6e9efff",
       "key": "rail-publish-icon",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-publish/#0/rail-publish-icon",
@@ -403,7 +421,7 @@
       "role": "icon"
     },
     {
-      "color": "#8a93a3ff",
+      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-publish/#1",
       "rect": [
@@ -420,10 +438,11 @@
       "key": "rail-outputs",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-outputs",
+      "radius": 6.0,
       "rect": [
-        0.0,
+        4.0,
         249.0,
-        88.0,
+        80.0,
         48.3
       ],
       "role": "tab"
@@ -470,10 +489,11 @@
       "key": "rail-activity",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-activity",
+      "radius": 6.0,
       "rect": [
-        0.0,
+        4.0,
         301.3,
-        88.0,
+        80.0,
         48.3
       ],
       "role": "tab"
@@ -520,10 +540,11 @@
       "key": "rail-demo",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-demo",
+      "radius": 6.0,
       "rect": [
-        0.0,
+        4.0,
         353.5,
-        88.0,
+        80.0,
         48.3
       ],
       "role": "tab"
@@ -592,10 +613,11 @@
       "text": "Pages"
     },
     {
-      "fill": "#00d1ff33",
+      "fill": "#ffffff14",
       "key": "nav-all",
       "opacity": 1.0,
       "path": "shell/body/nav/nav-all",
+      "radius": 4.0,
       "rect": [
         96.0,
         60.3,
@@ -611,7 +633,7 @@
       "rect": [
         104.0,
         64.3,
-        52.4,
+        53.7,
         15.0
       ],
       "role": "text",
@@ -621,22 +643,35 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-all/#1",
       "rect": [
-        160.4,
-        64.3,
-        80.7,
-        15.0
+        161.7,
+        71.8,
+        67.4,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-all/#2",
+      "radius": 999.0,
+      "rect": [
+        233.1,
+        64.9,
+        18.9,
+        13.8
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-all/#2",
+      "path": "shell/body/nav/nav-all/#2/#0",
       "rect": [
-        245.1,
-        64.3,
+        239.1,
+        64.9,
         6.9,
-        15.0
+        13.8
       ],
       "role": "text",
       "text": "3"
@@ -646,6 +681,7 @@
       "key": "nav-trunks",
       "opacity": 1.0,
       "path": "shell/body/nav/nav-trunks",
+      "radius": 4.0,
       "rect": [
         96.0,
         87.3,
@@ -672,21 +708,34 @@
       "path": "shell/body/nav/nav-trunks/#1",
       "rect": [
         146.7,
-        91.3,
-        96.7,
-        15.0
+        98.8,
+        84.7,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-trunks/#2",
+      "radius": 999.0,
+      "rect": [
+        235.4,
+        91.9,
+        16.6,
+        13.8
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-trunks/#2",
+      "path": "shell/body/nav/nav-trunks/#2/#0",
       "rect": [
-        247.4,
-        91.3,
+        241.4,
+        91.9,
         4.6,
-        15.0
+        13.8
       ],
       "role": "text",
       "text": "1"
@@ -696,6 +745,7 @@
       "key": "nav-issues",
       "opacity": 1.0,
       "path": "shell/body/nav/nav-issues",
+      "radius": 4.0,
       "rect": [
         96.0,
         114.3,
@@ -722,21 +772,34 @@
       "path": "shell/body/nav/nav-issues/#1",
       "rect": [
         202.1,
-        118.3,
-        38.8,
-        15.0
+        125.8,
+        26.8,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-issues/#2",
+      "radius": 999.0,
+      "rect": [
+        232.9,
+        118.9,
+        19.1,
+        13.8
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-issues/#2",
+      "path": "shell/body/nav/nav-issues/#2/#0",
       "rect": [
-        244.9,
-        118.3,
+        238.9,
+        118.9,
         7.1,
-        15.0
+        13.8
       ],
       "role": "text",
       "text": "0"
@@ -746,6 +809,7 @@
       "key": "nav-orphans",
       "opacity": 1.0,
       "path": "shell/body/nav/nav-orphans",
+      "radius": 4.0,
       "rect": [
         96.0,
         141.3,
@@ -772,21 +836,34 @@
       "path": "shell/body/nav/nav-orphans/#1",
       "rect": [
         191.7,
-        145.3,
-        49.2,
-        15.0
+        152.8,
+        37.2,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-orphans/#2",
+      "radius": 999.0,
+      "rect": [
+        232.9,
+        145.9,
+        19.1,
+        13.8
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-orphans/#2",
+      "path": "shell/body/nav/nav-orphans/#2/#0",
       "rect": [
-        244.9,
-        145.3,
+        238.9,
+        145.9,
         7.1,
-        15.0
+        13.8
       ],
       "role": "text",
       "text": "0"
@@ -796,6 +873,7 @@
       "key": "nav-tree:index",
       "opacity": 1.0,
       "path": "shell/body/nav/nav-tree:index",
+      "radius": 4.0,
       "rect": [
         96.0,
         168.3,
@@ -822,21 +900,34 @@
       "path": "shell/body/nav/nav-tree:index/#1",
       "rect": [
         182.7,
-        172.3,
-        58.5,
-        15.0
+        179.8,
+        46.5,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-tree:index/#2",
+      "radius": 999.0,
+      "rect": [
+        233.2,
+        172.9,
+        18.8,
+        13.8
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-tree:index/#2",
+      "path": "shell/body/nav/nav-tree:index/#2/#0",
       "rect": [
-        245.2,
-        172.3,
+        239.2,
+        172.9,
         6.8,
-        15.0
+        13.8
       ],
       "role": "text",
       "text": "2"

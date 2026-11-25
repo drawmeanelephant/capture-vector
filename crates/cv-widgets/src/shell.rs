@@ -7,10 +7,11 @@ use crate::theme::{self, Level, Size, Styled, color, font};
 use crate::{controls, fx, icons};
 use cv_core::events::shell::DegradedReason;
 use cv_model::module::{ReadingModel, RowModel, Slot, Tone};
-use cv_model::theme::{Mode, Rgba, Theme};
+use cv_model::theme::{Mode, Rgba, Theme, TypeStyle};
 use cv_model::workbench::Workbench;
 use rune::{
-    Color, Cx, Edge, El, GrowthSpec, Icon, ScrollSpec, Transition, col, icon, row, spacer, text,
+    Color, Cx, Edge, El, GrowthSpec, Icon, ScrollSpec, Span, Transition, col, icon, row, spacer,
+    text,
 };
 use rune_kit::{Markdown, RollingText, Toast, ToastRegion};
 use std::borrow::Cow;
@@ -88,7 +89,7 @@ fn chip(t: &Theme, key: &str, label: impl Into<String>, tn: Tone) -> El {
         )
 }
 
-fn banner(s: &Workbench) -> Option<El> {
+fn banner(s: &Workbench, lights: f32) -> Option<El> {
     let t = &s.theme;
     let r = s.app.degraded.as_ref()?;
     let tn = degraded_tone(r);
@@ -102,7 +103,8 @@ fn banner(s: &Workbench) -> Option<El> {
             .key("banner")
             .role("alert")
             .w_full()
-            .px(t.spacing.unit * 3.0)
+            .pl((lights + t.spacing.unit * 2.0).max(t.spacing.unit * 3.0))
+            .pr(t.spacing.unit * 3.0)
             .py(t.spacing.unit * 1.5)
             .gap(t.spacing.unit * 2.0)
             .items_center()
@@ -140,15 +142,27 @@ fn banner(s: &Workbench) -> Option<El> {
             )),
     )
 }
-fn rail(s: &Workbench) -> El {
+/// AppKit's titlebar band: the traffic lights sit in its top 28 pt when the
+/// content fills the window (`Chrome::full_size_content`).
+const TITLEBAR_BAND: f32 = 28.0;
+
+fn rail(s: &Workbench, lights: bool) -> El {
     let t = &s.theme;
+    let top = if lights && s.app.degraded.is_none() {
+        TITLEBAR_BAND
+    } else {
+        t.spacing.unit * 2.0
+    };
     let mut rail = col()
         .key("rail")
         .w(t.spacing.rail_w)
         .h_full()
         .fill(color(t.colors.rail))
-        .py(t.spacing.unit * 2.0)
-        .gap(t.spacing.unit);
+        .pt(top)
+        .pb(t.spacing.unit * 2.0)
+        .px(t.spacing.unit)
+        .gap(t.spacing.unit)
+        .motion(theme::spring(t.motion.snap));
     let aurora = fx::rail_aurora(t);
     // Items at rest let the aurora show through instead of repainting the rail.
     let rest = if aurora.is_some() {
@@ -176,66 +190,88 @@ fn rail(s: &Workbench) -> El {
         }
     }
     for (key, title, idx) in entries {
-        let active = idx == Some(s.active);
-        let fg = match (idx, active) {
-            (None, _) => t.colors.text_dim,
-            (_, true) => t.colors.accent_text,
-            _ => t.colors.text,
-        };
-        let mut item = col()
-            .key(format!("rail-{key}"))
-            .role("tab")
-            .w_full()
-            .px(t.spacing.unit * 3.0)
-            .py(t.spacing.unit * 1.5)
-            .gap(t.spacing.unit)
-            .fill(if active { color(t.colors.accent) } else { rest });
-        if active {
-            let g = t.gradients.rail_active;
-            item = item.gradient(color(g.start), color(g.end));
-        }
-        // Icon above the label: "Research" beside a 16 pt icon overflows the 88 pt rail.
-        let mut head = row().w_full().items_center().child(
-            icon(rail_icon(&key), 16.0)
-                .key(format!("rail-{key}-icon"))
-                .color(color(fg)),
-        );
-        if let Some(n) = idx
-            .and_then(|i| s.registry.get(i))
-            .and_then(|m| m.badge())
-            .filter(|n| *n > 0)
-        {
-            head = head.child(spacer()).child(
-                text(n.to_string())
-                    .key(format!("rail-{key}-badge"))
-                    .font(font(t.type_.label))
-                    .color(color(fg))
-                    .single_line(),
-            );
-        }
-        item = item.child(head).child(
-            text(title)
-                .font(font(t.type_.title))
-                .color(color(fg))
-                .single_line(),
-        );
-        if let Some(i) = idx {
-            item = item
-                .states(t)
-                .on_press(move |s: &mut Workbench| s.activate(i));
-        } else {
-            item = item.label("not registered");
-        }
-        if key == "activity"
-            && let Some(glow) = fx::build_glow(t, s.app.builds_finished)
-        {
-            item = item.child(glow);
-        }
-        rail = rail.child(item);
+        rail = rail.child(rail_item(s, &key, title, idx, rest));
     }
     rail
 }
 
+fn rail_item(s: &Workbench, key: &str, title: String, idx: Option<usize>, rest: Color) -> El {
+    let t = &s.theme;
+    let active = idx == Some(s.active);
+    let mut item = col()
+        .key(format!("rail-{key}"))
+        .role("tab")
+        .w_full()
+        .px(t.spacing.unit * 2.0)
+        .py(t.spacing.unit * 1.5)
+        .gap(t.spacing.unit)
+        .rounded(t, Size::Md)
+        .fill(rest);
+    if active {
+        let g = t.gradients.rail_active;
+        item = item
+            .linear_gradient(
+                std::f32::consts::FRAC_PI_2,
+                [(0.0, color(g.start)), (1.0, color(g.end))],
+            )
+            .border_sides([0.0, 0.0, 0.0, 3.0], color(t.colors.accent));
+    }
+    let glyph = if active {
+        t.colors.accent
+    } else {
+        t.colors.text
+    };
+    // Icon above the label: "Research" beside a 16 pt icon overflows the 88 pt rail.
+    let mut head = row().w_full().items_center().child(
+        icon(rail_icon(key), 16.0)
+            .key(format!("rail-{key}-icon"))
+            .color(color(glyph)),
+    );
+    if let Some(n) = idx
+        .and_then(|i| s.registry.get(i))
+        .and_then(|m| m.badge())
+        .filter(|n| *n > 0)
+    {
+        head = head.child(spacer()).child(
+            row()
+                .px(t.spacing.unit * 1.5)
+                .rounded(t, Size::Pill)
+                .fill(color(t.colors.accent))
+                .child(
+                    text(n.to_string())
+                        .key(format!("rail-{key}-badge"))
+                        .font(font(t.type_.label))
+                        .color(color(t.colors.accent_text))
+                        .single_line(),
+                ),
+        );
+    }
+    let weight = if active { 700.0 } else { t.type_.title.weight };
+    item = item.child(head).child(
+        text(title)
+            .font(font(TypeStyle {
+                weight,
+                ..t.type_.title
+            }))
+            .color(color(t.colors.text))
+            .single_line(),
+    );
+    item = match idx {
+        Some(i) => item
+            .states(t)
+            .on_press(move |s: &mut Workbench| s.activate(i)),
+        None => item
+            .label("not registered")
+            .help("Not registered in this build")
+            .dim(0.45),
+    };
+    if key == "activity"
+        && let Some(glow) = fx::build_glow(t, s.app.builds_finished)
+    {
+        item = item.child(glow);
+    }
+    item
+}
 fn rail_icon(key: &str) -> &'static Icon {
     match key {
         "pages" => &icons::FILES,
@@ -257,7 +293,8 @@ fn nav(s: &Workbench) -> El {
         .h_full()
         .fill(color(t.colors.pane_alt))
         .padding(t.spacing.unit * 2.0)
-        .gap(t.spacing.unit);
+        .gap(t.spacing.unit)
+        .motion(theme::spring(t.motion.snap));
     let Some(m) = s.registry.get(s.active) else {
         return nav.child(label(t, "no modules registered"));
     };
@@ -269,36 +306,62 @@ fn nav(s: &Workbench) -> El {
     for item in m.nav().items {
         let sel = s.active_nav() == Some(item.key.as_str());
         let key = item.key.clone();
-        nav = nav.child(
-            row()
-                .key(format!("nav-{}", item.key))
-                .role("treeitem")
-                .w_full()
-                .px(t.spacing.unit * 2.0)
-                .py(t.spacing.unit)
-                .gap(t.spacing.unit)
-                .fill(color(if sel {
-                    t.colors.selection
-                } else {
-                    t.colors.pane_alt
-                }))
-                .states(t)
-                .on_press(move |s: &mut Workbench| s.set_nav(&key))
-                .child(
-                    text(item.label)
-                        .font(font(t.type_.body))
-                        .color(color(t.colors.text))
-                        .single_line()
-                        .truncate(),
-                )
-                .child(spacer())
-                .child(label(
-                    t,
-                    item.count.map(|c| c.to_string()).unwrap_or_default(),
-                )),
-        );
+        // Up/down always drive the list, so the nav never holds keyboard
+        // focus: its selection wears the inactive colour, as Outlook's folder
+        // pane does while the message list has focus.
+        let mut r = row()
+            .key(format!("nav-{}", item.key))
+            .role("treeitem")
+            .w_full()
+            .px(t.spacing.unit * 2.0)
+            .py(t.spacing.unit)
+            .gap(t.spacing.unit)
+            .items_center()
+            .rounded(t, Size::Sm)
+            .fill(color(if sel {
+                t.states.selection_inactive
+            } else {
+                t.colors.pane_alt
+            }))
+            .states(t)
+            .on_press(move |s: &mut Workbench| s.set_nav(&key))
+            .child(nav_label(t, item.label, sel))
+            .child(spacer());
+        if let Some(c) = item.count {
+            r = r.child(
+                row()
+                    .px(t.spacing.unit * 1.5)
+                    .rounded(t, Size::Pill)
+                    .fill(color(t.states.selection_inactive))
+                    .child(label(t, c.to_string())),
+            );
+        }
+        nav = nav.child(r);
     }
     nav
+}
+
+/// A facet label such as "Pack · seo-core" draws its group prefix dim, so
+/// groups read at a glance without header rows.
+fn nav_label(t: &Theme, s: String, sel: bool) -> El {
+    const SEP: &str = " · ";
+    let prefix = s.find(SEP).map(|i| i + SEP.len());
+    let weight = if sel { 600.0 } else { t.type_.body.weight };
+    let mut el = text(s)
+        .font(font(TypeStyle {
+            weight,
+            ..t.type_.body
+        }))
+        .color(color(t.colors.text))
+        .single_line()
+        .truncate();
+    if let Some(end) = prefix {
+        el = el.spans(vec![Span {
+            color: Some(color(t.colors.text_dim)),
+            ..Span::new(0, end)
+        }]);
+    }
+    el
 }
 
 fn list_row(s: &Workbench, i: usize) -> El {
@@ -743,9 +806,10 @@ fn palette(s: &Workbench, width: f32) -> El {
 pub fn view(s: &Workbench, cx: &mut Cx<Workbench>) -> El {
     let t = &s.theme;
     theme::motion_preference(cx, t);
+    let lights = cx.titlebar_inset();
     let mut body = row().key("body").w_full().grow(1.0).min_h(0.0);
     body = body
-        .child(rail(s))
+        .child(rail(s, lights > 0.0))
         .child(nav(s))
         .child(list(s))
         .child(reading(s));
@@ -757,7 +821,7 @@ pub fn view(s: &Workbench, cx: &mut Cx<Workbench>) -> El {
         .w_full()
         .h_full()
         .fill(color(t.colors.bg));
-    if let Some(b) = banner(s) {
+    if let Some(b) = banner(s, lights) {
         root = root.child(b);
     }
     root = root.child(body).child(status(s));
