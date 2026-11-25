@@ -16,6 +16,7 @@ pub mod engine;
 pub mod error;
 pub mod exit;
 pub mod fallback;
+pub mod file_identity;
 pub mod init;
 pub mod lab;
 pub mod locate;

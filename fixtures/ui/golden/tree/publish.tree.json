@@ -2197,6 +2197,7 @@
     },
     {
       "color": "#00d1ffff",
+      "help": "https://pds.example.test/",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-destination/#1",
       "rect": [
@@ -2620,6 +2621,7 @@
     },
     {
       "color": "#e6e9efff",
+      "help": ".cv/ledger/ledger.jsonl",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ledger/#1",
       "rect": [
@@ -3168,7 +3170,7 @@
       "rect": [
         162.2,
         782.1,
-        52.1,
+        59.6,
         13.8
       ],
       "role": "group"
@@ -3180,7 +3182,7 @@
       "rect": [
         168.2,
         782.1,
-        40.1,
+        47.6,
         13.8
       ],
       "role": "text",
@@ -3190,9 +3192,9 @@
       "opacity": 1.0,
       "path": "shell/status/#3",
       "rect": [
-        226.3,
+        233.8,
         789.0,
-        870.5,
+        863.0,
         0.0
       ],
       "role": "group"
