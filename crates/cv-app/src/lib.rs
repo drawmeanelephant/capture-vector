@@ -14,6 +14,7 @@ pub mod migrate;
 pub mod new_workspace;
 pub mod pages;
 pub mod publish;
+pub mod slots;
 pub mod snapshot;
 pub mod workspace;
 
@@ -179,6 +180,7 @@ pub fn open_workspace(
     wb.stop_watch();
     wb.registry = Registry::default();
     let slot = live::EngineSlot::default();
+    slots::register_slot(&root, &slot);
     let input = snapshot::content_input(&root);
     cv_model::modules::pages::install_in(
         Box::new(pages::WorkspacePages::new(&root, slot.clone())),
@@ -681,6 +683,7 @@ pub fn launch() -> Launch {
         boot: native_boot,
         open: open_native,
         create: new_workspace::create_native,
+        adopt: migrate::adopt::adopt_native,
         edit: editor::edit_page,
         scenes: SCENES,
     }

@@ -82,6 +82,9 @@ pub struct ModeSpec {
     pub name: &'static str,
     pub family: Family,
     pub inputs: &'static [InputSpec],
+    /// Boris starter suggested when this mode is adopted into a new
+    /// workspace. `None` leaves Boris's own default selected.
+    pub archetype: Option<&'static str>,
 }
 
 const fn dir(flag: &'static str) -> InputSpec {
@@ -115,6 +118,7 @@ const fn root(name: &'static str, family: Family) -> ModeSpec {
         name,
         family,
         inputs: ROOT,
+        archetype: None,
     }
 }
 
@@ -123,6 +127,26 @@ const fn with(name: &'static str, family: Family, inputs: &'static [InputSpec]) 
         name,
         family,
         inputs,
+        archetype: None,
+    }
+}
+
+const fn root_as(name: &'static str, family: Family, archetype: &'static str) -> ModeSpec {
+    ModeSpec {
+        archetype: Some(archetype),
+        ..root(name, family)
+    }
+}
+
+const fn with_as(
+    name: &'static str,
+    family: Family,
+    inputs: &'static [InputSpec],
+    archetype: &'static str,
+) -> ModeSpec {
+    ModeSpec {
+        archetype: Some(archetype),
+        ..with(name, family, inputs)
     }
 }
 
@@ -137,13 +161,13 @@ pub const MODES: &[ModeSpec] = &[
     ),
     root("wordpress-theme", CrossCutting),
     with("instagram", Social, &[dir("--dump")]),
-    with("obsidian", Notes, &[dir("--vault")]),
+    with_as("obsidian", Notes, &[dir("--vault")], "garden"),
     with("tinderbox-inventory", Notes, &[file("--tbx")]),
     with("tinderbox", Notes, &[file("--tbx")]),
     with("notion", Notes, &[dir("--export")]),
     with("filed", StaticSite, &[dir("--filed-root")]),
     root("filed-scan", StaticSite),
-    root("starlight", StaticSite),
+    root_as("starlight", StaticSite, "docs"),
     root("asset-filename", CrossCutting),
     root("theme-archaeology", CrossCutting),
     with(
@@ -158,17 +182,17 @@ pub const MODES: &[ModeSpec] = &[
     root("jekyll-inventory", StaticSite),
     root("jekyll", StaticSite),
     root("ghost-inventory", BlogCms),
-    root("ghost", BlogCms),
+    root_as("ghost", BlogCms, "blog"),
     root("mkdocs-inventory", StaticSite),
-    root("mkdocs", StaticSite),
+    root_as("mkdocs", StaticSite, "docs"),
     root("mastodon-inventory", Social),
     root("mastodon", Social),
     root("atproto", Social),
     root("atproto-inventory", Social),
     root("enex-inventory", Notes),
-    root("enex", Notes),
+    root_as("enex", Notes, "garden"),
     root("substack-inventory", BlogCms),
-    root("substack", BlogCms),
+    root_as("substack", BlogCms, "blog"),
 ];
 /// The allowlisted mode named `name` (canonical names only).
 pub fn mode(name: &str) -> Option<&'static ModeSpec> {

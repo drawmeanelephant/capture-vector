@@ -1,5 +1,15 @@
 use super::*;
 use crate::module::Module;
+use std::collections::BTreeMap;
+
+fn answer() -> DialogAnswer {
+    DialogAnswer {
+        action: None,
+        context: None,
+        values: BTreeMap::new(),
+        secret: None,
+    }
+}
 
 fn imports() -> Imports {
     let mut ok = ImportRun::new("20261125-hugo", RunStatus::Ok);
@@ -181,6 +191,136 @@ fn new_import_and_adopt_are_honest_disabled_entry_points() {
         let c = cmds.iter().find(|c| c.id == id).unwrap();
         assert!(c.disabled.is_some(), "{id}");
     }
+}
+
+#[test]
+fn adopt_is_enabled_for_a_finished_run_and_offers_new_or_existing() {
+    let mut m = module();
+    m.select(Some("run:20261125-hugo"));
+    let cmds = m.commands();
+    let c = cmds.iter().find(|c| c.id == ADOPT).unwrap();
+    assert!(c.disabled.is_none(), "adopt must enable for a finished run");
+    let intents = m.run(ADOPT);
+    let Some(Intent::Dialog(spec)) = intents.into_iter().next() else {
+        panic!("adopt opens the target chooser");
+    };
+    assert_eq!(spec.id, ADOPT);
+    let DialogKind::Choose(choices) = &spec.kind else {
+        panic!("chooser kind");
+    };
+    assert_eq!(choices[0].id, "new");
+    assert_eq!(choices[1].id, "existing");
+}
+
+#[test]
+fn adopt_stays_disabled_for_a_running_run() {
+    let mut i = imports();
+    for r in &mut i.runs {
+        r.status = RunStatus::Running;
+    }
+    let mut m = MigrateModule::new(Box::new(MemoryPort {
+        imports: i,
+        records: Vec::new(),
+    }));
+    m.select(Some("run:20261125-hugo"));
+    let c = m.commands().into_iter().find(|c| c.id == ADOPT).unwrap();
+    assert!(c.disabled.is_some());
+    assert_eq!(
+        m.run(ADOPT),
+        vec![Intent::Status(
+            "Adopt: run 20261125-hugo has not finished successfully".into(),
+        )]
+    );
+}
+
+#[test]
+fn answering_existing_collects_a_subfolder_and_emits_the_request() {
+    let mut m = module();
+    m.select(Some("run:20261125-hugo"));
+    let intents = m.run(ADOPT);
+    let Some(Intent::Dialog(spec)) = intents.into_iter().next() else {
+        panic!("chooser");
+    };
+    let mut a = answer();
+    a.context = spec.context.clone();
+    a.action = Some("continue".into());
+    a.values.insert(
+        crate::dialog::CHOICE.into(),
+        crate::dialog::Value::Choice("existing".into()),
+    );
+    let intents = m.answer(ADOPT, &a);
+    let Some(Intent::Dialog(form)) = intents.into_iter().next() else {
+        panic!("existing opens the subfolder form");
+    };
+    assert_eq!(form.id, ADOPT_EXISTING);
+
+    // An unsafe subfolder is refused in the form, not at the writer.
+    let mut bad = answer();
+    bad.context = form.context.clone();
+    bad.action = Some("adopt".into());
+    bad.values.insert(
+        "subfolder".into(),
+        crate::dialog::Value::Text("../escape".into()),
+    );
+    let retry = m.answer(ADOPT_EXISTING, &bad);
+    assert!(
+        matches!(retry.first(), Some(Intent::Dialog(_))),
+        "{retry:?}"
+    );
+
+    let mut ok = answer();
+    ok.context = form.context.clone();
+    ok.action = Some("adopt".into());
+    ok.values.insert(
+        "subfolder".into(),
+        crate::dialog::Value::Text("imported/site".into()),
+    );
+    let intents = m.answer(ADOPT_EXISTING, &ok);
+    let mut it = intents.into_iter();
+    let Some(Intent::AdoptRun(req)) = it.next() else {
+        panic!("the validated form must emit the adoption request");
+    };
+    assert_eq!(req.run_id, "20261125-hugo");
+    assert_eq!(
+        req.target,
+        crate::adoption::AdoptionTarget::ExistingWorkspace {
+            subfolder: "imported/site".into()
+        }
+    );
+}
+
+#[test]
+fn choosing_new_prepares_the_workspace_form_with_the_mode_archetype() {
+    let mut i = imports();
+    i.runs
+        .iter_mut()
+        .find(|r| r.id == "20261125-hugo")
+        .unwrap()
+        .suggested_archetype = Some("blog".into());
+    let mut m = MigrateModule::new(Box::new(MemoryPort {
+        imports: i,
+        records: Vec::new(),
+    }));
+    m.select(Some("run:20261125-hugo"));
+    let intents = m.run(ADOPT);
+    let Some(Intent::Dialog(spec)) = intents.into_iter().next() else {
+        panic!("chooser");
+    };
+    let mut a = answer();
+    a.context = spec.context.clone();
+    a.action = Some("continue".into());
+    a.values.insert(
+        crate::dialog::CHOICE.into(),
+        crate::dialog::Value::Choice("new".into()),
+    );
+    let intents = m.answer(ADOPT, &a);
+    assert_eq!(
+        intents,
+        vec![Intent::PrepareAdoptNew {
+            run_id: "20261125-hugo".into(),
+            suggested_archetype: Some("blog".into()),
+        }]
+    );
 }
 
 #[test]

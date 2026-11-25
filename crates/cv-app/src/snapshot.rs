@@ -436,6 +436,32 @@ fn apply_ir(pages: &mut [PageRecord], graph: &Graph) {
     }
 }
 
+/// Attach migration provenance from `.cv/imports/*/adoption.json` to the
+/// pages it names. Missing or undecodable sidecars leave pages unmarked;
+/// the Migrate mailbox is where that damage is disclosed.
+fn apply_imports(root: &Path, pages: &mut [PageRecord]) {
+    let Ok(adoptions) = cv_store::imports::scan_adoptions(root) else {
+        return;
+    };
+    let mut by_path: HashMap<&str, (String, String)> = HashMap::new();
+    for a in &adoptions {
+        for page in &a.pages {
+            let source = page.source.clone().unwrap_or_else(|| {
+                a.inputs
+                    .first()
+                    .map(|i| i.path.clone())
+                    .unwrap_or_else(|| a.run_id.clone())
+            });
+            by_path.insert(page.path.as_str(), (a.mode.clone(), source));
+        }
+    }
+    for p in pages.iter_mut() {
+        if let Some(found) = by_path.get(p.path.as_str()) {
+            p.imported_from = Some(found.clone());
+        }
+    }
+}
+
 /// Project snapshot from a real workspace: page sources under the
 /// content input, output records from the last build's proof pack
 /// (`<html_dir>/_boris/proof/artifacts.json`) when one exists, and
@@ -457,6 +483,7 @@ pub fn workspace_snapshot(
         if let Some(graph) = ir_graph(&base, html_dir) {
             apply_ir(&mut scan.pages, &graph);
         }
+        apply_imports(&base, &mut scan.pages);
         workspace_json(
             &base,
             &Path::new(html_dir).join("_boris/proof/artifacts.json"),

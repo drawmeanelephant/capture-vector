@@ -8,6 +8,7 @@
 //! through the same process layer ([`lab`]). No Boris or lab semantics
 //! are reimplemented.
 
+pub mod adopt;
 mod bounded;
 pub mod cursor;
 pub mod debounce;

@@ -1,6 +1,7 @@
 //! Command palette — verbs live here, not in the rail. Lanes contribute
 //! `CommandSpec`s; the shell adds its own `shell.*` verbs.
 
+use crate::adoption::AdoptionRequest;
 use crate::dialog::{DialogSpec, Pick};
 use cv_core::events::pages::PagesEvent;
 use cv_core::events::shell::DegradedReason;
@@ -78,6 +79,14 @@ pub enum Intent {
         id: String,
         pick: Pick,
     },
+    /// Open the New workspace form for adopting `run_id`, preselecting
+    /// the archetype the migration mode suggests when Boris offers it.
+    PrepareAdoptNew {
+        run_id: String,
+        suggested_archetype: Option<String>,
+    },
+    /// Carry out a validated adoption request in the open workspace.
+    AdoptRun(AdoptionRequest),
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]

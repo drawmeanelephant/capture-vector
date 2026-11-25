@@ -3,6 +3,7 @@
 //! commit (dedupe by event id, journal to the `Store` port, cascade,
 //! module ingest) → redraw.
 
+use crate::adoption::AdoptionJob;
 use crate::app_state::AppState;
 use crate::cascade;
 use crate::command::{CommandSpec, Intent, Palette};
@@ -143,6 +144,8 @@ pub enum ShellRequest {
     /// Run `boris init` for the New workspace form; the outcome comes
     /// back as `ShellNotice::Created`.
     CreateWorkspace(WorkspaceCreation),
+    /// Adopt a migration run into the open workspace or a new one.
+    AdoptRun(AdoptionJob),
     /// Open a page (relative to the content input) in an editor window.
     EditPage(String),
     /// Put text on the system clipboard.
@@ -883,6 +886,17 @@ impl Workbench {
             Intent::Pick { id, pick } => self
                 .requests
                 .push(crate::dialog::pick_request(pick, PickPurpose::Command(id))),
+            Intent::PrepareAdoptNew {
+                run_id,
+                suggested_archetype,
+            } => self.adopt_new_workspace(&run_id, suggested_archetype.as_deref()),
+            Intent::AdoptRun(request) => match self.workspace.clone() {
+                Some(source_root) => self.requests.push(ShellRequest::AdoptRun(AdoptionJob {
+                    source_root,
+                    request,
+                })),
+                None => self.status = "open the workspace that owns this import run first".into(),
+            },
         }
     }
 

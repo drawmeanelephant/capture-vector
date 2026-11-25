@@ -393,6 +393,145 @@ impl ReviewLog {
     }
 }
 
+/// `adoption.json` in a run directory: the page-level link from adopted
+/// Boris content back to the lab run and source input. This is Capture
+/// Vector evidence, not a lab mirror; the copied lab documents remain the
+/// authoritative conversion provenance.
+pub const ADOPTION: &str = "adoption.json";
+pub const ADOPTION_FORMAT: &str = "cv-import-adoption";
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AdoptedPage {
+    /// The lab's entity id for the emitted page.
+    pub entity_id: String,
+    /// Page path relative to the target workspace's content input.
+    pub path: String,
+    /// Source path exactly as the lab report names it, when it does.
+    pub source: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AdoptionRecord {
+    pub format: String,
+    pub schema_version: u32,
+    pub run_id: String,
+    pub mode: String,
+    pub at_ms: i64,
+    pub workspace: String,
+    /// `new` or `existing`.
+    pub target: String,
+    /// Subfolder below the content input for an existing-workspace merge.
+    pub content_subfolder: Option<String>,
+    /// External inputs the run consumed; they are referenced, never copied.
+    pub inputs: Vec<RecordedInput>,
+    pub pages: Vec<AdoptedPage>,
+}
+
+impl AdoptionRecord {
+    pub fn new(
+        run_id: impl Into<String>,
+        mode: impl Into<String>,
+        at_ms: i64,
+        workspace: impl Into<String>,
+        target: impl Into<String>,
+    ) -> Self {
+        Self {
+            format: ADOPTION_FORMAT.into(),
+            schema_version: SCHEMA_VERSION,
+            run_id: run_id.into(),
+            mode: mode.into(),
+            at_ms,
+            workspace: workspace.into(),
+            target: target.into(),
+            content_subfolder: None,
+            inputs: Vec::new(),
+            pages: Vec::new(),
+        }
+    }
+}
+
+fn write_json_atomic(path: &Path, bytes: &[u8]) -> Result<(), Error> {
+    let tmp = path.with_extension("json.tmp");
+    refuse_symlinks(&[path, &tmp])?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let mut f = File::create(&tmp)?;
+    f.write_all(bytes)?;
+    f.sync_all()?;
+    std::fs::rename(&tmp, path)?;
+    Ok(())
+}
+
+/// Write `<run>/adoption.json` atomically under the imports schema stamp.
+pub fn write_adoption(root: &Path, rec: &AdoptionRecord) -> Result<PathBuf, Error> {
+    let dir = run_dir(root, &rec.run_id)?;
+    refuse_symlinks(&[&root.join(".cv"), &root.join(DIR), &dir])?;
+    sidecar::ensure(root, &SCHEMA).map_err(Error::Schema)?;
+    std::fs::create_dir_all(&dir)?;
+    let mut bytes = serde_json::to_vec_pretty(rec).map_err(Error::Json)?;
+    bytes.push(b'\n');
+    let path = dir.join(ADOPTION);
+    write_json_atomic(&path, &bytes)?;
+    Ok(path)
+}
+
+fn read_adoption(path: &Path) -> Result<AdoptionRecord, String> {
+    if is_symlink(path).map_err(|e| e.to_string())? {
+        return Err(format!("{ADOPTION} is a symlink"));
+    }
+    let bytes = std::fs::read(path).map_err(|e| format!("{ADOPTION}: {e}"))?;
+    #[derive(Deserialize)]
+    struct Header {
+        format: String,
+        schema_version: u64,
+    }
+    let h: Header =
+        serde_json::from_slice(&bytes).map_err(|e| format!("{ADOPTION} is not valid: {e}"))?;
+    if h.format != ADOPTION_FORMAT {
+        return Err(format!(
+            "{ADOPTION} format {:?} is not {ADOPTION_FORMAT}",
+            h.format
+        ));
+    }
+    if h.schema_version != u64::from(SCHEMA_VERSION) {
+        return Err(format!(
+            "{ADOPTION} schema_version {} is not supported (this build reads {SCHEMA_VERSION})",
+            h.schema_version
+        ));
+    }
+    serde_json::from_slice(&bytes).map_err(|e| format!("{ADOPTION} is not valid: {e}"))
+}
+
+/// Valid adoption records under `.cv/imports/`, sorted by run id. Missing
+/// records simply mean the run has not been adopted; undecodable records
+/// are skipped here and stay visible in the run's ordinary scan problem.
+pub fn scan_adoptions(root: &Path) -> Result<Vec<AdoptionRecord>, Error> {
+    let base = root.join(DIR);
+    refuse_symlinks(&[&root.join(".cv"), &base])?;
+    let entries = match std::fs::read_dir(&base) {
+        Ok(e) => e,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(e) => return Err(e.into()),
+    };
+    let mut out = Vec::new();
+    for e in entries {
+        let e = e?;
+        if !e.file_type()?.is_dir() {
+            continue;
+        }
+        let path = e.path().join(ADOPTION);
+        if !path.exists() {
+            continue;
+        }
+        if let Ok(rec) = read_adoption(&path) {
+            out.push(rec);
+        }
+    }
+    out.sort_by(|a, b| a.run_id.cmp(&b.run_id));
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

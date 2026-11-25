@@ -12,7 +12,9 @@
 #[cfg(test)]
 mod tests;
 
+use crate::adoption::{AdoptionRequest, AdoptionTarget};
 use crate::command::{CommandSpec, Intent};
+use crate::dialog::{ActionTone, CHOICE, Choice, DialogAnswer, DialogKind, DialogSpec, Field};
 use crate::module::{
     Chip, InspectorModel, Module, ModuleSpec, NavItem, NavModel, ReadingLine, ReadingModel,
     Registry, RowModel, Slot, Tone,
@@ -26,12 +28,12 @@ pub const ID: &str = "migrate";
 pub const NEW: &str = "migrate.new";
 pub const REFRESH: &str = "migrate.refresh";
 pub const ADOPT: &str = "migrate.adopt";
+pub const ADOPT_EXISTING: &str = "migrate.adopt.existing";
 pub const ACCEPT: &str = "migrate.review.accept";
 pub const DEFER: &str = "migrate.review.defer";
 pub const REOPEN: &str = "migrate.review.reopen";
 
 const NEW_UNAVAILABLE: &str = "starting an import from Capture Vector is not in this build yet";
-const ADOPT_UNAVAILABLE: &str = "adopting a run into a workspace is not in this build yet";
 
 /// Which lab binary this window found, as the `--version` gate saw it.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -156,6 +158,8 @@ pub struct ImportRun {
     /// The lab's `--out`.
     pub out: String,
     pub provenance: Option<String>,
+    /// Boris starter suggested for a new workspace, from mode metadata.
+    pub suggested_archetype: Option<String>,
     /// Count per disposition, in the order the lab reports them.
     pub counts: Vec<(String, u64)>,
     /// Other totals the main document states (pages emitted, …).
@@ -188,6 +192,7 @@ impl ImportRun {
             duration_ms: None,
             out: String::new(),
             provenance: None,
+            suggested_archetype: None,
             counts: Vec::new(),
             totals: Vec::new(),
             report: None,
@@ -692,6 +697,136 @@ impl MigrateModule {
         }
     }
 
+    fn selected_run(&self) -> Option<&ImportRun> {
+        self.selected
+            .as_deref()
+            .and_then(|key| key.strip_prefix("run:"))
+            .and_then(|id| self.imports.runs.iter().find(|r| r.id == id))
+    }
+
+    fn adopt_unavailable(run: Option<&ImportRun>) -> Option<String> {
+        let Some(run) = run else {
+            return Some("select a finished import run first".into());
+        };
+        if !matches!(run.status, RunStatus::Ok | RunStatus::Adopted) {
+            return Some(format!("run {} has not finished successfully", run.id));
+        }
+        if run.problem.is_some() {
+            return Some(format!("run {} is not readable", run.id));
+        }
+        None
+    }
+
+    fn adopt(&mut self) -> Vec<Intent> {
+        let Some(run) = self.selected_run().cloned() else {
+            return vec![Intent::Status("select a finished import run first".into())];
+        };
+        if let Some(why) = Self::adopt_unavailable(Some(&run)) {
+            return vec![Intent::Status(format!("Adopt: {why}"))];
+        }
+        vec![Intent::dialog(
+            DialogSpec::new(
+                ADOPT,
+                format!("Adopt {}", run.id),
+                DialogKind::Choose(vec![
+                    Choice {
+                        id: "new".into(),
+                        label: "New workspace".into(),
+                    },
+                    Choice {
+                        id: "existing".into(),
+                        label: "Existing workspace (merge into a subfolder)".into(),
+                    },
+                ]),
+            )
+            .body("Choose where the candidate content should become a Boris workspace. Provenance stays in .cv/imports/ and never enters frontmatter.")
+            .context(run.id)
+            .cancel("Cancel")
+            .action("continue", "Continue", ActionTone::Primary),
+        )]
+    }
+
+    fn adopt_answer(&mut self, a: &DialogAnswer) -> Vec<Intent> {
+        if a.action.is_none() {
+            return Vec::new();
+        }
+        let Some(run_id) = a.context.clone() else {
+            return vec![Intent::Status("adoption lost its run context".into())];
+        };
+        let run = self.imports.runs.iter().find(|r| r.id == run_id).cloned();
+        let Some(run) = run else {
+            return vec![Intent::Status(format!(
+                "import run {run_id} is no longer present"
+            ))];
+        };
+        match a.text(CHOICE) {
+            Some("new") => vec![Intent::PrepareAdoptNew {
+                run_id,
+                suggested_archetype: run.suggested_archetype,
+            }],
+            Some("existing") => vec![Intent::dialog(
+                DialogSpec::new(
+                    ADOPT_EXISTING,
+                    format!("Merge {}", run.id),
+                    DialogKind::Form(vec![
+                        Field::text("subfolder", "Content subfolder", "")
+                            .placeholder("imported/site")
+                            .hint("The candidate tree is copied below content/<subfolder>; existing paths or page ids refuse the whole merge before anything is written."),
+                    ]),
+                )
+                .body("Choose a new subfolder inside this workspace's content input. Nothing is overwritten silently.")
+                .context(run_id)
+                .cancel("Cancel")
+                .action("adopt", "Adopt", ActionTone::Primary),
+            )],
+            _ => vec![Intent::Status("choose New workspace or Existing workspace".into())],
+        }
+    }
+
+    fn adopt_existing_answer(&mut self, a: &DialogAnswer) -> Vec<Intent> {
+        if a.action.is_none() {
+            return Vec::new();
+        }
+        let Some(run_id) = a.context.clone() else {
+            return vec![Intent::Status("adoption lost its run context".into())];
+        };
+        let subfolder = a
+            .text("subfolder")
+            .unwrap_or_default()
+            .trim()
+            .trim_matches('/');
+        let bad = subfolder.is_empty()
+            || subfolder.split('/').any(|part| {
+                part.is_empty()
+                    || part == "."
+                    || part == ".."
+                    || part.contains(['\\', ':', '<', '>', '"', '|', '?', '*'])
+                    || part.ends_with(['.', ' '])
+            });
+        if bad {
+            return vec![Intent::dialog(
+                DialogSpec::new(
+                    ADOPT_EXISTING,
+                    format!("Merge {}", run_id),
+                    DialogKind::Form(vec![
+                        Field::text("subfolder", "Content subfolder", subfolder)
+                            .placeholder("imported/site"),
+                    ]),
+                )
+                .error("Choose a portable relative subfolder without '..' or path separators in a name.")
+                .context(run_id)
+                .cancel("Cancel")
+                .action("adopt", "Adopt", ActionTone::Primary),
+            )];
+        }
+        vec![Intent::AdoptRun(AdoptionRequest {
+            run_id,
+            target: AdoptionTarget::ExistingWorkspace {
+                subfolder: subfolder.to_string(),
+            },
+        })]
+    }
+
     fn transition(&mut self, to: ReviewState) -> Vec<Intent> {
         let Some(key) = self.selected.clone() else {
             return vec![Intent::Status("select a review item first".into())];
@@ -905,7 +1040,8 @@ impl Module for MigrateModule {
             CommandSpec::new(ACCEPT, "Accept review item"),
             CommandSpec::new(DEFER, "Defer review item"),
             CommandSpec::new(REOPEN, "Reopen review item"),
-            CommandSpec::new(ADOPT, "Adopt run…").disabled(Some(ADOPT_UNAVAILABLE.into())),
+            CommandSpec::new(ADOPT, "Adopt run…")
+                .disabled(Self::adopt_unavailable(self.selected_run())),
         ]
     }
 
@@ -922,7 +1058,15 @@ impl Module for MigrateModule {
                 ))]
             }
             NEW => vec![Intent::Status(format!("New import: {NEW_UNAVAILABLE}"))],
-            ADOPT => vec![Intent::Status(format!("Adopt: {ADOPT_UNAVAILABLE}"))],
+            ADOPT => self.adopt(),
+            _ => Vec::new(),
+        }
+    }
+
+    fn answer(&mut self, command: &str, answer: &DialogAnswer) -> Vec<Intent> {
+        match command {
+            ADOPT => self.adopt_answer(answer),
+            ADOPT_EXISTING => self.adopt_existing_answer(answer),
             _ => Vec::new(),
         }
     }

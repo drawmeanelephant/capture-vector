@@ -3,6 +3,7 @@
 
 use crate::editor;
 use crate::shell::view;
+use cv_model::adoption::AdoptionJob;
 use cv_model::dialog::PickPurpose;
 use cv_model::module::ReadingModel;
 use cv_model::new_workspace::WorkspaceCreation;
@@ -29,6 +30,9 @@ pub struct Launch {
     /// Create a workspace with `boris init` (the New workspace form); the
     /// outcome comes back as a `ShellNotice`.
     pub create: fn(&mut Workbench, WorkspaceCreation),
+    /// Adopt a migration run into a new or the open workspace; the
+    /// outcome comes back as a `ShellNotice::Adopted`.
+    pub adopt: fn(&mut Workbench, AdoptionJob),
     /// Open a page (relative to the content input) in an editor window.
     pub edit: fn(&mut Workbench, &str),
     pub scenes: &'static [Scene],
@@ -37,6 +41,7 @@ pub struct Launch {
 static BOOT: OnceLock<fn(&mut Workbench)> = OnceLock::new();
 static OPEN: OnceLock<fn(&mut Workbench, PathBuf)> = OnceLock::new();
 static CREATE: OnceLock<fn(&mut Workbench, WorkspaceCreation)> = OnceLock::new();
+static ADOPT: OnceLock<fn(&mut Workbench, AdoptionJob)> = OnceLock::new();
 static EDIT: OnceLock<fn(&mut Workbench, &str)> = OnceLock::new();
 static WAKE: OnceLock<Waker> = OnceLock::new();
 static BOOTED: AtomicBool = AtomicBool::new(false);
@@ -274,6 +279,10 @@ fn serve_requests(s: &mut Workbench, tx: &mut Tx) -> bool {
                 });
             }
             ShellRequest::OpenWorkspace(root) => open_workspace(s, root),
+            ShellRequest::AdoptRun(job) => match ADOPT.get() {
+                Some(f) => f(s, job),
+                None => s.status = "migration adoption is not available here".into(),
+            },
             ShellRequest::CreateWorkspace(creation) => match CREATE.get() {
                 Some(create) => create(s, creation),
                 None => s.status = "this build cannot create workspaces".into(),
@@ -338,6 +347,7 @@ pub fn run(l: Launch) {
     let _ = BOOT.set(l.boot);
     let _ = OPEN.set(l.open);
     let _ = CREATE.set(l.create);
+    let _ = ADOPT.set(l.adopt);
     let _ = EDIT.set(l.edit);
     // `rune::run` without the hooks: quitting must stop the engine watch.
     let app = rune::App::new(AppSpec {

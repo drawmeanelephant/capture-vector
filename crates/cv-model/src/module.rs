@@ -205,6 +205,10 @@ pub struct PageRecord {
     /// Rendered dist path, when the last build wrote one.
     pub output: Option<String>,
     pub fields: FieldSource,
+    /// `(mode, source)` from the `.cv/imports/<run>/adoption.json` sidecar
+    /// when this page was adopted from a migration run. Provenance lives
+    /// in the sidecar only — never in frontmatter.
+    pub imported_from: Option<(String, String)>,
 }
 
 /// Where a page's display fields (id, title, parent, tags, relations)
