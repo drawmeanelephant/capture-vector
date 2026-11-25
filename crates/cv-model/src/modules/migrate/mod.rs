@@ -549,7 +549,7 @@ impl MigrateModule {
             parts.push(why.clone());
         } else {
             for (k, n) in &r.counts {
-                if *n > 0 {
+                if *n > 0 || r.count_evidence {
                     parts.push(format!("{n} {k}"));
                 }
             }

@@ -118,22 +118,54 @@ fn real_inventory_modes_decode_with_count_evidence() {
     }
 }
 
-/// The dead-end families the wizard no longer offers: their inventory
-/// formats are not mirrored in cv-contracts, so they stay unprojected
-/// until contracts exist.
+/// Issue #172 scope is an explicit allowlist: exactly `wordpress` (file
+/// input) and `hugo` (folder input, inventory first). Every other emitting
+/// mode — even ones whose inventory contracts exist — stays unprojected
+/// until its own issue widens the wizard. `hugo-inventory` remains
+/// projected internally as Hugo's companion but is never a standalone
+/// emitting choice.
 #[test]
-fn unsupported_inventory_first_modes_are_not_projected() {
+fn the_projection_is_exactly_the_issue_172_allowlist() {
     let projected: Vec<_> = cv_app::migrate::modes()
         .into_iter()
         .map(|m| m.name)
         .collect();
-    for mode in ["ghost", "mkdocs", "mastodon", "atproto", "tinderbox"] {
+    let mut emitters: Vec<_> = projected
+        .iter()
+        .filter(|m| !m.ends_with("-inventory"))
+        .cloned()
+        .collect();
+    emitters.sort();
+    assert_eq!(
+        emitters,
+        ["hugo", "wordpress"],
+        "exactly the #172 emitters are projected"
+    );
+    assert!(
+        projected.iter().any(|m| m == "hugo-inventory"),
+        "hugo-inventory stays projected internally as Hugo's companion"
+    );
+    for hidden in [
+        "jekyll",
+        "substack",
+        "enex",
+        "ghost",
+        "mkdocs",
+        "mastodon",
+        "atproto",
+        "tinderbox",
+        "jekyll-inventory",
+        "substack-inventory",
+        "enex-inventory",
+        "ghost-inventory",
+        "mkdocs-inventory",
+        "mastodon-inventory",
+        "atproto-inventory",
+        "tinderbox-inventory",
+    ] {
         assert!(
-            !projected.iter().any(|m| m == mode),
-            "{mode} must not be offered until its contract exists"
+            !projected.iter().any(|m| m == hidden),
+            "{hidden} must not be projected for #172"
         );
-    }
-    for mode in ["hugo", "jekyll", "substack", "enex", "wordpress"] {
-        assert!(projected.iter().any(|m| m == mode), "{mode} stays offered");
     }
 }

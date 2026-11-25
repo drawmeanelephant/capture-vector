@@ -1154,7 +1154,7 @@
     },
     {
       "color": "#8a93a3ff",
-      "help": "hugo · 5 transformed · 3 unsupported · 4 human_review · 7 to review",
+      "help": "hugo · 0 exact · 5 transformed · 3 unsupported · 4 human_review · 7 to review",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-run:1764000240000-hugo/#1",
       "rect": [
@@ -1164,7 +1164,7 @@
         13.8
       ],
       "role": "text",
-      "text": "hugo · 5 transformed · 3 unsupported · 4 human_review · 7 to review"
+      "text": "hugo · 0 exact · 5 transformed · 3 unsupported · 4 human_review · 7 to review"
     },
     {
       "color": "#3dff9aff",
@@ -1319,7 +1319,7 @@
     },
     {
       "color": "#8a93a3ff",
-      "help": "jekyll · 8 transformed · 1 unsupported · 1 human_review · 8 to review",
+      "help": "jekyll · 0 exact · 8 transformed · 1 unsupported · 1 human_review · 8 to review",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-run:1764000060000-jekyll/#1",
       "rect": [
@@ -1329,7 +1329,7 @@
         13.8
       ],
       "role": "text",
-      "text": "jekyll · 8 transformed · 1 unsupported · 1 human_review · 8 to review"
+      "text": "jekyll · 0 exact · 8 transformed · 1 unsupported · 1 human_review · 8 to review"
     },
     {
       "color": "#3dff9aff",
@@ -1374,7 +1374,7 @@
     },
     {
       "color": "#8a93a3ff",
-      "help": "hugo-inventory · 6 transformed · 3 unsupported · 3 human_review · 6 to review",
+      "help": "hugo-inventory · 0 exact · 6 transformed · 3 unsupported · 3 human_review · 6 to review",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-run:1764000000000-hugo-inventory/#1",
       "rect": [
@@ -1384,7 +1384,7 @@
         13.8
       ],
       "role": "text",
-      "text": "hugo-inventory · 6 transformed · 3 unsupported · 3 human_review · 6 to review"
+      "text": "hugo-inventory · 0 exact · 6 transformed · 3 unsupported · 3 human_review · 6 to review"
     },
     {
       "color": "#3dff9aff",

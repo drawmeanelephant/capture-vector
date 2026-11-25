@@ -48,37 +48,31 @@ fn family_of(mode: &str) -> Option<String> {
 /// The pinned lab's mode table projected for the wizard. This is metadata
 /// only; `cv-engine` remains the sole validator of flags, path kinds, argv,
 /// overlap and output ownership.
-/// The inventory formats cv-contracts can decode, keyed by the emitting
-/// mode's format string (`boris-<family>-migration-lab`). An inventory-first
-/// mode outside this list is a dead end: its inventory can exit 0 yet never
-/// decode into count evidence, so the wizard must not offer it until the
-/// contract mirrors that family.
-fn inventory_decodable(companion: &str) -> bool {
-    let family = companion.trim_end_matches("-inventory");
-    let format = format!("boris-{family}-migration-lab");
-    cv_contracts::lab::INVENTORIES
-        .iter()
-        .any(|k| k.format == format)
-}
+/// Issue #172 acceptance scope: one file-input mode (WordPress WXR) and one
+/// folder-input mode with inventory first (Hugo), plus cancellation. Every
+/// other emitting mode — including ones whose inventory contracts exist —
+/// stays hidden until its own issue widens the wizard. This is an explicit
+/// allowlist, not a decode-capability filter: what the wizard offers is a
+/// product decision, and #172 is exactly these two.
+const WIZARD_EMITTERS: &[&str] = &["wordpress", "hugo"];
 
 pub fn modes() -> Vec<ImportMode> {
     let emitters = engine_lab::MODES
         .iter()
-        .filter(|mode| mode.inventory().is_none_or(inventory_decodable))
-        .filter(|mode| !mode.name.ends_with("-inventory"))
+        .filter(|mode| WIZARD_EMITTERS.contains(&mode.name))
         .map(|mode| mode.name)
         .collect::<std::collections::HashSet<_>>();
     engine_lab::MODES
         .iter()
-        .filter(|mode| mode.inventory().is_none_or(inventory_decodable))
         // An inventory companion whose emitting mode was filtered out is an
         // orphan: without the emitter nothing can pair with it, and the
         // wizard's companion-hiding is keyed on offered emitters — so it
         // would surface as a selectable import in its own right. Orphans
         // leave with their emitters.
         .filter(|mode| {
-            !mode.name.ends_with("-inventory")
-                || emitters.contains(mode.name.trim_end_matches("-inventory"))
+            WIZARD_EMITTERS.contains(&mode.name)
+                || (mode.name.ends_with("-inventory")
+                    && emitters.contains(mode.name.trim_end_matches("-inventory")))
         })
         .map(|mode| ImportMode {
             name: mode.name.into(),
@@ -606,6 +600,19 @@ fn inventory_facts(i: &Inventory, run: &mut ImportRun) {
     };
     run.format = Some((format.clone(), version));
     run.tool_version = Some(tool.clone());
+    // Strict family/mode consistency: a decodable wrong-family inventory
+    // must never supply count evidence for this run. The mode stem names
+    // exactly one lab format family; anything else is a misplaced or
+    // tampered document and fails closed with a visible problem.
+    let stem = run.mode.trim_end_matches("-inventory");
+    let expected = format!("boris-{stem}-migration-lab");
+    if *format != expected {
+        run.problem = Some(format!(
+            "inventory.json is a {format} document but this run is mode {};              a wrong-family inventory supplies no count evidence",
+            run.mode
+        ));
+        return;
+    }
     run.counts = match i {
         Inventory::Hugo(h) => class_counts(&h.class_counts),
         Inventory::Jekyll(j) => tally(j.constructs.iter().map(|d| (&d.class, d.count))),
@@ -740,8 +747,11 @@ fn project(d: &RunDir) -> ImportRun {
         Err(e) => run.problem = Some(e),
         Ok(false) if run.status == RunStatus::Ok => {
             run.problem = Some(
-                "the lab reported success but the output contains no report.json,                  inventory.json, or other decodable lab document"
-                    .into(),
+                concat!(
+                    "the lab reported success but the output contains no report.json, ",
+                    "inventory.json, or other decodable lab document"
+                )
+                .into(),
             );
         }
         Ok(false) => {}

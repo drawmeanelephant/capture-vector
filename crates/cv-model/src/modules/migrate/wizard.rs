@@ -96,10 +96,24 @@ impl MigrateModule {
     }
 
     fn family_dialog(&self, error: Option<String>) -> DialogSpec {
+        // A family with no offered emitting mode is a dead end; only
+        // families the wizard can actually fulfill appear.
+        let companions: std::collections::BTreeSet<&str> = self
+            .imports
+            .modes
+            .iter()
+            .filter_map(|m| m.inventory.as_deref())
+            .collect();
         let choices = self
             .imports
             .families
             .iter()
+            .filter(|f| {
+                self.imports
+                    .modes
+                    .iter()
+                    .any(|m| m.family == f.key && !companions.contains(m.name.as_str()))
+            })
             .map(|f| choice(&f.key, f.label.clone()))
             .collect();
         let mut d = DialogSpec::new(
@@ -265,9 +279,13 @@ impl MigrateModule {
             .iter()
             .find(|r| r.id == run_id)
             .map(|r| {
+                // Valid zero is explicit zero evidence: when the inventory
+                // carries count evidence, every class row shows — including
+                // zero rows — rather than collapsing into a bare
+                // "inventory completed" implication.
                 r.counts
                     .iter()
-                    .filter(|(_, n)| *n > 0)
+                    .filter(|(_, n)| *n > 0 || r.count_evidence)
                     .map(|(k, n)| format!("{n} {k}"))
                     .collect::<Vec<_>>()
                     .join(", ")

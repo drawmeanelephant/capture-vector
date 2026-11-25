@@ -430,7 +430,7 @@ fn foreign_review_writes_are_refused_and_owned_writes_work() {
 }
 
 #[test]
-fn orphaned_inventory_companions_are_not_actual_wizard_choices() {
+fn the_wizard_offers_exactly_the_issue_172_scope() {
     use cv_model::command::Intent;
     use cv_model::module::Module;
     use cv_model::modules::migrate::{Imports, MigrateModule, MigratePort};
@@ -443,7 +443,7 @@ fn orphaned_inventory_companions_are_not_actual_wizard_choices() {
             Ok(())
         }
     }
-    let mut imports = Imports {
+    let imports = Imports {
         lab: LabState::Located {
             tool_id: "lab".into(),
             source: "test".into(),
@@ -455,47 +455,90 @@ fn orphaned_inventory_companions_are_not_actual_wizard_choices() {
         error: None,
         store: "test".into(),
     };
-    let _ = &mut imports;
     let mut m = MigrateModule::new(Box::new(RealPort(imports)));
     use cv_model::modules::migrate::NEW;
     let intents = m.run(NEW);
-    // choose the blog-cms family, then inspect the actual mode choices
-    let fam = intents.iter().find_map(|i| match i {
-        Intent::Dialog(d) => Some(d.id.clone()),
-        _ => None,
-    });
-    assert_eq!(fam.as_deref(), Some("migrate.new.family"));
-    let out = m.answer(
-        "migrate.new.family",
-        &cv_model::dialog::DialogAnswer {
-            action: Some("choose".into()),
-            values: [(
-                cv_model::dialog::CHOICE.into(),
-                cv_model::dialog::Value::Text("blog-cms".into()),
-            )]
-            .into_iter()
-            .collect(),
-            ..Default::default()
-        },
+    let Some(Intent::Dialog(family_dialog)) =
+        intents.iter().find(|i| matches!(i, Intent::Dialog(_)))
+    else {
+        panic!("expected family dialog, got {intents:?}");
+    };
+    let cv_model::dialog::DialogKind::Choose(families_offered) = &family_dialog.kind else {
+        panic!("family step is a choice dialog");
+    };
+    let mut family_ids: Vec<_> = families_offered.iter().map(|c| c.id.as_str()).collect();
+    family_ids.sort();
+    // Dead-end families are hidden: exactly the two families of the #172
+    // scope survive, and no other.
+    assert_eq!(
+        family_ids,
+        ["blog-cms", "static-site"],
+        "family choices must be exactly the #172 scope"
     );
-    let Some(Intent::Dialog(d)) = out.iter().find(|i| matches!(i, Intent::Dialog(_))) else {
-        panic!("expected mode dialog, got {out:?}");
-    };
-    let cv_model::dialog::DialogKind::Choose(choices) = &d.kind else {
-        panic!("mode step is a choice dialog");
-    };
-    let ids: Vec<_> = choices.iter().map(|c| c.id.as_str()).collect();
-    assert!(ids.contains(&"wordpress"), "{ids:?}");
-    assert!(ids.contains(&"substack"), "{ids:?}");
-    for dead in [
-        "ghost",
-        "ghost-inventory",
-        "substack-inventory",
-        "tinderbox-inventory",
-    ] {
-        assert!(
-            !ids.contains(&dead),
-            "{dead} must never be a wizard choice: {ids:?}"
+
+    let mode_choices = |m: &mut MigrateModule, family: &str| {
+        let out = m.answer(
+            "migrate.new.family",
+            &cv_model::dialog::DialogAnswer {
+                action: Some("choose".into()),
+                values: [(
+                    cv_model::dialog::CHOICE.into(),
+                    cv_model::dialog::Value::Text(family.into()),
+                )]
+                .into_iter()
+                .collect(),
+                ..Default::default()
+            },
         );
-    }
+        let Some(Intent::Dialog(d)) = out.iter().find(|i| matches!(i, Intent::Dialog(_))) else {
+            panic!("expected mode dialog, got {out:?}");
+        };
+        let cv_model::dialog::DialogKind::Choose(choices) = &d.kind else {
+            panic!("mode step is a choice dialog");
+        };
+        choices.iter().map(|c| c.id.clone()).collect::<Vec<_>>()
+    };
+
+    assert_eq!(
+        mode_choices(&mut m, "blog-cms"),
+        ["wordpress"],
+        "blog-cms offers exactly wordpress"
+    );
+    assert_eq!(
+        mode_choices(&mut m, "static-site"),
+        ["hugo"],
+        "static-site offers exactly hugo"
+    );
+}
+
+#[test]
+fn a_wrong_family_inventory_supplies_no_count_evidence() {
+    // A decodable Jekyll inventory inside a hugo-inventory run is a
+    // misplaced or tampered document: no counts, no evidence, visible problem.
+    let d = tempfile::tempdir().unwrap();
+    let root = std::fs::canonicalize(d.path()).unwrap();
+    let hugo = seed_run(&root, "hugo-inventory", 1);
+    let jekyll = seed_run(&root, "jekyll-inventory", 2);
+    let base = root.join(".cv").join("imports");
+    std::fs::copy(
+        base.join(&jekyll).join("out").join("inventory.json"),
+        base.join(&hugo).join("out").join("inventory.json"),
+    )
+    .unwrap();
+    let runs = load(&root).runs;
+    let run = runs.iter().find(|r| r.id == hugo).expect("run projected");
+    assert!(
+        !run.count_evidence,
+        "wrong-family inventory is not evidence"
+    );
+    assert!(
+        run.counts.iter().all(|(_, n)| *n == 0),
+        "wrong-family inventory supplies no counts: {:?}",
+        run.counts
+    );
+    let problem = run.problem.as_deref().unwrap_or("");
+    assert!(
+        problem.contains("wrong-family"),
+        "visible problem names the mismatch: {problem}"
+    );
 }
