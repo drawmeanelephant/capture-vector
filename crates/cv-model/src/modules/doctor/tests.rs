@@ -7,6 +7,7 @@ use cv_core::id::WorkspaceId;
 
 fn env(session: &str, seq: u64, payload: AppEvent) -> Envelope {
     Envelope {
+        cause: None,
         workspace: WorkspaceId("w".into()),
         snapshot_epoch: SnapshotEpoch(1),
         build_id: None,
@@ -21,6 +22,11 @@ fn env(session: &str, seq: u64, payload: AppEvent) -> Envelope {
 
 fn engine(session: &str, seq: u64, ev: EngineEvent) -> Envelope {
     env(session, seq, AppEvent::Engine(ev))
+}
+
+fn caused(mut env: Envelope, cause: &Envelope) -> Envelope {
+    env.cause = Some(cause.event_id.clone());
+    env
 }
 
 fn hello() -> EngineEvent {
@@ -92,6 +98,30 @@ fn diagnostic_failure(session: &str, seq: u64, code: &str) -> Envelope {
     )
 }
 
+fn verb_finished(session: &str, seq: u64, verb: &str) -> Envelope {
+    engine(
+        session,
+        seq,
+        EngineEvent::VerbFinished {
+            verb: verb.into(),
+            exit: ExitClass::ContentFailure,
+        },
+    )
+}
+
+fn build_finished(session: &str, seq: u64) -> Envelope {
+    engine(
+        session,
+        seq,
+        EngineEvent::BuildFinished {
+            phase: BuildPhase::Initial,
+            pages_written: 0,
+            diagnostics: vec![],
+            duration_ms: 1,
+        },
+    )
+}
+
 fn ended(session: &str, seq: u64, exit: Option<cv_core::events::engine::WatchExit>) -> Envelope {
     engine(
         session,
@@ -107,7 +137,8 @@ fn ended(session: &str, seq: u64, exit: Option<cv_core::events::engine::WatchExi
 fn a_fatal_failure_takes_diagnostics_only_from_its_recovery_window() {
     let mut w = WatchLog::default();
     w.ingest(&engine("s", 0, hello()));
-    w.ingest(&fatal_initial("s", 1));
+    let fatal = fatal_initial("s", 1);
+    w.ingest(&fatal);
     // An ordinary later build in the same live session is not the diagnostic
     // one-shot: the watch must have ended before recovery can be running.
     w.ingest(&diagnostic_failure("s", 2, "EEARLY"));
@@ -115,12 +146,71 @@ fn a_fatal_failure_takes_diagnostics_only_from_its_recovery_window() {
     assert!(w.fatal.as_ref().unwrap().diagnostics.is_empty());
 
     w.ingest(&ended("s", 3, None));
-    w.ingest(&diagnostic_failure("s", 4, "EFRONTMATTER"));
+    w.ingest(&caused(diagnostic_failure("s", 4, "EFRONTMATTER"), &fatal));
+    assert!(!w.fatal.as_ref().unwrap().from_followup);
+    w.ingest(&caused(verb_finished("s", 5, "build"), &fatal));
     let f = w.fatal.as_ref().unwrap();
     assert!(f.from_followup);
     assert_eq!(f.diagnostics[0].code, "EFRONTMATTER");
     assert_eq!(w.last_cursor.as_ref().unwrap().session.0, "s");
-    assert_eq!(w.engine_events, 5);
+    assert_eq!(w.engine_events, 6);
+}
+
+#[test]
+fn an_uncaused_one_shot_build_in_the_recovery_window_is_ineligible() {
+    let mut w = WatchLog::default();
+    w.ingest(&engine("s", 0, hello()));
+    let fatal = fatal_initial("s", 1);
+    w.ingest(&fatal);
+    w.ingest(&ended("s", 2, None));
+    // A publish preflight or any other one-shot `build` shares this cursor
+    // session. Without the fatal event as its explicit cause, it must neither
+    // supply diagnostics nor close the recovery window.
+    w.ingest(&diagnostic_failure("s", 3, "EPUBLISH"));
+    w.ingest(&verb_finished("s", 4, "build"));
+    assert!(!w.fatal.as_ref().unwrap().from_followup);
+    assert!(w.fatal.as_ref().unwrap().diagnostics.is_empty());
+
+    w.ingest(&caused(diagnostic_failure("s", 5, "EFRONTMATTER"), &fatal));
+    w.ingest(&caused(verb_finished("s", 6, "build"), &fatal));
+    let f = w.fatal.as_ref().unwrap();
+    assert!(f.from_followup);
+    assert_eq!(f.diagnostics[0].code, "EFRONTMATTER");
+}
+
+#[test]
+fn an_ir_projection_in_the_recovery_window_is_not_the_diagnostic_build() {
+    let mut w = WatchLog::default();
+    w.ingest(&engine("s", 0, hello()));
+    let fatal = fatal_initial("s", 1);
+    w.ingest(&fatal);
+    w.ingest(&ended("s", 2, None));
+    w.ingest(&diagnostic_failure("s", 3, "EIR"));
+    w.ingest(&verb_finished("s", 4, "ir"));
+    assert!(!w.fatal.as_ref().unwrap().from_followup);
+    assert!(w.fatal.as_ref().unwrap().diagnostics.is_empty());
+
+    w.ingest(&caused(diagnostic_failure("s", 5, "EFRONTMATTER"), &fatal));
+    w.ingest(&caused(verb_finished("s", 6, "build"), &fatal));
+    let f = w.fatal.as_ref().unwrap();
+    assert!(f.from_followup);
+    assert_eq!(f.diagnostics[0].code, "EFRONTMATTER");
+}
+
+#[test]
+fn a_finished_recovery_build_closes_the_window_before_later_ir_output() {
+    let mut w = WatchLog::default();
+    w.ingest(&engine("s", 0, hello()));
+    let fatal = fatal_initial("s", 1);
+    w.ingest(&fatal);
+    w.ingest(&ended("s", 2, None));
+    w.ingest(&caused(build_finished("s", 3), &fatal));
+    w.ingest(&caused(verb_finished("s", 4, "build"), &fatal));
+    w.ingest(&diagnostic_failure("s", 5, "EIR"));
+    w.ingest(&verb_finished("s", 6, "ir"));
+    let f = w.fatal.as_ref().unwrap();
+    assert!(!f.from_followup);
+    assert!(f.diagnostics.is_empty());
 }
 
 #[test]

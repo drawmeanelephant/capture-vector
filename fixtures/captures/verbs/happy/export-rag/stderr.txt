@@ -1,0 +1,18 @@
+boris: load  scanning content
+boris: roll  parsing 3 page(s)
+boris: ignite validating graph
+
+Exporting RAG corpus → rag/
+  rag pack    working-1.md (3641 bytes, 3 document(s))
+RAG working-context export done.
+  seeds=0  selected=3/3  parents=0  neighbors=0  packs=1  tokens≈910
+ok: wrote RAG working context under rag
+  Selected pages: 3 / 3
+  Structural context: 0 parent page(s), 0 semantic neighbor(s)
+  System context: 0 seed(s)
+  Upload files (1):
+    working-1.md
+  Approximate upload bytes: 3641
+  Approximate tokens: 910
+  Non-upload sidecar: manifest.json (1 file)
+

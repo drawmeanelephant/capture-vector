@@ -1,0 +1,5 @@
+boris: load  scanning content
+boris: roll  parsing 3 page(s)
+boris: ignite validating graph
+llms.txt export complete: llms.txt (3 page(s))
+ok: wrote llms.txt under llms.txt (3 page(s))
