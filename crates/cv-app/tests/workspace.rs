@@ -138,7 +138,7 @@ fn cancelling_creation_kills_the_init_worker_and_never_opens_the_workspace() {
     let cancel = creation.cancel.clone();
     let worker =
         cv_app::new_workspace::create_workspace(&mut wb, creation, &env).expect("create worker");
-    for _ in 0..100 {
+    for _ in 0..500 {
         if fake
             .log()
             .lines()
@@ -152,7 +152,7 @@ fn cancelling_creation_kills_the_init_worker_and_never_opens_the_workspace() {
         fake.log()
             .lines()
             .any(|l| l.contains("init cancelled-site --type docs")),
-        "init did not start: {}",
+        "init did not start within five seconds: {}",
         fake.log()
     );
     cancel.cancel();

@@ -19,7 +19,9 @@ use cv_core::events::{AppEvent, Envelope, EventId, SessionId};
 use cv_core::rules::ArtifactSet;
 use cv_engine::cursor::{CursorTracker, Observation};
 use cv_engine::probe::WatchMode;
-use cv_engine::{EngineConfig, EngineError, EngineScheduler, ProcessEngine, SeatPolicy};
+use cv_engine::{
+    EngineConfig, EngineError, EngineScheduler, ProcessEngine, RecoveryBuild, SeatPolicy,
+};
 use cv_model::cascade::WANT_ENGINE;
 use cv_model::modules::doctor::{EngineState, Feed};
 use cv_model::modules::engine::{EnginePort, VerbRun};
@@ -611,19 +613,24 @@ fn recover_build(
         None => trying,
     }));
     // Route output to the UI, never back through the watch recovery sink.
-    let result = sched.run_caused(
-        &Verb::Build,
+    let result = sched.run_recovery_build_caused(
         delivery.resync_sink(|deliver, env| deliver(env)),
         Some(cause),
     );
     let (reason, status) = match result {
-        Ok(r) if r.exit == ExitClass::Ok => (
+        Ok(RecoveryBuild::WatchReplaced(_)) => {
+            // Manual recovery already installed a live watch. Its own
+            // status/watch events are authoritative; the stale diagnostic
+            // must neither stop it nor overwrite its output ownership.
+            return;
+        }
+        Ok(RecoveryBuild::Ran(ExitClass::Ok)) => (
             DegradedReason::WatchDead,
             "Boris one-shot build succeeded".into(),
         ),
-        Ok(r) => (
+        Ok(RecoveryBuild::Ran(exit)) => (
             DegradedReason::EngineBuildFailing,
-            format!("Boris one-shot build failed ({:?})", r.exit),
+            format!("Boris one-shot build failed ({exit:?})"),
         ),
         Err(e) => (
             DegradedReason::EngineBuildFailing,

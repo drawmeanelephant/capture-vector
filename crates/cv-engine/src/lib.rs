@@ -34,4 +34,4 @@ pub mod write;
 
 pub use engine::{EngineConfig, ProcessEngine};
 pub use error::EngineError;
-pub use scheduler::{EngineScheduler, SeatPolicy};
+pub use scheduler::{EngineScheduler, RecoveryBuild, SeatPolicy};

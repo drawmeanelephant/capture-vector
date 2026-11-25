@@ -38,6 +38,18 @@ pub struct RunReport {
     pub out_dir: Option<String>,
 }
 
+/// Outcome of a fatal-watch diagnostic build. Unlike ordinary builds,
+/// recovery never stops the watch currently occupying the output seat:
+/// that watch is necessarily a replacement, not the fatal session whose
+/// recovery was already retired.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RecoveryBuild {
+    /// The diagnostic ran while no watch owned the output seat.
+    Ran(ExitClass),
+    /// A replacement watch was already installed; recovery is abandoned.
+    WatchReplaced(SessionId),
+}
+
 /// Is `dir` a workspace-relative path that neither is, contains, nor
 /// sits inside `seat`? Components compare case-insensitively, since
 /// `Dist` is `dist` on the default macOS and Windows file systems.
@@ -153,6 +165,30 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         cancel: &CancelToken,
     ) -> cv_core::Result<RunReport> {
         self.dispatch(verb, |e, v| e.run_reported(v, sink, cancel))
+    }
+
+    /// Run the fatal-watch diagnostic without ordinary stop-current-watch
+    /// seat policy. The writer lock is held for the whole build, so
+    /// `start_watch` cannot interleave once the empty-seat check passes.
+    /// The watch mutex is only inspected and is never held across a stop
+    /// or join, preserving the existing writer→watch lock order.
+    pub fn run_recovery_build_caused(
+        &self,
+        sink: EventSink,
+        cause: Option<&EventId>,
+    ) -> cv_core::Result<RecoveryBuild> {
+        let _w = self.rw.write().unwrap();
+        if let Some(session) = self
+            .watch
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|w| w.session().clone())
+        {
+            return Ok(RecoveryBuild::WatchReplaced(session));
+        }
+        let exit = self.engine.run_caused(&Verb::Build, sink, cause)?;
+        Ok(RecoveryBuild::Ran(exit))
     }
 
     fn dispatch(
@@ -453,6 +489,46 @@ mod tests {
         assert!(s.stop_watch_session(&SessionId("w".into())));
         assert!(s.watch_session().is_none());
         assert_eq!(p.watch_stops.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn recovery_build_abandons_when_a_watch_replaces_the_fatal_session() {
+        let p = Arc::new(Probe::default());
+        let s = EngineScheduler::new(Arc::new(Fake(p.clone())), SeatPolicy::StopWatch);
+        let fatal = s.start_watch(noop()).unwrap();
+        assert!(s.stop_watch_session(&fatal));
+        // A palette/manual build takes the empty writer seat first. The
+        // replacement it installs is the exact interleaving delayed
+        // recovery must not stop when it reaches its own writer seat.
+        s.run(&Verb::Build, noop()).unwrap();
+        let replacement = s.start_watch(noop()).unwrap();
+
+        let outcome = s.run_recovery_build_caused(noop(), None).unwrap();
+        assert_eq!(outcome, RecoveryBuild::WatchReplaced(replacement.clone()));
+        assert_eq!(s.watch_session(), Some(replacement));
+        assert_eq!(
+            p.watch_stops.load(Ordering::SeqCst),
+            1,
+            "only the fatal session was stopped"
+        );
+        assert_eq!(
+            p.verbs.lock().unwrap().as_slice(),
+            [Verb::Build],
+            "only the manual build ran; the abandoned diagnostic did not"
+        );
+    }
+
+    #[test]
+    fn recovery_build_runs_after_the_fatal_session_when_no_watch_intervenes() {
+        let p = Arc::new(Probe::default());
+        let s = EngineScheduler::new(Arc::new(Fake(p.clone())), SeatPolicy::StopWatch);
+        let fatal = s.start_watch(noop()).unwrap();
+        assert!(s.stop_watch_session(&fatal));
+
+        let outcome = s.run_recovery_build_caused(noop(), None).unwrap();
+        assert_eq!(outcome, RecoveryBuild::Ran(ExitClass::Ok));
+        assert_eq!(p.verbs.lock().unwrap().as_slice(), [Verb::Build]);
+        assert!(s.watch_session().is_none());
     }
 
     fn ir(out: &str) -> Verb {
