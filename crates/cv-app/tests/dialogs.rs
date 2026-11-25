@@ -151,6 +151,19 @@ fn choose_filters_and_enter_opens_the_highlighted_workspace() {
 }
 
 #[test]
+fn the_choose_scene_uses_platform_neutral_recent_path_text() {
+    let h = scene("dialog-choose");
+    assert_eq!(
+        node(&h, "dialog-choice-1")["label"],
+        "/Users/demo/sites/handbook"
+    );
+    assert_eq!(
+        node(&h, "dialog-choice-0")["label"],
+        "/Users/demo/sites/field-notes"
+    );
+}
+
+#[test]
 fn the_choice_answer_names_the_highlighted_workspace() {
     let mut wb = init();
     (SCENES
