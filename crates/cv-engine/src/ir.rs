@@ -4,13 +4,12 @@
 //! CV-owned staging tree, and a successful run publishes regular files
 //! with sibling temporary files + atomic renames (`graph.json` last).
 //! `graph.json` is the self-contained atomic commit point Pages consume.
-//! Auxiliary files are best-effort Boris output: they are cleaned before
-//! commit and then installed from one candidate generation, never left as
-//! mixed old/new generations. Portable filesystems offer no atomic
-//! multi-file directory swap, so auxiliary completeness is deliberately
-//! not the consistency contract.
+//! Auxiliary files are best-effort Boris output. Publication is limited
+//! to the closed set of files pinned Boris 0.9.0 generates; unknown user
+//! files in an output directory are never deleted or overwritten.
 
 use crate::error::{EngineError, Result};
+use crate::verbs::IR_DIR;
 use crate::write::retry_sharing;
 use cv_core::engine::Verb;
 use cv_store::paths::{confined, confirm_confined_file, create_confined_parent, is_link};
@@ -21,6 +20,32 @@ use tempfile::NamedTempFile;
 
 /// CV-owned scratch output the Boris child writes. Never read by Pages.
 pub const IR_STAGING_DIR: &str = ".cv/ir.staging";
+
+/// Every regular file pinned Boris 0.9.0 is known to generate for
+/// `build --out`. These names are Boris-owned output; everything else in
+/// a user's output directory is unrecognized data CV must not touch.
+const BORIS_IR_OUTPUT_FILES: [&str; 4] = [
+    "build-report.json",
+    "completion.json",
+    "graph.json",
+    "manifest.json",
+];
+
+fn is_boris_ir_output(rel: &Path) -> bool {
+    let mut parts = rel.components();
+    let Some(Component::Normal(name)) = parts.next() else {
+        return false;
+    };
+    parts.next().is_none() && BORIS_IR_OUTPUT_FILES.contains(&name.to_string_lossy().as_ref())
+}
+
+fn is_graph(rel: &Path) -> bool {
+    rel == Path::new("graph.json")
+}
+
+fn is_cv_owned_ir_output(out: &str) -> bool {
+    parts(out).is_ok_and(|out| parts(IR_DIR).is_ok_and(|cv| out == cv))
+}
 
 fn path_error(e: io::Error) -> EngineError {
     match e.kind() {
@@ -130,20 +155,35 @@ fn inventory(dir: &Path, base: &Path, out: &mut Vec<(PathBuf, PathBuf)>) -> Resu
     Ok(())
 }
 
-fn existing_output(root: &Path, final_rel: &Path) -> Result<Vec<(PathBuf, PathBuf)>> {
-    let final_path = confined(root, final_rel).map_err(path_error)?;
-    match fs::symlink_metadata(&final_path) {
-        Ok(meta) if meta.is_dir() && !is_link(&meta) => {
-            let mut files = Vec::new();
-            inventory(&final_path, &final_path, &mut files)?;
-            Ok(files)
-        }
-        Ok(_) => Err(EngineError::Refused(format!(
-            "IR output {final_rel:?} is not an ordinary directory"
-        ))),
-        Err(e) if e.kind() == ErrorKind::NotFound => Ok(vec![]),
-        Err(e) => Err(EngineError::Io(e)),
+fn existing_generated_output(
+    root: &Path,
+    final_out: &str,
+    final_rel: &Path,
+) -> Result<Vec<(PathBuf, PathBuf)>> {
+    if !is_cv_owned_ir_output(final_out) {
+        return Ok(vec![]);
     }
+    let mut files = Vec::new();
+    for name in BORIS_IR_OUTPUT_FILES {
+        let rel = PathBuf::from(name);
+        let target = confined(root, &final_rel.join(&rel)).map_err(path_error)?;
+        match fs::symlink_metadata(&target) {
+            Ok(meta) if ordinary_file(&meta) => files.push((target, rel)),
+            Ok(meta) if meta.is_dir() || is_link(&meta) => {
+                return Err(EngineError::Refused(format!(
+                    "Boris IR output path {name:?} is not a regular file"
+                )));
+            }
+            Ok(_) => {
+                return Err(EngineError::Refused(format!(
+                    "Boris IR output path {name:?} is not a regular file"
+                )));
+            }
+            Err(e) if e.kind() == ErrorKind::NotFound => {}
+            Err(e) => return Err(EngineError::Io(e)),
+        }
+    }
+    Ok(files)
 }
 
 struct StagedFile {
@@ -198,12 +238,12 @@ fn persist(tmp: NamedTempFile, target: &Path) -> io::Result<()> {
 }
 
 /// Publish a successful staging tree over `final_out`. Every candidate
-/// file is first copied beside its target. Existing auxiliary files are
-/// then removed as a generation-cleaning step, candidate auxiliary files
-/// are renamed, and `graph.json` — the sole consistency contract — is
-/// atomically renamed last. A failure before that final rename preserves
-/// the old graph; it can remove or omit non-contractual auxiliary files,
-/// but never mixes old and new auxiliary generations.
+/// file is first copied beside its target. Only the closed set of file
+/// names pinned Boris owns is published. Generation-cleaning of stale
+/// names happens only in CV-owned `.cv/ir`; unknown files in every output
+/// directory are user data and are never touched.
+/// `graph.json` — the sole consistency contract — is atomically renamed
+/// last, so a pre-commit failure preserves the old graph.
 pub fn publish(root: &Path, final_out: &str) -> Result<()> {
     publish_impl(root, final_out, persist)
 }
@@ -228,28 +268,39 @@ fn publish_impl(
     let mut files = Vec::new();
     inventory(&staging, &staging, &mut files)?;
     files.sort_by(|a, b| a.1.cmp(&b.1));
-    if !files.iter().any(|(_, rel)| rel == Path::new("graph.json")) {
+    if !files.iter().any(|(_, rel)| is_graph(rel)) {
         cleanup(root);
         return Err(EngineError::Refused(
             "IR projection exited successfully without graph.json; keeping the last published IR"
                 .into(),
         ));
     }
-
-    let existing = existing_output(root, final_rel)?;
-    let mut staged = Vec::new();
-    for (source, rel) in files {
-        staged.push(copy_staged(root, final_rel, &source, &rel)?);
+    if let Some((_, rel)) = files.iter().find(|(_, rel)| !is_boris_ir_output(rel)) {
+        cleanup(root);
+        return Err(EngineError::Refused(format!(
+            "IR staging contains unrecognized output {}; keeping the last published IR",
+            rel.display()
+        )));
     }
 
-    // Generation-clean auxiliary output before the first rename. The old
-    // graph stays untouched until it is atomically replaced last.
+    let existing = existing_generated_output(root, final_out, final_rel)?;
+    let candidate_names: std::collections::BTreeSet<&Path> =
+        files.iter().map(|(_, rel)| rel.as_path()).collect();
+    let mut staged = Vec::new();
+    for (source, rel) in &files {
+        staged.push(copy_staged(root, final_rel, source, rel)?);
+    }
+
+    // Generation-clean only stale files whose names pinned Boris owns.
+    // Unrecognized files are user data and are neither scanned recursively
+    // nor touched. The old graph stays untouched until its atomic replace.
+    let may_clean = is_cv_owned_ir_output(final_out);
     for (path, rel) in existing {
-        if rel != Path::new("graph.json") {
+        if may_clean && !is_graph(&rel) && !candidate_names.contains(rel.as_path()) {
             fs::remove_file(path).map_err(EngineError::Io)?;
         }
     }
-    staged.sort_by_key(|f| f.rel == Path::new("graph.json"));
+    staged.sort_by_key(|f| is_graph(&f.rel));
     for file in staged {
         let target = confirm_confined_file(root, &final_rel.join(&file.rel)).map_err(path_error)?;
         debug_assert_eq!(target, file.target);
@@ -273,7 +324,8 @@ mod tests {
     fn a_successful_publish_replaces_graph_and_keeps_auxiliary_output() {
         let t = tempfile::tempdir().unwrap();
         write(t.path(), ".cv/ir/graph.json", b"old-graph");
-        write(t.path(), ".cv/ir/obsolete.json", b"obsolete");
+        write(t.path(), ".cv/ir/obsolete.json", b"user data");
+        write(t.path(), ".cv/ir/manifest.json", b"stale boris manifest");
         write(t.path(), ".cv/ir.staging/graph.json", b"new-graph");
         write(t.path(), ".cv/ir.staging/completion.json", b"completion");
 
@@ -286,7 +338,11 @@ mod tests {
             fs::read(t.path().join(".cv/ir/completion.json")).unwrap(),
             b"completion"
         );
-        assert!(!t.path().join(".cv/ir/obsolete.json").exists());
+        assert_eq!(
+            fs::read(t.path().join(".cv/ir/obsolete.json")).unwrap(),
+            b"user data"
+        );
+        assert!(!t.path().join(".cv/ir/manifest.json").exists());
         assert!(!t.path().join(IR_STAGING_DIR).exists());
     }
 
@@ -294,10 +350,15 @@ mod tests {
     fn a_pre_commit_failure_leaves_no_mixed_auxiliary_generation() {
         let t = tempfile::tempdir().unwrap();
         write(t.path(), ".cv/ir/graph.json", b"old-graph");
-        write(t.path(), ".cv/ir/old-aux.json", b"old-aux");
+        write(t.path(), ".cv/ir/old-aux.json", b"user data");
+        write(t.path(), ".cv/ir/manifest.json", b"stale boris manifest");
         write(t.path(), ".cv/ir.staging/graph.json", b"new-graph");
-        write(t.path(), ".cv/ir.staging/a-new-aux.json", b"new-aux");
-        write(t.path(), ".cv/ir.staging/b-new-aux.json", b"new-aux");
+        write(t.path(), ".cv/ir.staging/build-report.json", b"new-report");
+        write(
+            t.path(),
+            ".cv/ir.staging/completion.json",
+            b"new-completion",
+        );
 
         let mut renames = 0;
         assert!(
@@ -314,10 +375,63 @@ mod tests {
             fs::read(t.path().join(".cv/ir/graph.json")).unwrap(),
             b"old-graph"
         );
-        assert!(!t.path().join(".cv/ir/old-aux.json").exists());
         assert_eq!(
-            fs::read(t.path().join(".cv/ir/a-new-aux.json")).unwrap(),
-            b"new-aux"
+            fs::read(t.path().join(".cv/ir/old-aux.json")).unwrap(),
+            b"user data"
+        );
+        assert!(!t.path().join(".cv/ir/manifest.json").exists());
+        assert_eq!(
+            fs::read(t.path().join(".cv/ir/build-report.json")).unwrap(),
+            b"new-report"
+        );
+        assert!(!t.path().join(".cv/ir/completion.json").exists());
+    }
+
+    #[test]
+    fn unknown_user_files_survive_in_a_non_cv_output_directory() {
+        let t = tempfile::tempdir().unwrap();
+        write(t.path(), "outdir/keep.txt", b"user data");
+        write(t.path(), "outdir/manifest.json", b"pre-existing manifest");
+        write(t.path(), "outdir/nested/user.txt", b"nested user data");
+        write(t.path(), ".cv/ir.staging/graph.json", b"new-graph");
+        write(t.path(), ".cv/ir.staging/completion.json", b"completion");
+
+        publish(t.path(), "outdir").unwrap();
+        assert_eq!(
+            fs::read(t.path().join("outdir/keep.txt")).unwrap(),
+            b"user data"
+        );
+        assert_eq!(
+            fs::read(t.path().join("outdir/nested/user.txt")).unwrap(),
+            b"nested user data"
+        );
+        assert_eq!(
+            fs::read(t.path().join("outdir/graph.json")).unwrap(),
+            b"new-graph"
+        );
+    }
+
+    #[test]
+    fn unrecognized_staging_output_is_refused_without_replacing_user_files() {
+        let t = tempfile::tempdir().unwrap();
+        write(t.path(), "outdir/user-notes.txt", b"user data");
+        write(t.path(), "outdir/graph.json", b"old-graph");
+        write(t.path(), ".cv/ir.staging/graph.json", b"new-graph");
+        write(
+            t.path(),
+            ".cv/ir.staging/user-notes.txt",
+            b"unexpected output",
+        );
+
+        let e = publish(t.path(), "outdir").unwrap_err();
+        assert!(e.to_string().contains("unrecognized output"));
+        assert_eq!(
+            fs::read(t.path().join("outdir/user-notes.txt")).unwrap(),
+            b"user data"
+        );
+        assert_eq!(
+            fs::read(t.path().join("outdir/graph.json")).unwrap(),
+            b"old-graph"
         );
     }
 
