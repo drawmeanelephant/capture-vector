@@ -1,0 +1,5 @@
+boris: load  scanning content
+boris: roll  parsing 2 page(s)
+boris: ignite validating graph
+boris: content validation failed (1 error(s))
+error: EFRONTMATTER: single.md:2:1: single-quoted values are not supported; use plain text or double quotes [Use a plain or double-quoted value]

@@ -1,0 +1,29 @@
+{
+  "format": "boris-completion-index",
+  "schema_version": 1,
+  "compiler_id": "boris/0.9.0+semantic-relations",
+  "frozen": true,
+  "entities": [
+    {
+      "id": "guides/double",
+      "title": "Double: quoted (title)",
+      "parent": "home",
+      "role": "satellite",
+      "status": null,
+      "tags": [],
+      "relations": [{"kind": "relates_to", "target": "home"}]
+    },
+    {
+      "id": "home",
+      "title": "Mini Site (English)",
+      "parent": null,
+      "role": "trunk",
+      "status": null,
+      "tags": ["start", "quoted: yes"],
+      "relations": []
+    }
+  ],
+  "relation_kinds": ["depends_on", "implements", "relates_to", "supersedes"],
+  "parent_targets": ["home"],
+  "layout_slots": ["backlinks", "breadcrumb", "children", "content", "footer", "metadata", "nav", "relations", "title", "toc"]
+}
