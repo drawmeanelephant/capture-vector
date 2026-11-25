@@ -8,6 +8,7 @@ use crate::cascade;
 use crate::command::{CommandSpec, Intent, Palette};
 use crate::dialog::{Dialogs, FileFilter, PickPurpose, SecretPort};
 use crate::module::{Link, ProjectSnapshot, Registry, RowModel};
+use crate::modules::activity;
 use crate::theme::{Mode, Theme};
 use crate::windows::{CloseOutcome, PRIMARY, WindowId, Windows};
 use cv_core::engine::{EventSink, WatchHandle};
@@ -609,6 +610,15 @@ impl Workbench {
                 "Open recent workspace…",
             ));
         }
+        if matches!(
+            self.app.degraded,
+            Some(DegradedReason::InitialBuildFailed { .. })
+        ) {
+            out.push(CommandSpec::new(
+                "shell.degraded.reveal",
+                "Show the failed build's diagnostic",
+            ));
+        }
         for (i, p) in self.recent.iter().enumerate() {
             out.push(CommandSpec::new(
                 format!("shell.workspace.recent.{i}"),
@@ -662,6 +672,7 @@ impl Workbench {
                 }
             }
             "shell.degraded.dismiss" => self.apply(Intent::Recover),
+            "shell.degraded.reveal" => self.reveal_degraded_cause(),
             "shell.follow" => self.follow_link(),
             // Reopening the workspace is the restart: `open_workspace`
             // stops the dead handle and respawns the engine boot thread,
@@ -716,6 +727,32 @@ impl Workbench {
                     self.revalidate_selection();
                 }
             }
+        }
+    }
+
+    /// Select, in Activity, the diagnostic a failed initial build names.
+    fn reveal_degraded_cause(&mut self) {
+        let Some(DegradedReason::InitialBuildFailed { code, message }) = &self.app.degraded else {
+            self.status = "no failed build to show".into();
+            return;
+        };
+        let title = activity::diagnostic_title(code, message);
+        let key = self
+            .registry
+            .index_of(activity::ID)
+            .and_then(|i| self.registry.get(i))
+            .and_then(|m| {
+                (0..m.list_len(None))
+                    .map(|i| m.row(None, i))
+                    .find(|r| r.title == title)
+            })
+            .map(|r| r.key);
+        match key {
+            Some(key) => self.apply(Intent::Reveal {
+                module: activity::ID.into(),
+                key,
+            }),
+            None => self.status = format!("{code} is not in Activity"),
         }
     }
 

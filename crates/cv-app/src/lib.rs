@@ -426,6 +426,13 @@ fn activity_broken(wb: &mut Workbench) {
     wb.select_row(0);
 }
 
+/// A folder with only `content/`: Boris's first watch build fails
+/// non-recoverably (`ELAYOUT`, no theme) and the banner names that cause.
+fn content_only(wb: &mut Workbench) {
+    open_broken(wb, "content-only");
+    show(wb, "pages");
+}
+
 fn empty(wb: &mut Workbench) {
     wb.load_snapshot(&ProjectSnapshot {
         epoch: 1,
@@ -556,6 +563,7 @@ pub const SCENES: &[Scene] = &[
     ("dialog-secret", dialogs::secret),
     ("dialog-progress", dialogs::progress),
     ("effects", effects),
+    ("content-only", content_only),
 ];
 
 pub fn launch() -> Launch {
