@@ -178,64 +178,7 @@ fn to_store(s: ReviewState) -> store::ReviewState {
     }
 }
 
-/// Process-lifetime workspace ownership, so the open-time sweep can never
-/// race a live writer in another process. The primitive is `flock` on
-/// `.cv/workspace.lock`: the kernel releases it when the holder dies, so
-/// there is no stale-lock case to break. On non-Unix platforms ownership is
-/// unchecked — Windows behavior is honestly unproven either way.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Ownership {
-    /// This process holds the workspace lock; sweeping is race-free.
-    Owned,
-    /// Another live process holds it: no sweeping, no record writes here.
-    Foreign,
-    /// No locking primitive on this platform.
-    Unchecked,
-}
-
-#[cfg(unix)]
-fn workspace_ownership(root: &Path) -> Ownership {
-    use std::sync::{Mutex, OnceLock};
-    // Held for the process lifetime, keyed by canonical workspace path so
-    // repeated opens in-process don't self-conflict (flock is keyed on the
-    // open file description, not the process).
-    static LOCKS: OnceLock<Mutex<HashMap<PathBuf, std::fs::File>>> = OnceLock::new();
-    let Ok(canon) = std::fs::canonicalize(root) else {
-        return Ownership::Unchecked;
-    };
-    let locks = LOCKS.get_or_init(|| Mutex::new(HashMap::new()));
-    let mut locks = locks.lock().unwrap();
-    if locks.contains_key(&canon) {
-        return Ownership::Owned;
-    }
-    let lock_path = canon.join(".cv").join("workspace.lock");
-    if let Some(parent) = lock_path.parent() {
-        let _ = std::fs::create_dir_all(parent);
-    }
-    let Ok(file) = std::fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .truncate(false)
-        .open(&lock_path)
-    else {
-        return Ownership::Unchecked;
-    };
-    use std::os::unix::io::AsRawFd;
-    // SAFETY: flock on a valid fd; non-blocking exclusive.
-    let rc = unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) };
-    if rc == 0 {
-        locks.insert(canon, file);
-        Ownership::Owned
-    } else {
-        Ownership::Foreign
-    }
-}
-
-#[cfg(not(unix))]
-fn workspace_ownership(_root: &Path) -> Ownership {
-    Ownership::Unchecked
-}
+pub use cv_engine::wlock::Ownership;
 
 impl DiskPort {
     /// No workspace: no runs, the lab unchecked.
@@ -264,12 +207,36 @@ impl DiskPort {
     /// closed as interrupted instead of displaying `running` forever.
     /// Multi-process workspace sharing is not yet prevented by a lock.
     pub fn open(root: &Path, lab: LabState) -> Self {
-        let ownership = workspace_ownership(root);
+        let ownership = cv_engine::wlock::ownership(root);
         // The sweep rewrites unfinished records. Only an owning process may
         // do that: flock guarantees no other live process can have workers
         // writing here, so the stale-write race is structurally impossible —
         // not merely narrowed. Unchecked platforms sweep best-effort, which
         // matches their honestly-unproven status.
+        if ownership != Ownership::Foreign {
+            sweep_interrupted(root);
+        }
+        let mut port = Self::detached(lab);
+        port.ownership = ownership;
+        port.root = Some(root.to_path_buf());
+        match ReviewLog::open(root) {
+            Ok((log, states, _)) => {
+                port.log = Some(log);
+                port.states = states.into_iter().map(|(k, s)| (k, to_model(s))).collect();
+            }
+            Err(e) => port.log_error = Some(e.to_string()),
+        }
+        port
+    }
+}
+
+impl DiskPort {
+    /// Test-only: ownership is normally taken from the engine lock, but the
+    /// sweep-gating contract must be exercisable without spawning processes
+    /// (cv-app never spawns; the cross-process exclusion proof lives in
+    /// cv-engine's wlock tests).
+    #[cfg(test)]
+    pub fn open_with_ownership(root: &Path, lab: LabState, ownership: Ownership) -> Self {
         if ownership != Ownership::Foreign {
             sweep_interrupted(root);
         }

@@ -30,6 +30,7 @@ pub mod secrets;
 pub mod snapshot;
 pub mod verbs;
 pub mod watch;
+pub mod wlock;
 pub mod write;
 
 pub use engine::{EngineConfig, ProcessEngine};
