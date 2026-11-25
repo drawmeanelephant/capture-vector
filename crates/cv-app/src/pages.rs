@@ -40,17 +40,14 @@ impl WorkspacePages {
         Ok(())
     }
 
-    fn close_buffer(path: &str) {
+    fn close_buffer(&self, id: cv_ui_editor::BufferId) {
         let ses = host::session();
-        let id = ses.borrow().find(path);
-        if let Some(id) = id {
-            let _ = ses.borrow_mut().close(id, true);
-        }
+        let _ = ses.borrow_mut().close(id, true);
     }
 
-    fn reload_buffer(path: &str, text: &str, fingerprint: cv_core::engine::Fingerprint) {
+    fn reload_buffer(&self, path: &str, text: &str, fingerprint: cv_core::engine::Fingerprint) {
         let ses = host::session();
-        let id = ses.borrow().find(path);
+        let id = crate::file_identity::buffer_for(&self.root, path);
         if let Some(id) = id
             && let Some(e) = ses.borrow_mut().get_mut(id)
         {
@@ -80,7 +77,7 @@ impl PagesPort for WorkspacePages {
         if let WriteOutcome::Written { fingerprint } = out
             && draft.base.is_some()
         {
-            Self::reload_buffer(&draft.path, &draft.body, fingerprint);
+            self.reload_buffer(&draft.path, &draft.body, fingerprint);
         }
         Ok(out)
     }
@@ -91,12 +88,15 @@ impl PagesPort for WorkspacePages {
         base: cv_core::engine::Fingerprint,
     ) -> Result<RemoveOutcome, String> {
         self.refuse_dirty(path)?;
+        let buffer = crate::file_identity::buffer_for(&self.root, path);
         let out = self
             .engine
             .remove_content(path, base)
             .map_err(|e| e.to_string())?;
-        if out == RemoveOutcome::Removed {
-            Self::close_buffer(path);
+        if out == RemoveOutcome::Removed
+            && let Some(id) = buffer
+        {
+            self.close_buffer(id);
         }
         Ok(out)
     }
@@ -104,10 +104,13 @@ impl PagesPort for WorkspacePages {
     fn rename(&mut self, mv: &PageMove) -> Result<MoveOutcome, String> {
         self.refuse_dirty(&mv.from)?;
         self.refuse_dirty(&mv.to)?;
+        let from_buffer = crate::file_identity::buffer_for(&self.root, &mv.from);
+        let to_buffer = crate::file_identity::buffer_for(&self.root, &mv.to);
         let out = self.engine.move_content(mv).map_err(|e| e.to_string())?;
         if matches!(out, MoveOutcome::Moved { .. }) {
-            Self::close_buffer(&mv.from);
-            Self::close_buffer(&mv.to);
+            for id in [from_buffer, to_buffer].into_iter().flatten() {
+                self.close_buffer(id);
+            }
         }
         Ok(out)
     }

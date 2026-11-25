@@ -2486,7 +2486,6 @@
     },
     {
       "color": "#e6e9efff",
-      "help": ".cv/ledger/ledger.jsonl",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ledger/#1",
       "rect": [
@@ -3133,7 +3132,7 @@
       "rect": [
         162.2,
         782.1,
-        59.6,
+        52.1,
         13.8
       ],
       "role": "group"
@@ -3145,7 +3144,7 @@
       "rect": [
         168.2,
         782.1,
-        47.6,
+        40.1,
         13.8
       ],
       "role": "text",
@@ -3155,9 +3154,9 @@
       "opacity": 1.0,
       "path": "shell/status/#3",
       "rect": [
-        233.8,
+        226.3,
         789.0,
-        863.0,
+        870.5,
         0.0
       ],
       "role": "group"

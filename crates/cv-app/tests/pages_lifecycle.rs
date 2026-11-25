@@ -505,6 +505,43 @@ fn dirty_editor_case_variant_refuses_rename_where_the_filesystem_aliases_case() 
 }
 
 #[test]
+fn clean_editor_case_variant_is_invalidated_by_rename_where_case_aliases() {
+    let (ws, _bin, _recent, mut wb) = booted();
+    if !ws.path().join("Content/guides/getting-started.md").exists() {
+        return;
+    }
+    cv_app::editor::open_page(&mut wb, ws.path(), "Content/guides/getting-started.md").unwrap();
+    wb.select_key("guides/getting-started.md");
+    wb.run_command("pages.rename");
+    set_text(&mut wb, 0, "guides/case-clean-rename.md");
+    wb.dialog_act("move");
+    assert!(wb.status.contains("Page moved"), "{}", wb.status);
+    let ses = cv_widgets::editor::host::session();
+    assert!(
+        ses.borrow()
+            .find("Content/guides/getting-started.md")
+            .is_none()
+    );
+}
+
+#[test]
+fn clean_editor_case_variant_reloads_after_reparent_where_case_aliases() {
+    let (ws, _bin, _recent, mut wb) = booted();
+    if !ws.path().join("Content/guides/publishing.md").exists() {
+        return;
+    }
+    cv_app::editor::open_page(&mut wb, ws.path(), "Content/guides/publishing.md").unwrap();
+    wb.select_key("guides/publishing.md");
+    wb.run_command("pages.reparent");
+    wb.dialog_choose(0);
+    assert!(wb.status.contains("Page reparented"), "{}", wb.status);
+    let ses = cv_widgets::editor::host::session();
+    let id = ses.borrow().find("Content/guides/publishing.md").unwrap();
+    let text = ses.borrow().get(id).unwrap().buffer.text();
+    assert!(!text.contains("parent: index"), "{text}");
+}
+
+#[test]
 fn delete_stale_source_reasks_without_removing() {
     let (ws, _bin, _recent, mut wb) = booted();
     let rel = "guides/publishing.md";
