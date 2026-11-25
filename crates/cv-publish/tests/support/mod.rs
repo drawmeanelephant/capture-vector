@@ -493,7 +493,6 @@ impl Engine for CapturedEngine {
                 Ok(ExitClass::Ok)
             }
             "proof" => Ok(self.verify_exit),
-            "proof" => Ok(self.verify_exit),
             _ => Ok(ExitClass::Ok),
         }
     }
