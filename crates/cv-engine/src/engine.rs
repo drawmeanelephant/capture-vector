@@ -32,6 +32,8 @@ pub struct EngineConfig {
     pub pin: Pin,
     /// Workspace-relative HTML output tree (Boris default `dist`).
     pub html_dir: String,
+    /// Workspace-relative content input the write path stages under.
+    pub content_input: PathBuf,
     /// Extra args for `boris watch --watch-json` (e.g. `--serve`).
     pub watch_args: Vec<String>,
     pub ring_capacity: usize,
@@ -49,6 +51,7 @@ impl EngineConfig {
             root,
             pin: PINNED,
             html_dir: "dist".into(),
+            content_input: PathBuf::from("content"),
             watch_args: vec![],
             ring_capacity: DEFAULT_RING,
             handshake_timeout: Duration::from_secs(10),
@@ -71,7 +74,12 @@ impl ProcessEngine {
     /// Locate + gate + probe. Fails on any mismatch; never runs unpinned.
     pub fn start(cfg: EngineConfig) -> Result<Self> {
         let identity = cfg.locator.locate(&cfg.root, cfg.pin)?;
-        let report = probe(&identity.path, &cfg.root, cfg.probe_timeout);
+        let report = probe(
+            &identity.path,
+            &cfg.root,
+            &cfg.content_input,
+            cfg.probe_timeout,
+        );
         Ok(Self::with_report(cfg, identity, report))
     }
 

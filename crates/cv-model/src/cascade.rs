@@ -67,7 +67,7 @@ pub fn dispatch(state: &mut AppState, env: &Envelope) -> bool {
                 state.degraded = None;
             }
         }
-        AppEvent::Engine(EngineEvent::WatchSessionEnded { reason }) => {
+        AppEvent::Engine(EngineEvent::WatchSessionEnded { reason, .. }) => {
             state.watch_live = false;
             // Boris exits after a non-recoverable initial build; the dead
             // watch is its consequence, and the build failure stays the cause.
@@ -188,6 +188,7 @@ mod tests {
             2,
             AppEvent::Engine(EngineEvent::WatchSessionEnded {
                 reason: WatchEndReason::CleanExit,
+                exit: None,
             }),
         );
         dispatch(&mut state, &ended);
@@ -258,7 +259,7 @@ mod tests {
     fn ended(reason: WatchEndReason) -> Envelope {
         env(
             2,
-            AppEvent::Engine(EngineEvent::WatchSessionEnded { reason }),
+            AppEvent::Engine(EngineEvent::WatchSessionEnded { reason, exit: None }),
         )
     }
 

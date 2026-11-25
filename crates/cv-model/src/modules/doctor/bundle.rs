@@ -92,6 +92,7 @@ fn watch(w: &WatchLog) -> Value {
         "lastCursor": w.last_cursor.as_ref().map(|c| json!({ "session": c.session.0, "seq": c.seq })),
         "engineEvents": w.engine_events,
         "ended": w.ended.as_ref().map(|r| format!("{r:?}")),
+        "watchExit": w.watch_exit.map(|e| format!("{e:?}")),
         "lastVerb": w.last_verb.as_ref().map(|(verb, exit)| json!({ "verb": verb, "exit": exit })),
         "lastFatal": w.fatal.as_ref().map(|f| json!({
             "phase": f.phase,
@@ -131,6 +132,8 @@ fn store(f: &Facts) -> Value {
                     "holder": match l.holder {
                         LockHolder::ThisWindow => "this-window",
                         LockHolder::OtherProcess => "other-process",
+                        LockHolder::NotHeld => "not-held",
+                        LockHolder::Unknown => "unknown",
                     },
                 })),
                 "hasIndex": ns.index.is_some(),

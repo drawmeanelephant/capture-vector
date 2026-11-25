@@ -7,16 +7,22 @@ use serde_json::Value;
 
 /// Whether a field named `key` may hold a credential.
 pub fn is_secret_key(key: &str) -> bool {
-    let key = key.to_ascii_lowercase();
+    // Key spelling is not a security boundary: JSON producers use snake,
+    // kebab and camel case interchangeably. Compare only the letters, so
+    // `privateKey`, `private-key` and `private_key` share one rule.
+    let key: String = key
+        .chars()
+        .filter(|c| !matches!(c, '-' | '_'))
+        .map(|c| c.to_ascii_lowercase())
+        .collect();
     key.contains("secret")
         || key.contains("password")
         || key.contains("passphrase")
         || key.contains("token")
         || key.contains("nsec")
-        || key.contains("api_key")
         || key.contains("apikey")
         || key.contains("credential")
-        || key.starts_with("private_key")
+        || key.starts_with("privatekey")
         || key == "authorization"
 }
 
@@ -46,11 +52,27 @@ mod tests {
             "password",
             "access_token",
             "private_key",
+            "privateKey",
+            "private-key",
+            "PRIVATEKEY",
+            "api-key",
+            "apiKey",
+            "secretKey",
+            "access-token",
             "authorization",
         ] {
             assert!(is_secret_key(key), "{key}");
         }
-        for key in ["page", "root", "status", "key", "count"] {
+        for key in [
+            "page",
+            "root",
+            "status",
+            "key",
+            "count",
+            "monkey",
+            "publicKey",
+            "keyboard",
+        ] {
             assert!(!is_secret_key(key), "{key}");
         }
     }
@@ -60,12 +82,13 @@ mod tests {
         let mut v = json!({
             "version": "boris/0.9.0",
             "apiToken": "leak",
-            "nested": [{ "password": "leak", "ok": 1 }],
+            "privateKey": "leak",
+            "nested": [{ "password": "leak", "ok": 1, "publicKey": "not-secret" }],
         });
         drop_secret_keys(&mut v);
         assert_eq!(
             v,
-            json!({ "version": "boris/0.9.0", "nested": [{ "ok": 1 }] })
+            json!({ "version": "boris/0.9.0", "nested": [{ "ok": 1, "publicKey": "not-secret" }] })
         );
     }
 }

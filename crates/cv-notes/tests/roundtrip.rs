@@ -12,7 +12,7 @@ use cv_core::store::{Op, Predicate, Term};
 use cv_core::sys::FixedClock;
 use cv_fixtures::StubEngine;
 use cv_notes::disk::{self, DiskPort};
-use cv_notes::{Capture, PageIndex, Research, Target, Triage};
+use cv_notes::{Capture, PageIndex, Research, ResearchPort, Target, Triage};
 use fixture_notes::*;
 use std::path::Path;
 
@@ -165,6 +165,44 @@ fn inbox_promote_rebuild_backlink_restart() {
         !ws.path().join("content/.cv").exists(),
         "notes never live in content/"
     );
+}
+
+#[test]
+fn forced_index_rebuild_restores_rows_a_fresh_index_header_hides() {
+    let ws = tempfile::tempdir().unwrap();
+    research::copy_corpus("promoted", ws.path());
+    let (mut r, _) = open(ws.path());
+    let id = r
+        .capture(
+            Capture::Idea {
+                text: "atomic rebuild regression".into(),
+            },
+            Some("rebuild me"),
+        )
+        .unwrap();
+    assert_eq!(r.search("atomic rebuild"), vec![id.clone()]);
+    drop(r);
+
+    let index = cv_store::paths::project_index_dir(ws.path(), "research")
+        .unwrap()
+        .join(disk::INDEX);
+    let conn = rusqlite::Connection::open(&index).unwrap();
+    conn.execute("DELETE FROM research_notes_fts", []).unwrap();
+    drop(conn);
+
+    let clock = || Box::new(FixedClock(cv_core::sys::Timestamp(1_700_000_000_000)));
+    let (r, rep) = disk::open(ws.path(), AccountId("local".into()), clock()).unwrap();
+    assert!(
+        !rep.index_rebuilt,
+        "fresh metadata makes a plain open trust it"
+    );
+    assert!(r.port.search("atomic rebuild").is_none_or(|v| v.is_empty()));
+    drop(r);
+
+    let (r, rep) =
+        disk::open_rebuilding_index(ws.path(), AccountId("local".into()), clock()).unwrap();
+    assert!(rep.index_rebuilt);
+    assert_eq!(r.port.search("atomic rebuild"), Some(vec![id]));
 }
 
 #[test]
