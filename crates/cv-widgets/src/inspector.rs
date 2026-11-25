@@ -1,31 +1,48 @@
 //! The inspector pane: status chips, fields, diagnostic cards and
 //! collapsible sections over the active module's `InspectorModel`.
 
-use crate::shell::{chip, label};
+use crate::shell::{chip, label, pane_header, pane_scroll};
 use crate::theme::{self, color, font};
 use crate::{controls, diagnostic, icons};
 use cv_model::module::Tone;
 use cv_model::theme::{Theme, TypeStyle};
 use cv_model::workbench::Workbench;
-use rune::{El, col, icon, row, text};
+use rune::{Edge, El, Transition, col, icon, row, text};
 
 /// Items a section lists before it stops; the count chip keeps the total.
 const SECTION_MAX: usize = 12;
 
 pub(crate) fn pane(s: &Workbench) -> El {
     let t = &s.theme;
-    let mut pane = col()
-        .key("inspector")
-        .w(t.spacing.inspector_w)
-        .h_full()
-        .padding(t.spacing.unit * 2.0)
-        .gap(t.spacing.unit)
-        .fill(color(t.colors.pane_alt))
+    let head = pane_header(t, "inspector-head", t.colors.bg)
+        .px(t.spacing.unit * 2.0)
+        .pt(t.spacing.unit * 2.0)
+        .pb(t.spacing.unit)
         .child(
             text("Inspector")
                 .font(font(t.type_.title))
                 .color(color(t.colors.text)),
         );
+    col()
+        .key("inspector")
+        .w(t.spacing.inspector_w)
+        .h_full()
+        .min_h(0.0)
+        .fill(color(t.colors.bg))
+        .border_sides([0.0, 0.0, 0.0, 0.5], color(t.colors.border))
+        .transition(Transition::move_edge(Edge::Trailing))
+        .motion(theme::spring(t.motion.panel))
+        .child(pane_scroll("inspector-scroll").child(head).child(body(s)))
+}
+
+fn body(s: &Workbench) -> El {
+    let t = &s.theme;
+    let mut pane = col()
+        .key("inspector-body")
+        .w_full()
+        .px(t.spacing.unit * 2.0)
+        .pb(t.spacing.unit * 2.0)
+        .gap(t.spacing.unit);
     if let Some(k) = s.selected_key()
         && let Some(m) = s.registry.get(s.active)
     {

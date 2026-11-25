@@ -154,7 +154,7 @@ fn happy_snapshot_projects_pages_and_outputs() {
         "My Boris Site",
         "Publishing",
         "Getting Started",
-        "Draft sketch",
+        "Draft sketch · advisory",
     ] {
         assert!(texts.iter().any(|x| x == t), "{t}");
     }

@@ -587,7 +587,7 @@
       "text": "Demo"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav",
       "opacity": 1.0,
       "path": "shell/body/nav",
@@ -600,9 +600,34 @@
       "role": "group"
     },
     {
+      "key": "nav-scroll",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll",
+      "rect": [
+        88.0,
+        32.0,
+        180.0,
+        746.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-head",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/nav-head",
+      "rect": [
+        88.0,
+        32.0,
+        180.0,
+        28.3
+      ],
+      "role": "group"
+    },
+    {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/#0",
+      "path": "shell/body/nav/nav-scroll/nav-head/#0",
       "rect": [
         96.0,
         40.0,
@@ -613,10 +638,21 @@
       "text": "Pages"
     },
     {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1",
+      "rect": [
+        88.0,
+        60.3,
+        180.0,
+        139.0
+      ],
+      "role": "group"
+    },
+    {
       "fill": "#ffffff14",
       "key": "nav-all",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-all",
+      "path": "shell/body/nav/nav-scroll/#1/nav-all",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -629,7 +665,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-all/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-all/#0",
       "rect": [
         104.0,
         64.3,
@@ -641,7 +677,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-all/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-all/#1",
       "rect": [
         161.7,
         71.8,
@@ -653,7 +689,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-all/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-all/#2",
       "radius": 999.0,
       "rect": [
         233.1,
@@ -666,7 +702,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-all/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-all/#2/#0",
       "rect": [
         239.1,
         64.9,
@@ -677,10 +713,10 @@
       "text": "3"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-trunks",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-trunks",
+      "path": "shell/body/nav/nav-scroll/#1/nav-trunks",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -693,7 +729,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-trunks/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-trunks/#0",
       "rect": [
         104.0,
         91.3,
@@ -705,7 +741,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-trunks/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-trunks/#1",
       "rect": [
         146.7,
         98.8,
@@ -717,7 +753,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-trunks/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-trunks/#2",
       "radius": 999.0,
       "rect": [
         235.4,
@@ -730,7 +766,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-trunks/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-trunks/#2/#0",
       "rect": [
         241.4,
         91.9,
@@ -741,10 +777,10 @@
       "text": "1"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-issues",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-issues",
+      "path": "shell/body/nav/nav-scroll/#1/nav-issues",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -757,7 +793,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-issues/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-issues/#0",
       "rect": [
         104.0,
         118.3,
@@ -769,7 +805,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-issues/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-issues/#1",
       "rect": [
         202.1,
         125.8,
@@ -781,7 +817,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-issues/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-issues/#2",
       "radius": 999.0,
       "rect": [
         232.9,
@@ -794,7 +830,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-issues/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-issues/#2/#0",
       "rect": [
         238.9,
         118.9,
@@ -805,10 +841,10 @@
       "text": "0"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-orphans",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-orphans",
+      "path": "shell/body/nav/nav-scroll/#1/nav-orphans",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -821,7 +857,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-orphans/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-orphans/#0",
       "rect": [
         104.0,
         145.3,
@@ -833,7 +869,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-orphans/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-orphans/#1",
       "rect": [
         191.7,
         152.8,
@@ -845,7 +881,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-orphans/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-orphans/#2",
       "radius": 999.0,
       "rect": [
         232.9,
@@ -858,7 +894,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-orphans/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-orphans/#2/#0",
       "rect": [
         238.9,
         145.9,
@@ -869,10 +905,10 @@
       "text": "0"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-tree:index",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-tree:index",
+      "path": "shell/body/nav/nav-scroll/#1/nav-tree:index",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -885,7 +921,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-tree:index/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-tree:index/#0",
       "rect": [
         104.0,
         172.3,
@@ -897,7 +933,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-tree:index/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-tree:index/#1",
       "rect": [
         182.7,
         179.8,
@@ -909,7 +945,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-tree:index/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-tree:index/#2",
       "radius": 999.0,
       "rect": [
         233.2,
@@ -922,7 +958,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-tree:index/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-tree:index/#2/#0",
       "rect": [
         239.2,
         172.9,
@@ -933,7 +969,7 @@
       "text": "2"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#0e1014ff",
       "key": "list-pane",
       "opacity": 1.0,
       "path": "shell/body/list-pane",
@@ -958,7 +994,7 @@
       "role": "group"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#0e1014ff",
       "key": "row-index.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-index.md",
@@ -998,7 +1034,7 @@
       "text": "index.md · 2 satellites"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#0e1014ff",
       "key": "row-guides/getting-started.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fgetting-started.md",
@@ -1038,7 +1074,7 @@
       "text": "guides/getting-started.md"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#0e1014ff",
       "key": "row-guides/publishing.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fpublishing.md",
@@ -1078,7 +1114,7 @@
       "text": "guides/publishing.md"
     },
     {
-      "fill": "#0e1014ff",
+      "fill": "#14171dff",
       "key": "reading",
       "opacity": 1.0,
       "path": "shell/body/reading",
@@ -1091,9 +1127,34 @@
       "role": "group"
     },
     {
+      "key": "reading-scroll",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll",
+      "rect": [
+        588.0,
+        32.0,
+        452.0,
+        746.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "reading-head",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head",
+      "rect": [
+        588.0,
+        32.0,
+        452.0,
+        63.8
+      ],
+      "role": "group"
+    },
+    {
       "key": "breadcrumbs",
       "opacity": 1.0,
-      "path": "shell/body/reading/breadcrumbs",
+      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs",
       "rect": [
         604.0,
         48.0,
@@ -1106,7 +1167,7 @@
       "color": "#8a93a3ff",
       "key": "crumb-0",
       "opacity": 1.0,
-      "path": "shell/body/reading/breadcrumbs/crumb-0",
+      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs/crumb-0",
       "rect": [
         604.0,
         48.0,
@@ -1118,24 +1179,37 @@
     },
     {
       "color": "#e6e9efff",
+      "key": "reading-title",
       "opacity": 1.0,
-      "path": "shell/body/reading/#1",
+      "path": "shell/body/reading/reading-scroll/reading-head/reading-title",
       "rect": [
         604.0,
         67.8,
         420.0,
-        16.3
+        20.0
       ],
       "role": "text",
       "text": "My Boris Site"
     },
     {
+      "key": "reading-body",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body",
+      "rect": [
+        588.0,
+        95.8,
+        452.0,
+        613.8
+      ],
+      "role": "group"
+    },
+    {
       "key": "line-0",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-0",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-0",
       "rect": [
         604.0,
-        90.0,
+        95.8,
         420.0,
         15.0
       ],
@@ -1144,10 +1218,10 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-0/#0",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-0/#0",
       "rect": [
         604.0,
-        90.0,
+        95.8,
         96.0,
         15.0
       ],
@@ -1157,10 +1231,10 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-0/#1",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-0/#1",
       "rect": [
         708.0,
-        90.0,
+        95.8,
         316.0,
         15.0
       ],
@@ -1170,10 +1244,10 @@
     {
       "key": "line-1",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-1",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-1",
       "rect": [
         604.0,
-        111.0,
+        116.8,
         420.0,
         15.0
       ],
@@ -1182,10 +1256,10 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-1/#0",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-1/#0",
       "rect": [
         604.0,
-        111.0,
+        116.8,
         96.0,
         15.0
       ],
@@ -1195,10 +1269,10 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-1/#1",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-1/#1",
       "rect": [
         708.0,
-        111.0,
+        116.8,
         316.0,
         15.0
       ],
@@ -1208,10 +1282,10 @@
     {
       "key": "line-2",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-2",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-2",
       "rect": [
         604.0,
-        132.0,
+        137.8,
         420.0,
         15.0
       ],
@@ -1220,10 +1294,10 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-2/#0",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-2/#0",
       "rect": [
         604.0,
-        132.0,
+        137.8,
         96.0,
         15.0
       ],
@@ -1233,10 +1307,10 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-2/#1",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-2/#1",
       "rect": [
         708.0,
-        132.0,
+        137.8,
         316.0,
         15.0
       ],
@@ -1244,39 +1318,65 @@
       "text": "home"
     },
     {
-      "color": "#8a93a3ff",
-      "key": "sketch-label",
-      "opacity": 1.0,
-      "path": "shell/body/reading/sketch-label",
-      "rect": [
-        604.0,
-        153.0,
-        420.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "Draft sketch"
-    },
-    {
+      "fill": "#14171dff",
       "key": "sketch",
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch",
+      "radius": 6.0,
       "rect": [
         604.0,
-        172.8,
+        166.8,
         420.0,
-        589.3
+        526.8
       ],
       "role": "group"
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#0",
       "rect": [
-        604.0,
-        172.8,
-        420.0,
-        521.6
+        616.0,
+        178.8,
+        396.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffb0202e",
+      "key": "sketch-label",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#0/sketch-label",
+      "radius": 999.0,
+      "rect": [
+        616.0,
+        178.8,
+        130.5,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#ffb020ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#0/sketch-label/#0",
+      "rect": [
+        622.0,
+        178.8,
+        118.5,
+        13.8
+      ],
+      "role": "text",
+      "text": "Draft sketch · advisory"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1",
+      "rect": [
+        616.0,
+        200.5,
+        396.0,
+        481.0
       ],
       "role": "group"
     },
@@ -1284,11 +1384,11 @@
       "color": "#e6e9efff",
       "key": "b0",
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0/b0",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b0",
       "rect": [
-        604.0,
-        172.8,
-        420.0,
+        616.0,
+        200.5,
+        396.0,
         24.0
       ],
       "role": "heading",
@@ -1298,12 +1398,12 @@
       "color": "#e6e9efff",
       "key": "b1",
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0/b1",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b1",
       "rect": [
-        604.0,
-        208.8,
-        420.0,
-        67.2
+        616.0,
+        236.5,
+        396.0,
+        60.0
       ],
       "role": "text",
       "text": "This is a fresh Boris documentation site. It already has a page graph: this trunk page, two guides beneath it, wiki links between them, and one semantic relation."
@@ -1312,12 +1412,12 @@
       "color": "#e6e9efff",
       "key": "b2",
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0/b2",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2",
       "rect": [
-        604.0,
-        288.0,
-        420.0,
-        22.4
+        616.0,
+        308.5,
+        396.0,
+        20.0
       ],
       "role": "text",
       "text": "Start here:"
@@ -1325,48 +1425,48 @@
     {
       "key": "b3",
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0/b3",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b3",
       "rect": [
-        604.0,
-        322.4,
-        420.0,
-        93.6
+        616.0,
+        340.5,
+        396.0,
+        84.0
       ],
       "role": "list"
     },
     {
       "key": "i0",
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0/b3/i0",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b3/i0",
       "rect": [
-        604.0,
-        322.4,
-        420.0,
-        44.8
+        616.0,
+        340.5,
+        396.0,
+        40.0
       ],
       "role": "listitem"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0/b3/i0/#0",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b3/i0/#0",
       "rect": [
-        604.0,
-        322.4,
+        616.0,
+        340.5,
         32.0,
-        44.8
+        40.0
       ],
       "role": "text",
       "text": "•"
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0/b3/i0/#1",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b3/i0/#1",
       "rect": [
-        636.0,
-        322.4,
-        388.0,
-        44.8
+        648.0,
+        340.5,
+        364.0,
+        40.0
       ],
       "role": "group"
     },
@@ -1374,12 +1474,12 @@
       "color": "#e6e9efff",
       "key": "b0",
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0/b3/i0/#1/b0",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b3/i0/#1/b0",
       "rect": [
-        636.0,
-        322.4,
-        388.0,
-        44.8
+        648.0,
+        340.5,
+        364.0,
+        40.0
       ],
       "role": "text",
       "text": "⁦[[guides/getting-started]]⁩ — add your own pages and watch the graph grow."
@@ -1387,36 +1487,36 @@
     {
       "key": "i1",
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0/b3/i1",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b3/i1",
       "rect": [
-        604.0,
-        371.2,
-        420.0,
-        44.8
+        616.0,
+        384.5,
+        396.0,
+        40.0
       ],
       "role": "listitem"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0/b3/i1/#0",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b3/i1/#0",
       "rect": [
-        604.0,
-        371.2,
+        616.0,
+        384.5,
         32.0,
-        44.8
+        40.0
       ],
       "role": "text",
       "text": "•"
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0/b3/i1/#1",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b3/i1/#1",
       "rect": [
-        636.0,
-        371.2,
-        388.0,
-        44.8
+        648.0,
+        384.5,
+        364.0,
+        40.0
       ],
       "role": "group"
     },
@@ -1424,12 +1524,12 @@
       "color": "#e6e9efff",
       "key": "b0",
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0/b3/i1/#1/b0",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b3/i1/#1/b0",
       "rect": [
-        636.0,
-        371.2,
-        388.0,
-        44.8
+        648.0,
+        384.5,
+        364.0,
+        40.0
       ],
       "role": "text",
       "text": "⁦[[guides/publishing]]⁩ — turn the site into a verified publication."
@@ -1438,12 +1538,12 @@
       "color": "#e6e9efff",
       "key": "b4",
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0/b4",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4",
       "rect": [
-        604.0,
-        440.0,
-        420.0,
-        24.0
+        616.0,
+        448.5,
+        396.0,
+        21.0
       ],
       "role": "heading",
       "text": "Anatomy of this starter"
@@ -1452,12 +1552,12 @@
       "color": "#e6e9efff",
       "key": "b5",
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0/b5",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b5",
       "rect": [
-        604.0,
-        474.0,
-        420.0,
-        22.4
+        616.0,
+        479.5,
+        396.0,
+        20.0
       ],
       "role": "text",
       "text": "The tree ⁦  ⁦boris init⁩  ⁩ created:"
@@ -1466,31 +1566,31 @@
       "fill": "#1a1e26ff",
       "key": "b6",
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0/b6",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b6",
       "radius": 6.0,
       "rect": [
-        604.0,
-        508.4,
-        420.0,
-        186.0
+        616.0,
+        511.5,
+        396.0,
+        170.0
       ],
       "role": "code"
     },
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0/b6/#0",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b6/#0",
       "rect": [
-        617.0,
-        521.4,
-        394.0,
-        160.0
+        629.0,
+        524.5,
+        370.0,
+        144.0
       ],
       "role": "text",
       "text": "content/\n  index.md                    trunk page (this one)\n  guides/getting-started.md   satellite, parent: index\n  guides/publishing.md        satellite, parent: index\nthemes/boris/                 starter theme (closed layout slots)\nboris.json                    publication profile (GitHub Pages)\nstandard-site.json            Atmosphere profile (edit the fake DID/URL)"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "inspector",
       "opacity": 1.0,
       "path": "shell/body/inspector",
@@ -1503,9 +1603,34 @@
       "role": "group"
     },
     {
+      "key": "inspector-scroll",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll",
+      "rect": [
+        1040.0,
+        32.0,
+        240.0,
+        746.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "inspector-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-head",
+      "rect": [
+        1040.0,
+        32.0,
+        240.0,
+        28.3
+      ],
+      "role": "group"
+    },
+    {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-head/#0",
       "rect": [
         1048.0,
         40.0,
@@ -1516,9 +1641,21 @@
       "text": "Inspector"
     },
     {
+      "key": "inspector-body",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body",
+      "rect": [
+        1040.0,
+        60.3,
+        240.0,
+        259.0
+      ],
+      "role": "group"
+    },
+    {
       "key": "field-id",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-id",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-id",
       "rect": [
         1048.0,
         60.3,
@@ -1530,7 +1667,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-id/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-id/#0",
       "rect": [
         1048.0,
         60.3,
@@ -1543,7 +1680,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-id/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-id/#1",
       "rect": [
         1128.0,
         60.3,
@@ -1556,7 +1693,7 @@
     {
       "key": "field-role",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-role",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-role",
       "rect": [
         1048.0,
         78.0,
@@ -1568,7 +1705,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-role/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-role/#0",
       "rect": [
         1048.0,
         78.0,
@@ -1581,7 +1718,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-role/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-role/#1",
       "rect": [
         1128.0,
         78.0,
@@ -1594,7 +1731,7 @@
     {
       "key": "field-title",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-title",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-title",
       "rect": [
         1048.0,
         95.8,
@@ -1606,7 +1743,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-title/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-title/#0",
       "rect": [
         1048.0,
         95.8,
@@ -1619,7 +1756,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-title/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-title/#1",
       "rect": [
         1128.0,
         95.8,
@@ -1632,7 +1769,7 @@
     {
       "key": "field-tags",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-tags",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-tags",
       "rect": [
         1048.0,
         113.5,
@@ -1644,7 +1781,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-tags/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-tags/#0",
       "rect": [
         1048.0,
         113.5,
@@ -1657,7 +1794,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-tags/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-tags/#1",
       "rect": [
         1128.0,
         113.5,
@@ -1670,7 +1807,7 @@
     {
       "key": "field-build",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-build",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-build",
       "rect": [
         1048.0,
         131.3,
@@ -1682,7 +1819,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-build/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-build/#0",
       "rect": [
         1048.0,
         131.3,
@@ -1695,7 +1832,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-build/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-build/#1",
       "rect": [
         1128.0,
         131.3,
@@ -1709,7 +1846,7 @@
       "key": "list-0",
       "label": "Satellites (nav, breadcrumbs)",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0",
       "rect": [
         1048.0,
         157.0,
@@ -1721,7 +1858,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-0/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/#0",
       "rect": [
         1048.0,
         158.5,
@@ -1733,7 +1870,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-0/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/#1",
       "rect": [
         1064.0,
         157.0,
@@ -1747,7 +1884,7 @@
       "fill": "#8a93a32e",
       "key": "list-0-count",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-0/list-0-count",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/list-0-count",
       "radius": 999.0,
       "rect": [
         1238.0,
@@ -1760,7 +1897,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-0/list-0-count/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/list-0-count/#0",
       "rect": [
         1244.0,
         157.6,
@@ -1774,7 +1911,7 @@
       "color": "#e6e9efff",
       "key": "list-0-0",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-0-0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0-0",
       "rect": [
         1048.0,
         176.0,
@@ -1788,7 +1925,7 @@
       "color": "#e6e9efff",
       "key": "list-0-1",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-0-1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0-1",
       "rect": [
         1048.0,
         193.8,
@@ -1802,7 +1939,7 @@
       "key": "list-1",
       "label": "Referenced by",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1",
       "rect": [
         1048.0,
         219.5,
@@ -1814,7 +1951,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-1/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1/#0",
       "rect": [
         1048.0,
         221.0,
@@ -1826,7 +1963,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-1/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1/#1",
       "rect": [
         1064.0,
         219.5,
@@ -1840,7 +1977,7 @@
       "fill": "#8a93a32e",
       "key": "list-1-count",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-1/list-1-count",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1/list-1-count",
       "radius": 999.0,
       "rect": [
         1152.1,
@@ -1853,7 +1990,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-1/list-1-count/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1/list-1-count/#0",
       "rect": [
         1158.1,
         220.1,
@@ -1867,7 +2004,7 @@
       "key": "list-2",
       "label": "Outputs",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-2",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-2",
       "rect": [
         1048.0,
         246.5,
@@ -1879,7 +2016,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-2/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-2/#0",
       "rect": [
         1048.0,
         248.0,
@@ -1891,7 +2028,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-2/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-2/#1",
       "rect": [
         1064.0,
         246.5,
@@ -1905,7 +2042,7 @@
       "fill": "#8a93a32e",
       "key": "list-2-count",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-2/list-2-count",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-2/list-2-count",
       "radius": 999.0,
       "rect": [
         1114.4,
@@ -1918,7 +2055,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-2/list-2-count/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-2/list-2-count/#0",
       "rect": [
         1120.4,
         247.1,
@@ -1932,7 +2069,7 @@
       "color": "#e6e9efff",
       "key": "list-2-0",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-2-0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-2-0",
       "rect": [
         1048.0,
         265.5,
@@ -1947,7 +2084,7 @@
       "key": "follow-link",
       "label": "Open output",
       "opacity": 1.0,
-      "path": "shell/body/inspector/follow-link",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/follow-link",
       "radius": 4.0,
       "rect": [
         1048.0,
@@ -1971,7 +2108,7 @@
       "color": "#001018ff",
       "key": "label",
       "opacity": 1.0,
-      "path": "shell/body/inspector/follow-link/label",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/follow-link/label",
       "rect": [
         1127.3,
         295.3,

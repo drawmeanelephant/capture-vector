@@ -436,7 +436,7 @@
       "text": "Demo"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav",
       "opacity": 1.0,
       "path": "shell/body/nav",
@@ -449,9 +449,34 @@
       "role": "group"
     },
     {
+      "key": "nav-scroll",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll",
+      "rect": [
+        88.0,
+        0.0,
+        180.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-head",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/nav-head",
+      "rect": [
+        88.0,
+        0.0,
+        180.0,
+        28.3
+      ],
+      "role": "group"
+    },
+    {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/#0",
+      "path": "shell/body/nav/nav-scroll/nav-head/#0",
       "rect": [
         96.0,
         8.0,
@@ -462,10 +487,21 @@
       "text": "Demo"
     },
     {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1",
+      "rect": [
+        88.0,
+        28.3,
+        180.0,
+        58.0
+      ],
+      "role": "group"
+    },
+    {
       "fill": "#ffffff14",
       "key": "nav-session",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-session",
+      "path": "shell/body/nav/nav-scroll/#1/nav-session",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -478,7 +514,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-session/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-session/#0",
       "rect": [
         104.0,
         32.3,
@@ -490,7 +526,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-session/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-session/#1",
       "rect": [
         192.6,
         39.8,
@@ -502,7 +538,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-session/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-session/#2",
       "radius": 999.0,
       "rect": [
         233.1,
@@ -515,7 +551,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-session/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-session/#2/#0",
       "rect": [
         239.1,
         32.9,
@@ -526,10 +562,10 @@
       "text": "3"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-pages",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-pages",
+      "path": "shell/body/nav/nav-scroll/#1/nav-pages",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -542,7 +578,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-pages/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-pages/#0",
       "rect": [
         104.0,
         59.3,
@@ -554,7 +590,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-pages/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-pages/#1",
       "rect": [
         199.5,
         66.8,
@@ -566,7 +602,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-pages/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-pages/#2",
       "radius": 999.0,
       "rect": [
         212.1,
@@ -579,7 +615,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-pages/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-pages/#2/#0",
       "rect": [
         218.1,
         59.9,
@@ -590,7 +626,7 @@
       "text": "5000"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#0e1014ff",
       "key": "list-pane",
       "opacity": 1.0,
       "path": "shell/body/list-pane",
@@ -615,7 +651,7 @@
       "role": "group"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#0e1014ff",
       "key": "row-ev-stub-0",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-ev-stub-0",
@@ -669,7 +705,7 @@
       "text": "#0"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#0e1014ff",
       "key": "row-ev-stub-1",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-ev-stub-1",
@@ -724,7 +760,7 @@
       "text": "#1"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#0e1014ff",
       "key": "row-ev-stub-2",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-ev-stub-2",
@@ -779,7 +815,7 @@
       "text": "#2"
     },
     {
-      "fill": "#0e1014ff",
+      "fill": "#14171dff",
       "key": "reading",
       "opacity": 1.0,
       "path": "shell/body/reading",
@@ -792,25 +828,63 @@
       "role": "group"
     },
     {
-      "color": "#e6e9efff",
+      "key": "reading-scroll",
       "opacity": 1.0,
-      "path": "shell/body/reading/#0",
+      "path": "shell/body/reading/reading-scroll",
+      "rect": [
+        588.0,
+        0.0,
+        452.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "reading-head",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head",
+      "rect": [
+        588.0,
+        0.0,
+        452.0,
+        44.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "reading-title",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head/reading-title",
       "rect": [
         604.0,
         16.0,
         420.0,
-        16.3
+        20.0
       ],
       "role": "text",
       "text": "Build succeeded (initial)"
     },
     {
+      "key": "reading-body",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body",
+      "rect": [
+        588.0,
+        44.0,
+        452.0,
+        92.8
+      ],
+      "role": "group"
+    },
+    {
       "key": "line-0",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-0",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-0",
       "rect": [
         604.0,
-        38.3,
+        44.0,
         420.0,
         15.0
       ],
@@ -819,10 +893,10 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-0/#0",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-0/#0",
       "rect": [
         604.0,
-        38.3,
+        44.0,
         96.0,
         15.0
       ],
@@ -832,10 +906,10 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-0/#1",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-0/#1",
       "rect": [
         708.0,
-        38.3,
+        44.0,
         316.0,
         15.0
       ],
@@ -845,10 +919,10 @@
     {
       "key": "line-1",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-1",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-1",
       "rect": [
         604.0,
-        59.3,
+        65.0,
         420.0,
         15.0
       ],
@@ -857,10 +931,10 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-1/#0",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-1/#0",
       "rect": [
         604.0,
-        59.3,
+        65.0,
         96.0,
         15.0
       ],
@@ -870,10 +944,10 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-1/#1",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-1/#1",
       "rect": [
         708.0,
-        59.3,
+        65.0,
         316.0,
         15.0
       ],
@@ -883,10 +957,10 @@
     {
       "key": "line-2",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-2",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-2",
       "rect": [
         604.0,
-        80.3,
+        86.0,
         420.0,
         15.0
       ],
@@ -895,10 +969,10 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-2/#0",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-2/#0",
       "rect": [
         604.0,
-        80.3,
+        86.0,
         96.0,
         15.0
       ],
@@ -908,10 +982,10 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-2/#1",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-2/#1",
       "rect": [
         708.0,
-        80.3,
+        86.0,
         316.0,
         15.0
       ],
@@ -921,10 +995,10 @@
     {
       "key": "line-3",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-3",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-3",
       "rect": [
         604.0,
-        101.3,
+        107.0,
         420.0,
         13.8
       ],
@@ -933,10 +1007,10 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-3/#0",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-3/#0",
       "rect": [
         604.0,
-        101.3,
+        107.0,
         96.0,
         13.8
       ],
@@ -946,10 +1020,10 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-3/#1",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-3/#1",
       "rect": [
         708.0,
-        101.3,
+        107.0,
         316.0,
         13.8
       ],
@@ -957,7 +1031,7 @@
       "text": "stub-1"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "inspector",
       "opacity": 1.0,
       "path": "shell/body/inspector",
@@ -970,9 +1044,34 @@
       "role": "group"
     },
     {
+      "key": "inspector-scroll",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll",
+      "rect": [
+        1040.0,
+        0.0,
+        240.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "inspector-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-head",
+      "rect": [
+        1040.0,
+        0.0,
+        240.0,
+        28.3
+      ],
+      "role": "group"
+    },
+    {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-head/#0",
       "rect": [
         1048.0,
         8.0,
@@ -983,9 +1082,21 @@
       "text": "Inspector"
     },
     {
+      "key": "inspector-body",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body",
+      "rect": [
+        1040.0,
+        28.3,
+        240.0,
+        57.3
+      ],
+      "role": "group"
+    },
+    {
       "key": "field-key",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-key",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-key",
       "rect": [
         1048.0,
         28.3,
@@ -997,7 +1108,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-key/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-key/#0",
       "rect": [
         1048.0,
         28.3,
@@ -1010,7 +1121,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-key/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-key/#1",
       "rect": [
         1128.0,
         28.3,
@@ -1023,7 +1134,7 @@
     {
       "key": "field-seq",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-seq",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-seq",
       "rect": [
         1048.0,
         46.0,
@@ -1035,7 +1146,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-seq/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-seq/#0",
       "rect": [
         1048.0,
         46.0,
@@ -1048,7 +1159,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-seq/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-seq/#1",
       "rect": [
         1128.0,
         46.0,
@@ -1061,7 +1172,7 @@
     {
       "key": "field-tone",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-tone",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-tone",
       "rect": [
         1048.0,
         63.8,
@@ -1073,7 +1184,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-tone/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-tone/#0",
       "rect": [
         1048.0,
         63.8,
@@ -1086,7 +1197,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-tone/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-tone/#1",
       "rect": [
         1128.0,
         63.8,

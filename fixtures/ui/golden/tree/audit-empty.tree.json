@@ -398,7 +398,7 @@
       "text": "Demo"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav",
       "opacity": 1.0,
       "path": "shell/body/nav",
@@ -411,9 +411,34 @@
       "role": "group"
     },
     {
+      "key": "nav-scroll",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll",
+      "rect": [
+        88.0,
+        0.0,
+        180.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-head",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/nav-head",
+      "rect": [
+        88.0,
+        0.0,
+        180.0,
+        28.3
+      ],
+      "role": "group"
+    },
+    {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/#0",
+      "path": "shell/body/nav/nav-scroll/nav-head/#0",
       "rect": [
         96.0,
         8.0,
@@ -424,10 +449,21 @@
       "text": "Audit"
     },
     {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1",
+      "rect": [
+        88.0,
+        28.3,
+        180.0,
+        328.0
+      ],
+      "role": "group"
+    },
+    {
       "fill": "#ffffff14",
       "key": "nav-open",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-open",
+      "path": "shell/body/nav/nav-scroll/#1/nav-open",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -440,7 +476,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-open/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-open/#0",
       "rect": [
         104.0,
         32.3,
@@ -452,7 +488,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-open/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-open/#1",
       "rect": [
         139.2,
         39.8,
@@ -464,7 +500,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-open/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-open/#2",
       "radius": 999.0,
       "rect": [
         232.9,
@@ -477,7 +513,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-open/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-open/#2/#0",
       "rect": [
         238.9,
         32.9,
@@ -488,10 +524,10 @@
       "text": "0"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-blocking",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-blocking",
+      "path": "shell/body/nav/nav-scroll/#1/nav-blocking",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -504,7 +540,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-blocking/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-blocking/#0",
       "rect": [
         104.0,
         59.3,
@@ -516,7 +552,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-blocking/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-blocking/#1",
       "rect": [
         156.8,
         66.8,
@@ -528,7 +564,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-blocking/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-blocking/#2",
       "radius": 999.0,
       "rect": [
         232.9,
@@ -541,7 +577,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-blocking/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-blocking/#2/#0",
       "rect": [
         238.9,
         59.9,
@@ -552,10 +588,10 @@
       "text": "0"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-error",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-error",
+      "path": "shell/body/nav/nav-scroll/#1/nav-error",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -568,7 +604,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-error/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-error/#0",
       "rect": [
         104.0,
         86.3,
@@ -580,7 +616,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-error/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-error/#1",
       "rect": [
         142.3,
         93.8,
@@ -592,7 +628,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-error/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-error/#2",
       "radius": 999.0,
       "rect": [
         232.9,
@@ -605,7 +641,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-error/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-error/#2/#0",
       "rect": [
         238.9,
         86.9,
@@ -616,10 +652,10 @@
       "text": "0"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-warning",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-warning",
+      "path": "shell/body/nav/nav-scroll/#1/nav-warning",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -632,7 +668,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-warning/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-warning/#0",
       "rect": [
         104.0,
         113.3,
@@ -644,7 +680,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-warning/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-warning/#1",
       "rect": [
         161.4,
         120.8,
@@ -656,7 +692,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-warning/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-warning/#2",
       "radius": 999.0,
       "rect": [
         232.9,
@@ -669,7 +705,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-warning/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-warning/#2/#0",
       "rect": [
         238.9,
         113.9,
@@ -680,10 +716,10 @@
       "text": "0"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-info",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-info",
+      "path": "shell/body/nav/nav-scroll/#1/nav-info",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -696,7 +732,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-info/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-info/#0",
       "rect": [
         104.0,
         140.3,
@@ -708,7 +744,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-info/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-info/#1",
       "rect": [
         129.6,
         147.8,
@@ -720,7 +756,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-info/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-info/#2",
       "radius": 999.0,
       "rect": [
         232.9,
@@ -733,7 +769,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-info/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-info/#2/#0",
       "rect": [
         238.9,
         140.9,
@@ -744,10 +780,10 @@
       "text": "0"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-snoozed",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-snoozed",
+      "path": "shell/body/nav/nav-scroll/#1/nav-snoozed",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -760,7 +796,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-snoozed/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-snoozed/#0",
       "rect": [
         104.0,
         167.3,
@@ -772,7 +808,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-snoozed/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-snoozed/#1",
       "rect": [
         157.8,
         174.8,
@@ -784,7 +820,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-snoozed/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-snoozed/#2",
       "radius": 999.0,
       "rect": [
         232.9,
@@ -797,7 +833,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-snoozed/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-snoozed/#2/#0",
       "rect": [
         238.9,
         167.9,
@@ -808,10 +844,10 @@
       "text": "0"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-wontfix",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-wontfix",
+      "path": "shell/body/nav/nav-scroll/#1/nav-wontfix",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -824,7 +860,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-wontfix/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-wontfix/#0",
       "rect": [
         104.0,
         194.3,
@@ -836,7 +872,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-wontfix/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-wontfix/#1",
       "rect": [
         158.3,
         201.8,
@@ -848,7 +884,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-wontfix/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-wontfix/#2",
       "radius": 999.0,
       "rect": [
         232.9,
@@ -861,7 +897,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-wontfix/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-wontfix/#2/#0",
       "rect": [
         238.9,
         194.9,
@@ -872,10 +908,10 @@
       "text": "0"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-fixed",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-fixed",
+      "path": "shell/body/nav/nav-scroll/#1/nav-fixed",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -888,7 +924,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-fixed/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-fixed/#0",
       "rect": [
         104.0,
         221.3,
@@ -900,7 +936,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-fixed/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-fixed/#1",
       "rect": [
         138.6,
         228.8,
@@ -912,7 +948,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-fixed/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-fixed/#2",
       "radius": 999.0,
       "rect": [
         232.9,
@@ -925,7 +961,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-fixed/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-fixed/#2/#0",
       "rect": [
         238.9,
         221.9,
@@ -936,10 +972,10 @@
       "text": "0"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-limited",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-limited",
+      "path": "shell/body/nav/nav-scroll/#1/nav-limited",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -952,7 +988,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-limited/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-limited/#0",
       "rect": [
         104.0,
         248.3,
@@ -964,7 +1000,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-limited/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-limited/#1",
       "rect": [
         180.0,
         255.8,
@@ -976,7 +1012,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-limited/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-limited/#2",
       "radius": 999.0,
       "rect": [
         232.9,
@@ -989,7 +1025,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-limited/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-limited/#2/#0",
       "rect": [
         238.9,
         248.9,
@@ -1000,10 +1036,10 @@
       "text": "0"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-pack:a11y-content",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-pack:a11y-content",
+      "path": "shell/body/nav/nav-scroll/#1/nav-pack:a11y-content",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -1016,7 +1052,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-pack:a11y-content/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-pack:a11y-content/#0",
       "rect": [
         104.0,
         275.3,
@@ -1028,7 +1064,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-pack:a11y-content/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-pack:a11y-content/#1",
       "rect": [
         216.9,
         282.8,
@@ -1040,7 +1076,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-pack:a11y-content/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-pack:a11y-content/#2",
       "radius": 999.0,
       "rect": [
         232.9,
@@ -1053,7 +1089,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-pack:a11y-content/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-pack:a11y-content/#2/#0",
       "rect": [
         238.9,
         275.9,
@@ -1064,10 +1100,10 @@
       "text": "0"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-pack:aeo-llm",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-pack:aeo-llm",
+      "path": "shell/body/nav/nav-scroll/#1/nav-pack:aeo-llm",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -1080,7 +1116,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-pack:aeo-llm/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-pack:aeo-llm/#0",
       "rect": [
         104.0,
         302.3,
@@ -1092,7 +1128,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-pack:aeo-llm/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-pack:aeo-llm/#1",
       "rect": [
         188.8,
         309.8,
@@ -1104,7 +1140,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-pack:aeo-llm/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-pack:aeo-llm/#2",
       "radius": 999.0,
       "rect": [
         232.9,
@@ -1117,7 +1153,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-pack:aeo-llm/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-pack:aeo-llm/#2/#0",
       "rect": [
         238.9,
         302.9,
@@ -1128,10 +1164,10 @@
       "text": "0"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-pack:seo-core",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-pack:seo-core",
+      "path": "shell/body/nav/nav-scroll/#1/nav-pack:seo-core",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -1144,7 +1180,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-pack:seo-core/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-pack:seo-core/#0",
       "rect": [
         104.0,
         329.3,
@@ -1156,7 +1192,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-pack:seo-core/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-pack:seo-core/#1",
       "rect": [
         197.5,
         336.8,
@@ -1168,7 +1204,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-pack:seo-core/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-pack:seo-core/#2",
       "radius": 999.0,
       "rect": [
         232.9,
@@ -1181,7 +1217,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-pack:seo-core/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-pack:seo-core/#2/#0",
       "rect": [
         238.9,
         329.9,
@@ -1192,7 +1228,7 @@
       "text": "0"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#0e1014ff",
       "key": "list-pane",
       "opacity": 1.0,
       "path": "shell/body/list-pane",
@@ -1205,7 +1241,6 @@
       "role": "group"
     },
     {
-      "color": "#8a93a3ff",
       "key": "list-empty",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-empty",
@@ -1213,10 +1248,49 @@
         268.0,
         0.0,
         320.0,
-        29.8
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-empty/#0",
+      "rect": [
+        414.0,
+        352.0,
+        28.0,
+        28.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "list-empty-title",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-empty/list-empty-title",
+      "rect": [
+        375.9,
+        388.0,
+        104.3,
+        16.3
       ],
       "role": "text",
-      "text": "Empty mailbox"
+      "text": "Nothing here yet"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "list-empty-hint",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-empty/list-empty-hint",
+      "rect": [
+        349.3,
+        412.3,
+        157.5,
+        13.8
+      ],
+      "role": "text",
+      "text": "Open a workspace with ⇧⌘O"
     },
     {
       "key": "list-viewport",
@@ -1224,14 +1298,14 @@
       "path": "shell/body/list-pane/list-viewport",
       "rect": [
         268.0,
-        29.8,
+        778.0,
         320.0,
-        748.3
+        0.0
       ],
       "role": "group"
     },
     {
-      "fill": "#0e1014ff",
+      "fill": "#14171dff",
       "key": "reading",
       "opacity": 1.0,
       "path": "shell/body/reading",
@@ -1244,20 +1318,59 @@
       "role": "group"
     },
     {
-      "color": "#e6e9efff",
+      "key": "reading-empty",
       "opacity": 1.0,
-      "path": "shell/body/reading/#0",
+      "path": "shell/body/reading/reading-empty",
       "rect": [
-        604.0,
-        16.0,
-        420.0,
+        588.0,
+        0.0,
+        452.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-empty/#0",
+      "rect": [
+        800.0,
+        352.0,
+        28.0,
+        28.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "reading-empty-title",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-empty/reading-empty-title",
+      "rect": [
+        760.6,
+        388.0,
+        106.9,
         16.3
       ],
       "role": "text",
       "text": "Nothing selected"
     },
     {
-      "fill": "#1a1e26ff",
+      "color": "#8a93a3ff",
+      "key": "reading-empty-hint",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-empty/reading-empty-hint",
+      "rect": [
+        719.2,
+        412.3,
+        189.7,
+        13.8
+      ],
+      "role": "text",
+      "text": "Pick an item in the list to read it here"
+    },
+    {
+      "fill": "#0e1014ff",
       "key": "inspector",
       "opacity": 1.0,
       "path": "shell/body/inspector",
@@ -1270,9 +1383,34 @@
       "role": "group"
     },
     {
+      "key": "inspector-scroll",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll",
+      "rect": [
+        1040.0,
+        0.0,
+        240.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "inspector-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-head",
+      "rect": [
+        1040.0,
+        0.0,
+        240.0,
+        28.3
+      ],
+      "role": "group"
+    },
+    {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-head/#0",
       "rect": [
         1048.0,
         8.0,
@@ -1281,6 +1419,18 @@
       ],
       "role": "text",
       "text": "Inspector"
+    },
+    {
+      "key": "inspector-body",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body",
+      "rect": [
+        1040.0,
+        28.3,
+        240.0,
+        8.0
+      ],
+      "role": "group"
     },
     {
       "fill": "#08090cff",

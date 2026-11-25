@@ -436,7 +436,7 @@
       "text": "Demo"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav",
       "opacity": 1.0,
       "path": "shell/body/nav",
@@ -449,9 +449,34 @@
       "role": "group"
     },
     {
+      "key": "nav-scroll",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll",
+      "rect": [
+        88.0,
+        0.0,
+        180.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-head",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/nav-head",
+      "rect": [
+        88.0,
+        0.0,
+        180.0,
+        28.3
+      ],
+      "role": "group"
+    },
+    {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/#0",
+      "path": "shell/body/nav/nav-scroll/nav-head/#0",
       "rect": [
         96.0,
         8.0,
@@ -462,10 +487,21 @@
       "text": "Pages"
     },
     {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1",
+      "rect": [
+        88.0,
+        28.3,
+        180.0,
+        139.0
+      ],
+      "role": "group"
+    },
+    {
       "fill": "#ffffff14",
       "key": "nav-all",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-all",
+      "path": "shell/body/nav/nav-scroll/#1/nav-all",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -478,7 +514,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-all/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-all/#0",
       "rect": [
         104.0,
         32.3,
@@ -490,7 +526,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-all/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-all/#1",
       "rect": [
         161.7,
         39.8,
@@ -502,7 +538,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-all/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-all/#2",
       "radius": 999.0,
       "rect": [
         233.1,
@@ -515,7 +551,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-all/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-all/#2/#0",
       "rect": [
         239.1,
         32.9,
@@ -526,10 +562,10 @@
       "text": "3"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-trunks",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-trunks",
+      "path": "shell/body/nav/nav-scroll/#1/nav-trunks",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -542,7 +578,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-trunks/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-trunks/#0",
       "rect": [
         104.0,
         59.3,
@@ -554,7 +590,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-trunks/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-trunks/#1",
       "rect": [
         146.7,
         66.8,
@@ -566,7 +602,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-trunks/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-trunks/#2",
       "radius": 999.0,
       "rect": [
         235.4,
@@ -579,7 +615,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-trunks/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-trunks/#2/#0",
       "rect": [
         241.4,
         59.9,
@@ -590,10 +626,10 @@
       "text": "1"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-issues",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-issues",
+      "path": "shell/body/nav/nav-scroll/#1/nav-issues",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -606,7 +642,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-issues/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-issues/#0",
       "rect": [
         104.0,
         86.3,
@@ -618,7 +654,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-issues/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-issues/#1",
       "rect": [
         202.1,
         93.8,
@@ -630,7 +666,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-issues/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-issues/#2",
       "radius": 999.0,
       "rect": [
         232.9,
@@ -643,7 +679,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-issues/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-issues/#2/#0",
       "rect": [
         238.9,
         86.9,
@@ -654,10 +690,10 @@
       "text": "0"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-orphans",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-orphans",
+      "path": "shell/body/nav/nav-scroll/#1/nav-orphans",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -670,7 +706,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-orphans/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-orphans/#0",
       "rect": [
         104.0,
         113.3,
@@ -682,7 +718,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-orphans/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-orphans/#1",
       "rect": [
         191.7,
         120.8,
@@ -694,7 +730,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-orphans/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-orphans/#2",
       "radius": 999.0,
       "rect": [
         232.9,
@@ -707,7 +743,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-orphans/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-orphans/#2/#0",
       "rect": [
         238.9,
         113.9,
@@ -718,10 +754,10 @@
       "text": "0"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-tree:index",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-tree:index",
+      "path": "shell/body/nav/nav-scroll/#1/nav-tree:index",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -734,7 +770,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-tree:index/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-tree:index/#0",
       "rect": [
         104.0,
         140.3,
@@ -746,7 +782,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-tree:index/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-tree:index/#1",
       "rect": [
         182.7,
         147.8,
@@ -758,7 +794,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-tree:index/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-tree:index/#2",
       "radius": 999.0,
       "rect": [
         233.2,
@@ -771,7 +807,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-tree:index/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-tree:index/#2/#0",
       "rect": [
         239.2,
         140.9,
@@ -782,7 +818,7 @@
       "text": "2"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#0e1014ff",
       "key": "list-pane",
       "opacity": 1.0,
       "path": "shell/body/list-pane",
@@ -807,7 +843,7 @@
       "role": "group"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#0e1014ff",
       "key": "row-index.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-index.md",
@@ -847,7 +883,7 @@
       "text": "index.md · 2 satellites"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#0e1014ff",
       "key": "row-guides/getting-started.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fgetting-started.md",
@@ -887,7 +923,7 @@
       "text": "guides/getting-started.md"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#0e1014ff",
       "key": "row-guides/publishing.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fpublishing.md",
@@ -927,7 +963,7 @@
       "text": "guides/publishing.md"
     },
     {
-      "fill": "#0e1014ff",
+      "fill": "#14171dff",
       "key": "reading",
       "opacity": 1.0,
       "path": "shell/body/reading",
@@ -940,9 +976,34 @@
       "role": "group"
     },
     {
+      "key": "reading-scroll",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll",
+      "rect": [
+        588.0,
+        0.0,
+        452.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "reading-head",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head",
+      "rect": [
+        588.0,
+        0.0,
+        452.0,
+        63.8
+      ],
+      "role": "group"
+    },
+    {
       "key": "breadcrumbs",
       "opacity": 1.0,
-      "path": "shell/body/reading/breadcrumbs",
+      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs",
       "rect": [
         604.0,
         16.0,
@@ -955,7 +1016,7 @@
       "color": "#8a93a3ff",
       "key": "crumb-0",
       "opacity": 1.0,
-      "path": "shell/body/reading/breadcrumbs/crumb-0",
+      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs/crumb-0",
       "rect": [
         604.0,
         16.0,
@@ -968,7 +1029,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/reading/breadcrumbs/#1",
+      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs/#1",
       "rect": [
         677.2,
         16.0,
@@ -982,7 +1043,7 @@
       "color": "#8a93a3ff",
       "key": "crumb-1",
       "opacity": 1.0,
-      "path": "shell/body/reading/breadcrumbs/crumb-1",
+      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs/crumb-1",
       "rect": [
         685.6,
         16.0,
@@ -994,24 +1055,37 @@
     },
     {
       "color": "#e6e9efff",
+      "key": "reading-title",
       "opacity": 1.0,
-      "path": "shell/body/reading/#1",
+      "path": "shell/body/reading/reading-scroll/reading-head/reading-title",
       "rect": [
         604.0,
         35.8,
         420.0,
-        16.3
+        20.0
       ],
       "role": "text",
       "text": "Publishing"
     },
     {
+      "key": "reading-body",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body",
+      "rect": [
+        588.0,
+        63.8,
+        452.0,
+        729.8
+      ],
+      "role": "group"
+    },
+    {
       "key": "line-0",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-0",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-0",
       "rect": [
         604.0,
-        58.0,
+        63.8,
         420.0,
         15.0
       ],
@@ -1020,10 +1094,10 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-0/#0",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-0/#0",
       "rect": [
         604.0,
-        58.0,
+        63.8,
         96.0,
         15.0
       ],
@@ -1033,10 +1107,10 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-0/#1",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-0/#1",
       "rect": [
         708.0,
-        58.0,
+        63.8,
         316.0,
         15.0
       ],
@@ -1046,10 +1120,10 @@
     {
       "key": "line-1",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-1",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-1",
       "rect": [
         604.0,
-        79.0,
+        84.8,
         420.0,
         15.0
       ],
@@ -1058,10 +1132,10 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-1/#0",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-1/#0",
       "rect": [
         604.0,
-        79.0,
+        84.8,
         96.0,
         15.0
       ],
@@ -1071,10 +1145,10 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-1/#1",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-1/#1",
       "rect": [
         708.0,
-        79.0,
+        84.8,
         316.0,
         15.0
       ],
@@ -1082,39 +1156,65 @@
       "text": "guides"
     },
     {
-      "color": "#8a93a3ff",
-      "key": "sketch-label",
-      "opacity": 1.0,
-      "path": "shell/body/reading/sketch-label",
-      "rect": [
-        604.0,
-        100.0,
-        420.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "Draft sketch"
-    },
-    {
+      "fill": "#14171dff",
       "key": "sketch",
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch",
+      "radius": 6.0,
       "rect": [
         604.0,
-        119.8,
+        113.8,
         420.0,
-        642.3
+        663.8
       ],
       "role": "group"
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#0",
       "rect": [
-        604.0,
-        119.8,
-        420.0,
-        671.2
+        616.0,
+        125.8,
+        396.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffb0202e",
+      "key": "sketch-label",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#0/sketch-label",
+      "radius": 999.0,
+      "rect": [
+        616.0,
+        125.8,
+        130.5,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#ffb020ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#0/sketch-label/#0",
+      "rect": [
+        622.0,
+        125.8,
+        118.5,
+        13.8
+      ],
+      "role": "text",
+      "text": "Draft sketch · advisory"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1",
+      "rect": [
+        616.0,
+        147.5,
+        396.0,
+        618.0
       ],
       "role": "group"
     },
@@ -1122,11 +1222,11 @@
       "color": "#e6e9efff",
       "key": "b0",
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0/b0",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b0",
       "rect": [
-        604.0,
-        119.8,
-        420.0,
+        616.0,
+        147.5,
+        396.0,
         24.0
       ],
       "role": "heading",
@@ -1136,12 +1236,12 @@
       "color": "#e6e9efff",
       "key": "b1",
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0/b1",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b1",
       "rect": [
-        604.0,
-        155.8,
-        420.0,
-        67.2
+        616.0,
+        183.5,
+        396.0,
+        60.0
       ],
       "role": "text",
       "text": "Boris treats the deployment URL as publication truth, not an incidental detail. The starter profile declares one public HTML target:"
@@ -1150,25 +1250,25 @@
       "fill": "#1a1e26ff",
       "key": "b2",
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0/b2",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2",
       "radius": 6.0,
       "rect": [
-        604.0,
-        235.0,
-        420.0,
-        206.0
+        616.0,
+        255.5,
+        396.0,
+        188.0
       ],
       "role": "code"
     },
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0/b2/#0",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/#0",
       "rect": [
-        617.0,
-        248.0,
-        394.0,
-        180.0
+        629.0,
+        268.5,
+        370.0,
+        162.0
       ],
       "role": "text",
       "text": "{\n  \"format\": \"boris-publication-profile\",\n  \"schema_version\": 1,\n  \"input\": \"content\",\n  \"targets\": [\n    { \"name\": \"public\", \"output\": \"dist\", \"public\": true, \"theme\": \"themes/boris\" }\n  ]\n}"
@@ -1177,12 +1277,12 @@
       "color": "#e6e9efff",
       "key": "b3",
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0/b3",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b3",
       "rect": [
-        604.0,
-        465.0,
-        420.0,
-        22.4
+        616.0,
+        467.5,
+        396.0,
+        20.0
       ],
       "role": "text",
       "text": "Inspect the normalized plan before publishing:"
@@ -1191,25 +1291,25 @@
       "fill": "#1a1e26ff",
       "key": "b4",
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0/b4",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4",
       "radius": 6.0,
       "rect": [
-        604.0,
-        499.4,
-        420.0,
-        66.0
+        616.0,
+        499.5,
+        396.0,
+        62.0
       ],
       "role": "code"
     },
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0/b4/#0",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/#0",
       "rect": [
-        617.0,
-        512.4,
-        394.0,
-        40.0
+        629.0,
+        512.5,
+        370.0,
+        36.0
       ],
       "role": "text",
       "text": "boris plan --profile boris.json\nboris standard-site plan --profile standard-site.json"
@@ -1218,18 +1318,18 @@
       "color": "#e6e9efff",
       "key": "b5",
       "opacity": 1.0,
-      "path": "shell/body/reading/sketch/#0/b5",
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b5",
       "rect": [
-        604.0,
-        589.4,
-        420.0,
-        201.6
+        616.0,
+        585.5,
+        396.0,
+        180.0
       ],
       "role": "text",
       "text": "The official GitHub Pages workflow (see the ⁦repository's⁩ ⁦  ⁦docs/github-pages.md⁩  ⁩) builds a verified target: it resolves the Pages location from ⁦  ⁦actions/configure-pages⁩  ⁩, fails on any URL projection that disagrees with it, uploads only ⁦inventory-verified⁩ files, and retains a separate evidence artifact. Atmosphere publication uses ⁦  ⁦standard-site.json⁩  ⁩: replace the ⁦obviously-fake⁩ DID and URL before ⁦  ⁦standard-site publish⁩  ⁩. This starter page is related to ⁦[[guides/getting-started]]⁩ so the semantic graph has an edge to inspect."
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "inspector",
       "opacity": 1.0,
       "path": "shell/body/inspector",
@@ -1242,9 +1342,34 @@
       "role": "group"
     },
     {
+      "key": "inspector-scroll",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll",
+      "rect": [
+        1040.0,
+        0.0,
+        240.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "inspector-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-head",
+      "rect": [
+        1040.0,
+        0.0,
+        240.0,
+        28.3
+      ],
+      "role": "group"
+    },
+    {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-head/#0",
       "rect": [
         1048.0,
         8.0,
@@ -1255,9 +1380,21 @@
       "text": "Inspector"
     },
     {
+      "key": "inspector-body",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body",
+      "rect": [
+        1040.0,
+        28.3,
+        240.0,
+        259.0
+      ],
+      "role": "group"
+    },
+    {
       "key": "field-id",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-id",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-id",
       "rect": [
         1048.0,
         28.3,
@@ -1269,7 +1406,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-id/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-id/#0",
       "rect": [
         1048.0,
         28.3,
@@ -1282,7 +1419,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-id/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-id/#1",
       "rect": [
         1128.0,
         28.3,
@@ -1295,7 +1432,7 @@
     {
       "key": "field-role",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-role",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-role",
       "rect": [
         1048.0,
         46.0,
@@ -1307,7 +1444,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-role/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-role/#0",
       "rect": [
         1048.0,
         46.0,
@@ -1320,7 +1457,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-role/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-role/#1",
       "rect": [
         1128.0,
         46.0,
@@ -1333,7 +1470,7 @@
     {
       "key": "field-title",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-title",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-title",
       "rect": [
         1048.0,
         63.8,
@@ -1345,7 +1482,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-title/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-title/#0",
       "rect": [
         1048.0,
         63.8,
@@ -1358,7 +1495,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-title/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-title/#1",
       "rect": [
         1128.0,
         63.8,
@@ -1371,7 +1508,7 @@
     {
       "key": "field-parent",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-parent",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-parent",
       "rect": [
         1048.0,
         81.5,
@@ -1383,7 +1520,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-parent/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-parent/#0",
       "rect": [
         1048.0,
         81.5,
@@ -1396,7 +1533,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-parent/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-parent/#1",
       "rect": [
         1128.0,
         81.5,
@@ -1409,7 +1546,7 @@
     {
       "key": "field-tags",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-tags",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-tags",
       "rect": [
         1048.0,
         99.3,
@@ -1421,7 +1558,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-tags/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-tags/#0",
       "rect": [
         1048.0,
         99.3,
@@ -1434,7 +1571,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-tags/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-tags/#1",
       "rect": [
         1128.0,
         99.3,
@@ -1447,7 +1584,7 @@
     {
       "key": "field-relations",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-relations",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-relations",
       "rect": [
         1048.0,
         117.0,
@@ -1459,7 +1596,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-relations/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-relations/#0",
       "rect": [
         1048.0,
         117.0,
@@ -1473,7 +1610,7 @@
       "color": "#e6e9efff",
       "help": "[relates_to=guides/getting-started]",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-relations/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-relations/#1",
       "rect": [
         1128.0,
         117.0,
@@ -1486,7 +1623,7 @@
     {
       "key": "field-build",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-build",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-build",
       "rect": [
         1048.0,
         134.8,
@@ -1498,7 +1635,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-build/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-build/#0",
       "rect": [
         1048.0,
         134.8,
@@ -1511,7 +1648,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-build/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-build/#1",
       "rect": [
         1128.0,
         134.8,
@@ -1525,7 +1662,7 @@
       "key": "list-0",
       "label": "Satellites (nav, breadcrumbs)",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0",
       "rect": [
         1048.0,
         160.5,
@@ -1537,7 +1674,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-0/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/#0",
       "rect": [
         1048.0,
         162.0,
@@ -1549,7 +1686,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-0/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/#1",
       "rect": [
         1064.0,
         160.5,
@@ -1563,7 +1700,7 @@
       "fill": "#8a93a32e",
       "key": "list-0-count",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-0/list-0-count",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/list-0-count",
       "radius": 999.0,
       "rect": [
         1238.0,
@@ -1576,7 +1713,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-0/list-0-count/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/list-0-count/#0",
       "rect": [
         1244.0,
         161.1,
@@ -1590,7 +1727,7 @@
       "key": "list-1",
       "label": "Referenced by",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1",
       "rect": [
         1048.0,
         187.5,
@@ -1602,7 +1739,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-1/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1/#0",
       "rect": [
         1048.0,
         189.0,
@@ -1614,7 +1751,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-1/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1/#1",
       "rect": [
         1064.0,
         187.5,
@@ -1628,7 +1765,7 @@
       "fill": "#8a93a32e",
       "key": "list-1-count",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-1/list-1-count",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1/list-1-count",
       "radius": 999.0,
       "rect": [
         1152.1,
@@ -1641,7 +1778,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-1/list-1-count/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1/list-1-count/#0",
       "rect": [
         1158.1,
         188.1,
@@ -1655,7 +1792,7 @@
       "key": "list-2",
       "label": "Outputs",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-2",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-2",
       "rect": [
         1048.0,
         214.5,
@@ -1667,7 +1804,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-2/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-2/#0",
       "rect": [
         1048.0,
         216.0,
@@ -1679,7 +1816,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-2/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-2/#1",
       "rect": [
         1064.0,
         214.5,
@@ -1693,7 +1830,7 @@
       "fill": "#8a93a32e",
       "key": "list-2-count",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-2/list-2-count",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-2/list-2-count",
       "radius": 999.0,
       "rect": [
         1114.4,
@@ -1706,7 +1843,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-2/list-2-count/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-2/list-2-count/#0",
       "rect": [
         1120.4,
         215.1,
@@ -1720,7 +1857,7 @@
       "color": "#e6e9efff",
       "key": "list-2-0",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-2-0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-2-0",
       "rect": [
         1048.0,
         233.5,
@@ -1735,7 +1872,7 @@
       "key": "follow-link",
       "label": "Open output",
       "opacity": 1.0,
-      "path": "shell/body/inspector/follow-link",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/follow-link",
       "radius": 4.0,
       "rect": [
         1048.0,
@@ -1759,7 +1896,7 @@
       "color": "#001018ff",
       "key": "label",
       "opacity": 1.0,
-      "path": "shell/body/inspector/follow-link/label",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/follow-link/label",
       "rect": [
         1127.3,
         263.3,

@@ -5,14 +5,14 @@
 use crate::theme::{self, Size, Styled, color, font};
 use crate::{controls, fx, icons};
 use cv_core::events::shell::DegradedReason;
-use cv_model::module::{Chip, ReadingModel, RowModel, Slot, Tone};
+use cv_model::module::{Chip, RowModel, Slot, Tone};
 use cv_model::theme::{Mode, Rgba, Theme, TypeStyle};
 use cv_model::workbench::Workbench;
 use rune::{
-    Color, Cx, Edge, El, GrowthSpec, Icon, ScrollSpec, Span, Transition, col, icon, row, spacer,
-    text,
+    Color, Cx, Edge, El, GrowthSpec, Icon, ScrollSpec, Shadow, Span, Transition, col, icon, row,
+    spacer, text,
 };
-use rune_kit::{Markdown, RollingText, Toast, ToastRegion};
+use rune_kit::{RollingText, Toast, ToastRegion};
 use std::borrow::Cow;
 
 pub(crate) fn tone(t: &Theme, tn: Tone) -> Color {
@@ -86,6 +86,74 @@ pub(crate) fn chip(t: &Theme, key: &str, label: impl Into<String>, tn: Tone) -> 
                 .color(color(fg))
                 .single_line(),
         )
+}
+
+/// A pane's header: it sticks to the top of the pane's scroll viewport
+/// with a top-lit sheen, and shows a hairline while content runs under it.
+pub(crate) fn pane_header(t: &Theme, key: &str, fill: Rgba) -> El {
+    let sheen = t.gradients.pane_sheen;
+    col()
+        .key(key.to_string())
+        .w_full()
+        .fill(color(fill))
+        .gradient(color(sheen.start), color(sheen.end))
+        .sticky_top(0.0)
+        .stuck_shadow(Shadow {
+            y: 0.5,
+            color: color(t.colors.border),
+            ..Default::default()
+        })
+}
+
+/// A pane's vertical scroll viewport, filling what the pane leaves.
+pub(crate) fn pane_scroll(key: &str) -> El {
+    col()
+        .key(key.to_string())
+        .w_full()
+        .grow(1.0)
+        .min_h(0.0)
+        .scroll(ScrollSpec {
+            stick_bottom: false,
+        })
+}
+
+/// A centred empty state: glyph, title, one-line hint.
+pub(crate) fn empty_state(
+    t: &Theme,
+    key: &str,
+    glyph: &'static Icon,
+    title: &str,
+    hint: String,
+) -> El {
+    col()
+        .key(key.to_string())
+        .w_full()
+        .grow(1.0)
+        .items_center()
+        .justify_center()
+        .gap(t.spacing.unit * 2.0)
+        .px(t.spacing.unit * 4.0)
+        .child(icon(glyph, 28.0).color(color(t.colors.text_dim)))
+        .child(
+            text(title.to_string())
+                .key(format!("{key}-title"))
+                .font(font(t.type_.title))
+                .color(color(t.colors.text))
+                .single_line(),
+        )
+        .child(label(t, hint).key(format!("{key}-hint")).truncate())
+}
+
+/// A faint accent glow behind an empty pane, painted on the pane itself.
+pub(crate) fn empty_glow(t: &Theme, pane: El, width: f32) -> El {
+    pane.radial_gradient(
+        [0.5, 0.45],
+        [width * 0.6, 260.0],
+        [
+            (0.0, theme::tint(t.colors.accent, 0x10)),
+            (1.0, theme::tint(t.colors.accent, 0)),
+        ],
+    )
 }
 
 fn banner(s: &Workbench, lights: f32) -> Option<El> {
@@ -286,22 +354,30 @@ fn rail_icon(key: &str) -> &'static Icon {
 
 fn nav(s: &Workbench) -> El {
     let t = &s.theme;
-    let mut nav = col()
+    let nav = col()
         .key("nav")
         .w(t.spacing.nav_w)
         .h_full()
-        .fill(color(t.colors.pane_alt))
-        .padding(t.spacing.unit * 2.0)
-        .gap(t.spacing.unit)
+        .min_h(0.0)
+        .fill(color(t.colors.bg))
         .motion(theme::spring(t.motion.snap));
     let Some(m) = s.registry.get(s.active) else {
-        return nav.child(label(t, "no modules registered"));
+        return nav.child(label(t, "no modules registered").padding(t.spacing.unit * 2.0));
     };
-    nav = nav.child(
-        text(m.spec().title)
-            .font(font(t.type_.title))
-            .color(color(t.colors.text)),
-    );
+    let head = pane_header(t, "nav-head", t.colors.bg)
+        .px(t.spacing.unit * 2.0)
+        .pt(t.spacing.unit * 2.0)
+        .pb(t.spacing.unit)
+        .child(
+            text(m.spec().title)
+                .font(font(t.type_.title))
+                .color(color(t.colors.text)),
+        );
+    let mut items = col()
+        .w_full()
+        .px(t.spacing.unit * 2.0)
+        .pb(t.spacing.unit * 2.0)
+        .gap(t.spacing.unit);
     for item in m.nav().items {
         let sel = s.active_nav() == Some(item.key.as_str());
         let key = item.key.clone();
@@ -320,7 +396,7 @@ fn nav(s: &Workbench) -> El {
             .fill(color(if sel {
                 t.states.selection_inactive
             } else {
-                t.colors.pane_alt
+                t.colors.bg
             }))
             .states(t)
             .on_press(move |s: &mut Workbench| s.set_nav(&key))
@@ -335,9 +411,9 @@ fn nav(s: &Workbench) -> El {
                     .child(label(t, c.to_string())),
             );
         }
-        nav = nav.child(r);
+        items = items.child(r);
     }
-    nav
+    nav.child(pane_scroll("nav-scroll").child(head).child(items))
 }
 
 /// A facet label such as "Pack · seo-core" draws its group prefix dim, so
@@ -384,7 +460,7 @@ fn list_row(s: &Workbench, i: usize) -> El {
         .px(t.spacing.unit * 2.0)
         .gap(t.spacing.unit * 2.0)
         .items_center()
-        .fill(color(t.colors.pane))
+        .fill(color(t.colors.bg))
         .border_sides([0.0, 0.0, 0.5, 0.0], color(t.colors.border))
         .states(t)
         .on_press(move |s: &mut Workbench| s.select_key(&k));
@@ -473,106 +549,32 @@ fn list(s: &Workbench) -> El {
             s.active_nav().map(str::to_string),
             s.app.committed,
         ));
+    let empty = s.list_len() == 0;
     let mut pane = col()
         .key("list-pane")
         .w(t.spacing.list_w)
         .h_full()
         .min_h(0.0)
-        .fill(color(t.colors.pane))
+        .fill(color(t.colors.bg))
         .border_sides([0.0, 0.5, 0.0, 0.5], color(t.colors.border));
-    if s.list_len() == 0 {
-        pane = pane.child(
-            label(t, "Empty mailbox")
-                .key("list-empty")
-                .px(t.spacing.unit * 3.0)
-                .py(t.spacing.unit * 2.0),
-        );
+    if empty {
+        let hint = match (&s.workspace, crate::keys::keycaps("mod+shift+o")) {
+            (None, Some(caps)) => format!("Open a workspace with {}", caps.concat()),
+            _ => "Items appear here as Boris reports them".into(),
+        };
+        pane = empty_glow(t, pane, t.spacing.list_w).child(empty_state(
+            t,
+            "list-empty",
+            &icons::INBOX,
+            "Nothing here yet",
+            hint,
+        ));
     }
     pane.child(
-        col()
-            .key("list-viewport")
-            .w_full()
-            .grow(1.0)
-            .min_h(0.0)
-            .scroll(ScrollSpec {
-                stick_bottom: false,
-            })
+        pane_scroll("list-viewport")
+            .grow(if empty { 0.0 } else { 1.0 })
             .child(rows),
     )
-}
-
-fn reading(s: &Workbench) -> El {
-    let t = &s.theme;
-    let model = s
-        .selected_key()
-        .and_then(|k| s.registry.get(s.active).map(|m| m.reading(k)))
-        .unwrap_or_else(|| ReadingModel {
-            title: "Nothing selected".into(),
-            ..Default::default()
-        });
-    let mut pane = col()
-        .key("reading")
-        .grow(1.0)
-        .min_w(0.0)
-        .h_full()
-        .min_h(0.0)
-        .padding(t.spacing.unit * 4.0)
-        .gap(t.spacing.unit * 1.5)
-        .fill(color(t.colors.bg));
-    if !model.breadcrumbs.is_empty() {
-        let mut crumbs = row().key("breadcrumbs").gap(t.spacing.unit);
-        for (n, c) in model.breadcrumbs.into_iter().enumerate() {
-            if n > 0 {
-                crumbs = crumbs.child(label(t, "›"));
-            }
-            crumbs = crumbs.child(label(t, c).key(format!("crumb-{n}")));
-        }
-        pane = pane.child(crumbs);
-    }
-    pane = pane.child(
-        text(model.title)
-            .font(font(t.type_.title))
-            .color(color(t.colors.text))
-            .wrap(),
-    );
-    for (n, l) in model.lines.into_iter().enumerate() {
-        let style = if l.mono { t.type_.mono } else { t.type_.body };
-        let mut r = row().key(format!("line-{n}")).gap(t.spacing.unit * 2.0);
-        if let Some(lb) = l.label {
-            r = r.child(label(t, lb).w(96.0));
-        }
-        let mut line = text(l.text.clone())
-            .font(font(style))
-            .color(tone(t, l.tone))
-            .wrap()
-            .grow(1.0)
-            .min_w(0.0);
-        if crate::inspector::is_url(&l.text) {
-            let url = l.text;
-            line = line.role("link").color(color(t.colors.accent)).on_press_tx(
-                move |_: &mut Workbench, tx| {
-                    let _ = tx.open_url(&url);
-                },
-            );
-        }
-        pane = pane.child(r.child(line));
-    }
-    if let Some(md) = model.markdown {
-        // Draft sketch only: Boris output stays authoritative.
-        pane = pane.child(label(t, "Draft sketch").key("sketch-label"));
-        pane = pane.child(
-            col()
-                .key("sketch")
-                .w_full()
-                .grow(1.0)
-                .min_h(0.0)
-                .scroll(ScrollSpec {
-                    stick_bottom: false,
-                })
-                .child(Markdown::new(md).render(&theme::markdown(t))),
-        );
-    }
-    pane
 }
 
 /// Engine health for the status chip.
@@ -703,7 +705,7 @@ pub fn view(s: &Workbench, cx: &mut Cx<Workbench>) -> El {
         .child(rail(s, lights > 0.0))
         .child(nav(s))
         .child(list(s))
-        .child(reading(s));
+        .child(crate::reading::pane(s));
     if s.inspector_open {
         body = body.child(crate::inspector::pane(s));
     }

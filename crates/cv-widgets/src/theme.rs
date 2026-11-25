@@ -206,10 +206,57 @@ fn build_kit(t: &Theme) -> Kit {
     k
 }
 
-/// The draft-sketch Markdown look on the app kit: code frames sit on the
-/// app's alternate pane with its hairline border.
+/// The draft-sketch Markdown look on the app kit, set in the shell's type
+/// ramp so the sketch never outranks the reading title. Code frames sit
+/// on the app's alternate pane with its hairline border.
 pub fn markdown(t: &Theme) -> MarkdownStyle {
-    MarkdownStyle::from_kit(&kit(t)).code_block(color(t.colors.pane_alt), color(t.colors.border))
+    let leaded = |s: TypeStyle| TextStyle {
+        line_height: (s.size * 1.5).round(),
+        ..font(s)
+    };
+    let SketchType {
+        body,
+        headings,
+        code,
+    } = sketch_type(t);
+    let mut md = MarkdownStyle::from_kit(&kit(t))
+        .code_block(color(t.colors.pane_alt), color(t.colors.border))
+        .body_font(leaded(body))
+        .code_block_font(leaded(code));
+    for (level, h) in (1..).zip(headings) {
+        md = md.heading_font(level, leaded(h));
+    }
+    md
+}
+
+/// The sketch's faces on the shell ramp: 13 pt body, headings from the
+/// display size down to the title size.
+struct SketchType {
+    body: TypeStyle,
+    headings: [TypeStyle; 3],
+    code: TypeStyle,
+}
+
+fn sketch_type(t: &Theme) -> SketchType {
+    let ty = &t.type_;
+    SketchType {
+        body: TypeStyle {
+            weight: 400.0,
+            ..ty.title
+        },
+        headings: [
+            ty.display,
+            TypeStyle {
+                size: 14.0,
+                ..ty.title
+            },
+            ty.title,
+        ],
+        code: TypeStyle {
+            size: 12.0,
+            ..ty.mono
+        },
+    }
 }
 
 #[cfg(test)]
@@ -227,6 +274,16 @@ mod tests {
         assert_eq!(k.radius.md, t.shape.md);
         assert_eq!(k.elevation.overlay.len(), t.elevation.overlay.len());
         assert!(!kit(&Theme::light()).dark);
+    }
+
+    #[test]
+    fn the_sketch_is_set_in_the_shell_ramp() {
+        let t = Theme::dark();
+        let s = sketch_type(&t);
+        assert_eq!(s.body.size, t.type_.title.size);
+        assert_eq!(s.headings[0], t.type_.display);
+        assert!(s.headings.windows(2).all(|w| w[0].size >= w[1].size));
+        assert!(s.headings.iter().all(|h| h.size >= s.body.size));
     }
 
     #[test]

@@ -436,7 +436,7 @@
       "text": "Demo"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav",
       "opacity": 1.0,
       "path": "shell/body/nav",
@@ -449,9 +449,34 @@
       "role": "group"
     },
     {
+      "key": "nav-scroll",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll",
+      "rect": [
+        88.0,
+        0.0,
+        180.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-head",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/nav-head",
+      "rect": [
+        88.0,
+        0.0,
+        180.0,
+        28.3
+      ],
+      "role": "group"
+    },
+    {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/#0",
+      "path": "shell/body/nav/nav-scroll/nav-head/#0",
       "rect": [
         96.0,
         8.0,
@@ -462,10 +487,21 @@
       "text": "Outputs"
     },
     {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1",
+      "rect": [
+        88.0,
+        28.3,
+        180.0,
+        274.0
+      ],
+      "role": "group"
+    },
+    {
       "fill": "#ffffff14",
       "key": "nav-all",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-all",
+      "path": "shell/body/nav/nav-scroll/#1/nav-all",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -478,7 +514,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-all/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-all/#0",
       "rect": [
         104.0,
         32.3,
@@ -490,7 +526,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-all/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-all/#1",
       "rect": [
         170.5,
         39.8,
@@ -502,7 +538,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-all/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-all/#2",
       "radius": 999.0,
       "rect": [
         228.3,
@@ -515,7 +551,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-all/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-all/#2/#0",
       "rect": [
         234.3,
         32.9,
@@ -526,10 +562,10 @@
       "text": "10"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-ir",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-ir",
+      "path": "shell/body/nav/nav-scroll/#1/nav-ir",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -542,7 +578,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-ir/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-ir/#0",
       "rect": [
         104.0,
         59.3,
@@ -554,7 +590,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-ir/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-ir/#1",
       "rect": [
         155.4,
         66.8,
@@ -566,7 +602,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-ir/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-ir/#2",
       "radius": 999.0,
       "rect": [
         232.9,
@@ -579,7 +615,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-ir/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-ir/#2/#0",
       "rect": [
         238.9,
         59.9,
@@ -590,10 +626,10 @@
       "text": "0"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-rag",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-rag",
+      "path": "shell/body/nav/nav-scroll/#1/nav-rag",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -606,7 +642,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-rag/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-rag/#0",
       "rect": [
         104.0,
         86.3,
@@ -618,7 +654,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-rag/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-rag/#1",
       "rect": [
         169.9,
         93.8,
@@ -630,7 +666,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-rag/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-rag/#2",
       "radius": 999.0,
       "rect": [
         232.9,
@@ -643,7 +679,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-rag/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-rag/#2/#0",
       "rect": [
         238.9,
         86.9,
@@ -654,10 +690,10 @@
       "text": "0"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-context",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-context",
+      "path": "shell/body/nav/nav-scroll/#1/nav-context",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -670,7 +706,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-context/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-context/#0",
       "rect": [
         104.0,
         113.3,
@@ -682,7 +718,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-context/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-context/#1",
       "rect": [
         200.8,
         120.8,
@@ -694,7 +730,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-context/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-context/#2",
       "radius": 999.0,
       "rect": [
         232.9,
@@ -707,7 +743,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-context/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-context/#2/#0",
       "rect": [
         238.9,
         113.9,
@@ -718,10 +754,10 @@
       "text": "0"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-llms",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-llms",
+      "path": "shell/body/nav/nav-scroll/#1/nav-llms",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -734,7 +770,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-llms/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-llms/#0",
       "rect": [
         104.0,
         140.3,
@@ -746,7 +782,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-llms/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-llms/#1",
       "rect": [
         148.8,
         147.8,
@@ -758,7 +794,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-llms/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-llms/#2",
       "radius": 999.0,
       "rect": [
         232.9,
@@ -771,7 +807,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-llms/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-llms/#2/#0",
       "rect": [
         238.9,
         140.9,
@@ -782,10 +818,10 @@
       "text": "0"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-rss",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-rss",
+      "path": "shell/body/nav/nav-scroll/#1/nav-rss",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -798,7 +834,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-rss/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-rss/#0",
       "rect": [
         104.0,
         167.3,
@@ -810,7 +846,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-rss/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-rss/#1",
       "rect": [
         131.1,
         174.8,
@@ -822,7 +858,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-rss/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-rss/#2",
       "radius": 999.0,
       "rect": [
         232.9,
@@ -835,7 +871,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-rss/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-rss/#2/#0",
       "rect": [
         238.9,
         167.9,
@@ -846,10 +882,10 @@
       "text": "0"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-sitemap",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-sitemap",
+      "path": "shell/body/nav/nav-scroll/#1/nav-sitemap",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -862,7 +898,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-sitemap/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-sitemap/#0",
       "rect": [
         104.0,
         194.3,
@@ -874,7 +910,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-sitemap/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-sitemap/#1",
       "rect": [
         154.0,
         201.8,
@@ -886,7 +922,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-sitemap/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-sitemap/#2",
       "radius": 999.0,
       "rect": [
         232.9,
@@ -899,7 +935,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-sitemap/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-sitemap/#2/#0",
       "rect": [
         238.9,
         194.9,
@@ -910,10 +946,10 @@
       "text": "0"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-proof",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-proof",
+      "path": "shell/body/nav/nav-scroll/#1/nav-proof",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -926,7 +962,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-proof/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-proof/#0",
       "rect": [
         104.0,
         221.3,
@@ -938,7 +974,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-proof/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-proof/#1",
       "rect": [
         169.8,
         228.8,
@@ -950,7 +986,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-proof/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-proof/#2",
       "radius": 999.0,
       "rect": [
         233.4,
@@ -963,7 +999,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-proof/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-proof/#2/#0",
       "rect": [
         239.4,
         221.9,
@@ -974,10 +1010,10 @@
       "text": "5"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-search",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-search",
+      "path": "shell/body/nav/nav-scroll/#1/nav-search",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -990,7 +1026,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-search/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-search/#0",
       "rect": [
         104.0,
         248.3,
@@ -1002,7 +1038,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-search/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-search/#1",
       "rect": [
         181.8,
         255.8,
@@ -1014,7 +1050,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-search/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-search/#2",
       "radius": 999.0,
       "rect": [
         235.4,
@@ -1027,7 +1063,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-search/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-search/#2/#0",
       "rect": [
         241.4,
         248.9,
@@ -1038,10 +1074,10 @@
       "text": "1"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "nav-dist",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-dist",
+      "path": "shell/body/nav/nav-scroll/#1/nav-dist",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -1054,7 +1090,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-dist/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-dist/#0",
       "rect": [
         104.0,
         275.3,
@@ -1066,7 +1102,7 @@
     },
     {
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-dist/#1",
+      "path": "shell/body/nav/nav-scroll/#1/nav-dist/#1",
       "rect": [
         129.8,
         282.8,
@@ -1078,7 +1114,7 @@
     {
       "fill": "#ffffff14",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-dist/#2",
+      "path": "shell/body/nav/nav-scroll/#1/nav-dist/#2",
       "radius": 999.0,
       "rect": [
         232.8,
@@ -1091,7 +1127,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-dist/#2/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-dist/#2/#0",
       "rect": [
         238.8,
         275.9,
@@ -1102,7 +1138,7 @@
       "text": "4"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#0e1014ff",
       "key": "list-pane",
       "opacity": 1.0,
       "path": "shell/body/list-pane",
@@ -1127,7 +1163,7 @@
       "role": "group"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#0e1014ff",
       "key": "row-_boris/proof/artifacts.json",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fartifacts.json",
@@ -1183,7 +1219,7 @@
       "text": "never published"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#0e1014ff",
       "key": "row-_boris/proof/checks.json",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fchecks.json",
@@ -1239,7 +1275,7 @@
       "text": "never published"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#0e1014ff",
       "key": "row-_boris/proof/claims.json",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fclaims.json",
@@ -1295,7 +1331,7 @@
       "text": "never published"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#0e1014ff",
       "key": "row-_boris/proof/proof-pack.json",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fproof-pack.json",
@@ -1351,7 +1387,7 @@
       "text": "never published"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#0e1014ff",
       "key": "row-_boris/proof/touches.json",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Ftouches.json",
@@ -1407,7 +1443,7 @@
       "text": "never published"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#0e1014ff",
       "key": "row-_boris/search/search-index.json",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fsearch%2Fsearch-index.json",
@@ -1463,7 +1499,7 @@
       "text": "never published"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#0e1014ff",
       "key": "row-assets/css/boris.css",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-assets%2Fcss%2Fboris.css",
@@ -1519,7 +1555,7 @@
       "text": "never published"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#0e1014ff",
       "key": "row-guides/getting-started.html",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fgetting-started.html",
@@ -1575,7 +1611,7 @@
       "text": "never published"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#0e1014ff",
       "key": "row-guides/publishing.html",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fpublishing.html",
@@ -1631,7 +1667,7 @@
       "text": "never published"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#0e1014ff",
       "key": "row-index.html",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-index.html",
@@ -1686,7 +1722,7 @@
       "text": "never published"
     },
     {
-      "fill": "#0e1014ff",
+      "fill": "#14171dff",
       "key": "reading",
       "opacity": 1.0,
       "path": "shell/body/reading",
@@ -1699,25 +1735,63 @@
       "role": "group"
     },
     {
-      "color": "#e6e9efff",
+      "key": "reading-scroll",
       "opacity": 1.0,
-      "path": "shell/body/reading/#0",
+      "path": "shell/body/reading/reading-scroll",
+      "rect": [
+        588.0,
+        0.0,
+        452.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "reading-head",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head",
+      "rect": [
+        588.0,
+        0.0,
+        452.0,
+        44.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "reading-title",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head/reading-title",
       "rect": [
         604.0,
         16.0,
         420.0,
-        16.3
+        20.0
       ],
       "role": "text",
       "text": "index.html"
     },
     {
+      "key": "reading-body",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body",
+      "rect": [
+        588.0,
+        44.0,
+        452.0,
+        90.3
+      ],
+      "role": "group"
+    },
+    {
       "key": "line-0",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-0",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-0",
       "rect": [
         604.0,
-        38.3,
+        44.0,
         420.0,
         15.0
       ],
@@ -1726,10 +1800,10 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-0/#0",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-0/#0",
       "rect": [
         604.0,
-        38.3,
+        44.0,
         96.0,
         15.0
       ],
@@ -1739,10 +1813,10 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-0/#1",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-0/#1",
       "rect": [
         708.0,
-        38.3,
+        44.0,
         316.0,
         15.0
       ],
@@ -1752,10 +1826,10 @@
     {
       "key": "line-1",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-1",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-1",
       "rect": [
         604.0,
-        59.3,
+        65.0,
         420.0,
         13.8
       ],
@@ -1764,10 +1838,10 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-1/#0",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-1/#0",
       "rect": [
         604.0,
-        59.3,
+        65.0,
         96.0,
         13.8
       ],
@@ -1777,10 +1851,10 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-1/#1",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-1/#1",
       "rect": [
         708.0,
-        59.3,
+        65.0,
         316.0,
         13.8
       ],
@@ -1790,10 +1864,10 @@
     {
       "key": "line-2",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-2",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-2",
       "rect": [
         604.0,
-        79.0,
+        84.8,
         420.0,
         13.8
       ],
@@ -1802,10 +1876,10 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-2/#0",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-2/#0",
       "rect": [
         604.0,
-        79.0,
+        84.8,
         96.0,
         13.8
       ],
@@ -1815,10 +1889,10 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-2/#1",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-2/#1",
       "rect": [
         708.0,
-        79.0,
+        84.8,
         316.0,
         13.8
       ],
@@ -1828,10 +1902,10 @@
     {
       "key": "line-3",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-3",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-3",
       "rect": [
         604.0,
-        98.8,
+        104.5,
         420.0,
         13.8
       ],
@@ -1840,10 +1914,10 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-3/#0",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-3/#0",
       "rect": [
         604.0,
-        98.8,
+        104.5,
         96.0,
         13.8
       ],
@@ -1853,10 +1927,10 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/reading/line-3/#1",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-3/#1",
       "rect": [
         708.0,
-        98.8,
+        104.5,
         316.0,
         13.8
       ],
@@ -1864,7 +1938,7 @@
       "text": "index.md"
     },
     {
-      "fill": "#1a1e26ff",
+      "fill": "#0e1014ff",
       "key": "inspector",
       "opacity": 1.0,
       "path": "shell/body/inspector",
@@ -1877,9 +1951,34 @@
       "role": "group"
     },
     {
+      "key": "inspector-scroll",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll",
+      "rect": [
+        1040.0,
+        0.0,
+        240.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "inspector-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-head",
+      "rect": [
+        1040.0,
+        0.0,
+        240.0,
+        28.3
+      ],
+      "role": "group"
+    },
+    {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-head/#0",
       "rect": [
         1048.0,
         8.0,
@@ -1890,9 +1989,21 @@
       "text": "Inspector"
     },
     {
+      "key": "inspector-body",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body",
+      "rect": [
+        1040.0,
+        28.3,
+        240.0,
+        293.8
+      ],
+      "role": "group"
+    },
+    {
       "key": "field-path",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-path",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-path",
       "rect": [
         1048.0,
         28.3,
@@ -1904,7 +2015,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-path/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-path/#0",
       "rect": [
         1048.0,
         28.3,
@@ -1917,7 +2028,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-path/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-path/#1",
       "rect": [
         1128.0,
         28.3,
@@ -1930,7 +2041,7 @@
     {
       "key": "field-class",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-class",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-class",
       "rect": [
         1048.0,
         46.0,
@@ -1942,7 +2053,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-class/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-class/#0",
       "rect": [
         1048.0,
         46.0,
@@ -1955,7 +2066,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-class/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-class/#1",
       "rect": [
         1128.0,
         46.0,
@@ -1968,7 +2079,7 @@
     {
       "key": "field-status",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-status",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-status",
       "rect": [
         1048.0,
         63.8,
@@ -1980,7 +2091,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-status/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-status/#0",
       "rect": [
         1048.0,
         63.8,
@@ -1993,7 +2104,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-status/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-status/#1",
       "rect": [
         1128.0,
         63.8,
@@ -2006,7 +2117,7 @@
     {
       "key": "field-required",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-required",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-required",
       "rect": [
         1048.0,
         81.5,
@@ -2018,7 +2129,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-required/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-required/#0",
       "rect": [
         1048.0,
         81.5,
@@ -2031,7 +2142,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-required/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-required/#1",
       "rect": [
         1128.0,
         81.5,
@@ -2044,7 +2155,7 @@
     {
       "key": "field-bytes",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-bytes",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-bytes",
       "rect": [
         1048.0,
         99.3,
@@ -2056,7 +2167,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-bytes/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-bytes/#0",
       "rect": [
         1048.0,
         99.3,
@@ -2069,7 +2180,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-bytes/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-bytes/#1",
       "rect": [
         1128.0,
         99.3,
@@ -2082,7 +2193,7 @@
     {
       "key": "field-sha256",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-sha256",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-sha256",
       "rect": [
         1048.0,
         117.0,
@@ -2094,7 +2205,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-sha256/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-sha256/#0",
       "rect": [
         1048.0,
         117.0,
@@ -2108,7 +2219,7 @@
       "color": "#e6e9efff",
       "help": "df35843613ebf220d714fbec1f7da975941de84ea4f9b236fc7cca22dee65e3e",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-sha256/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-sha256/#1",
       "rect": [
         1128.0,
         117.0,
@@ -2121,7 +2232,7 @@
     {
       "key": "field-format",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-format",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-format",
       "rect": [
         1048.0,
         134.8,
@@ -2133,7 +2244,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-format/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-format/#0",
       "rect": [
         1048.0,
         134.8,
@@ -2146,7 +2257,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-format/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-format/#1",
       "rect": [
         1128.0,
         134.8,
@@ -2159,7 +2270,7 @@
     {
       "key": "field-compiler",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-compiler",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-compiler",
       "rect": [
         1048.0,
         152.5,
@@ -2171,7 +2282,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-compiler/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-compiler/#0",
       "rect": [
         1048.0,
         152.5,
@@ -2184,7 +2295,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-compiler/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-compiler/#1",
       "rect": [
         1128.0,
         152.5,
@@ -2197,7 +2308,7 @@
     {
       "key": "field-profile",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-profile",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-profile",
       "rect": [
         1048.0,
         170.3,
@@ -2209,7 +2320,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-profile/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-profile/#0",
       "rect": [
         1048.0,
         170.3,
@@ -2222,7 +2333,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-profile/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-profile/#1",
       "rect": [
         1128.0,
         170.3,
@@ -2235,7 +2346,7 @@
     {
       "key": "field-snapshot",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-snapshot",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-snapshot",
       "rect": [
         1048.0,
         188.0,
@@ -2247,7 +2358,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-snapshot/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-snapshot/#0",
       "rect": [
         1048.0,
         188.0,
@@ -2260,7 +2371,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-snapshot/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-snapshot/#1",
       "rect": [
         1128.0,
         188.0,
@@ -2273,7 +2384,7 @@
     {
       "key": "field-fresh",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-fresh",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-fresh",
       "rect": [
         1048.0,
         205.8,
@@ -2285,7 +2396,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-fresh/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-fresh/#0",
       "rect": [
         1048.0,
         205.8,
@@ -2298,7 +2409,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-fresh/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-fresh/#1",
       "rect": [
         1128.0,
         205.8,
@@ -2311,7 +2422,7 @@
     {
       "key": "field-publish",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-publish",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-publish",
       "rect": [
         1048.0,
         223.5,
@@ -2323,7 +2434,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-publish/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-publish/#0",
       "rect": [
         1048.0,
         223.5,
@@ -2336,7 +2447,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-publish/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-publish/#1",
       "rect": [
         1128.0,
         223.5,
@@ -2350,7 +2461,7 @@
       "key": "list-0",
       "label": "Sources",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0",
       "rect": [
         1048.0,
         249.3,
@@ -2362,7 +2473,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-0/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/#0",
       "rect": [
         1048.0,
         250.8,
@@ -2374,7 +2485,7 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-0/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/#1",
       "rect": [
         1064.0,
         249.3,
@@ -2388,7 +2499,7 @@
       "fill": "#8a93a32e",
       "key": "list-0-count",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-0/list-0-count",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/list-0-count",
       "radius": 999.0,
       "rect": [
         1115.6,
@@ -2401,7 +2512,7 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-0/list-0-count/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/list-0-count/#0",
       "rect": [
         1121.6,
         249.9,
@@ -2415,7 +2526,7 @@
       "color": "#e6e9efff",
       "key": "list-0-0",
       "opacity": 1.0,
-      "path": "shell/body/inspector/list-0-0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0-0",
       "rect": [
         1048.0,
         268.3,
@@ -2430,7 +2541,7 @@
       "key": "follow-link",
       "label": "Open source page",
       "opacity": 1.0,
-      "path": "shell/body/inspector/follow-link",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/follow-link",
       "radius": 4.0,
       "rect": [
         1048.0,
@@ -2454,7 +2565,7 @@
       "color": "#001018ff",
       "key": "label",
       "opacity": 1.0,
-      "path": "shell/body/inspector/follow-link/label",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/follow-link/label",
       "rect": [
         1111.7,
         298.0,

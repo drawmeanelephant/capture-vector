@@ -927,7 +927,7 @@
         708.0,
         111.5,
         380.0,
-        44.8
+        40.0
       ],
       "role": "group"
     },
@@ -940,7 +940,7 @@
         708.0,
         111.5,
         380.0,
-        44.8
+        40.0
       ],
       "role": "text",
       "text": "This page links to ⁦[[non-existent-page-target]]⁩ which does not exist in the corpus."

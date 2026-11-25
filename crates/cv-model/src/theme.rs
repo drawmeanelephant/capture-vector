@@ -76,6 +76,8 @@ pub struct TypeStyle {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Type {
+    /// The reading pane's title: one step above every pane header.
+    pub display: TypeStyle,
     pub title: TypeStyle,
     pub body: TypeStyle,
     pub label: TypeStyle,
@@ -234,6 +236,7 @@ impl Motion {
 fn type_ramp() -> Type {
     let s = |size, weight, mono| TypeStyle { size, weight, mono };
     Type {
+        display: s(16.0, 600.0, false),
         title: s(13.0, 600.0, false),
         body: s(12.0, 400.0, false),
         label: s(11.0, 500.0, false),
