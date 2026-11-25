@@ -14,6 +14,7 @@ pub mod new_workspace;
 pub mod pages;
 pub mod publish;
 pub mod snapshot;
+pub mod verbs;
 pub mod workspace;
 
 use cv_core::engine::{Engine, Verb};
@@ -42,6 +43,7 @@ pub fn init() -> Workbench {
 fn init_with(publish: Box<dyn cv_model::modules::publish::PublishPort>) -> Workbench {
     cv_model::modules::audit::install(Box::new(audit::DiskPort::ephemeral()));
     cv_model::modules::publish::install(publish);
+    cv_model::modules::engine::detach();
     doctor::install(None);
     Workbench::new(Registry::with_all()).with_store(Box::new(StubStore::new()))
 }
@@ -186,6 +188,7 @@ pub fn open_workspace(
     wb.registry = Registry::default();
     let slot = live::EngineSlot::default();
     let input = snapshot::content_input(&root);
+    cv_model::modules::engine::install(Box::new(live::SlotVerbs(slot.clone())));
     cv_model::modules::pages::install_in(
         Box::new(pages::WorkspacePages::new(&root, slot.clone())),
         &input,
@@ -366,6 +369,7 @@ pub fn boot_without_workspace(wb: &mut Workbench, demo: bool) {
         let _ = open_corpus(wb, CANARY_CORPUS);
         format!("No workspace open — showing the fixture demo. {how}")
     } else {
+        cv_model::modules::engine::detach();
         wb.reset_project(workspace_registry());
         format!("No workspace open. {how}")
     };
@@ -404,6 +408,10 @@ fn open_corpus_tapped(
 ) -> StubEngine {
     wb.load_snapshot(&snapshot::corpus_snapshot(corpus));
     let engine = StubEngine::new(corpus);
+    cv_model::modules::engine::install(Box::new(verbs::FixtureVerbs::new(
+        engine.clone(),
+        wb.inbox(),
+    )));
     cv_model::modules::doctor::installed().update(|f| f.engine = doctor::fixture(corpus, &engine));
     attach_engine_tapped(wb, &engine, tap);
     engine
@@ -697,6 +705,11 @@ pub const SCENES: &[Scene] = &[
     ("doctor-engine-absent", doctor::scene::engine_absent),
     ("doctor-version-mismatch", doctor::scene::version_mismatch),
     ("doctor-watch-dead", doctor::scene::watch_dead),
+    ("verb-build", verbs::scene::build),
+    ("verb-content-failure", verbs::scene::content_failure),
+    ("verb-usage-error", verbs::scene::usage_error),
+    ("verb-impact", verbs::scene::impact),
+    ("verb-check-audit", verbs::scene::check),
 ];
 
 pub fn launch() -> Launch {

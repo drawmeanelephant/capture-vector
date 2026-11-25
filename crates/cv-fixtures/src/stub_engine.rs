@@ -17,7 +17,9 @@ use cv_core::rules::ArtifactSet;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-/// Replays one corpus's captured watch session + verb results.
+/// Replays one corpus's captured watch session + verb results. Clones
+/// share one cursor, so their events read as one engine's.
+#[derive(Clone)]
 pub struct StubEngine {
     pub corpus: String,
     emitter: Arc<StubEmitter>,

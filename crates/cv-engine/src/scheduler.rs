@@ -118,6 +118,19 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         Some(h.session().clone())
     }
 
+    /// Stop the watch only while it is still `session`: a handle that
+    /// outlived its session must not stop the watch that replaced it.
+    pub fn stop_watch_session(&self, session: &SessionId) -> bool {
+        let mut slot = self.watch.lock().unwrap();
+        if slot.as_ref().is_none_or(|w| w.session() != session) {
+            return false;
+        }
+        let mut h = slot.take().expect("checked above");
+        drop(slot);
+        h.stop();
+        true
+    }
+
     pub fn run(&self, verb: &Verb, sink: EventSink) -> cv_core::Result<RunReport> {
         self.run_caused(verb, sink, None)
     }
@@ -394,6 +407,18 @@ mod tests {
         assert_eq!(r.stopped_watch, None, "a read leaves the watch alone");
         let r = s.run_reported(&Verb::Build, noop(), &cancel).unwrap();
         assert_eq!(r.stopped_watch, Some(SessionId("w".into())));
+        assert_eq!(p.watch_stops.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn a_stale_handle_cannot_stop_the_watch_that_replaced_it() {
+        let p = Arc::new(Probe::default());
+        let s = EngineScheduler::new(Arc::new(Fake(p.clone())), SeatPolicy::StopWatch);
+        s.start_watch(noop()).unwrap();
+        assert!(!s.stop_watch_session(&SessionId("earlier".into())));
+        assert_eq!(s.watch_session(), Some(SessionId("w".into())));
+        assert!(s.stop_watch_session(&SessionId("w".into())));
+        assert!(s.watch_session().is_none());
         assert_eq!(p.watch_stops.load(Ordering::SeqCst), 1);
     }
 

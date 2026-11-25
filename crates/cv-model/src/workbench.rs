@@ -405,6 +405,14 @@ impl Workbench {
         for m in self.registry.iter_mut() {
             changed |= m.ingest(env);
         }
+        let owed: Vec<Intent> = self
+            .registry
+            .iter_mut()
+            .flat_map(|m| m.take_owed())
+            .collect();
+        for it in owed {
+            self.apply(it);
+        }
         self.reclamp_rows();
         changed
     }
@@ -772,8 +780,13 @@ impl Workbench {
                     return;
                 };
                 // Re-resolve the selection so the module acts on what is
-                // selected now, not on a noun it resolved earlier.
-                if i == self.active {
+                // selected now, not on a noun it resolved earlier. A
+                // utility module's verbs act on the active selection.
+                let utility = self
+                    .registry
+                    .get(i)
+                    .is_some_and(|m| m.spec().slot == crate::module::Slot::Utility);
+                if i == self.active || utility {
                     let key = self.selected_key().map(str::to_string);
                     if let Some(m) = self.registry.get_mut(i) {
                         m.select(key.as_deref());

@@ -102,7 +102,7 @@ fn a_resync_requested_after_a_mutation_waits_behind_an_in_flight_scan() {
         release_rx.recv().unwrap();
     }));
     let slot = EngineSlot::default();
-    let _ = slot.1.set(resyncer.clone());
+    let _ = slot.resyncer.set(resyncer.clone());
 
     resyncer.request();
     started_rx.recv().unwrap();
