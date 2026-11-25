@@ -8,7 +8,9 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum EngineError {
-    #[error("boris not found (searched: {searched:?})")]
+    /// The paths stay on the error for Doctor; the text only counts them,
+    /// since it is shown in the status toast and logged.
+    #[error("boris not found (searched {} locations)", .searched.len())]
     NotFound { searched: Vec<PathBuf> },
     #[error("CV_BORIS_BIN points at {0:?}, which is not an executable file")]
     OverrideMissing(PathBuf),
@@ -60,3 +62,17 @@ impl From<EngineError> for cv_core::Error {
 }
 
 pub type Result<T> = std::result::Result<T, EngineError>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn not_found_counts_searched_paths_without_listing_them() {
+        let searched = (0..24)
+            .map(|i| PathBuf::from(format!("/opt/tool-{i}/bin/boris")))
+            .collect();
+        let msg = EngineError::NotFound { searched }.to_string();
+        assert_eq!(msg, "boris not found (searched 24 locations)");
+    }
+}

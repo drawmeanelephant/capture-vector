@@ -47,6 +47,7 @@ const TREE_SCENES: &[&str] = &[
     "publish-empty",
     "publish-degraded",
     "effects",
+    "engine-absent-toast",
 ];
 
 #[test]
@@ -237,6 +238,42 @@ fn transient_status_shows_as_a_closable_toast() {
     h.script(&["click:close"]);
     assert!(!h.has("status-msg"));
     assert!(h.state().status.is_empty());
+}
+
+#[test]
+fn engine_absent_toast_summarizes_the_search() {
+    let h = scene("engine-absent-toast");
+    assert!(h.has("banner"));
+    assert!(h.has("status-msg") && h.has("close"));
+    let texts = h.texts();
+    assert!(
+        texts
+            .iter()
+            .any(|t| t == "/workspace/happy: boris not found (searched 24 locations)"),
+        "{texts:?}"
+    );
+    assert!(!texts.iter().any(|t| t.contains("/opt/tool-")));
+}
+
+#[test]
+fn a_huge_status_keeps_the_toast_short_and_closable() {
+    let mut h = scene("engine-absent-toast");
+    h.state_mut().status = "/very/long/searched/path/boris ".repeat(400);
+    h.settle();
+    let els = h.rt.elements();
+    let rect = |k: &str| {
+        els.iter()
+            .find(|e| e.key.as_deref() == Some(k))
+            .map(|e| e.rect)
+            .unwrap_or_else(|| panic!("no {k}"))
+    };
+    let [_, y, _, height] = rect("status-msg");
+    let (_, window_h) = cv_widgets::harness::SIZE;
+    assert!(height <= window_h / 3.0, "toast is {height}pt tall");
+    let [_, close_y, _, _] = rect("close");
+    assert!(close_y >= y && close_y >= 0.0, "close at {close_y}");
+    h.script(&["click:close"]);
+    assert!(!h.has("status-msg"));
 }
 
 #[test]

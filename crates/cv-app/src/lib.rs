@@ -428,6 +428,17 @@ fn pages_degraded(reason: DegradedReason, wb: &mut Workbench) {
     wb.select_key("index.md");
 }
 
+/// Engine absent on a real machine: the boot status names how many
+/// places were searched, and the toast stays compact and closable.
+fn engine_absent_toast(wb: &mut Workbench) {
+    pages_degraded(DegradedReason::EngineAbsent, wb);
+    let searched = (0..24)
+        .map(|i| PathBuf::from(format!("/opt/tool-{i}/bin/boris")))
+        .collect();
+    let e = cv_engine::error::EngineError::NotFound { searched };
+    wb.status = format!("/workspace/happy: {e}");
+}
+
 fn audit(wb: &mut Workbench) {
     boot(wb);
     show(wb, "audit");
@@ -491,6 +502,7 @@ pub const SCENES: &[Scene] = &[
     ("pages-engine-absent", |wb| {
         pages_degraded(DegradedReason::EngineAbsent, wb)
     }),
+    ("engine-absent-toast", engine_absent_toast),
     ("pages-version-mismatch", |wb| {
         pages_degraded(
             DegradedReason::EngineVersionMismatch {
