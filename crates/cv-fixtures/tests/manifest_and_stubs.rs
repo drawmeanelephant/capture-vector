@@ -240,3 +240,50 @@ fn fixture_paths_cannot_escape_the_tree() {
 fn corpus_names_cannot_escape_the_tree() {
     corpus("../fixtures");
 }
+
+fn init(dir: &std::path::Path, archetype: &str) -> cv_core::Result<cv_core::engine::ExitClass> {
+    StubEngine::new("happy").run(
+        &Verb::Init {
+            dir: dir.display().to_string(),
+            archetype: archetype.into(),
+        },
+        Box::new(|_| {}),
+    )
+}
+
+#[test]
+fn stub_init_writes_the_captured_starter_and_refuses_a_folder_that_is_not_empty() {
+    use cv_core::engine::ExitClass;
+    let t = tempfile::tempdir().unwrap();
+    let site = t.path().join("site");
+    assert_eq!(init(&site, "docs").unwrap(), ExitClass::Ok);
+    for rel in [
+        "boris.json",
+        "content/index.md",
+        "themes/boris/layouts/main.html",
+    ] {
+        assert!(site.join(rel).is_file(), "{rel} not written");
+    }
+    let c = corpus(cv_fixtures::INIT);
+    assert_eq!(
+        std::fs::read(site.join("boris.json")).unwrap(),
+        c.file("docs/tree/boris.json")
+    );
+    assert!(
+        c.file_str("docs/stderr.txt")
+            .contains("verified: starter compiled")
+    );
+
+    assert_eq!(init(&site, "docs").unwrap(), ExitClass::UsageError);
+    assert!(StubEngine::init_report("refuse").contains("not empty"));
+    assert!(
+        init(&t.path().join("other"), "garden").is_err(),
+        "garden was never captured"
+    );
+}
+
+#[test]
+fn init_captures_are_not_a_corpus() {
+    assert!(!corpora().contains(&cv_fixtures::INIT.to_string()));
+    assert!(StubEngine::init_help().contains("--type NAME"));
+}

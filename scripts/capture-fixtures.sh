@@ -12,14 +12,15 @@ FIX="$ROOT/fixtures"
 # via --input. content-only is a bare content/ tree with no profile or
 # theme, whose first build fails ELAYOUT.
 ALL_CORPORA="happy happy-textile cook-one dogfood broken-duplicate-id broken-frontmatter broken-parent broken-textile broken-wikilink content-only"
-# CV_CAPTURE_ONLY="<corpus> …" recaptures only those corpora and keeps the
-# others' captures byte-for-byte; the manifest still pins every file.
-CORPORA="${CV_CAPTURE_ONLY:-$ALL_CORPORA}"
+# `init` is not a corpus: it captures `boris init` itself (see below).
+# CV_CAPTURE_ONLY="<name> …" recaptures only those and keeps every other
+# capture byte-for-byte; the manifest still pins every file.
+CAPTURE="${CV_CAPTURE_ONLY:-$ALL_CORPORA init}"
 if [ -n "${CV_CAPTURE_ONLY:-}" ]; then
-  for c in $CORPORA; do
-    case " $ALL_CORPORA " in
+  for c in $CAPTURE; do
+    case " $ALL_CORPORA init " in
       *" $c "*) rm -rf "$FIX/corpus-src/$c" "$FIX/captures/$c" ;;
-      *) echo "capture-fixtures: unknown corpus '$c'" >&2; exit 2 ;;
+      *) echo "capture-fixtures: unknown capture '$c'" >&2; exit 2 ;;
     esac
   done
 else
@@ -29,7 +30,8 @@ mkdir -p "$FIX/corpus-src" "$FIX/captures"
 
 # one line of build-info JSON (version + vcs revision) is the pinned identity
 "$BORIS" --build-info > "$FIX/engine-version.txt" 2>&1 || "$BORIS" --version > "$FIX/engine-version.txt" 2>&1
-for c in $CORPORA; do
+for c in $CAPTURE; do
+  [ "$c" = init ] && continue
   src="$CORPUS_SRC/$c"
   [ -d "$src" ] || { echo "skip $c (no corpus at $src)"; continue; }
   echo "== $c =="
@@ -115,6 +117,30 @@ for c in $CORPORA; do
   # keep corpus-src pristine: drop build artifacts the runs produced
   rm -rf "$run/dist" "$run/.boris-cache" "$run/content/../.boris-cache"
 done
+
+# boris init: the archetype list (`init --help`), each INIT_TYPES starter
+# with the tree it writes, and the refusal over a target that is not empty.
+INIT_TYPES="docs"
+case " $CAPTURE " in *" init "*)
+  echo "== init =="
+  cap="$FIX/captures/init"
+  mkdir -p "$cap/help"
+  "$BORIS" init --help > "$cap/help/stdout.txt" 2> "$cap/help/stderr.txt"
+  echo $? > "$cap/help/exit-code.txt"
+  scratch=$(mktemp -d)
+  for t in $INIT_TYPES; do
+    mkdir -p "$cap/$t/tree" "$scratch/$t"
+    ( cd "$scratch/$t" && "$BORIS" init site --type "$t" ) > "$cap/$t/stdout.txt" 2> "$cap/$t/stderr.txt"
+    echo $? > "$cap/$t/exit-code.txt"
+    [ -d "$scratch/$t/site" ] && cp -R "$scratch/$t/site/." "$cap/$t/tree/"
+  done
+  first=${INIT_TYPES%% *}
+  mkdir -p "$cap/refuse"
+  ( cd "$scratch/$first" && "$BORIS" init site --type "$first" ) > "$cap/refuse/stdout.txt" 2> "$cap/refuse/stderr.txt"
+  echo $? > "$cap/refuse/exit-code.txt"
+  rm -rf "$scratch"
+  ;;
+esac
 
 # manifest: sha256 of every captured artifact + engine version + commands
 # Quote one Bash argument for replay, then escape it for a TOML basic string.
