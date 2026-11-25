@@ -22,6 +22,8 @@ case "$1" in
     printf '%s' "$KEY" > "$D/stdin.txt" ;;
 esac
 V="$1"
+# IR mode (`build --out DIR`) replays its own capture when one is loaded.
+[ "$2" = "--out" ] && [ -d "$D/verbs/$V-out" ] && V="$V-out"
 if [ ! -d "$D/verbs/$V" ]; then echo "usage: fake-boris has no '$V'" >&2; exit 2; fi
 [ -f "$D/verbs/$V/stdout.txt" ] && cat "$D/verbs/$V/stdout.txt"
 [ -f "$D/verbs/$V/stderr.txt" ] && cat "$D/verbs/$V/stderr.txt" >&2

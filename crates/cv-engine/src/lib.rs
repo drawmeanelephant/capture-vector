@@ -10,6 +10,7 @@
 
 mod bounded;
 pub mod cursor;
+pub mod debounce;
 pub mod emit;
 pub mod engine;
 pub mod error;

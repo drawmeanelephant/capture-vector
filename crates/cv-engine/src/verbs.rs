@@ -9,6 +9,11 @@ use cv_core::engine::{ExportKind, Verb};
 use std::path::Path;
 use std::time::Instant;
 
+/// Workspace-relative directory the live session's IR projection writes.
+/// Boris refuses an `--out` outside the workspace (`WorkspaceEscape`),
+/// so OS app-data is not an option; `.cv/` is CV's own sidecar.
+pub const IR_DIR: &str = ".cv/ir";
+
 /// Does this verb write into the workspace? Mutating verbs are
 /// serialized; the rest run in parallel. Unknown (`Custom`) verbs are
 /// assumed mutating — serializing a read is safe, the reverse is not.
@@ -19,17 +24,41 @@ pub fn is_mutating(verb: &Verb) -> bool {
     )
 }
 
+pub(crate) fn flag_value<'a>(args: &'a [String], flag: &str) -> Option<&'a str> {
+    args.iter().enumerate().find_map(|(i, a)| {
+        if a == flag {
+            args.get(i + 1).map(String::as_str)
+        } else {
+            a.strip_prefix(flag)?.strip_prefix('=')
+        }
+    })
+}
+
 /// Does this verb write the HTML output tree a live watch holds?
 pub fn writes_html(verb: &Verb) -> bool {
     match verb {
         Verb::Build => true,
         Verb::Custom { name, args } => {
             name == "build"
-                && !args
-                    .iter()
-                    .any(|a| a == "--html-dir" || a.starts_with("--html-dir="))
+                && flag_value(args, "--html-dir").is_none()
+                && flag_value(args, "--out").is_none()
         }
         _ => false,
+    }
+}
+
+/// The directory a verb writes instead of the HTML tree: `--out` (IR
+/// mode) for `Ir`, `Export { Out }` and a custom `build --out`.
+pub fn own_out_dir(verb: &Verb) -> Option<String> {
+    match verb {
+        Verb::Ir { out, .. } => Some(out.clone()),
+        Verb::Export {
+            kind: ExportKind::Out,
+        } => Some(".boris".into()),
+        Verb::Custom { name, args } if name == "build" => {
+            flag_value(args, "--out").map(String::from)
+        }
+        _ => None,
     }
 }
 
@@ -77,6 +106,13 @@ pub fn argv(verb: &Verb) -> Result<Vec<String>> {
             ExportKind::Rss => s(&["build", "--rss"]),
             ExportKind::Sitemap => s(&["build", "--sitemap"]),
         },
+        Verb::Ir { out, input } => {
+            let mut args = s(&["build", "--out", out]);
+            if let Some(input) = input {
+                args.extend(["--input".to_string(), input.clone()]);
+            }
+            args
+        }
         // Publishing needs credentials/receipts owned by the publish lane;
         // nothing here may improvise it.
         Verb::Publish { target } => {
@@ -185,6 +221,37 @@ mod tests {
             name: "build".into(),
             args: vec!["--html-dir".into(), ".cv/out/1".into()],
         }));
+    }
+
+    #[test]
+    fn ir_mode_builds_write_their_own_dir_not_the_html_tree() {
+        let ir = Verb::Ir {
+            out: IR_DIR.into(),
+            input: Some("content".into()),
+        };
+        assert!(is_mutating(&ir));
+        assert!(!writes_html(&ir));
+        assert_eq!(own_out_dir(&ir).as_deref(), Some(IR_DIR));
+        assert_eq!(
+            argv(&ir).unwrap(),
+            ["build", "--out", ".cv/ir", "--input", "content"]
+        );
+        for args in [["--out", "x"].as_slice(), ["--out=x"].as_slice()] {
+            let custom = Verb::Custom {
+                name: "build".into(),
+                args: args.iter().map(|a| a.to_string()).collect(),
+            };
+            assert!(!writes_html(&custom), "{args:?}");
+            assert_eq!(own_out_dir(&custom).as_deref(), Some("x"), "{args:?}");
+        }
+        assert_eq!(own_out_dir(&Verb::Build), None);
+        assert_eq!(
+            own_out_dir(&Verb::Export {
+                kind: ExportKind::Out
+            })
+            .as_deref(),
+            Some(".boris")
+        );
     }
 
     #[test]

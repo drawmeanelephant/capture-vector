@@ -252,6 +252,69 @@ fn stub_equals_process_on_every_corpus() {
     }
 }
 
+/// The live session's IR projection: the stub's captured replay and the
+/// subprocess agree on every corpus, diagnostics included.
+#[test]
+fn ir_projection_equals_across_engines() {
+    for name in cv_fixtures::corpora() {
+        let fake = FakeBoris::corpus(&name);
+        let process = fake.engine();
+        let verb = process.ir_projection();
+        let run = |engine: &dyn Engine| {
+            let (sink, got) = collector();
+            let exit = engine.run(&verb, sink).unwrap();
+            (exit, observe(&got.lock().unwrap(), true))
+        };
+        let (se, ss) = run(&StubEngine::new(&name));
+        let (pe, ps) = run(&process);
+        assert_eq!(se, pe, "{name}: exit class");
+        assert_eq!(relative(&ss), relative(&ps), "{name}: events");
+        assert_eq!(
+            ps.last().unwrap().payload.pointer("/Engine/VerbFinished"),
+            Some(&serde_json::json!({ "verb": "ir", "exit": pe })),
+            "{name}"
+        );
+        assert!(
+            fake.read("argv.log")
+                .lines()
+                .any(|l| l == "build --out .cv/ir"),
+            "{name}: {}",
+            fake.read("argv.log")
+        );
+    }
+}
+
+/// The projection never takes the watch's seat: the live watch child
+/// survives it and no HTML build reaches Boris.
+#[test]
+fn ir_projection_runs_beside_a_live_watch() {
+    use cv_engine::{EngineScheduler, SeatPolicy};
+    let fake = FakeBoris::corpus("happy");
+    fake.set("watch-hold", "");
+    let engine = std::sync::Arc::new(fake.engine());
+    let sched = EngineScheduler::new(engine.clone(), SeatPolicy::StopWatch);
+    let (sink, got) = collector();
+    let session = sched.start_watch(sink).unwrap();
+    wait_until("hello", T, || !got.lock().unwrap().is_empty());
+
+    let r = sched
+        .run(&engine.ir_projection(), Box::new(|_| {}))
+        .unwrap();
+    assert_eq!(r.exit, ExitClass::Ok);
+    assert_eq!(r.stopped_watch, None);
+    assert_eq!(r.out_dir.as_deref(), Some(".cv/ir"));
+    assert_eq!(sched.watch_session(), Some(session));
+    assert!(engine.watch_live());
+    let builds: Vec<String> = fake
+        .read("argv.log")
+        .lines()
+        .filter(|l| l.starts_with("build"))
+        .map(String::from)
+        .collect();
+    assert_eq!(builds, ["build --out .cv/ir"]);
+    sched.stop_watch();
+}
+
 /// Watch lifecycle at the port, as one engine-neutral transcript: the
 /// first watch never reuses the one-shot session (a cursor tracker would
 /// read its events as duplicates), a concurrent second watch is refused

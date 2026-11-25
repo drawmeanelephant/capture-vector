@@ -59,6 +59,59 @@ fn manifest_pins_one_migration_lab_build_outside_the_file_list() {
 }
 
 #[test]
+fn every_corpus_has_a_pinned_ir_capture() {
+    let root = fixtures_root().join("ir");
+    let manifest = Manifest::load(&root.join("MANIFEST.toml"));
+    for name in corpora() {
+        let c = cv_fixtures::ir_capture(&name);
+        for f in ["stdout.txt", "stderr.txt", "exit-code.txt"] {
+            c.file(f);
+        }
+    }
+    for (rel, _) in manifest.pinned_files() {
+        manifest
+            .verify(rel, &std::fs::read(root.join(rel)).unwrap())
+            .unwrap();
+    }
+}
+
+fn ir(out: &str) -> Verb {
+    Verb::Ir {
+        out: out.into(),
+        input: None,
+    }
+}
+
+#[test]
+fn stub_engine_replays_the_captured_ir_projection() {
+    use cv_core::engine::ExitClass;
+    use cv_fixtures::stub_engine::IR_CAPTURE_OUT;
+
+    let engine = StubEngine::new("happy");
+    let exit = engine.run(&ir(IR_CAPTURE_OUT), Box::new(|_| {})).unwrap();
+    assert_eq!(exit, ExitClass::Ok);
+    assert!(matches!(
+        engine.sent().as_slice(),
+        [
+            EngineEvent::BuildFinished { pages_written: 0, .. },
+            EngineEvent::VerbFinished { verb, exit: ExitClass::Ok },
+        ] if verb == "ir"
+    ));
+
+    let engine = StubEngine::new("broken-frontmatter");
+    let exit = engine.run(&ir(IR_CAPTURE_OUT), Box::new(|_| {})).unwrap();
+    assert_eq!(exit, ExitClass::ContentFailure);
+    match &engine.sent()[0] {
+        EngineEvent::BuildFailed { diagnostics, .. } => {
+            assert_eq!(diagnostics[0].code, "EFRONTMATTER");
+        }
+        e => panic!("expected BuildFailed, got {e:?}"),
+    }
+    // Only the captured spelling replays.
+    assert!(engine.run(&ir(".boris"), Box::new(|_| {})).is_err());
+}
+
+#[test]
 fn corpus_reads_are_hash_verified() {
     let c: Corpus = corpus("happy");
     // round-trips through manifest verification

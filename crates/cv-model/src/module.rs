@@ -3,6 +3,7 @@
 //! renders it with generic providers and never matches on module identity.
 
 use crate::command::{CommandSpec, Intent};
+use crate::dialog::DialogAnswer;
 use cv_core::diagnostic::Diagnostic;
 use cv_core::events::Envelope;
 use cv_core::id::{NounAttrRow, NounId};
@@ -255,6 +256,11 @@ pub trait Module {
         Vec::new()
     }
     fn run(&mut self, _command: &str) -> Vec<Intent> {
+        Vec::new()
+    }
+    /// The answer to a dialog this module asked for with `Intent::Dialog`;
+    /// `command` is the spec's id.
+    fn answer(&mut self, _command: &str, _answer: &DialogAnswer) -> Vec<Intent> {
         Vec::new()
     }
     /// Resync from a project snapshot. Returns whether state changed.

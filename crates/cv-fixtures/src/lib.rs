@@ -101,6 +101,22 @@ pub fn corpus(name: &str) -> Corpus {
     }
 }
 
+/// The live session's IR projection (`build --out .cv/ir`) captured over
+/// a corpus by `scripts/capture-ir-fixtures.sh`, pinned by
+/// `fixtures/ir/MANIFEST.toml`: `stdout.txt`, `stderr.txt`,
+/// `exit-code.txt`, and `graph.json` when Boris wrote one.
+pub fn ir_capture(name: &str) -> Corpus {
+    check_rel(name);
+    let root = fixtures_root().join("ir");
+    let dir = root.join("captures");
+    assert!(dir.join(name).is_dir(), "no IR capture for corpus '{name}'");
+    Corpus {
+        name: name.into(),
+        dir,
+        manifest: Manifest::load(&root.join("MANIFEST.toml")),
+    }
+}
+
 /// Every Boris corpus name present on disk (not the lab captures).
 pub fn corpora() -> Vec<String> {
     let mut v: Vec<_> = std::fs::read_dir(fixtures_root().join("captures"))

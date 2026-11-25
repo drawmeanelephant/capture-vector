@@ -1,7 +1,8 @@
-//! Smart-mailbox filter builder: cycle field / op / value over the
-//! values notes actually carry, add terms, save the conjunction.
+//! Smart-mailbox filter builder: a form picks a field, an operator and a
+//! value; terms add up to a conjunction that can be saved as a mailbox.
 
 use crate::command::CommandSpec;
+use crate::dialog::{ActionTone, DialogAnswer, DialogKind, DialogSpec, Field, Value};
 use cv_core::id::AttrValue;
 use cv_core::store::{Op, Predicate, Term};
 use cv_notes::{Research, ResearchPort};
@@ -11,20 +12,17 @@ const FIELDS: &[&str] = &[
 ];
 const OPS: &[Op] = &[Op::Eq, Op::Ne, Op::Contains];
 
+/// The form's answer command.
+pub const BUILD: &str = "research.filter.build";
+
 #[derive(Debug, Default)]
 pub struct Filter {
-    field: usize,
-    op: usize,
-    value: usize,
     terms: Vec<Term>,
 }
 
 pub fn commands() -> Vec<CommandSpec> {
     [
-        ("field", "Filter: next field"),
-        ("op", "Filter: next operator"),
-        ("value", "Filter: next value"),
-        ("add", "Filter: add term"),
+        ("build", "Filter: add term…"),
         ("clear", "Filter: clear"),
         ("save", "Filter: save as smart mailbox"),
     ]
@@ -58,6 +56,28 @@ fn term_str(t: &Term) -> String {
     format!("{} {} {}", t.field, op_str(&t.op), value_str(&t.value))
 }
 
+/// The value a typed word stands for in `field`: tags match as
+/// `,tag,`, and a field notes carry as a boolean parses as one.
+fn parse_value<P: ResearchPort>(s: &Research<P>, field: &str, typed: &str) -> Option<AttrValue> {
+    let typed = typed.trim();
+    if typed.is_empty() {
+        return None;
+    }
+    if field == "tags" {
+        return Some(AttrValue::Text(format!(",{typed},")));
+    }
+    let boolean = s.notebook.notes().into_iter().any(|n| {
+        matches!(
+            s.notebook.attr_row(n).fields.get(field),
+            Some(AttrValue::Bool(_))
+        )
+    });
+    if boolean {
+        return typed.parse().ok().map(AttrValue::Bool);
+    }
+    Some(AttrValue::Text(typed.to_string()))
+}
+
 impl Filter {
     pub fn predicate(&self) -> Predicate {
         Predicate {
@@ -77,78 +97,92 @@ impl Filter {
         }
     }
 
-    /// Distinct values of the current field; tags split into `,tag,`.
-    fn values<P: ResearchPort>(&self, s: &Research<P>) -> Vec<AttrValue> {
-        let field = FIELDS[self.field];
-        let mut out: Vec<AttrValue> = Vec::new();
-        for n in s.notebook.notes() {
-            let row = s.notebook.attr_row(n);
-            let vals = match (field, row.fields.get(field)) {
-                ("tags", _) => n
-                    .tags
-                    .iter()
-                    .map(|t| AttrValue::Text(format!(",{t},")))
-                    .collect(),
-                (_, Some(v)) => vec![v.clone()],
-                _ => vec![],
-            };
-            for v in vals {
-                if !out.contains(&v) {
-                    out.push(v);
-                }
-            }
+    /// The add-term form, prefilled from `answer` when asking again.
+    pub fn form(&self, answer: Option<&DialogAnswer>, error: Option<String>) -> DialogSpec {
+        let ops: Vec<&str> = OPS.iter().map(op_str).collect();
+        let pick = |id: &str, all: &[&str]| {
+            answer
+                .and_then(|a| a.text(id))
+                .and_then(|t| all.iter().position(|x| *x == t))
+                .unwrap_or(0)
+        };
+        let typed = answer.and_then(|a| a.text("value")).unwrap_or_default();
+        let save = answer.is_some_and(|a| a.values.get("save") == Some(&Value::Toggle(true)));
+        let mut spec = DialogSpec::new(
+            BUILD,
+            "Add filter term",
+            DialogKind::Form(vec![
+                Field::choice("field", "Field", FIELDS, pick("field", FIELDS)),
+                Field::choice("op", "Operator", &ops, pick("op", &ops)),
+                Field::text("value", "Value", typed)
+                    .placeholder("inbox, archived, a tag, true…")
+                    .hint("Tags match one tag; promoted takes true or false."),
+                Field::toggle("save", "Save as a smart mailbox", save),
+            ]),
+        )
+        .body(format!("Current filter: {}", self.label()))
+        .cancel("Cancel")
+        .action("add", "Add term", ActionTone::Primary);
+        if let Some(e) = error {
+            spec = spec.error(e);
         }
-        out.sort_by_key(value_str);
-        out
+        spec
     }
 
-    fn draft<P: ResearchPort>(&self, s: &Research<P>) -> Option<Term> {
-        let vals = self.values(s);
-        let value = vals.get(self.value % vals.len().max(1))?.clone();
-        let op = match (FIELDS[self.field], &value, OPS[self.op]) {
+    /// Apply the form's answer: `Ok` is the status line, `Err` the
+    /// validation text to ask again with.
+    pub fn answer<P: ResearchPort>(
+        &mut self,
+        a: &DialogAnswer,
+        s: &mut Research<P>,
+    ) -> Result<String, String> {
+        let field = a.text("field").unwrap_or(FIELDS[0]);
+        let typed = a.text("value").unwrap_or_default();
+        let value = parse_value(s, field, typed).ok_or_else(|| match typed.trim() {
+            "" => "Type a value to match.".to_string(),
+            t => format!("{field} takes true or false, not “{t}”."),
+        })?;
+        let op = OPS
+            .iter()
+            .find(|o| Some(op_str(o)) == a.text("op"))
+            .copied()
+            .unwrap_or(Op::Eq);
+        let op = match (field, &value, op) {
             ("tags", _, _) => Op::Contains,
             (_, AttrValue::Bool(_), Op::Contains) => Op::Eq,
             (_, _, op) => op,
         };
-        Some(Term {
-            field: FIELDS[self.field].into(),
+        self.terms.push(Term {
+            field: field.into(),
             op,
             value,
-        })
+        });
+        if a.values.get("save") == Some(&Value::Toggle(true)) {
+            return Ok(self.run("save", s));
+        }
+        Ok(format!("filter {}", self.label()))
     }
 
     pub fn run<P: ResearchPort>(&mut self, verb: &str, s: &mut Research<P>) -> String {
         match verb {
-            "field" => {
-                self.field = (self.field + 1) % FIELDS.len();
-                self.value = 0;
+            "clear" => {
+                self.terms.clear();
+                "filter cleared".into()
             }
-            "op" => self.op = (self.op + 1) % OPS.len(),
-            "value" => self.value += 1,
-            "add" => match self.draft(s) {
-                Some(t) => self.terms.push(t),
-                None => return format!("filter: no values for {}", FIELDS[self.field]),
-            },
-            "clear" => self.terms.clear(),
             "save" => {
                 if self.terms.is_empty() {
                     return "filter: add a term first".into();
                 }
                 let name = self.label();
-                return match s.save_view(&name, self.predicate()) {
+                match s.save_view(&name, self.predicate()) {
                     Ok(id) => {
                         self.terms.clear();
                         format!("saved smart mailbox {} ({name})", id.0)
                     }
                     Err(e) => format!("filter: {e}"),
-                };
+                }
             }
-            _ => return format!("filter: unknown verb {verb}"),
+            _ => format!("filter: unknown verb {verb}"),
         }
-        let next = self
-            .draft(s)
-            .map(|t| term_str(&t))
-            .unwrap_or_else(|| "-".into());
-        format!("filter {} · next: {next}", self.label())
     }
 }

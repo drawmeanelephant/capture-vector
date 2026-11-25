@@ -81,6 +81,24 @@ Keyboard basics:
 | `mod+I` | toggle inspector |
 | `Esc` | clear selection / close palette |
 
+While a dialog is open (a confirmation, the capture prompt, the filter
+form, the recent-workspace chooser), it takes every key; the list behind
+it does not move. Only one dialog shows at a time; the next one opens
+when it closes.
+
+| Key | Action in a dialog |
+|---|---|
+| `Enter` | run the highlighted button (Capture, Archive, Open, …) |
+| `Esc` | cancel; clicking outside or the close button does the same |
+| `Tab` / `shift+Tab` | next / previous field in a form |
+| `Space` or `Down` / `Up` | next / previous option of a choice field |
+| `Space` | flip a switch field |
+| `Up`/`Down` | move in a chooser's list; typing filters it |
+
+A secret dialog (an app password, a signing key) shows only dots. What
+you type goes only to the app's secret store; it is never written to the
+workspace, the log, or the element tree.
+
 The command palette is the reliable inventory of module-specific verbs.
 If a mouse action and the palette disagree, the palette/command behavior
 is the contract to test against.

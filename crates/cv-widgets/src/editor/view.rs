@@ -4,9 +4,11 @@ use super::Closing;
 use super::EditorWindow;
 use crate::controls::{self, Variant};
 use crate::diagnostic;
+use crate::dialog::{self, DialogHost};
 use crate::icons;
 use crate::shell::chip;
 use crate::theme::{self, Level, Size, Styled, color, font};
+use cv_model::dialog::{ActionTone, DialogKind, DialogSpec, OpenDialog};
 use cv_model::module::Tone;
 use cv_model::modules::activity::severity_tone;
 use cv_model::theme::Theme;
@@ -15,9 +17,9 @@ use cv_ui_editor::problems::Freshness;
 use cv_ui_editor::save::SaveStatus;
 use cv_ui_editor::sketch;
 use rune::{
-    Align, Cx, El, ScrollSpec, Side, Span, Transition, col, el, row, spacer, text, text_input,
+    Align, Cx, El, ScrollSpec, Side, Span, Transition, Tx, col, el, row, spacer, text, text_input,
 };
-use rune_kit::{Dialog, Keybind, RollingText, Toolbar};
+use rune_kit::{Keybind, RollingText, Toolbar};
 
 fn label(t: &Theme, s: impl Into<String>) -> El {
     text(s.into())
@@ -180,10 +182,9 @@ fn error_banner(s: &EditorWindow) -> Option<El> {
     )
 }
 
-/// The unsaved-edits question as a modal dialog. Escape, the close button
-/// and a press outside all keep editing.
+/// The unsaved-edits question on the shared dialog. Escape, the close
+/// button and a press outside all keep editing.
 fn close_dialog(s: &EditorWindow, layer: &mut Vec<El>) {
-    let t = &s.theme;
     let (title, msg) = match s.closing {
         Closing::Open => return,
         Closing::Confirm { stuck: false } => (
@@ -196,54 +197,29 @@ fn close_dialog(s: &EditorWindow, layer: &mut Vec<El>) {
         ),
         Closing::SaveThenClose => ("Saving…", "Saving, then closing…"),
     };
-    let mut actions = row()
-        .key("editor-close-prompt")
-        .w_full()
-        .px(16.0)
-        .pb(16.0)
-        .gap(t.spacing.unit * 2.0)
-        .items_center();
+    let mut spec = DialogSpec::new("editor.close", title, DialogKind::Confirm).body(msg);
     if let Closing::Confirm { stuck } = s.closing {
         if !stuck {
-            actions = actions.child(controls::button_tx(
-                t,
-                "editor-close-discard",
-                "Discard and close",
-                Variant::Danger,
-                true,
-                |s: &mut EditorWindow, tx| s.discard_and_close(tx),
-            ));
+            spec = spec.action("discard", "Discard and close", ActionTone::Danger);
         }
-        actions = actions
-            .child(spacer())
-            .child(controls::button_tx(
-                t,
-                "editor-close-cancel",
-                "Keep editing",
-                Variant::Ghost,
-                true,
-                |s: &mut EditorWindow, _| s.closing = Closing::Open,
-            ))
-            .child(
-                controls::button_tx(
-                    t,
-                    "editor-close-save",
-                    "Save and close",
-                    Variant::Primary,
-                    true,
-                    |s: &mut EditorWindow, tx| s.save_and_close(tx),
-                )
-                .default_button(),
-            );
+        spec = spec
+            .cancel("Keep editing")
+            .action("save", "Save and close", ActionTone::Primary);
     }
-    Dialog::new("editor-close", title)
-        .description(msg)
-        .width(440.0)
-        .fit()
-        .open(true)
-        .on_close(|s: &mut EditorWindow| s.closing = Closing::Open)
-        .child(actions)
-        .build(&theme::kit(t), layer);
+    dialog::build::<EditorWindow>(&s.theme, "editor-close", &OpenDialog::new(spec), layer);
+}
+
+impl DialogHost for EditorWindow {
+    fn act(&mut self, action: &str, tx: &mut Tx) {
+        match action {
+            "discard" => self.discard_and_close(tx),
+            "save" => self.save_and_close(tx),
+            _ => self.closing = Closing::Open,
+        }
+    }
+    fn cancel(&mut self) {
+        self.closing = Closing::Open;
+    }
 }
 
 /// A text field's box: inset fill, hairline border, rounded, with a ring

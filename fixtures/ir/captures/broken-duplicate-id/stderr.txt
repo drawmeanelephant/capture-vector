@@ -1,0 +1,5 @@
+boris: load  scanning content
+boris: roll  parsing 2 page(s)
+boris: ignite validating graph
+boris: content validation failed (1 error(s))
+error: EDUPLICATEID: b.md:1:1: duplicate id "duplicate-id-page" (also a.md) [Give each document a unique id (path-derived or id: override)]
