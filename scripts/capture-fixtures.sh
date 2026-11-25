@@ -8,6 +8,7 @@ source "$ROOT/scripts/fixture-sha256.sh"
 BORIS="${CV_BORIS_BIN:-boris}"
 CORPUS_SRC="${1:?usage: capture-fixtures.sh <corpora-dir> — e.g. a solipsist Stunts/ or Tests/Fixtures checkout}"
 FIX="$ROOT/fixtures"
+# captures/lab/ belongs to capture-lab-fixtures.sh: keep it and its table.
 # Corpora with a boris.json build as projects; the rest pass their root
 # via --input. content-only is a bare content/ tree with no profile or
 # theme, whose first build fails ELAYOUT.
@@ -15,6 +16,7 @@ ALL_CORPORA="happy happy-textile cook-one dogfood broken-duplicate-id broken-fro
 # CV_CAPTURE_ONLY="<corpus> …" recaptures only those corpora and keeps the
 # others' captures byte-for-byte; the manifest still pins every file.
 CORPORA="${CV_CAPTURE_ONLY:-$ALL_CORPORA}"
+mkdir -p "$FIX/corpus-src" "$FIX/captures"
 if [ -n "${CV_CAPTURE_ONLY:-}" ]; then
   for c in $CORPORA; do
     case " $ALL_CORPORA " in
@@ -23,9 +25,10 @@ if [ -n "${CV_CAPTURE_ONLY:-}" ]; then
     esac
   done
 else
-  rm -rf "$FIX/corpus-src" "$FIX/captures"
+  rm -rf "$FIX/corpus-src"
+  mkdir -p "$FIX/corpus-src"
+  find "$FIX/captures" -mindepth 1 -maxdepth 1 ! -name lab -exec rm -rf {} +
 fi
-mkdir -p "$FIX/corpus-src" "$FIX/captures"
 
 # one line of build-info JSON (version + vcs revision) is the pinned identity
 "$BORIS" --build-info > "$FIX/engine-version.txt" 2>&1 || "$BORIS" --version > "$FIX/engine-version.txt" 2>&1
@@ -122,6 +125,10 @@ printf -v capture_command 'scripts/capture-fixtures.sh %q' "$CORPUS_SRC"
 [ -n "${CV_CAPTURE_ONLY:-}" ] && printf -v capture_command 'CV_CAPTURE_ONLY=%q %s' "$CV_CAPTURE_ONLY" "$capture_command"
 capture_command=${capture_command//\\/\\\\}
 capture_command=${capture_command//\"/\\\"}
+# Carry the trailing tables forward verbatim: the [migration_lab] tool pin
+# and capture-lab-fixtures.sh's [lab_captures]. Read them before the
+# redirect below truncates the manifest.
+lab_pin=$(sed -n '/^\[migration_lab\]$/,$p' "$FIX/MANIFEST.toml" 2>/dev/null || true)
 ( cd "$FIX" && {
   echo 'schema_version = 1'
   # engine-version.txt is JSON — a TOML literal string keeps it valid
@@ -129,9 +136,10 @@ capture_command=${capture_command//\"/\\\"}
   printf 'capture_command = "%s"\n' "$capture_command"
   echo "captured = \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\""
   echo ""
-  find corpus-src captures -type f | sort | while IFS= read -r f; do
+  find corpus-src captures -path captures/lab -prune -o -type f -print | sort | while IFS= read -r f; do
     h=$(fixture_sha256 "$f") || exit 1
     echo "\"$f\" = \"$h\""
-  done
+  done || exit 1
+  [ -z "$lab_pin" ] || printf '\n%s\n' "$lab_pin"
 } > MANIFEST.toml ) || exit 1
 echo "done -> $FIX"

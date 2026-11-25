@@ -1,0 +1,2 @@
+wordpress-migration-lab: wrote /CAPTURE_ROOT/out/wordpress/content/, /CAPTURE_ROOT/out/wordpress/report.json, /CAPTURE_ROOT/out/wordpress/REPORT.md, /CAPTURE_ROOT/out/wordpress/media_manifest.json
+  pages=9 features=10 missing_media=2 media_copied=1 human_review=4 preserved=3

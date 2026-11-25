@@ -1,0 +1,91 @@
+{
+  "format": "boris-enex-migration-lab",
+  "schema_version": 1,
+  "source": { "root": "/CAPTURE_ROOT/src/mini-enex" },
+  "exports": [
+    { "filename": "clips.enex", "trunk_id": "clips", "sha256": "6f3e30416bfc13aa40c50801e97aa2e9891d3cf4afa540434dcc5942a5b1aa5c", "export_date": "20260410T120000Z", "application": "Evernote", "version": "10.85.4", "note_count": 2 },
+    { "filename": "notebook.enex", "trunk_id": "notebook", "sha256": "4ba7cd9d20097f01898f201a162d4e4b649258a29ae8b370144bfe60d81411cd", "export_date": "20260410T120000Z", "application": "Evernote", "version": "10.85.4", "note_count": 2 }
+  ],
+  "pages": [
+    {
+      "entity_id": "clips/quick-capture",
+      "output": "content/clips/quick-capture.md",
+      "source_file": "clips.enex",
+      "source_created": "20250310T180000Z",
+      "source_updated": "20250310T180500Z",
+      "emitted_published_at": null,
+      "note_attributes": {
+        "has_author": false,
+        "has_gps": false,
+        "source": "mobile.ios",
+        "source_url": null,
+        "reminder_order": null,
+        "content_class": null
+      },
+      "crypt_hints": [],
+      "dangling_en_media": [],
+      "resources": [],
+      "conversion": "unsupported"
+    },
+    {
+      "entity_id": "clips/web-clip-with-ocr-scan",
+      "output": "content/clips/web-clip-with-ocr-scan.md",
+      "source_file": "clips.enex",
+      "source_created": "20250305T081500Z",
+      "source_updated": "20250305T082000Z",
+      "emitted_published_at": null,
+      "note_attributes": {
+        "has_author": true,
+        "has_gps": false,
+        "source": "web.clip",
+        "source_url": "https://example.com/articles/enex-sample",
+        "reminder_order": null,
+        "content_class": "evernote.clip.article"
+      },
+      "crypt_hints": [],
+      "dangling_en_media": [],
+      "resources": [{ "md5": "912a61bf3c65883bc23d60d4fade3f21", "mime": "image/png", "file_name": "scan.png", "bytes": 17, "has_recognition": true, "referenced": true }, { "md5": "6e0acc08d8e594291c82676e09b12aa4", "mime": "image/jpeg", "file_name": null, "bytes": 20, "has_recognition": false, "referenced": true }],
+      "conversion": "unsupported"
+    },
+    {
+      "entity_id": "notebook/architecture-overview",
+      "output": "content/notebook/architecture-overview.md",
+      "source_file": "notebook.enex",
+      "source_created": "20250115T093000Z",
+      "source_updated": "20250201T141500Z",
+      "emitted_published_at": null,
+      "note_attributes": {
+        "has_author": true,
+        "has_gps": true,
+        "source": "desktop.mac",
+        "source_url": "https://example.com/notes/architecture",
+        "reminder_order": "1740819600000",
+        "content_class": null
+      },
+      "crypt_hints": [],
+      "dangling_en_media": [],
+      "resources": [{ "md5": "78dc75bbdaf576f1f4f214d0f0f1b1ea", "mime": "image/png", "file_name": "diagram.png", "bytes": 12, "has_recognition": false, "referenced": true }, { "md5": "d16d8ec1f1e82c2e97702fbf474c903d", "mime": "text/plain", "file_name": "notes.txt", "bytes": 47, "has_recognition": false, "referenced": true }],
+      "conversion": "unsupported"
+    },
+    {
+      "entity_id": "notebook/encrypted-and-internal-links",
+      "output": "content/notebook/encrypted-and-internal-links.md",
+      "source_file": "notebook.enex",
+      "source_created": "20250210T110000Z",
+      "source_updated": "20250211T164500Z",
+      "emitted_published_at": null,
+      "note_attributes": {
+        "has_author": true,
+        "has_gps": false,
+        "source": "desktop.mac",
+        "source_url": null,
+        "reminder_order": null,
+        "content_class": "evernote.synthetic.review"
+      },
+      "crypt_hints": ["synthetic-hint"],
+      "dangling_en_media": ["deadbeefdeadbeefdeadbeefdeadbeef"],
+      "resources": [{ "md5": "bf9d6d007add12db4be03a82c7e70f83", "mime": "application/pdf", "file_name": "orphan-handout.pdf", "bytes": 26, "has_recognition": false, "referenced": false }],
+      "conversion": "human_review"
+    }
+  ]
+}

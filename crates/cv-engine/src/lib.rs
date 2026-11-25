@@ -4,7 +4,9 @@
 //! locate + version gate, per-OS capability probe, `EngineScheduler`,
 //! watch NDJSON with a CV-owned cursor and bounded ring, fingerprinted
 //! staged writes, exact exit mapping, process-tree cancellation, and a
-//! stdin-only secrets channel. No Boris semantics are reimplemented.
+//! stdin-only secrets channel. The pinned `boris-migration-lab` runs
+//! through the same process layer ([`lab`]). No Boris or lab semantics
+//! are reimplemented.
 
 mod bounded;
 pub mod cursor;
@@ -14,6 +16,7 @@ pub mod engine;
 pub mod error;
 pub mod exit;
 pub mod fallback;
+pub mod lab;
 pub mod locate;
 pub mod probe;
 pub mod proc;

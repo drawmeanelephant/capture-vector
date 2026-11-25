@@ -14,8 +14,72 @@ pub struct Manifest {
     pub engine_version: String,
     pub capture_command: String,
     pub captured: String,
-    /// `captures/<corpus>/<verb>/<file>` or `corpus-src/…` → sha256 hex.
+    /// `[migration_lab]`: the pinned `boris-migration-lab` build.
+    pub migration_lab: Option<MigrationLabPin>,
+    /// `[lab_captures]`: how `captures/lab/` was recorded.
+    pub lab_captures: Option<LabCaptures>,
+    /// `captures/<corpus>/<verb>/<file>`, `corpus-src/…`, or (from
+    /// `[lab_captures.files]`) `captures/lab/<mode>/…` → sha256 hex.
     files: BTreeMap<String, String>,
+}
+
+/// Where `scripts/fetch-migration-lab.sh` builds the lab from, and what
+/// the built binary must print for `--version`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MigrationLabPin {
+    pub repo: String,
+    /// Full 40-hex commit.
+    pub commit: String,
+    pub tool_id: String,
+    pub zig_version: String,
+}
+
+impl MigrationLabPin {
+    fn parse(t: &toml::Table) -> Self {
+        let get = |k: &str| -> String {
+            t.get(k)
+                .and_then(|v| v.as_str())
+                .unwrap_or_else(|| panic!("MANIFEST.toml [migration_lab] missing `{k}`"))
+                .to_string()
+        };
+        Self {
+            repo: get("repo"),
+            commit: get("commit"),
+            tool_id: get("tool_id"),
+            zig_version: get("zig_version"),
+        }
+    }
+}
+
+/// `[lab_captures]`, written by `scripts/capture-lab-fixtures.sh`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LabCaptures {
+    /// `--version` of the lab that ran; must match `[migration_lab]`.
+    pub tool_id: String,
+    pub commit: String,
+    /// `boris --build-info` of the Boris that built link-audit's input.
+    pub boris_build_info: String,
+    /// The token that replaced each run's scratch root.
+    pub capture_root: String,
+    pub capture_command: String,
+}
+
+impl LabCaptures {
+    fn parse(t: &toml::Table) -> Self {
+        let get = |k: &str| -> String {
+            t.get(k)
+                .and_then(|v| v.as_str())
+                .unwrap_or_else(|| panic!("MANIFEST.toml [lab_captures] missing `{k}`"))
+                .to_string()
+        };
+        Self {
+            tool_id: get("tool_id"),
+            commit: get("commit"),
+            boris_build_info: get("boris_build_info"),
+            capture_root: get("capture_root"),
+            capture_command: get("capture_command"),
+        }
+    }
 }
 
 impl Manifest {
@@ -46,6 +110,22 @@ impl Manifest {
                 files.insert(k.clone(), sha.to_string());
             }
         }
+        let lab_captures = table.get("lab_captures").map(|v| {
+            let t = v
+                .as_table()
+                .expect("MANIFEST.toml `lab_captures` is not a table");
+            let pinned = t
+                .get("files")
+                .and_then(|f| f.as_table())
+                .expect("MANIFEST.toml [lab_captures.files] missing");
+            for (k, v) in pinned {
+                let sha = v
+                    .as_str()
+                    .unwrap_or_else(|| panic!("[lab_captures.files] {k} is not a string"));
+                files.insert(k.clone(), sha.to_string());
+            }
+            LabCaptures::parse(t)
+        });
         let schema_version = table
             .get("schema_version")
             .and_then(|v| v.as_integer())
@@ -60,6 +140,13 @@ impl Manifest {
             engine_version: get("engine_version"),
             capture_command: get("capture_command"),
             captured: get("captured"),
+            migration_lab: table.get("migration_lab").map(|v| {
+                MigrationLabPin::parse(
+                    v.as_table()
+                        .expect("MANIFEST.toml `migration_lab` is not a table"),
+                )
+            }),
+            lab_captures,
             files,
         }
     }

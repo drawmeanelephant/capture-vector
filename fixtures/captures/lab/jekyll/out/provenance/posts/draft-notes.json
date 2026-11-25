@@ -1,0 +1,23 @@
+{
+  "format": "boris-jekyll-migration-lab",
+  "schema_version": 1,
+  "source_root": "/CAPTURE_ROOT/src/mini-jekyll",
+  "source_path": "_drafts/draft-notes.md",
+  "kind": "draft",
+  "collection": null,
+  "entity_id": "posts/draft-notes",
+  "class": "transformed",
+  "review": [],
+  "filename_date": null,
+  "slug": "draft-notes",
+  "summary_source": null,
+  "permalink": null,
+  "config_permalink": "pretty",
+  "config_baseurl": "",
+  "categories": [],
+  "layout": null,
+  "provenance_keys": [],
+  "raw_frontmatter": "title: Draft Notes\n",
+  "assets": [],
+  "liquid_sites": []
+}

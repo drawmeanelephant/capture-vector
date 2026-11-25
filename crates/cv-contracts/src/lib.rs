@@ -7,6 +7,7 @@
 
 pub mod build_info;
 pub mod graph;
+pub mod lab;
 pub mod proof;
 pub mod watch;
 

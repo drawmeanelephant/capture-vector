@@ -1,0 +1,3 @@
+--mode=link-audit
+--root=/CAPTURE_ROOT/site-hugo/dist
+--out=/CAPTURE_ROOT/out/link-audit

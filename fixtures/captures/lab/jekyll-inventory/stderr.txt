@@ -1,0 +1,1 @@
+jekyll-inventory: wrote /CAPTURE_ROOT/out/jekyll-inventory/inventory.json, /CAPTURE_ROOT/out/jekyll-inventory/INVENTORY.md
