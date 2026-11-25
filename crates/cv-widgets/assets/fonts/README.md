@@ -2,8 +2,10 @@
 
 `DroidSansFallback.ttf.gz` is the Android Open Source Project's
 `data/fonts/DroidSansFallback.ttf`, pinned at `android-15.0.0_r1` and
-gzip-compressed with zeroed gzip metadata. The decompressed font is
-3,451,900 bytes and has SHA-256
+gzip-compressed with zeroed gzip metadata. The compressed repository
+asset is 1,650,152 bytes and has SHA-256
+`bd9d9586b909a0177c770c552aca04c76fa6a0202019cf3a41329208dc1e1a6c`.
+The decompressed font is 3,451,900 bytes and has SHA-256
 `21b96a0377f067833a93af3082eb28d4ffab7a8cd46bfd513286f1d64b7b0949`.
 It is licensed under Apache License 2.0; see
 `DroidSansFallback-LICENSE.txt` (the upstream NOTICE text).

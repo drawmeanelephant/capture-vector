@@ -161,13 +161,18 @@ fn copy_exe(from: &Path, to: &Path) -> Result<(), String> {
 }
 
 /// Third-party notices binary recipients need. The root NOTICE covers
-/// every bundled notice in one visible place; the font license carries
-/// the Apache-2.0 text required with Droid Sans Fallback.
+/// every bundled notice in one visible place; the font licenses carry
+/// the Apache-2.0 text required with Droid Sans Fallback and the OFL
+/// text required with Inter.
 fn copy_release_notices(root: &Path, pkg: &Path) -> Result<(), String> {
     copy_exe(&root.join("NOTICE"), &pkg.join("NOTICE"))?;
     copy_exe(
         &root.join("crates/cv-widgets/assets/fonts/DroidSansFallback-LICENSE.txt"),
         &pkg.join("licenses/DroidSansFallback-LICENSE.txt"),
+    )?;
+    copy_exe(
+        &root.join("licenses/Inter-LICENSE.txt"),
+        &pkg.join("licenses/Inter-LICENSE.txt"),
     )
 }
 
@@ -427,6 +432,8 @@ mod tests {
         std::fs::create_dir_all(&font).unwrap();
         std::fs::write(root.join("NOTICE"), "root notices\n").unwrap();
         std::fs::write(font.join("DroidSansFallback-LICENSE.txt"), "apache text\n").unwrap();
+        std::fs::create_dir_all(root.join("licenses")).unwrap();
+        std::fs::write(root.join("licenses/Inter-LICENSE.txt"), "ofl text\n").unwrap();
         let pkg = dir.path().join("pkg");
         copy_release_notices(&root, &pkg).unwrap();
         assert_eq!(
@@ -436,6 +443,10 @@ mod tests {
         assert_eq!(
             std::fs::read_to_string(pkg.join("licenses/DroidSansFallback-LICENSE.txt")).unwrap(),
             "apache text\n"
+        );
+        assert_eq!(
+            std::fs::read_to_string(pkg.join("licenses/Inter-LICENSE.txt")).unwrap(),
+            "ofl text\n"
         );
     }
 
