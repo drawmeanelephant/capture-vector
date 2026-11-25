@@ -57,16 +57,37 @@ pub fn spawn_import_with(
 ) -> Option<JoinHandle<()>> {
     let notices = wb.notices();
     let notice_job = job.clone();
-    std::thread::Builder::new()
+    let spawnfail_job = job.clone();
+    let worker = std::thread::Builder::new()
         .name(format!("migrate-import-{}", job.run_id))
         .spawn(move || {
-            let result = execute(&job, lab_override);
+            // The wizard blocks on this notice: a panic inside execute must
+            // never strand it in Running, so the terminal notice is sent
+            // from behind a catch boundary either way.
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                execute(&job, lab_override)
+            }))
+            .unwrap_or_else(|_| {
+                Err("the import worker panicked; the run record shows what was written".into())
+            });
             notices.send(ShellNotice::ImportFinished {
                 job: notice_job,
                 result,
             });
-        })
-        .ok()
+        });
+    match worker {
+        Ok(handle) => Some(handle),
+        Err(e) => {
+            // A failed spawn must not wedge the wizard either: deliver the
+            // terminal notice it is waiting for, as an error.
+            let notices = wb.notices();
+            notices.send(ShellNotice::ImportFinished {
+                job: spawnfail_job,
+                result: Err(format!("the import worker could not start: {e}")),
+            });
+            None
+        }
+    }
 }
 
 /// Production worker startup: discover and gate the pinned lab inside the

@@ -594,6 +594,32 @@ fn choosing_emit_after_the_inventory_starts_the_emitting_mode() {
 }
 
 #[test]
+fn a_zero_exit_emit_without_output_evidence_is_never_finished() {
+    let (mut m, appeared) = dynamic_wizard_module();
+    let run_id = drive_hugo_to_inventory(&mut m);
+    inventory_lands(&appeared, &run_id);
+    m.run(FINISHED);
+    let out = m.answer(INVENTORY, &answer(Some("emit"), &[]));
+    let job = import_job(&out).expect("emit starts");
+    // The lab exits zero but leaves no readable report: projection records
+    // a problem on an otherwise Ok run.
+    let mut done = ImportRun::new(&job.run_id, RunStatus::Ok);
+    done.mode = "hugo".into();
+    done.problem = Some("the lab reported success but the output contains no report.json".into());
+    appeared.borrow_mut().push(done);
+    let finished = m.run(FINISHED);
+    let text = format!("{finished:?}");
+    assert!(
+        text.contains("could not be verified"),
+        "zero-exit without evidence is a problem state: {text}"
+    );
+    assert!(
+        !text.contains("Import finished"),
+        "never labeled finished: {text}"
+    );
+}
+
+#[test]
 fn inventory_companions_are_not_offered_as_emitting_modes() {
     let mut m = wizard_module();
     m.run(NEW);

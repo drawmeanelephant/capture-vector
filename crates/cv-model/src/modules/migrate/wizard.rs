@@ -575,7 +575,12 @@ impl MigrateModule {
                 },
             ];
         }
-        if cancel.is_cancelled() || run.status == RunStatus::Cancelled {
+        // The recorded run status is the authority on what happened: a
+        // cancel token set after the run already finished ok or refused
+        // must not rewrite that outcome into a cancellation.
+        if run.status == RunStatus::Cancelled
+            || (cancel.is_cancelled() && matches!(run.status, RunStatus::Running))
+        {
             self.wizard.reset();
             return vec![
                 Intent::Status(format!(
@@ -626,6 +631,21 @@ impl MigrateModule {
             }
             (_, RunStatus::Ok) => {
                 self.wizard.reset();
+                // Zero exit is not verification: the lab may have exited 0
+                // yet left no readable report or output evidence, which
+                // projection records as a problem. That is a durable
+                // could-not-verify state, never "finished".
+                if let Some(problem) = &run.problem {
+                    return vec![
+                        Intent::Status(format!(
+                            "The import exited zero but its output could not be verified — {problem}. Inspect the run in Runs."
+                        )),
+                        Intent::Reveal {
+                            module: super::ID.into(),
+                            key: format!("run:{run_id}"),
+                        },
+                    ];
+                }
                 vec![
                     Intent::Status("Import finished; the run is in Runs".into()),
                     Intent::Reveal {
