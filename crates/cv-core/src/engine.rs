@@ -71,6 +71,12 @@ pub enum Verb {
     Publish {
         target: String,
     },
+    /// `boris init <dir> --type <archetype>`: write a starter site into
+    /// `dir`, which Boris requires to be empty or absent.
+    Init {
+        dir: String,
+        archetype: String,
+    },
     Custom {
         name: String,
         args: Vec<String>,
@@ -90,6 +96,7 @@ impl Verb {
             Self::Export { kind } => format!("export:{kind:?}").to_lowercase(),
             Self::Ir { .. } => "ir".into(),
             Self::Publish { target } => format!("publish:{target}"),
+            Self::Init { .. } => "init".into(),
             Self::Custom { name, .. } => name.clone(),
         }
     }

@@ -120,6 +120,23 @@ pub fn argv(verb: &Verb) -> Result<Vec<String>> {
                 "publish:{target} (publish lane owns delivery)"
             )));
         }
+        Verb::Init { dir, archetype } => {
+            // A leading dash would turn a folder or archetype name into a flag.
+            if [dir, archetype]
+                .iter()
+                .any(|v| v.is_empty() || v.starts_with('-'))
+            {
+                return Err(EngineError::Refused(
+                    "init needs a folder and an archetype, neither starting with '-'".into(),
+                ));
+            }
+            vec![
+                "init".into(),
+                dir.clone(),
+                "--type".into(),
+                archetype.clone(),
+            ]
+        }
         Verb::Custom { name, args } => {
             if name.starts_with('-') {
                 return Err(EngineError::Refused("verb name must not be a flag".into()));
@@ -316,5 +333,34 @@ mod tests {
             ["build", "--out", ".boris"]
         );
         assert_eq!(argv(&Verb::Build).unwrap(), ["build"]);
+    }
+
+    #[test]
+    fn init_spells_the_folder_and_archetype_and_refuses_flags() {
+        let init = |dir: &str, archetype: &str| {
+            argv(&Verb::Init {
+                dir: dir.into(),
+                archetype: archetype.into(),
+            })
+        };
+        assert_eq!(
+            init("site", "docs").unwrap(),
+            ["init", "site", "--type", "docs"]
+        );
+        for (dir, archetype) in [
+            ("--quiet", "docs"),
+            ("site", "-x"),
+            ("", "docs"),
+            ("site", ""),
+        ] {
+            assert!(
+                matches!(init(dir, archetype), Err(EngineError::Refused(_))),
+                "{dir:?} {archetype:?}"
+            );
+        }
+        assert!(is_mutating(&Verb::Init {
+            dir: "site".into(),
+            archetype: "docs".into()
+        }));
     }
 }
