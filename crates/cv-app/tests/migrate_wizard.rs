@@ -69,7 +69,14 @@ fn take_import(h: &mut Harness) -> ImportJob {
 }
 
 fn finish_stub(h: &mut Harness, job: &ImportJob) {
-    run_stub_lab(&job.workspace, &job.run_id, &job.mode, job.inputs.clone()).unwrap();
+    run_stub_lab(
+        &job.workspace,
+        &job.run_id,
+        &job.mode,
+        job.inputs.clone(),
+        job.extras.clone(),
+    )
+    .unwrap();
     h.state().notices().send(ShellNotice::ImportFinished {
         job: job.clone(),
         result: Ok(()),

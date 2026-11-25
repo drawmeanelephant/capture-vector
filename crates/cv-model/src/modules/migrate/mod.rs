@@ -229,6 +229,23 @@ pub struct ImportInput {
     pub extensions: Vec<String>,
 }
 
+/// One scalar pass-through option a mode accepts, projected for the
+/// wizard. Type validation happens at this boundary and again in
+/// `cv-engine`; what the value *means* is the lab's business.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportExtra {
+    pub flag: String,
+    pub label: String,
+    pub hint: String,
+    pub kind: ImportExtraKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImportExtraKind {
+    Text,
+    Count,
+}
+
 /// One pinned migration-lab mode, projected for the wizard. The strings are
 /// metadata, not behavior: validation and execution stay in `cv-engine`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -240,6 +257,9 @@ pub struct ImportMode {
     /// Read-only companion mode to run before emitting, when one exists.
     pub inventory: Option<String>,
     pub safety: Vec<String>,
+    /// Optional scalar extras (`--locale`, `--max-pages`, `--relation-map`);
+    /// process-changing options are never projected.
+    pub extras: Vec<ImportExtra>,
 }
 
 /// Everything the module shows.

@@ -74,6 +74,8 @@ pub struct ImportJob {
     /// `(flag, path)` pairs. Only path metadata is transported; contents stay
     /// at the user-selected location.
     pub inputs: Vec<(String, PathBuf)>,
+    /// `(flag, value)` scalar pass-through options; empty means lab defaults.
+    pub extras: Vec<(String, String)>,
     pub cancel: CancelToken,
 }
 

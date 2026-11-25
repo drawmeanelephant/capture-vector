@@ -76,12 +76,44 @@ impl Family {
     }
 }
 
+/// A scalar (non-path) option the wizard may offer and the adapter passes
+/// through after type validation. Process-changing options (`--boris`,
+/// `--gate`) are never in this table.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ExtraSpec {
+    /// Spelled as the lab spells it, e.g. `--max-pages`; passed as `--flag=value`.
+    pub flag: &'static str,
+    pub kind: ExtraKind,
+    /// One-line plain-language label for the wizard's text field.
+    pub label: &'static str,
+    pub hint: &'static str,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExtraKind {
+    /// Any non-empty string; content semantics are the lab's.
+    Text,
+    /// Must parse as a positive integer (`usize`) at the boundary.
+    Count,
+}
+
+impl ExtraKind {
+    pub fn noun(self) -> &'static str {
+        match self {
+            Self::Text => "text",
+            Self::Count => "a positive integer",
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct ModeSpec {
     /// The `--mode=` value.
     pub name: &'static str,
     pub family: Family,
     pub inputs: &'static [InputSpec],
+    /// Scalar pass-through options with lab defaults; all optional.
+    pub extras: &'static [ExtraSpec],
 }
 
 const fn dir(flag: &'static str) -> InputSpec {
@@ -110,11 +142,36 @@ const fn optional_dir(flag: &'static str) -> InputSpec {
 
 const ROOT: &[InputSpec] = &[dir("--root")];
 
+const NO_EXTRAS: &[ExtraSpec] = &[];
+
+const STARLIGHT_EXTRAS: &[ExtraSpec] = &[
+    ExtraSpec {
+        flag: "--locale",
+        kind: ExtraKind::Text,
+        label: "locale",
+        hint: "content discovery key — en only at the pinned lab",
+    },
+    ExtraSpec {
+        flag: "--max-pages",
+        kind: ExtraKind::Count,
+        label: "max pages",
+        hint: "cap converted pages — the lab default is 40",
+    },
+];
+
+const TINDERBOX_EXTRAS: &[ExtraSpec] = &[ExtraSpec {
+    flag: "--relation-map",
+    kind: ExtraKind::Text,
+    label: "relation map",
+    hint: "kind=target pairs, comma-separated — the lab validates their meaning",
+}];
+
 const fn root(name: &'static str, family: Family) -> ModeSpec {
     ModeSpec {
         name,
         family,
         inputs: ROOT,
+        extras: NO_EXTRAS,
     }
 }
 
@@ -123,6 +180,21 @@ const fn with(name: &'static str, family: Family, inputs: &'static [InputSpec]) 
         name,
         family,
         inputs,
+        extras: NO_EXTRAS,
+    }
+}
+
+const fn full(
+    name: &'static str,
+    family: Family,
+    inputs: &'static [InputSpec],
+    extras: &'static [ExtraSpec],
+) -> ModeSpec {
+    ModeSpec {
+        name,
+        family,
+        inputs,
+        extras,
     }
 }
 
@@ -138,12 +210,17 @@ pub const MODES: &[ModeSpec] = &[
     root("wordpress-theme", CrossCutting),
     with("instagram", Social, &[dir("--dump")]),
     with("obsidian", Notes, &[dir("--vault")]),
-    with("tinderbox-inventory", Notes, &[file("--tbx")]),
-    with("tinderbox", Notes, &[file("--tbx")]),
+    full(
+        "tinderbox-inventory",
+        Notes,
+        &[file("--tbx")],
+        TINDERBOX_EXTRAS,
+    ),
+    full("tinderbox", Notes, &[file("--tbx")], TINDERBOX_EXTRAS),
     with("notion", Notes, &[dir("--export")]),
     with("filed", StaticSite, &[dir("--filed-root")]),
     root("filed-scan", StaticSite),
-    root("starlight", StaticSite),
+    full("starlight", StaticSite, ROOT, STARLIGHT_EXTRAS),
     root("asset-filename", CrossCutting),
     root("theme-archaeology", CrossCutting),
     with(

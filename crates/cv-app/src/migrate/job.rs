@@ -27,6 +27,7 @@ fn execute(job: &ImportJob, lab_override: Option<LabIdentity>) -> Result<(), Str
         &lab,
         mode,
         job.inputs.clone(),
+        job.extras.clone(),
         &job.cancel,
     )
     .map(|_| ())
@@ -69,6 +70,7 @@ pub fn run_stub_lab(
     run_id: &str,
     mode_name: &str,
     inputs: Vec<(String, std::path::PathBuf)>,
+    extras: Vec<(String, String)>,
 ) -> Result<RunRecord, String> {
     let mode = engine_lab::mode(mode_name)
         .ok_or_else(|| format!("migration mode {mode_name} is not registered"))?;
@@ -76,6 +78,7 @@ pub fn run_stub_lab(
     let run = engine_lab::LabRun {
         mode,
         inputs,
+        extras,
         out: dir.join(store::OUT),
     };
     let lab = cv_fixtures::lab::StubLab::new();

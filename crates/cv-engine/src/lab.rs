@@ -104,6 +104,12 @@ pub enum LabError {
         path: PathBuf,
         expected: InputKind,
     },
+    #[error("{flag} {input:?} contains symlink component {component:?}")]
+    InputSymlink {
+        flag: &'static str,
+        input: PathBuf,
+        component: PathBuf,
+    },
     #[error("--out {path:?} {reason}")]
     OutPath { path: PathBuf, reason: String },
     #[error("--out {out:?} overlaps {flag} {input:?}")]
@@ -111,6 +117,11 @@ pub enum LabError {
         flag: &'static str,
         input: PathBuf,
         out: PathBuf,
+    },
+    #[error("{flag} must be {}", kind.noun())]
+    ExtraValue {
+        flag: &'static str,
+        kind: modes::ExtraKind,
     },
     #[error("run id {0:?} must be one plain path segment")]
     RunId(String),
@@ -195,6 +206,10 @@ pub fn imports_dir(workspace: &Path, run_id: &str) -> Result<PathBuf, LabError> 
 pub struct LabRun {
     pub mode: &'static ModeSpec,
     pub inputs: Vec<(String, PathBuf)>,
+    /// Scalar pass-through options (`--locale`, `--max-pages`,
+    /// `--relation-map`), validated for type only. Empty means the lab's
+    /// defaults.
+    pub extras: Vec<(String, String)>,
     /// Need not exist yet. Must not overlap any input.
     pub out: PathBuf,
 }
@@ -213,10 +228,12 @@ pub struct PreparedRun {
 }
 
 impl LabRun {
-    /// Check the run against the allowlist and canonicalize every path.
-    /// The lab refuses symlinked paths (`OutputSymlink`, exit 2), and on
-    /// macOS `/tmp` and `$TMPDIR` are symlinks, so nothing reaches argv
-    /// uncanonicalized.
+    /// Check the run against the allowlist and validate every spelling
+    /// no-follow. Symlinked inputs and outputs are refused in the original
+    /// spelling — never canonicalized away — because the pinned lab rejects
+    /// them on purpose (`InputSymlink`/`OutputSymlink`); only root-level
+    /// `/tmp`, `/var`, `/etc` system aliases are normalized, one component
+    /// exactly, as the explicit platform policy.
     pub fn prepare(&self) -> Result<PreparedRun, LabError> {
         let mode = self.mode;
         let mut given: Vec<(&'static InputSpec, PathBuf)> = Vec::new();
@@ -230,23 +247,8 @@ impl LabRun {
             if given.iter().any(|(s, _)| s.flag == spec.flag) {
                 return Err(LabError::DuplicateInput { flag: spec.flag });
             }
-            let canonical = std::fs::canonicalize(path).map_err(|source| LabError::InputPath {
-                flag: spec.flag,
-                path: path.clone(),
-                source,
-            })?;
-            let kind_ok = match spec.kind {
-                InputKind::Dir => canonical.is_dir(),
-                InputKind::File => canonical.is_file(),
-            };
-            if !kind_ok {
-                return Err(LabError::InputKind {
-                    flag: spec.flag,
-                    path: canonical,
-                    expected: spec.kind,
-                });
-            }
-            given.push((spec, canonical));
+            let input = validate_input_spelling(spec, path)?;
+            given.push((spec, input));
         }
         let mut inputs = Vec::new();
         for spec in mode.inputs {
@@ -269,9 +271,19 @@ impl LabRun {
             publication_sibling(&out, BACKUP_SUFFIX),
         ];
         for (flag, input) in &inputs {
+            // The spelling is already proven symlink-free, so canonicalizing
+            // the comparison copy cannot flatten a user-selected symlink; it
+            // only normalizes `.`/`..` and case for the overlap math. argv
+            // still carries the validated spelling itself.
+            let comparison =
+                std::fs::canonicalize(input).map_err(|source| LabError::InputPath {
+                    flag,
+                    path: input.clone(),
+                    source,
+                })?;
             if output_roots
                 .iter()
-                .any(|protected| paths_overlap(protected, input))
+                .any(|protected| paths_overlap(protected, &comparison))
             {
                 return Err(LabError::Overlap {
                     flag,
@@ -281,8 +293,38 @@ impl LabRun {
             }
         }
 
+        let mut extras: Vec<(&'static str, &str)> = Vec::new();
+        for (flag, value) in &self.extras {
+            let spec = mode.extras.iter().find(|e| e.flag == flag).ok_or_else(|| {
+                LabError::FlagNotAllowed {
+                    mode: mode.name,
+                    flag: flag.clone(),
+                }
+            })?;
+            if extras.iter().any(|(f, _)| f == &spec.flag) {
+                return Err(LabError::DuplicateInput { flag: spec.flag });
+            }
+            let valid = match spec.kind {
+                modes::ExtraKind::Text => !value.is_empty(),
+                modes::ExtraKind::Count => value.parse::<usize>().is_ok(),
+            };
+            if !valid {
+                return Err(LabError::ExtraValue {
+                    flag: spec.flag,
+                    kind: spec.kind,
+                });
+            }
+            extras.push((spec.flag, value));
+        }
+
         let mut argv = vec![OsString::from(format!("--mode={}", mode.name))];
         argv.extend(inputs.iter().map(|(flag, p)| flag_value(flag, p)));
+        for (flag, value) in &extras {
+            let mut s = OsString::from(flag);
+            s.push("=");
+            s.push(value);
+            argv.push(s);
+        }
         argv.push(flag_value("--out", &out));
         Ok(PreparedRun {
             mode: mode.name,
@@ -292,6 +334,106 @@ impl LabRun {
             cwd,
         })
     }
+}
+
+/// Validate one input's original spelling and return it unflattened.
+///
+/// The pinned lab refuses symlinked input roots (`InputSymlink`) because a
+/// migration source is often irreplaceable and a symlink can redirect reads
+/// outside the tree the user chose. Canonicalizing before the lab runs would
+/// erase that evidence, so the spelling is validated instead: a narrow
+/// system-alias normalization (below), then a no-follow check of every
+/// existing component, then the kind check. The validated spelling itself —
+/// never its canonical form — is what argv and the run record carry.
+fn validate_input_spelling(spec: &InputSpec, path: &Path) -> Result<PathBuf, LabError> {
+    let abs = std::path::absolute(path).map_err(|source| LabError::InputPath {
+        flag: spec.flag,
+        path: path.to_path_buf(),
+        source,
+    })?;
+    let spelling = normalize_system_aliases(&abs);
+    if let Some(component) = symlink_component(&spelling) {
+        return Err(LabError::InputSymlink {
+            flag: spec.flag,
+            input: path.to_path_buf(),
+            component,
+        });
+    }
+    let meta = std::fs::symlink_metadata(&spelling).map_err(|source| LabError::InputPath {
+        flag: spec.flag,
+        path: path.to_path_buf(),
+        source,
+    })?;
+    let kind_ok = match spec.kind {
+        InputKind::Dir => meta.is_dir(),
+        InputKind::File => meta.is_file(),
+    };
+    if !kind_ok {
+        return Err(LabError::InputKind {
+            flag: spec.flag,
+            path: spelling,
+            expected: spec.kind,
+        });
+    }
+    Ok(spelling)
+}
+
+/// Narrow platform policy: rewrite a leading `/tmp`, `/var` or `/etc`
+/// component when it really is a symlink (macOS aliases them into
+/// `/private`). Exactly that component is replaced by its link target;
+/// every other component of the spelling is preserved verbatim, so a
+/// user-planted symlink can never be flattened by this normalization.
+/// Where those names are real directories (Linux, most systems) this is a
+/// no-op.
+fn normalize_system_aliases(path: &Path) -> PathBuf {
+    let mut out = PathBuf::new();
+    let mut components = path.components();
+    let mut rewritten = Vec::new();
+    for component in components.by_ref() {
+        out.push(component.as_os_str());
+        rewritten.push(component);
+        // Only root-level `/tmp`, `/var`, `/etc` qualify, and only when
+        // they really are symlinks. One component, one rewrite.
+        if rewritten.len() == 2
+            && matches!(rewritten[0], Component::RootDir)
+            && let Component::Normal(name) = component
+            && matches!(name.to_str(), Some("tmp") | Some("var") | Some("etc"))
+            && let Ok(meta) = std::fs::symlink_metadata(&out)
+            && meta.file_type().is_symlink()
+            && let Ok(target) = std::fs::read_link(&out)
+        {
+            out = if target.is_absolute() {
+                target
+            } else {
+                Path::new("/").join(target)
+            };
+        }
+    }
+    out
+}
+
+/// The first symlink component in a spelling, checked with no-follow
+/// `lstat` semantics on each progressive prefix. Non-existent tails pass:
+/// the lab re-checks everything at run time, so a race cannot bypass the
+/// refusal — this is the adapter's early plain-language copy of the same
+/// fact, not the authoritative check.
+fn symlink_component(path: &Path) -> Option<PathBuf> {
+    let mut progressive = PathBuf::new();
+    for component in path.components() {
+        progressive.push(component.as_os_str());
+        if matches!(
+            component,
+            Component::RootDir | Component::CurDir | Component::ParentDir
+        ) {
+            continue;
+        }
+        match std::fs::symlink_metadata(&progressive) {
+            Ok(meta) if meta.file_type().is_symlink() => return Some(progressive),
+            Ok(_) => {}
+            Err(_) => break,
+        }
+    }
+    None
 }
 
 fn publication_sibling(path: &Path, suffix: &str) -> PathBuf {
@@ -324,6 +466,15 @@ fn canonical_out(out: &Path) -> Result<(PathBuf, PathBuf), LabError> {
         return Err(refuse("must not contain `..`".into()));
     }
     let abs = std::path::absolute(out).map_err(|e| refuse(e.to_string()))?;
+    // The output spelling is adapter-chosen but its ancestors exist in the
+    // user-shared filesystem: a pre-planted symlinked `.cv` or run directory
+    // must be refused, never silently followed into its target. Check the
+    // spelling before any canonicalization, exactly as for inputs.
+    if let Some(component) = symlink_component(&abs) {
+        return Err(refuse(format!(
+            "contains symlink component {component:?}; the run was not started"
+        )));
+    }
     let mut existing = abs.as_path();
     let mut missing = Vec::new();
     while std::fs::symlink_metadata(existing).is_err() {
@@ -348,8 +499,11 @@ fn canonical_out(out: &Path) -> Result<(PathBuf, PathBuf), LabError> {
     Ok((canonical, cwd))
 }
 
-/// The lab's exit codes. It has no content-failure code (`1`): refusals
-/// such as `OutputSymlink` and `InputOutputOverlap` exit 2.
+/// The lab's exit codes at the pin: `0` success, `2` usage, `3` I/O error.
+/// Safety refusals such as `InputSymlink`, `OutputSymlink` and
+/// `InputOutputOverlap` are reported on stderr as `migration-lab (<mode>)
+/// failed: <ErrorName>` and exit 3; exit 2 is reserved for command-line
+/// usage failures.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LabExit {
     Ok,
@@ -370,8 +524,9 @@ impl LabExit {
     }
 }
 
-/// A finished run. `stderr` is the lab's evidence, kept verbatim; with
-/// `-q` off it holds the progress lines too.
+/// A finished run. `stderr` is the lab's evidence, kept verbatim up to the
+/// engine's 8 MiB capture bound; capture overflow fails the run rather than
+/// truncating silently. With `-q` off it holds the progress lines too.
 #[derive(Debug, Clone)]
 pub struct LabOutput {
     pub run: PreparedRun,
@@ -421,6 +576,7 @@ mod tests {
         LabRun {
             mode: mode("jekyll").unwrap(),
             inputs: inputs.into_iter().map(|(f, p)| (f.into(), p)).collect(),
+            extras: Vec::new(),
             out,
         }
     }
@@ -513,6 +669,7 @@ mod tests {
                 ("--media".into(), media.clone()),
                 ("--wxr".into(), wxr.clone()),
             ],
+            extras: Vec::new(),
             out: root.join("out"),
         };
         let p = run.prepare().unwrap();
@@ -635,6 +792,7 @@ mod tests {
             let run = LabRun {
                 mode: mode("wordpress").unwrap(),
                 inputs: vec![("--wxr".into(), wxr), ("--media".into(), media.clone())],
+                extras: Vec::new(),
                 out: out.clone(),
             };
             assert!(
@@ -696,30 +854,56 @@ mod tests {
     /// own so it runs on every Unix.
     #[cfg(unix)]
     #[test]
-    fn symlinked_inputs_and_out_are_canonicalized() {
+    fn symlinked_inputs_and_outputs_are_refused_never_flattened() {
         let (_t, root) = scratch();
         let real = root.join("real");
         std::fs::create_dir_all(real.join("site")).unwrap();
-        let link = root.join("tmp");
+        let link = root.join("link");
         std::os::unix::fs::symlink(&real, &link).unwrap();
-        let p = jekyll(
+
+        // A symlinked input component is a pre-spawn refusal naming the
+        // component; the lab never runs and nothing is flattened.
+        let err = jekyll(
             vec![("--root", link.join("site"))],
+            root.join("imports").join("run-1"),
+        )
+        .prepare()
+        .unwrap_err();
+        let LabError::InputSymlink { component, .. } = err else {
+            panic!("expected InputSymlink, got {err:?}");
+        };
+        assert_eq!(component, link);
+
+        // The symlinked final component of a file input is equally refused.
+        let export = real.join("export.xml");
+        std::fs::write(&export, "<rss/>").unwrap();
+        let file_link = root.join("link.xml");
+        std::os::unix::fs::symlink(&export, &file_link).unwrap();
+        let run = LabRun {
+            mode: mode("wordpress").unwrap(),
+            inputs: vec![("--wxr".into(), file_link.clone())],
+            extras: Vec::new(),
+            out: root.join("imports").join("run-2"),
+        };
+        assert!(
+            matches!(run.prepare(), Err(LabError::InputSymlink { .. })),
+            "a symlinked file input must be refused, not followed"
+        );
+
+        // A symlink in the output spelling is refused before any
+        // canonicalization can follow it into the target.
+        let err = jekyll(
+            vec![("--root", real.join("site"))],
             link.join("imports").join("run-1"),
         )
         .prepare()
-        .unwrap();
-        assert_eq!(p.inputs, vec![("--root", real.join("site"))]);
-        assert_eq!(p.out, real.join("imports").join("run-1"));
-        assert_eq!(p.cwd, real);
-        let link_str = link.to_str().unwrap();
+        .unwrap_err();
         assert!(
-            p.argv.iter().all(
-                |a| !Path::new(a).starts_with(&link) && !a.to_string_lossy().contains(link_str)
-            ),
-            "{:?}",
-            p.argv
+            matches!(err, LabError::OutPath { .. }),
+            "symlinked output must be an OutPath refusal, got {err:?}"
         );
-        // A dangling link in the out path cannot be canonicalized.
+
+        // A dangling link in the out path is still an output refusal.
         std::os::unix::fs::symlink(root.join("gone"), root.join("dangling")).unwrap();
         assert!(matches!(
             jekyll(
@@ -729,6 +913,59 @@ mod tests {
             .prepare(),
             Err(LabError::OutPath { .. })
         ));
+
+        // Honest paths keep their own spelling in argv and the record: the
+        // adapter validates but does not rewrite them.
+        let p = jekyll(
+            vec![("--root", real.join("site"))],
+            real.join("imports").join("run-1"),
+        )
+        .prepare()
+        .unwrap();
+        assert_eq!(p.inputs, vec![("--root", real.join("site"))]);
+        assert!(p.argv.iter().any(|a| {
+            a.to_string_lossy()
+                .contains(real.join("site").to_str().unwrap())
+        }));
+    }
+
+    #[cfg(any(unix, target_os = "macos"))]
+    #[test]
+    fn root_level_system_aliases_are_the_only_normalized_symlinks() {
+        // The narrow platform policy: exactly the root-level system alias
+        // component is rewritten, everything else stays verbatim.
+        for alias in ["/tmp", "/var", "/etc"] {
+            let aliased = std::path::Path::new(alias);
+            let normalized = super::normalize_system_aliases(&aliased.join("x"));
+            if std::fs::symlink_metadata(aliased)
+                .map(|m| m.file_type().is_symlink())
+                .unwrap_or(false)
+            {
+                assert_ne!(
+                    normalized,
+                    aliased.join("x"),
+                    "{alias} is a symlink here and must be normalized"
+                );
+                assert!(normalized.ends_with("x"));
+                // The rest of the spelling survives untouched.
+                let deep = super::normalize_system_aliases(&aliased.join("a/b/c"));
+                assert!(deep.ends_with("a/b/c"), "{deep:?}");
+            } else {
+                assert_eq!(normalized, aliased.join("x"));
+            }
+        }
+        // A symlink deeper than the root-level alias is never rewritten.
+        let (_t, root) = scratch();
+        let real = root.join("real");
+        std::fs::create_dir_all(&real).unwrap();
+        let link = root.join("link");
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&real, &link).unwrap();
+        #[cfg(unix)]
+        assert_eq!(
+            super::normalize_system_aliases(&link.join("x")),
+            link.join("x")
+        );
     }
 
     #[test]
@@ -767,5 +1004,56 @@ mod tests {
                 "{bad}"
             );
         }
+    }
+
+    #[test]
+    fn extras_are_type_validated_and_passed_through_verbatim() {
+        let t = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(t.path()).unwrap();
+        let input = root.join("site");
+        std::fs::create_dir_all(&input).unwrap();
+        let mut run = LabRun {
+            mode: mode("starlight").unwrap(),
+            inputs: vec![("--root".into(), input)],
+            extras: vec![
+                ("--locale".into(), "en".into()),
+                ("--max-pages".into(), "12".into()),
+            ],
+            out: root.join("out"),
+        };
+        let prepared = run.prepare().unwrap();
+        let argv: Vec<String> = prepared
+            .argv
+            .iter()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect();
+        assert!(argv.contains(&"--locale=en".to_string()), "{argv:?}");
+        assert!(argv.contains(&"--max-pages=12".to_string()), "{argv:?}");
+
+        // Non-numeric count: refused before the spawn.
+        run.extras = vec![("--max-pages".into(), "abc".into())];
+        assert!(matches!(
+            run.prepare(),
+            Err(LabError::ExtraValue {
+                flag: "--max-pages",
+                ..
+            })
+        ));
+
+        // Flags outside the mode's allowlist are refused: process-changing
+        // options like --boris/--gate can never pass through.
+        run.extras = vec![("--boris".into(), "/tmp/x".into())];
+        assert!(matches!(
+            run.prepare(),
+            Err(LabError::FlagNotAllowed { .. })
+        ));
+        run.extras = vec![
+            ("--locale".into(), "en".into()),
+            ("--locale".into(), "de".into()),
+        ];
+        assert!(matches!(
+            run.prepare(),
+            Err(LabError::DuplicateInput { .. })
+        ));
     }
 }

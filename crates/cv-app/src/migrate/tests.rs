@@ -120,8 +120,64 @@ fn run_status_follows_the_record() {
     rec.adopted = None;
     rec.finished = None;
     store::write(d.path(), &rec).unwrap();
-    assert_eq!(load(d.path()).runs[0].status, RunStatus::Running);
-    assert_eq!(load(d.path()).runs[0].id, id);
+    // An unfinished record can no longer be observed as `running` through a
+    // fresh open: workers die with the app, so the open-time sweep closes
+    // it as interrupted. In-session runs still display Running because the
+    // sweep only fires once, at open, before any worker exists.
+    let r = &load(d.path()).runs[0];
+    assert_eq!(r.status, RunStatus::Failed);
+    assert_eq!(r.id, id);
+}
+
+#[test]
+fn a_run_left_unfinished_by_a_quit_is_closed_as_interrupted_on_open() {
+    let d = tempfile::tempdir().unwrap();
+    let id = seed_run(d.path(), "jekyll", 1);
+    let mut rec = store::scan(d.path()).unwrap()[0].record.clone().unwrap();
+    rec.finished = None;
+    store::write(d.path(), &rec).unwrap();
+
+    // First open after the "quit": the orphaned record is closed honestly.
+    let r = &load(d.path()).runs[0];
+    assert_eq!(r.status, RunStatus::Failed);
+    let rec = store::scan(d.path()).unwrap()[0].record.clone().unwrap();
+    let f = rec.finished.expect("sweep wrote a finish");
+    assert_eq!(f.exit, "interrupted");
+    assert!(
+        f.outcome.contains("Quitting is not cancellation"),
+        "{}",
+        f.outcome
+    );
+    let _ = id;
+}
+
+#[test]
+fn lab_refusal_names_are_detected_regardless_of_exit_code() {
+    // The pinned lab reports safety refusals at exit 2 or 3 depending on
+    // when they fire; the stderr error name is the stable signal.
+    for (stderr, want) in [
+        (
+            "error: migration-lab (wordpress) failed: InputSymlink",
+            "symlink appears in an input",
+        ),
+        (
+            "error: migration-lab (jekyll) failed: OutputSymlink",
+            "symlink appears in that output",
+        ),
+        (
+            "error: migration-lab (hugo) failed: InputOutputOverlap",
+            "overlap",
+        ),
+        (
+            "error: migration-lab (hugo) failed: OutputNotOwned",
+            "not owned",
+        ),
+    ] {
+        assert!(lab_refusal_name(stderr).is_some(), "{stderr} is a refusal");
+        let plain = plain_lab_refusal(stderr, Path::new("/out"));
+        assert!(plain.contains(want), "{plain} should contain {want:?}");
+    }
+    assert!(lab_refusal_name("error: migration-lab (hugo) failed: InvalidHugoRoot").is_none());
 }
 
 #[test]
@@ -138,6 +194,7 @@ fn a_refused_run_is_recorded_without_spawning() {
         &lab,
         engine_lab::mode("hugo").unwrap(),
         vec![("--root".into(), d.path().join("absent"))],
+        Vec::new(),
         &CancelToken::new(),
     )
     .unwrap();

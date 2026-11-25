@@ -42,6 +42,7 @@ fn real_lab_runs_project_like_the_captures() {
             &lab,
             engine_lab::mode(mode).unwrap(),
             vec![("--root".into(), fixtures.join(input))],
+            Vec::new(),
             &CancelToken::new(),
         )
         .unwrap();

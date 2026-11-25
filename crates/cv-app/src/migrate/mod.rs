@@ -13,8 +13,8 @@ use cv_engine::lab::{self as engine_lab, LabError, LabExit, LabIdentity, LabRun,
 use cv_engine::proc::CancelToken;
 use cv_model::modules::doctor::source_label;
 use cv_model::modules::migrate::{
-    Family, ImportInput, ImportInputKind, ImportMode, ImportRun, ImportRunInput, Imports, LabState,
-    MigratePort, ReviewItem, ReviewState, RunStatus,
+    Family, ImportExtra, ImportExtraKind, ImportInput, ImportInputKind, ImportMode, ImportRun,
+    ImportRunInput, Imports, LabState, MigratePort, ReviewItem, ReviewState, RunStatus,
 };
 use cv_store::imports::{self as store, ReviewLog, RunDir, RunRecord};
 use std::collections::HashMap;
@@ -84,6 +84,19 @@ pub fn modes() -> Vec<ImportMode> {
                 .safety_notes()
                 .into_iter()
                 .map(str::to_string)
+                .collect(),
+            extras: mode
+                .extras
+                .iter()
+                .map(|e| ImportExtra {
+                    flag: e.flag.into(),
+                    label: format!("{} ({})", e.label, e.flag),
+                    hint: e.hint.into(),
+                    kind: match e.kind {
+                        engine_lab::modes::ExtraKind::Text => ImportExtraKind::Text,
+                        engine_lab::modes::ExtraKind::Count => ImportExtraKind::Count,
+                    },
+                })
                 .collect(),
         })
         .collect()
@@ -167,7 +180,14 @@ impl DiskPort {
     }
 
     /// Runs under `root/.cv/imports/`; triage persists beside them.
+    ///
+    /// Opening a workspace is the one moment no import worker can be
+    /// alive: workers are in-process threads that die with the app. Any
+    /// run record still unfinished here is therefore orphaned by an
+    /// earlier quit — quitting is not cancellation — and is honestly
+    /// closed as interrupted instead of displaying `running` forever.
     pub fn open(root: &Path, lab: LabState) -> Self {
+        sweep_interrupted(root);
         let mut port = Self::detached(lab);
         port.root = Some(root.to_path_buf());
         match ReviewLog::open(root) {
@@ -225,6 +245,34 @@ impl MigratePort for DiskPort {
         }
         self.states.insert((run.into(), item.into()), to);
         Ok(())
+    }
+}
+
+/// Close every run record the last session left unfinished. Only called
+/// from `DiskPort::open`, before any worker of this session can exist.
+fn sweep_interrupted(root: &Path) {
+    let Ok(dirs) = store::scan(root) else {
+        return;
+    };
+    for d in dirs {
+        let Ok(mut rec) = d.record else {
+            continue;
+        };
+        if rec.finished.is_some() || rec.refused.is_some() {
+            continue;
+        }
+        rec.finished = Some(store::Finished {
+            exit_code: None,
+            exit: "interrupted".into(),
+            outcome: concat!(
+                "Capture Vector quit before this run finished. Quitting is not ",
+                "cancellation: the lab process did not survive, and whatever it ",
+                "wrote before that is still in the output directory."
+            )
+            .into(),
+            duration_ms: 0,
+        });
+        let _ = store::write(root, &rec);
     }
 }
 
@@ -681,6 +729,15 @@ pub(crate) fn plain_prepare_refusal(e: &LabError) -> String {
             expected.noun(),
             show(path)
         ),
+        LabError::InputSymlink {
+            flag,
+            input,
+            component,
+        } => format!(
+            "{flag} at {} contains the symlink {}; the migration lab refuses symlinked inputs because they can redirect reads outside the tree you chose. Choose the real path instead; the run was not started.",
+            show(input),
+            show(component)
+        ),
         LabError::OutPath { path, reason } => format!(
             "The output path {} cannot be used because it {reason}; the run was not started.",
             show(path)
@@ -697,8 +754,26 @@ pub(crate) fn plain_prepare_refusal(e: &LabError) -> String {
 /// The lab reports refusals as exit 2 plus a stable error name on stderr.
 /// Keep stderr verbatim in the record and put the actionable explanation,
 /// including the relevant path, in `refused`.
+/// The pinned lab's refusal error names, as `migration-lab (<mode>)
+/// failed: <Name>` on stderr at the pinned commit.
+pub(crate) fn lab_refusal_name(stderr: &str) -> Option<&'static str> {
+    [
+        ("InputSymlink", "InputSymlink"),
+        ("OutputSymlink", "OutputSymlink"),
+        ("InputOutputOverlap", "InputOutputOverlap"),
+        ("OutputNotOwned", "OutputNotOwned"),
+        ("OutputNotDirectory", "OutputNotDirectory"),
+    ]
+    .into_iter()
+    .find(|(name, _)| stderr.contains(name))
+    .map(|(_, full)| full)
+}
+
 pub(crate) fn plain_lab_refusal(stderr: &str, out: &Path) -> String {
     let path = show(out);
+    if stderr.contains("InputSymlink") {
+        return "The migration lab refused the run because a symlink appears in an input path. Choose the real path instead of a symlink; nothing was read or written.".to_string();
+    }
     if stderr.contains("OutputSymlink") {
         return format!(
             "The migration lab refused to write to {path} because a symlink appears in that output path. Nothing was written there."
@@ -736,12 +811,20 @@ pub fn run_lab(
     lab: &LabIdentity,
     mode: &'static ModeSpec,
     inputs: Vec<(String, PathBuf)>,
+    extras: Vec<(String, String)>,
     cancel: &CancelToken,
 ) -> Result<RunRecord, RunError> {
+    // The output spelling is anchored at the canonical workspace root: the
+    // workspace location is the user's chosen home for outputs, not
+    // migration-input evidence, and canonicalizing it once here is the
+    // narrow normalization that keeps `.cv/imports` reachable on macOS
+    // alias mount points without ever flattening a user-selected input.
+    let root = &std::fs::canonicalize(root).map_err(|e| RunError::Store(e.into()))?;
     let dir = store::run_dir(root, run_id).map_err(RunError::Store)?;
     let run = LabRun {
         mode,
         inputs,
+        extras,
         out: dir.join(store::OUT),
     };
     let mut rec = started_record(run_id, mode.name, lab, now_ms());
@@ -759,6 +842,19 @@ pub fn run_lab(
             return Ok(rec);
         }
     };
+    // Confinement is a hard invariant, proven here rather than assumed:
+    // after every normalization the output must still be exactly the run's
+    // own directory inside this workspace's `.cv/imports`.
+    let confined = root.join(".cv").join("imports").join(run_id);
+    if !prepared.out.starts_with(&confined) {
+        rec.refused = Some(format!(
+            "The output path {} escaped {} after normalization; the run was not started.",
+            prepared.out.display(),
+            confined.display()
+        ));
+        store::write(root, &rec).map_err(RunError::Store)?;
+        return Ok(rec);
+    }
     rec.inputs = prepared
         .inputs
         .iter()
@@ -795,7 +891,11 @@ pub fn run_lab(
     };
     let (exit_code, outcome) = outcome_text(out.outcome);
     rec.stderr = Some(out.stderr.clone());
-    if out.exit == LabExit::UsageError {
+    // The pinned lab reports safety refusals as exit 3 (its io_error code)
+    // with a stable error name on stderr; exit 2 is a usage failure. Either
+    // way the run never emitted, so both read as refusals — but only the
+    // named cases are user-actionable path refusals.
+    if out.exit == LabExit::UsageError || lab_refusal_name(&out.stderr).is_some() {
         rec.refused = Some(plain_lab_refusal(&out.stderr, &out.run.out));
     }
     rec.finished = Some(store::Finished {

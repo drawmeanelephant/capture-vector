@@ -263,6 +263,7 @@ fn wizard_modes() -> Vec<ImportMode> {
             ],
             inventory: None,
             safety: vec!["Inputs are read-only".into()],
+            extras: Vec::new(),
         },
         ImportMode {
             name: "hugo-inventory".into(),
@@ -277,6 +278,7 @@ fn wizard_modes() -> Vec<ImportMode> {
             }],
             inventory: None,
             safety: vec![],
+            extras: Vec::new(),
         },
         ImportMode {
             name: "hugo".into(),
@@ -291,6 +293,12 @@ fn wizard_modes() -> Vec<ImportMode> {
             }],
             inventory: Some("hugo-inventory".into()),
             safety: vec![],
+            extras: vec![ImportExtra {
+                flag: "--max-pages".into(),
+                label: "max pages (--max-pages)".into(),
+                hint: "cap converted pages".into(),
+                kind: ImportExtraKind::Count,
+            }],
         },
     ]
 }
@@ -583,4 +591,164 @@ fn progress_cancellation_cancels_the_shared_token() {
     assert!(!cancel.is_cancelled());
     m.answer(wizard::PROGRESS, &answer(None, &[]));
     assert!(cancel.is_cancelled(), "escape cancels the lab's token");
+}
+
+#[test]
+fn paths_with_trailing_whitespace_are_preserved_verbatim() {
+    let mut m = wizard_module();
+    to_wordpress_form(&mut m);
+    // `/tmp/export.xml ` (trailing space) is a different file from
+    // `/tmp/export.xml`; trimming it would corrupt the user's pick.
+    let out = m.answer(INPUT, &answer(Some("go"), &[("wxr", "/tmp/export.xml ")]));
+    let job = import_job(&out).expect("a valid form starts the import");
+    let (_, path) = job.inputs.iter().find(|(f, _)| f == "--wxr").unwrap();
+    assert_eq!(
+        path,
+        &std::path::PathBuf::from("/tmp/export.xml "),
+        "the spelling reaches the job verbatim"
+    );
+}
+
+#[test]
+fn whitespace_only_input_is_rejected_not_trimmed_to_absent() {
+    let mut m = wizard_module();
+    to_wordpress_form(&mut m);
+    let out = m.answer(INPUT, &answer(Some("go"), &[("wxr", "   ")]));
+    let Some(Intent::Dialog(d)) = out.iter().find(|i| matches!(i, Intent::Dialog(_))) else {
+        panic!("expected the form again, got {out:?}");
+    };
+    assert!(
+        d.error.as_deref().unwrap_or("").contains("whitespace"),
+        "{:?}",
+        d.error
+    );
+    assert!(import_job(&out).is_none(), "whitespace-only never runs");
+}
+
+#[test]
+fn clearing_an_optional_input_stays_cleared_after_a_failed_submit() {
+    let mut m = wizard_module();
+    to_wordpress_form(&mut m);
+    // First submit: valid wxr plus an optional --media pick.
+    let out = m.answer(
+        INPUT,
+        &answer(
+            Some("go"),
+            &[("wxr", "/elsewhere/export.xml"), ("media", "/media-one")],
+        ),
+    );
+    assert!(import_job(&out).is_some(), "first submit starts");
+
+    // Fresh wizard walk; same picks, then media is cleared while the
+    // required wxr is ALSO emptied, so validation fails.
+    let mut m = wizard_module();
+    to_wordpress_form(&mut m);
+    let _ = m.answer(
+        INPUT,
+        &answer(
+            Some("go"),
+            &[("wxr", "/elsewhere/export.xml"), ("media", "/media-one")],
+        ),
+    );
+    // validation failure on resubmit with media cleared
+    let failed = m.answer(INPUT, &answer(Some("go"), &[("wxr", ""), ("media", "")]));
+    assert!(
+        import_job(&failed).is_none(),
+        "missing wxr fails validation"
+    );
+    assert_eq!(
+        m.wizard.inputs.get("--media"),
+        None,
+        "cleared media must stay cleared even when validation fails"
+    );
+    // Now fix only the wxr and submit: media must NOT resurrect.
+    let out = m.answer(
+        INPUT,
+        &answer(Some("go"), &[("wxr", "/elsewhere/export.xml")]),
+    );
+    let job = import_job(&out).expect("fixed submit starts");
+    assert!(
+        !job.inputs.iter().any(|(f, _)| f == "--media"),
+        "cleared --media must not resurrect: {:?}",
+        job.inputs
+    );
+}
+
+#[test]
+fn count_extras_are_type_checked_and_passed_through() {
+    let (mut m, appeared) = dynamic_wizard_module();
+    m.run(NEW);
+    m.answer(FAMILY, &answer(Some("choose"), &[(CHOICE, "static-site")]));
+    m.answer(MODE, &answer(Some("choose"), &[(CHOICE, "hugo")]));
+    // Non-numeric --max-pages rejected at the boundary.
+    let bad = m.answer(
+        INPUT,
+        &answer(Some("go"), &[("root", "/site"), ("max-pages", "abc")]),
+    );
+    let Some(Intent::Dialog(d)) = bad.iter().find(|i| matches!(i, Intent::Dialog(_))) else {
+        panic!("expected the form again, got {bad:?}");
+    };
+    assert!(
+        d.error
+            .as_deref()
+            .unwrap_or("")
+            .contains("positive integer"),
+        "{:?}",
+        d.error
+    );
+    assert!(import_job(&bad).is_none());
+    // Numeric input starts the inventory companion, which declares no
+    // extras of its own — scalar options follow the mode actually running.
+    let out = m.answer(
+        INPUT,
+        &answer(Some("go"), &[("root", "/site"), ("max-pages", "12")]),
+    );
+    let inv = import_job(&out).expect("valid extras start the inventory");
+    assert_eq!(inv.mode, "hugo-inventory");
+    assert!(inv.extras.is_empty(), "{:?}", inv.extras);
+    // After the inventory, the explicit emit passes the extra verbatim
+    // into the emitting mode's job.
+    let mut done = ImportRun::new(&inv.run_id, RunStatus::Ok);
+    done.mode = "hugo-inventory".into();
+    appeared.borrow_mut().push(done);
+    m.run(FINISHED);
+    let out = m.answer(INVENTORY, &answer(Some("emit"), &[]));
+    let job = import_job(&out).expect("an explicit emit starts the import");
+    assert_eq!(job.mode, "hugo");
+    assert_eq!(
+        job.extras,
+        vec![("--max-pages".to_string(), "12".to_string())]
+    );
+}
+
+#[test]
+fn inventory_with_unreadable_report_blocks_emit() {
+    let (mut m, appeared) = dynamic_wizard_module();
+    let run_id = drive_hugo_to_inventory(&mut m);
+    let mut done = ImportRun::new(&run_id, RunStatus::Ok);
+    done.mode = "hugo-inventory".into();
+    done.problem = Some("report.json could not be decoded".into());
+    appeared.borrow_mut().push(done);
+
+    let finished = m.run(FINISHED);
+    assert!(
+        import_job(&finished).is_none(),
+        "no emit without counts: {finished:?}"
+    );
+    assert_ne!(
+        dialog_id(&finished),
+        Some(INVENTORY),
+        "the emit decision must not be offered when counts are unavailable"
+    );
+    assert!(
+        finished
+            .iter()
+            .any(|i| matches!(i, Intent::Status(s) if s.contains("emit is blocked"))),
+        "the block is disclosed: {finished:?}"
+    );
+    assert_eq!(
+        m.wizard,
+        wizard::Wizard::default(),
+        "the wizard resets rather than sitting in a dead end"
+    );
 }

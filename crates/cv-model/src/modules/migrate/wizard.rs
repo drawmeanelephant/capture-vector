@@ -2,7 +2,7 @@
 //! the answer state machine; picking is a shell request and the run itself
 //! is a shell-owned background job executed through `cv-engine`.
 
-use super::{ImportInputKind, ImportMode, Imports, MigrateModule, RunStatus};
+use super::{ImportExtraKind, ImportInputKind, ImportMode, Imports, MigrateModule, RunStatus};
 use crate::command::{ImportJob, ImportPhase, Intent};
 use crate::dialog::{
     ActionTone, CHOICE, Choice, DialogAnswer, DialogKind, DialogSpec, Field, FileFilter, Pick,
@@ -55,7 +55,10 @@ fn choice(id: &str, label: impl Into<String>) -> Choice {
 }
 
 fn action_value(answer: &DialogAnswer, field: &str) -> String {
-    answer.text(field).unwrap_or_default().trim().to_string()
+    // Never trim: whitespace is valid in POSIX paths, so `/tmp/export.xml `
+    // and `/tmp/export.xml` are different files. Only zero-length means
+    // absent; whitespace-only typed input is rejected at validation.
+    answer.text(field).unwrap_or_default().to_string()
 }
 
 fn mode_ref<'a>(imports: &'a Imports, name: &str) -> Option<&'a ImportMode> {
@@ -194,6 +197,19 @@ impl MigrateModule {
                     .hint(&format!("{} — the original stays in place", input.flag))
             })
             .collect();
+        let mut fields: Vec<Field> = fields;
+        for extra in &mode.extras {
+            let id = extra.flag.trim_start_matches('-');
+            let value = self
+                .wizard
+                .inputs
+                .get(&extra.flag)
+                .cloned()
+                .unwrap_or_default();
+            fields.push(
+                Field::text(id, &format!("{} (optional)", extra.label), &value).hint(&extra.hint),
+            );
+        }
         let mut body = vec![
             mode.description.clone(),
             String::new(),
@@ -293,8 +309,15 @@ impl MigrateModule {
             .iter()
             .filter_map(|input| {
                 let raw = self.wizard.inputs.get(&input.flag)?;
-                let path = raw.trim();
-                (!path.is_empty()).then(|| (input.flag.clone(), PathBuf::from(path)))
+                (!raw.is_empty()).then(|| (input.flag.clone(), PathBuf::from(raw)))
+            })
+            .collect::<Vec<_>>();
+        let extras = mode
+            .extras
+            .iter()
+            .filter_map(|extra| {
+                let raw = self.wizard.inputs.get(&extra.flag)?;
+                (!raw.is_empty()).then(|| (extra.flag.clone(), raw.clone()))
             })
             .collect::<Vec<_>>();
         let cancel = CancelToken::new();
@@ -304,6 +327,7 @@ impl MigrateModule {
             mode: mode_name.into(),
             phase,
             inputs,
+            extras,
             cancel: cancel.clone(),
         };
         self.wizard.stage = WizardStage::Running {
@@ -323,6 +347,26 @@ impl MigrateModule {
         answer: &DialogAnswer,
     ) -> Result<Vec<(String, String)>, String> {
         let mut values = Vec::new();
+        for extra in &mode.extras {
+            let key = extra.flag.trim_start_matches('-');
+            let value = action_value(answer, key);
+            if !value.is_empty() && value.trim().is_empty() {
+                return Err(format!(
+                    "{} is only whitespace. Clear the field entirely to use the lab default.",
+                    extra.flag
+                ));
+            }
+            if !value.is_empty()
+                && extra.kind == ImportExtraKind::Count
+                && value.parse::<usize>().is_err()
+            {
+                return Err(format!(
+                    "{} must be a positive integer, or empty for the lab default.",
+                    extra.flag
+                ));
+            }
+            values.push((extra.flag.clone(), value));
+        }
         for input in &mode.inputs {
             let key = input.flag.trim_start_matches('-');
             let value = action_value(answer, key);
@@ -330,6 +374,12 @@ impl MigrateModule {
                 return Err(format!(
                     "{} is required: choose the {}.",
                     input.flag, input.label
+                ));
+            }
+            if !value.is_empty() && value.trim().is_empty() {
+                return Err(format!(
+                    "{} is only whitespace, which is not a usable path here.                      Clear the field entirely to leave it out.",
+                    input.flag
                 ));
             }
             values.push((input.flag.clone(), value));
@@ -397,15 +447,26 @@ impl MigrateModule {
                         .unwrap_or_else(|| mode.family.clone());
                     return vec![Intent::dialog(self.mode_dialog(&family, None))];
                 }
+                // Snapshot every field of this mode from the answer first:
+                // a cleared field stays cleared even when validation fails,
+                // so stale picks can never resurrect on a later submit.
+                let flags = mode
+                    .inputs
+                    .iter()
+                    .map(|i| i.flag.clone())
+                    .chain(mode.extras.iter().map(|e| e.flag.clone()))
+                    .collect::<Vec<_>>();
+                for flag in flags {
+                    let key = flag.trim_start_matches('-');
+                    let value = action_value(answer, key);
+                    if value.is_empty() {
+                        self.wizard.inputs.remove(&flag);
+                    } else {
+                        self.wizard.inputs.insert(flag, value);
+                    }
+                }
                 match self.validate_inputs(&mode, answer) {
                     Err(error) => {
-                        for input in &mode.inputs {
-                            let key = input.flag.trim_start_matches('-');
-                            let value = action_value(answer, key);
-                            if !value.is_empty() {
-                                self.wizard.inputs.insert(input.flag.clone(), value);
-                            }
-                        }
                         vec![Intent::dialog(self.input_dialog(&mode, Some(error)))]
                     }
                     Ok(values) => {
@@ -504,6 +565,24 @@ impl MigrateModule {
         }
         match (phase, run.status) {
             (ImportPhase::Inventory, RunStatus::Ok) => {
+                // A finished inventory whose report is missing or
+                // undecodable proves nothing about the source: emit is
+                // blocked rather than merely confirmed, because the counts
+                // the decision rests on are unavailable. This is distinct
+                // from a valid inventory that simply counted zero.
+                if run.problem.is_some() {
+                    self.wizard.reset();
+                    return vec![
+                        Intent::Status(format!(
+                            "The inventory finished but its report is unreadable, so there are no counts to base an emit on; emit is blocked. Inspect the run in Runs — {}.",
+                            run.problem.as_deref().unwrap_or("report problem")
+                        )),
+                        Intent::Reveal {
+                            module: super::ID.into(),
+                            key: format!("run:{run_id}"),
+                        },
+                    ];
+                }
                 self.wizard.stage = WizardStage::AwaitingEmit {
                     inventory_run: run_id.clone(),
                 };

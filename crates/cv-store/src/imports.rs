@@ -90,7 +90,9 @@ pub struct RunRecord {
     pub finished: Option<Finished>,
     /// The adapter or lab refused the run, in plain language.
     pub refused: Option<String>,
-    /// The lab's stderr, kept verbatim as run evidence. `None` for records
+    /// The lab's stderr, kept as run evidence up to the engine's 8 MiB
+    /// capture limit; a larger stream fails the run instead of truncating
+    /// silently. `None` for records
     /// written by an older Capture Vector or before a process produced any.
     #[serde(default)]
     pub stderr: Option<String>,
