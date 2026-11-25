@@ -66,7 +66,8 @@ cv-core       domain types + SYNC ports + event/state vocab. NO IO, NO async, NO
 cv-contracts  serde mirrors of Boris JSON, version-keyed. Fixture-decode tests only.
 cv-fixtures   captured corpora + StubEngine + StubStore. Dev-dep of every lane.
 cv-engine     the ONLY Command owner: RawSubprocess adapter + EngineScheduler.
-cv-store      rusqlite(bundled) + JSONL evidence trail. Per-namespace migrations.
+cv-store      JSONL evidence trail + `.cv/` sidecar migrations + app-data index paths.
+              The rusqlite(bundled) indexes live in cv-ledger and cv-notes.
 cv-rules      SEO/AEO: pure fn(ArtifactSet, Ruleset) -> Report.
 cv-ledger     evidence: artifacts→checks→claims→deliveries.
 cv-publish    target registry + PreflightGrant + delivery adapters.

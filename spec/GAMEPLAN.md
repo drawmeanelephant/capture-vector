@@ -1,5 +1,24 @@
 # Concrete gameplan — post wave-0 Rune probe
 
+> **Historical.** Wave 0 has landed. This file is kept for the decision
+> trail and is not a current-state plan. For current state, read
+> [`spike/FINDINGS.md`](../spike/FINDINGS.md) (what is proven per OS),
+> [`docs/tech-debt.md`](../docs/tech-debt.md) (deliberate shortcuts), and
+> the open GitHub issues. Reconciled against `origin/main` `943ef6b`.
+>
+> What happened to the items below:
+>
+> - Wave-0 items 1–7 landed under L0 (#1, closed). The lane epics L1–L7
+>   (#4–#10) and the contract-hardening checkpoint (#3) are closed.
+> - Item 8 and the other probe follow-ups are tracked in #26 (open):
+>   Markdown in a tree was proven on Linux, multi-window on real macOS and
+>   Linux windows, and IME for macOS US dead keys and Linux X11
+>   ibus/anthy. Windows remains unproven; see `spike/FINDINGS.md`.
+> - `rune-ref` was probed and is not a Lavapipe drop-in (linear-only
+>   blending, about 25 s per frame). Lavapipe stays the canonical PNG gate.
+> - The acceptance gates (#11) and packaging (#12) wait on owner
+>   decisions, not on implementation.
+
 Status inputs (facts, not assumptions):
 - rune `dev` @ 2a59b0f — PROVEN on macOS: headless `Runtime`, scripted pointer,
   `elements()` tree, 5000-row `virtual_rows` (bounded mounts), `--snap` PNG via
