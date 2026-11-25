@@ -15,6 +15,22 @@ use std::time::{Duration, Instant};
 
 const STUB: &str = include_str!("fake-lab/boris-migration-lab");
 
+/// Never open the executable inode for writing in this process: a sibling
+/// fork could inherit that fd and make Linux exec fail with ETXTBSY
+/// (rust-lang/rust#114554). The destination writer belongs only to `cp`.
+fn install_executable(bin: &Path, contents: &str) {
+    let staging = bin.parent().unwrap().join("staging-contents");
+    std::fs::write(&staging, contents).unwrap();
+    let status = std::process::Command::new("cp")
+        .arg(&staging)
+        .arg(bin)
+        .status()
+        .unwrap();
+    assert!(status.success(), "cp into the executable path failed");
+    std::fs::remove_file(&staging).unwrap();
+    std::fs::set_permissions(bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+}
+
 struct FakeLab {
     dir: tempfile::TempDir,
     bin: PathBuf,
@@ -24,8 +40,7 @@ impl FakeLab {
     fn new(version: &str) -> Self {
         let dir = tempfile::tempdir().unwrap();
         let bin = dir.path().join(lab::exe_name());
-        std::fs::write(&bin, STUB).unwrap();
-        std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+        install_executable(&bin, STUB);
         let f = Self { dir, bin };
         f.set("version.txt", &format!("{version}\n"));
         f
@@ -113,11 +128,10 @@ fn another_tool_id_is_a_typed_mismatch() {
 fn a_failing_version_probe_does_not_pass_the_gate() {
     let fake = FakeLab::new(PINNED.tool_id);
     // Valid stdout, but the probe exits 3.
-    std::fs::write(
+    install_executable(
         &fake.bin,
-        format!("#!/bin/sh\necho {}\nexit 3\n", PINNED.tool_id),
-    )
-    .unwrap();
+        &format!("#!/bin/sh\necho {}\nexit 3\n", PINNED.tool_id),
+    );
     assert!(matches!(
         lab::gate(EngineSource::Path, &fake.bin, fake.dir.path(), PINNED),
         Err(LabError::Engine(EngineError::Abnormal(
@@ -259,4 +273,24 @@ fn the_lab_child_env_is_the_engine_allowlist() {
     let env = fake.read("env.log").unwrap();
     assert!(!env.contains("shouldnotleak"));
     assert!(env.lines().any(|l| l.starts_with("PATH=")));
+}
+
+#[test]
+fn installing_while_sibling_spawns_never_trips_text_busy() {
+    let probe = FakeLab::new(PINNED.tool_id);
+    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let worker = {
+        let stop = stop.clone();
+        std::thread::spawn(move || {
+            while !stop.load(std::sync::atomic::Ordering::Relaxed) {
+                probe.identity();
+            }
+        })
+    };
+    for _ in 0..40 {
+        let fake = FakeLab::new(PINNED.tool_id);
+        fake.identity();
+    }
+    stop.store(true, std::sync::atomic::Ordering::Relaxed);
+    worker.join().unwrap();
 }
