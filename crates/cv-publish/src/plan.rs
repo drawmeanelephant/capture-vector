@@ -31,6 +31,12 @@ pub struct PlanFile {
     /// required.
     #[serde(default)]
     pub kind: Option<String>,
+    /// Boris's `advertised` flag for the artifact: draft pages commit as
+    /// html-page but are not advertised to indexers. Same safe-direction
+    /// compatibility reasoning as `kind`: `None` never over-advertises
+    /// because URL projection treats absent as not-explicitly-advertised.
+    #[serde(default)]
+    pub advertised: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -149,6 +155,7 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<PlanFile>) -> Result<()> {
             let bytes = std::fs::read(&p)?;
             out.push(PlanFile {
                 kind: None,
+                advertised: None,
                 path: rel,
                 bytes: bytes.len() as u64,
                 sha256: sha256(&bytes),

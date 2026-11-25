@@ -2341,7 +2341,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "c571db908a64a4ad4262f127a4fd024e10b91436aa1c8098404eeb42193ab598",
+      "help": "c3495ee207c9cf9cbf5a3e5df2adf0cb0dd6e76dd9bc97f55854a0fcf29734df",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-artifact set/#1",
       "rect": [
@@ -2351,7 +2351,7 @@
         13.8
       ],
       "role": "text",
-      "text": "c571db908a64a4ad4262f127a4fd024e10b91436aa1c8098404eeb42193ab598"
+      "text": "c3495ee207c9cf9cbf5a3e5df2adf0cb0dd6e76dd9bc97f55854a0fcf29734df"
     },
     {
       "key": "field-graph",
@@ -2419,7 +2419,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "376b842e2684e1b40b992b0294d9e2a83fd15998c2230f2998f7f74ea0767b92",
+      "help": "1caa14a10557f599be4be9dc57adf627d964ae98cafde5e64519a4408da7689b",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-plan/#1",
       "rect": [
@@ -2429,7 +2429,7 @@
         13.8
       ],
       "role": "text",
-      "text": "376b842e2684e1b40b992b0294d9e2a83fd15998c2230f2998f7f74ea0767b92"
+      "text": "1caa14a10557f599be4be9dc57adf627d964ae98cafde5e64519a4408da7689b"
     },
     {
       "key": "field-target cfg",

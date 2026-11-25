@@ -146,7 +146,6 @@ fn an_interrupted_dispatch_reads_as_unknown_and_is_not_recovered() {
     let eng = scene::CapturedBuild {
         root: d.path().into(),
         check: cv_core::engine::ExitClass::Ok,
-        robots: false,
     };
     let cfg = scene::config(Target::StaticDist, COPY_TO_FOLDER, "deployed");
     let mut p = scene::open(d.path(), &eng).with_adapter(Crash);

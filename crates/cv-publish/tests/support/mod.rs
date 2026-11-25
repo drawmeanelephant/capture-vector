@@ -161,9 +161,27 @@ impl Engine for FakeEngine {
                         "target": "default",
                         "artifacts": artifacts,
                     });
+                    let bytes = serde_json::to_vec_pretty(&index).unwrap();
+                    let digest = format!("{:x}", Sha256::digest(&bytes));
+                    std::fs::write(proof.join("artifacts.json"), &bytes).unwrap();
+                    let checks = serde_json::json!({
+                        "format": "boris-publication-checks",
+                        "schema_version": 1,
+                        "target": "default",
+                        "artifact_inventory": {
+                            "path": "_boris/proof/artifacts.json",
+                            "bytes": bytes.len(),
+                            "sha256": digest,
+                            "format": "boris-publication-artifacts",
+                            "schema_version": 1,
+                            "target": "default",
+                        },
+                        "checks": [],
+                        "findings": [],
+                    });
                     std::fs::write(
-                        proof.join("artifacts.json"),
-                        serde_json::to_vec_pretty(&index).unwrap(),
+                        proof.join("checks.json"),
+                        serde_json::to_vec_pretty(&checks).unwrap(),
                     )
                     .unwrap();
                 }
@@ -250,6 +268,8 @@ pub struct CapturedEngine {
     pub proof_payload_entry: bool,
     pub duplicate_entry: bool,
     pub case_collision_entry: bool,
+    pub failed_check: bool,
+    pub uppercase_sha: bool,
     pub plant_uninventoried: bool,
     pub omit_css_record: bool,
     pub cache_record: bool,
@@ -267,6 +287,8 @@ impl CapturedEngine {
             proof_payload_entry: false,
             duplicate_entry: false,
             case_collision_entry: false,
+            failed_check: false,
+            uppercase_sha: false,
             plant_uninventoried: false,
             omit_css_record: false,
             cache_record: false,
@@ -344,6 +366,36 @@ impl Engine for CapturedEngine {
                     let mut sorted = idx["artifacts"].as_array().unwrap().clone();
                     sorted.sort_by(|a, b| a["path"].as_str().cmp(&b["path"].as_str()));
                     idx["artifacts"] = serde_json::json!(sorted);
+                    std::fs::write(&path, serde_json::to_vec_pretty(&idx).unwrap()).unwrap();
+                }
+                if self.uppercase_sha {
+                    let path = out.join("_boris/proof/artifacts.json");
+                    let raw = std::fs::read_to_string(&path).unwrap();
+                    let mut idx: serde_json::Value = serde_json::from_str(&raw).unwrap();
+                    let first = idx["artifacts"][0]["sha256"]
+                        .as_str()
+                        .unwrap()
+                        .to_uppercase();
+                    idx["artifacts"][0]["sha256"] = serde_json::json!(first);
+                    std::fs::write(&path, serde_json::to_vec_pretty(&idx).unwrap()).unwrap();
+                }
+                if self.failed_check {
+                    let path = out.join("_boris/proof/checks.json");
+                    let mut idx: serde_json::Value =
+                        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+                    for c in idx["checks"].as_array_mut().unwrap() {
+                        if c["id"].as_str() == Some("rendered-html") {
+                            c["status"] = serde_json::json!("failed");
+                            c["counts"]["findings"] = serde_json::json!(1);
+                        }
+                    }
+                    idx["findings"].as_array_mut().unwrap().push(serde_json::json!({
+                        "code": "HTML_FRAGMENT_MISSING",
+                        "severity": "error",
+                        "confidence": "certain",
+                        "subject": { "kind": "page", "id": "guides/publishing", "target": "default" },
+                        "output_location": { "path": "guides/publishing.html", "line": 29, "column": 40 },
+                    }));
                     std::fs::write(&path, serde_json::to_vec_pretty(&idx).unwrap()).unwrap();
                 }
                 if self.plant_uninventoried {

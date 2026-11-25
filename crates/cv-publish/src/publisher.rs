@@ -117,6 +117,67 @@ fn reserved_identities(site: &Path) -> std::collections::BTreeSet<(u64, u64)> {
     out
 }
 
+/// Boris's own deploy verdict. `proof verify` fails when a ran check
+/// records status `failed` — those are EngineDocumented deploy errors and
+/// must block the grant even though Audit projection is deferred. The
+/// inventory digest inside checks.json must match the sealed artifacts.json
+/// bytes so proof evidence and the sealed inventory cannot diverge.
+fn evaluate_proof_checks(site: &Path, artifacts_sha: &str, blocks: &mut Vec<String>) {
+    let path = site.join("_boris/proof/checks.json");
+    let bytes = match std::fs::read(&path) {
+        Ok(b) => b,
+        Err(e) => {
+            blocks.push(format!("proof checks: checks.json unreadable: {e}"));
+            return;
+        }
+    };
+    let file: ingest::ChecksFile = match serde_json::from_slice(&bytes) {
+        Ok(f) => f,
+        Err(e) => {
+            blocks.push(format!("proof checks: checks.json: {e}"));
+            return;
+        }
+    };
+    if let Some(inv) = &file.artifact_inventory
+        && inv.sha256 != artifacts_sha
+    {
+        blocks.push(format!(
+            "proof checks: artifact-inventory digest {} does not match the sealed artifacts.json",
+            inv.sha256
+        ));
+    }
+    for check in file.checks.iter().filter(|c| c.ran && c.status == "failed") {
+        let details: Vec<String> = file
+            .findings
+            .iter()
+            .filter(|f| f.get("severity").and_then(|v| v.as_str()) == Some("error"))
+            .map(|f| {
+                let code = f.get("code").and_then(|v| v.as_str()).unwrap_or("unknown");
+                let page = f
+                    .get("subject")
+                    .and_then(|s| s.get("id"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("?");
+                let output = f
+                    .get("output_location")
+                    .and_then(|o| o.get("path"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("?");
+                format!("{code} on {page} at {output}")
+            })
+            .collect();
+        blocks.push(format!(
+            "proof checks: {} failed — deploy blocked by Boris ({})",
+            check.id,
+            if details.is_empty() {
+                "error-severity findings".to_string()
+            } else {
+                details.join("; ")
+            }
+        ));
+    }
+}
+
 fn evaluate_proof_inventory(
     idx: &ingest::ArtifactIndex,
     output_files: &[PlanFile],
@@ -189,6 +250,7 @@ fn evaluate_proof_inventory(
                 kinds.insert(artifact.path.clone(), artifact.kind.clone());
                 let mut f = f.clone();
                 f.kind = Some(artifact.kind.clone());
+                f.advertised = artifact.advertised;
                 files.push(f)
             }
             Some(_) => blocks.push(format!(
@@ -288,6 +350,7 @@ fn deployable_inventory(site: &Path) -> Result<Vec<PlanFile>> {
         }
         let mut f = f.clone();
         f.kind = Some(artifact.kind.clone());
+        f.advertised = artifact.advertised;
         files.push(f);
     }
     // Completeness: any non-reserved output file without a committed
@@ -510,6 +573,11 @@ impl<'a> Publisher<'a> {
                 Default::default()
             }
         };
+        if proof_inventory_valid
+            && let Ok(inv_bytes) = std::fs::read(site.join("_boris/proof/artifacts.json"))
+        {
+            evaluate_proof_checks(&site, &sha256(&inv_bytes).to_hex(), &mut blocks);
+        }
         let graph = self.read_graph(&run)?;
         if blocks.is_empty() && graph.is_none() {
             blocks.push("graph: not produced".into());

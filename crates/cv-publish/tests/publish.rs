@@ -194,6 +194,7 @@ fn sealed_inventory_rejects_escaping_file_names() {
             site: "site".into(),
             files: vec![PlanFile {
                 kind: None,
+                advertised: None,
                 path: path.into(),
                 bytes: 0,
                 sha256: Hash([0; 32]),
@@ -800,6 +801,7 @@ fn copy_to_folder_never_clobbers_siblings() {
     let files = vec![(
         PlanFile {
             kind: None,
+            advertised: None,
             path: "index.html".into(),
             bytes: 2,
             sha256: cv_publish::plan::sha256(b"hi"),
@@ -857,6 +859,7 @@ fn copy_to_folder_accepts_names_at_the_length_limit() {
     let files = vec![(
         PlanFile {
             kind: None,
+            advertised: None,
             path: name.clone(),
             bytes: 2,
             sha256: cv_publish::plan::sha256(b"hi"),
@@ -998,6 +1001,7 @@ fn heuristic_only_ruleset_cannot_block_preflight_or_publish() {
         .iter()
         .map(|p| PlanFile {
             kind: None,
+            advertised: None,
             path: (*p).into(),
             bytes: 0,
             sha256: Hash([0; 32]),

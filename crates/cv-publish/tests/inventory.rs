@@ -450,3 +450,91 @@ fn host_valid_boris_page_names_deploy_end_to_end() {
     assert!(dest.join("aux.html").exists());
     assert!(dest.join("guides/a:b.html").exists());
 }
+
+/// Boris's own deploy verdict is decisive: `proof verify` fails when a ran
+/// check records status `failed` (probe-verified: broken fragment link →
+/// rendered-html failed with HTML_FRAGMENT_MISSING, verify exits 1 while
+/// build/validate/check exit 0). EngineDocumented deploy errors must block
+/// the grant even though Audit projection is deferred.
+#[test]
+fn a_failed_deploy_check_blocks_the_grant_with_finding_detail() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    eng.failed_check = true;
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+    let out = p
+        .preflight(
+            &PreflightRequest { config: cfg() },
+            &Rules::ok(),
+            &mut ids("run"),
+        )
+        .unwrap();
+    let PreflightOutcome::Blocked { blocks, .. } = out else {
+        panic!("a failed deploy check must block: {out:?}")
+    };
+    assert!(
+        blocks.iter().any(|b| b.contains("rendered-html")
+            && b.contains("HTML_FRAGMENT_MISSING")
+            && b.contains("guides/publishing")
+            && b.contains("guides/publishing.html")),
+        "{blocks:?}"
+    );
+}
+
+/// The digest inside checks.json binds the exact artifacts.json bytes.
+/// Tampering with the inventory after the proof pack is written must block
+/// rather than letting evidence and sealed inventory diverge.
+#[test]
+fn a_divergent_checks_inventory_digest_blocks_the_grant() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    eng.duplicate_entry = true;
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+    let out = p
+        .preflight(
+            &PreflightRequest { config: cfg() },
+            &Rules::ok(),
+            &mut ids("run"),
+        )
+        .unwrap();
+    let PreflightOutcome::Blocked { blocks, .. } = out else {
+        panic!("divergent digest must block: {out:?}")
+    };
+    assert!(
+        blocks
+            .iter()
+            .any(|b| b.contains("artifact-inventory digest") && b.contains("does not match")),
+        "{blocks:?}"
+    );
+}
+
+/// An unknown key or malformed digest shape in the inventory is rejected at
+/// the root parse/validation cause, not as a misleading missing-record
+/// cascade.
+#[test]
+fn a_noncanonical_digest_shape_fails_at_the_root_cause() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    eng.uppercase_sha = true;
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+    let out = p
+        .preflight(
+            &PreflightRequest { config: cfg() },
+            &Rules::ok(),
+            &mut ids("run"),
+        )
+        .unwrap();
+    let PreflightOutcome::Blocked { blocks, .. } = out else {
+        panic!("uppercase sha must block: {out:?}")
+    };
+    assert!(
+        blocks
+            .iter()
+            .any(|b| b.contains("sha256 is not lowercase hex digest shape")),
+        "{blocks:?}"
+    );
+    assert!(
+        !blocks.iter().any(|b| b.contains("missing from the output")),
+        "no misleading cascade: {blocks:?}"
+    );
+}

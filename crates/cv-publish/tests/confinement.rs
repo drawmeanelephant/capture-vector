@@ -150,6 +150,7 @@ fn load_sealed_refuses_plan_paths_that_escape_the_site() {
             "deployed",
             vec![PlanFile {
                 kind: None,
+                advertised: None,
                 path: path.clone(),
                 bytes: 7,
                 sha256: cv_publish::plan::sha256(b"outside"),
@@ -249,6 +250,7 @@ fn deliver_one(root: &Path, destination: &str, path: &str) -> Result<Delivered, 
     let files = vec![(
         PlanFile {
             kind: None,
+            advertised: None,
             path: path.into(),
             bytes: 2,
             sha256: cv_publish::plan::sha256(b"hi"),

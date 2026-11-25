@@ -2263,7 +2263,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "c571db908a64a4ad4262f127a4fd024e10b91436aa1c8098404eeb42193ab598",
+      "help": "c3495ee207c9cf9cbf5a3e5df2adf0cb0dd6e76dd9bc97f55854a0fcf29734df",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-artifact set/#1",
       "rect": [
@@ -2273,7 +2273,7 @@
         13.8
       ],
       "role": "text",
-      "text": "c571db908a64a4ad4262f127a4fd024e10b91436aa1c8098404eeb42193ab598"
+      "text": "c3495ee207c9cf9cbf5a3e5df2adf0cb0dd6e76dd9bc97f55854a0fcf29734df"
     },
     {
       "key": "field-graph",
@@ -2341,7 +2341,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "ccedfe257938a87155f26d2251e042ec1870e7f956ea9b7f036c166f4be6ea9d",
+      "help": "28555575bbd43f551a0b5e39d85a88dfcf193747768b047e75b48bbe4d81a7c9",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-plan/#1",
       "rect": [
@@ -2351,7 +2351,7 @@
         13.8
       ],
       "role": "text",
-      "text": "ccedfe257938a87155f26d2251e042ec1870e7f956ea9b7f036c166f4be6ea9d"
+      "text": "28555575bbd43f551a0b5e39d85a88dfcf193747768b047e75b48bbe4d81a7c9"
     },
     {
       "key": "field-target cfg",
@@ -3409,7 +3409,7 @@
         520.0
       ],
       "role": "text",
-      "text": "Static dist · 5 files · 12600 B by copy-to-folder to publish/static-dist\nApproval is recorded in the ledger before anything is dispatched. Dispatch delivers exactly these sealed bytes, once; a hash that no longer matches refuses.\n\nSealed hashes\n  artifact set: c571db908a64a4ad…\n  graph: d1020957f0580499…\n  plan: ccedfe257938a871…\n  target cfg: 2a1253c01b262a39…\n  ruleset: 3424026284a0d80c…\n  boris: boris/0.9.0\n\nAdvisory findings (6): heuristic or below error, these never block\n  advisory · SEO-CANONICAL-PRESENT on guides/getting-started · heuristic\n  advisory · SEO-CANONICAL-PRESENT on guides/publishing · heuristic\n  advisory · SEO-CANONICAL-PRESENT on index · heuristic\n  advisory · SEO-META-DESCRIPTION on guides/getting-started · heuristic\n  advisory · SEO-META-DESCRIPTION on guides/publishing · heuristic\n  advisory · SEO-META-DESCRIPTION on index · heuristic"
+      "text": "Static dist · 5 files · 12600 B by copy-to-folder to publish/static-dist\nApproval is recorded in the ledger before anything is dispatched. Dispatch delivers exactly these sealed bytes, once; a hash that no longer matches refuses.\n\nSealed hashes\n  artifact set: c3495ee207c9cf9c…\n  graph: d1020957f0580499…\n  plan: 28555575bbd43f55…\n  target cfg: 2a1253c01b262a39…\n  ruleset: 3424026284a0d80c…\n  boris: boris/0.9.0\n\nAdvisory findings (6): heuristic or below error, these never block\n  advisory · SEO-CANONICAL-PRESENT on guides/getting-started · heuristic\n  advisory · SEO-CANONICAL-PRESENT on guides/publishing · heuristic\n  advisory · SEO-CANONICAL-PRESENT on index · heuristic\n  advisory · SEO-META-DESCRIPTION on guides/getting-started · heuristic\n  advisory · SEO-META-DESCRIPTION on guides/publishing · heuristic\n  advisory · SEO-META-DESCRIPTION on index · heuristic"
     },
     {
       "key": "close",

@@ -353,7 +353,9 @@ impl<T: HttpTransport> DeliveryAdapter for HttpPost<T> {
             .plan
             .files
             .iter()
-            .filter(|f| crate::publisher::is_html_page(f.kind.as_deref()))
+            .filter(|f| {
+                crate::publisher::is_html_page(f.kind.as_deref()) && f.advertised != Some(false)
+            })
             .map(|f| format!("{base}/{}", f.path))
             .collect();
         let body = serde_json::to_vec(&serde_json::json!({ "host": host, "urlList": urls }))

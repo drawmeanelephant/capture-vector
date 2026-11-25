@@ -3,9 +3,9 @@
 
 use crate::nouns::{ArtifactNoun, CheckNoun, ClaimNoun, derive_id};
 use crate::{LedgerError, Result};
-use cv_contracts::proof::{ChecksFile, EvidenceFile};
+use cv_contracts::proof::EvidenceFile;
 
-pub use cv_contracts::proof::ArtifactIndex;
+pub use cv_contracts::proof::{ArtifactIndex, ChecksFile};
 use cv_core::id::StableId;
 use std::path::Path;
 
@@ -178,6 +178,16 @@ fn validate_artifact_contract(idx: &ArtifactIndex) -> Result<()> {
             return Err(LedgerError::Proof(format!(
                 "artifacts.json: {} producer {:?} is not {expected:?} for kind {:?}",
                 a.path, a.producer, a.kind
+            )));
+        }
+        if !(a.sha256.len() == 64
+            && a.sha256
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)))
+        {
+            return Err(LedgerError::Proof(format!(
+                "artifacts.json: {} sha256 is not lowercase hex digest shape",
+                a.path
             )));
         }
         if !matches!(

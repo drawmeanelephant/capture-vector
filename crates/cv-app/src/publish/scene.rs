@@ -28,11 +28,6 @@ const CLOCK: FixedClock = FixedClock(Timestamp(1_700_000_000_000));
 pub(super) struct CapturedBuild {
     pub(super) root: PathBuf,
     pub(super) check: ExitClass,
-    /// Hosted-target scene shapes synthesize a committed robots.txt because
-    /// hosted deploy profiles genuinely require one. Static-dist is an
-    /// unhosted copy of Boris's real default output: five committed
-    /// artifacts, no robots — synthesizing one would be fictional evidence.
-    pub(super) robots: bool,
 }
 
 fn flag<'a>(args: &'a [String], name: &str) -> cv_core::Result<&'a str> {
@@ -91,36 +86,6 @@ impl Engine for CapturedBuild {
                 let dist = cv_fixtures::fixtures_root().join("captures/happy/dist/dist");
                 let out = self.root.join(flag(args, "--html-dir")?);
                 copy_tree(&dist, &out).map_err(io)?;
-                if !self.robots {
-                    return Ok(ExitClass::Ok);
-                }
-                // Hosted scene shapes synthesize robots.txt; it is only
-                // consistent evidence when the inventory commits it.
-                let robots = b"User-agent: *\n";
-                std::fs::write(out.join("robots.txt"), robots).map_err(io)?;
-                let inventory = out.join("_boris/proof/artifacts.json");
-                let mut idx: serde_json::Value =
-                    serde_json::from_slice(&std::fs::read(&inventory).map_err(io)?)
-                        .map_err(|e| cv_core::Error::Engine(e.to_string()))?;
-                let mut artifacts = idx["artifacts"].as_array().unwrap().clone();
-                artifacts.retain(|a| a["path"].as_str() != Some("robots.txt"));
-                artifacts.push(serde_json::json!({
-                    "path": "robots.txt",
-                    "kind": "static-file",
-                    "producer": "static-files",
-                    "required": false,
-                    "status": "committed",
-                    "bytes": robots.len(),
-                    "sha256": sha256_hex(robots),
-                }));
-                artifacts.sort_by(|a, b| a["path"].as_str().cmp(&b["path"].as_str()));
-                idx["artifacts"] = serde_json::json!(artifacts);
-                std::fs::write(
-                    &inventory,
-                    serde_json::to_vec_pretty(&idx)
-                        .map_err(|e| cv_core::Error::Engine(e.to_string()))?,
-                )
-                .map_err(io)?;
                 Ok(ExitClass::Ok)
             }
             "build" if args.iter().any(|a| a == "--out") => {
@@ -210,17 +175,10 @@ pub fn seed(root: &Path) {
     let ok = CapturedBuild {
         root: root.into(),
         check: ExitClass::Ok,
-        robots: false,
-    };
-    let ok_hosted = CapturedBuild {
-        root: root.into(),
-        check: ExitClass::Ok,
-        robots: true,
     };
     let failing = CapturedBuild {
         root: root.into(),
         check: ExitClass::ContentFailure,
-        robots: true,
     };
     let mut ids = SeqIdGen::new("run");
     let preflight = |p: &mut Publisher<'_>, cfg: &TargetConfig, ids: &mut SeqIdGen| {
@@ -246,14 +204,14 @@ pub fn seed(root: &Path) {
     drop(p);
 
     let cfg = config(Target::NostrNip23, HTTP_POST, "https://relay.example.test/");
-    let mut p = open(root, &ok_hosted).with_adapter(LostOutcome);
+    let mut p = open(root, &ok).with_adapter(LostOutcome);
     let run = granted(preflight(&mut p, &cfg, &mut ids));
     p.approve(&run, "local").expect("scene approval");
     p.publish(&run, &cfg, &SceneRules).expect("scene dispatch");
     drop(p);
 
     let cfg = config(Target::StandardSite, HTTP_POST, "https://pds.example.test/");
-    let mut p = open(root, &ok_hosted);
+    let mut p = open(root, &ok);
     let run = granted(preflight(&mut p, &cfg, &mut ids));
     p.approve(&run, "local").expect("scene approval");
 }
@@ -342,7 +300,6 @@ pub fn writer(root: &Path) -> super::write::Writer {
         engine: Box::new(CapturedBuild {
             root: root.into(),
             check: ExitClass::Ok,
-            robots: false,
         }),
         rules: Box::new(super::write::AuditRules::shipped()),
         clock: Box::new(CLOCK),
@@ -370,7 +327,6 @@ pub fn seed_unknown_copy(root: &Path) {
     let engine = CapturedBuild {
         root: root.into(),
         check: ExitClass::Ok,
-        robots: false,
     };
     let cfg = super::write::delivery_config(Target::StaticDist).expect("static-dist delivers");
     let mut p = open(root, &engine).with_adapter(LostCopy);
@@ -467,8 +423,4 @@ pub fn reconciled(wb: &mut Workbench) {
             wb.dialog_choose(row);
         }
     });
-}
-
-fn sha256_hex(bytes: &[u8]) -> String {
-    cv_publish::plan::sha256(bytes).to_hex()
 }
