@@ -1,0 +1,4737 @@
+{
+  "nodes": [
+    {
+      "fill": "#0e1014ff",
+      "key": "shell",
+      "opacity": 1.0,
+      "path": "shell",
+      "rect": [
+        0.0,
+        0.0,
+        1280.0,
+        800.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "body",
+      "opacity": 1.0,
+      "path": "shell/body",
+      "rect": [
+        0.0,
+        0.0,
+        1280.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/rail",
+      "rect": [
+        0.0,
+        0.0,
+        88.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-pages",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        28.0,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages/#0",
+      "rect": [
+        12.0,
+        34.0,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-pages-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages/#0/rail-pages-icon",
+      "rect": [
+        12.0,
+        34.0,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages/#1",
+      "rect": [
+        12.0,
+        54.0,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Pages"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-research",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        80.3,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research/#0",
+      "rect": [
+        12.0,
+        86.3,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-research-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research/#0/rail-research-icon",
+      "rect": [
+        12.0,
+        86.3,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research/#1",
+      "rect": [
+        12.0,
+        106.3,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Research"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-audit",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        132.5,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#0",
+      "rect": [
+        12.0,
+        138.5,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-audit-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#0/rail-audit-icon",
+      "rect": [
+        12.0,
+        138.5,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#0/#1",
+      "rect": [
+        28.0,
+        146.5,
+        29.1,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#00d1ffff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#0/#2",
+      "radius": 999.0,
+      "rect": [
+        57.1,
+        139.6,
+        18.9,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#001018ff",
+      "key": "rail-audit-badge",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#0/#2/rail-audit-badge",
+      "rect": [
+        63.1,
+        139.6,
+        6.9,
+        13.8
+      ],
+      "role": "text",
+      "text": "8"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#1",
+      "rect": [
+        12.0,
+        158.5,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Audit"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-publish",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        184.8,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish/#0",
+      "rect": [
+        12.0,
+        190.8,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-publish-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish/#0/rail-publish-icon",
+      "rect": [
+        12.0,
+        190.8,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish/#1",
+      "rect": [
+        12.0,
+        210.8,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Publish"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-outputs",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        237.0,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs/#0",
+      "rect": [
+        12.0,
+        243.0,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-outputs-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs/#0/rail-outputs-icon",
+      "rect": [
+        12.0,
+        243.0,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs/#1",
+      "rect": [
+        12.0,
+        263.0,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Outputs"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-activity",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        289.3,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity/#0",
+      "rect": [
+        12.0,
+        295.3,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-activity-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity/#0/rail-activity-icon",
+      "rect": [
+        12.0,
+        295.3,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity/#1",
+      "rect": [
+        12.0,
+        315.3,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Activity"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-demo",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        341.5,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo/#0",
+      "rect": [
+        12.0,
+        347.5,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-demo-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo/#0/rail-demo-icon",
+      "rect": [
+        12.0,
+        347.5,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo/#1",
+      "rect": [
+        12.0,
+        367.5,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Demo"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/#7",
+      "rect": [
+        4.0,
+        393.8,
+        80.0,
+        302.3
+      ],
+      "role": "group"
+    },
+    {
+      "key": "rail-group-utilities",
+      "label": "Utilities",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-group-utilities",
+      "rect": [
+        4.0,
+        700.0,
+        80.0,
+        17.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-group-utilities/#0",
+      "rect": [
+        12.0,
+        704.0,
+        64.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Utilities"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-migrate",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        721.8,
+        80.0,
+        48.3
+      ],
+      "role": "tab",
+      "selected": true
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#0",
+      "rect": [
+        12.0,
+        727.8,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#00d1ffff",
+      "key": "rail-migrate-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#0/rail-migrate-icon",
+      "rect": [
+        12.0,
+        727.8,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#0/#1",
+      "rect": [
+        28.0,
+        735.8,
+        22.2,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#00d1ffff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#0/#2",
+      "radius": 999.0,
+      "rect": [
+        50.2,
+        728.9,
+        25.8,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#001018ff",
+      "key": "rail-migrate-badge",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#0/#2/rail-migrate-badge",
+      "rect": [
+        56.2,
+        728.9,
+        13.8,
+        13.8
+      ],
+      "role": "text",
+      "text": "39"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#1",
+      "rect": [
+        12.0,
+        747.8,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Migrate"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav",
+      "opacity": 1.0,
+      "path": "shell/body/nav",
+      "rect": [
+        88.0,
+        0.0,
+        180.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "nav-scroll",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll",
+      "rect": [
+        88.0,
+        0.0,
+        180.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-head",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/nav-head",
+      "rect": [
+        88.0,
+        0.0,
+        180.0,
+        28.3
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/nav-head/#0",
+      "rect": [
+        96.0,
+        8.0,
+        164.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Migrate"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1",
+      "rect": [
+        88.0,
+        28.3,
+        180.0,
+        220.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-runs",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-runs",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        28.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-runs/#0",
+      "rect": [
+        104.0,
+        32.3,
+        28.3,
+        15.0
+      ],
+      "role": "text",
+      "text": "Runs"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-runs/#1",
+      "rect": [
+        136.3,
+        39.8,
+        93.1,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-runs/#2",
+      "radius": 999.0,
+      "rect": [
+        233.4,
+        32.9,
+        18.6,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-runs/#2/#0",
+      "rect": [
+        239.4,
+        32.9,
+        6.6,
+        13.8
+      ],
+      "role": "text",
+      "text": "5"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-new",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-new",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        55.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-new/#0",
+      "rect": [
+        104.0,
+        59.3,
+        65.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "New import"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-new/#1",
+      "rect": [
+        173.6,
+        66.8,
+        78.4,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "key": "nav-review",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-review",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        82.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem",
+      "selected": true
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-review/#0",
+      "rect": [
+        104.0,
+        86.3,
+        79.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "Needs review"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-review/#1",
+      "rect": [
+        187.0,
+        93.8,
+        35.2,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-review/#2",
+      "radius": 999.0,
+      "rect": [
+        226.2,
+        86.9,
+        25.8,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-review/#2/#0",
+      "rect": [
+        232.2,
+        86.9,
+        13.8,
+        13.8
+      ],
+      "role": "text",
+      "text": "39"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-family:static-site",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:static-site",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        109.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:static-site/#0",
+      "rect": [
+        104.0,
+        113.3,
+        121.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "Static-site generators"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:static-site/#1",
+      "rect": [
+        229.1,
+        120.8,
+        0.0,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:static-site/#2",
+      "radius": 999.0,
+      "rect": [
+        233.1,
+        113.9,
+        18.9,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:static-site/#2/#0",
+      "rect": [
+        239.1,
+        113.9,
+        6.9,
+        13.8
+      ],
+      "role": "text",
+      "text": "3"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-family:blog-cms",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:blog-cms",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        136.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:blog-cms/#0",
+      "rect": [
+        104.0,
+        140.3,
+        103.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "Blog/CMS exports"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:blog-cms/#1",
+      "rect": [
+        211.0,
+        147.8,
+        18.2,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:blog-cms/#2",
+      "radius": 999.0,
+      "rect": [
+        233.2,
+        140.9,
+        18.8,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:blog-cms/#2/#0",
+      "rect": [
+        239.2,
+        140.9,
+        6.8,
+        13.8
+      ],
+      "role": "text",
+      "text": "2"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-family:notes",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:notes",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        163.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:notes/#0",
+      "rect": [
+        104.0,
+        167.3,
+        86.7,
+        15.0
+      ],
+      "role": "text",
+      "text": "Notes/outliners"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:notes/#1",
+      "rect": [
+        194.7,
+        174.8,
+        57.3,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-family:social",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:social",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        190.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:social/#0",
+      "rect": [
+        104.0,
+        194.3,
+        128.7,
+        15.0
+      ],
+      "role": "text",
+      "text": "Social/data downloads"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:social/#1",
+      "rect": [
+        236.7,
+        201.8,
+        15.3,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-family:cross-cutting",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:cross-cutting",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        217.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:cross-cutting/#0",
+      "rect": [
+        104.0,
+        221.3,
+        77.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "Cross-cutting"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:cross-cutting/#1",
+      "rect": [
+        185.6,
+        228.8,
+        66.4,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "list-pane",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane",
+      "rect": [
+        268.0,
+        0.0,
+        320.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "list-viewport",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport",
+      "rect": [
+        268.0,
+        0.0,
+        320.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000240000-hugo:bb34c794ba425415",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:bb34c794ba425415",
+      "rect": [
+        268.0,
+        0.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem",
+      "selected": true
+    },
+    {
+      "fill": "#8a93a3ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:bb34c794ba425415/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        4.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "content/en/guides/_index.md",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:bb34c794ba425415/#1",
+      "rect": [
+        287.0,
+        3.5,
+        117.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "content/en/guides/_index.md"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "branch_bundle · image cover.png → guides.assets/cover.png",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:bb34c794ba425415/#2",
+      "rect": [
+        412.6,
+        4.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "branch_bundle · image cover.png → guides.assets/cover.png"
+    },
+    {
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:bb34c794ba425415/#3",
+      "radius": 999.0,
+      "rect": [
+        500.6,
+        4.1,
+        79.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "unsupported"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000240000-hugo:67de35afe144ad7c",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:67de35afe144ad7c",
+      "rect": [
+        268.0,
+        22.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:67de35afe144ad7c/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        26.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "content/en/guides/inner/_index.md",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:67de35afe144ad7c/#1",
+      "rect": [
+        287.0,
+        25.5,
+        108.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "content/en/guides/inner/_index.md"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "section · nested section guides/inner flattened: Satellite of en/guides (Boris graph is two-level)",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:67de35afe144ad7c/#2",
+      "rect": [
+        403.9,
+        26.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "section · nested section guides/inner flattened: Satellite of en/guides (Boris graph is two-level)"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:67de35afe144ad7c/#3",
+      "radius": 999.0,
+      "rect": [
+        491.9,
+        26.1,
+        88.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "human_review"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000240000-hugo:e0271780ffbeb055",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:e0271780ffbeb055",
+      "rect": [
+        268.0,
+        44.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:e0271780ffbeb055/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        48.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "content/en/guides/inner/deep-page.md",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:e0271780ffbeb055/#1",
+      "rect": [
+        287.0,
+        47.5,
+        108.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "content/en/guides/inner/deep-page.md"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "single · page in nested section guides/inner flattened: Satellite of en/guides (Boris graph is two-level)",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:e0271780ffbeb055/#2",
+      "rect": [
+        403.9,
+        48.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "single · page in nested section guides/inner flattened: Satellite of en/guides (Boris graph is two-level)"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:e0271780ffbeb055/#3",
+      "radius": 999.0,
+      "rect": [
+        491.9,
+        48.1,
+        88.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "human_review"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000240000-hugo:f7edc46e191570b1",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:f7edc46e191570b1",
+      "rect": [
+        268.0,
+        66.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#8a93a3ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:f7edc46e191570b1/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        70.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:f7edc46e191570b1/#1",
+      "rect": [
+        287.0,
+        69.5,
+        159.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "content/en/posts/_index.md"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:f7edc46e191570b1/#2",
+      "rect": [
+        454.1,
+        70.1,
+        38.5,
+        13.8
+      ],
+      "role": "text",
+      "text": "section"
+    },
+    {
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:f7edc46e191570b1/#3",
+      "radius": 999.0,
+      "rect": [
+        500.6,
+        70.1,
+        79.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "unsupported"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000240000-hugo:cebdf9e0f9f55671",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:cebdf9e0f9f55671",
+      "rect": [
+        268.0,
+        88.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:cebdf9e0f9f55671/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        92.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "content/en/posts/draft-note.md",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:cebdf9e0f9f55671/#1",
+      "rect": [
+        287.0,
+        91.5,
+        157.5,
+        15.0
+      ],
+      "role": "text",
+      "text": "content/en/posts/draft-note.md"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:cebdf9e0f9f55671/#2",
+      "rect": [
+        452.5,
+        92.1,
+        31.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "single"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:cebdf9e0f9f55671/#3",
+      "radius": 999.0,
+      "rect": [
+        491.9,
+        92.1,
+        88.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "human_review"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000240000-hugo:8544d5a1520c5c0b",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:8544d5a1520c5c0b",
+      "rect": [
+        268.0,
+        110.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#8a93a3ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:8544d5a1520c5c0b/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        114.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "content/en/posts/hello-bundle/index.md",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:8544d5a1520c5c0b/#1",
+      "rect": [
+        287.0,
+        113.5,
+        117.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "content/en/posts/hello-bundle/index.md"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "leaf_bundle · image banner.png → hello-bundle.assets/banner.png",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:8544d5a1520c5c0b/#2",
+      "rect": [
+        412.6,
+        114.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "leaf_bundle · image banner.png → hello-bundle.assets/banner.png"
+    },
+    {
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:8544d5a1520c5c0b/#3",
+      "radius": 999.0,
+      "rect": [
+        500.6,
+        114.1,
+        79.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "unsupported"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000240000-hugo:aa8b07fbf101caaf",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:aa8b07fbf101caaf",
+      "rect": [
+        268.0,
+        132.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:aa8b07fbf101caaf/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        136.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "content/en/posts/markup-shortcode.md",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:aa8b07fbf101caaf/#1",
+      "rect": [
+        287.0,
+        135.5,
+        157.5,
+        15.0
+      ],
+      "role": "text",
+      "text": "content/en/posts/markup-shortcode.md"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:aa8b07fbf101caaf/#2",
+      "rect": [
+        452.5,
+        136.1,
+        31.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "single"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000240000-hugo:aa8b07fbf101caaf/#3",
+      "radius": 999.0,
+      "rect": [
+        491.9,
+        136.1,
+        88.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "human_review"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000180000-wordpress:104b094db4740c93",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:104b094db4740c93",
+      "rect": [
+        268.0,
+        154.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:104b094db4740c93/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        158.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "content/pages/engineering.md",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:104b094db4740c93/#1",
+      "rect": [
+        287.0,
+        157.5,
+        108.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "content/pages/engineering.md"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "page · deep_page_hierarchy",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:104b094db4740c93/#2",
+      "rect": [
+        403.9,
+        158.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "page · deep_page_hierarchy"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:104b094db4740c93/#3",
+      "radius": 999.0,
+      "rect": [
+        491.9,
+        158.1,
+        88.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "human_review"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000180000-wordpress:66ae5390c03c9f21",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:66ae5390c03c9f21",
+      "rect": [
+        268.0,
+        176.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:66ae5390c03c9f21/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        180.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "content/pages/hello-world.md",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:66ae5390c03c9f21/#1",
+      "rect": [
+        287.0,
+        179.5,
+        162.4,
+        15.0
+      ],
+      "role": "text",
+      "text": "content/pages/hello-world.md"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:66ae5390c03c9f21/#2",
+      "rect": [
+        457.4,
+        180.1,
+        26.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "page"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:66ae5390c03c9f21/#3",
+      "radius": 999.0,
+      "rect": [
+        491.9,
+        180.1,
+        88.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "human_review"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000180000-wordpress:387793e3f0cb73d2",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:387793e3f0cb73d2",
+      "rect": [
+        268.0,
+        198.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:387793e3f0cb73d2/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        202.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "content/posts/draft-ideas.md",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:387793e3f0cb73d2/#1",
+      "rect": [
+        287.0,
+        201.5,
+        108.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "content/posts/draft-ideas.md"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "post · status_draft",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:387793e3f0cb73d2/#2",
+      "rect": [
+        403.9,
+        202.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "post · status_draft"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:387793e3f0cb73d2/#3",
+      "radius": 999.0,
+      "rect": [
+        491.9,
+        202.1,
+        88.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "human_review"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000180000-wordpress:08dd780b1ad05017",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:08dd780b1ad05017",
+      "rect": [
+        268.0,
+        220.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:08dd780b1ad05017/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        224.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "content/posts/hello-world.md",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:08dd780b1ad05017/#1",
+      "rect": [
+        287.0,
+        223.5,
+        108.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "content/posts/hello-world.md"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "post · gutenberg_block, gallery_or_image_block, excerpt_preserved, media_materialized",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:08dd780b1ad05017/#2",
+      "rect": [
+        403.9,
+        224.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "post · gutenberg_block, gallery_or_image_block, excerpt_preserved, media_materialized"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:08dd780b1ad05017/#3",
+      "radius": 999.0,
+      "rect": [
+        491.9,
+        224.1,
+        88.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "human_review"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000180000-wordpress:fda442891020b930",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:fda442891020b930",
+      "rect": [
+        268.0,
+        242.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:fda442891020b930/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        246.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "content/posts/release-notes.md",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:fda442891020b930/#1",
+      "rect": [
+        287.0,
+        245.5,
+        108.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "content/posts/release-notes.md"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "post · gutenberg_block, embed_or_custom_html_block, shortcode_gallery, shortcode_caption, shortcode_embed_media, shortcode_generic, shortcode_remaining, unresolved_internal_link, missing_media",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:fda442891020b930/#2",
+      "rect": [
+        403.9,
+        246.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "post · gutenberg_block, embed_or_custom_html_block, shortcode_gallery, shortcode_caption, shortcode_embed_media, shortcode_generic, shortcode_remaining, unresolved_internal_link, missing_media"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000180000-wordpress:fda442891020b930/#3",
+      "radius": 999.0,
+      "rect": [
+        491.9,
+        246.1,
+        88.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "human_review"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000120000-substack:aca1bd50831f91d3",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:aca1bd50831f91d3",
+      "rect": [
+        268.0,
+        264.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:aca1bd50831f91d3/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        268.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:aca1bd50831f91d3/#1",
+      "rect": [
+        287.0,
+        267.5,
+        108.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "(whole run)"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "orphan_post_html · posts/100099.orphan-post.html not listed in posts.csv",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:aca1bd50831f91d3/#2",
+      "rect": [
+        403.9,
+        268.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "orphan_post_html · posts/100099.orphan-post.html not listed in posts.csv"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:aca1bd50831f91d3/#3",
+      "radius": 999.0,
+      "rect": [
+        491.9,
+        268.1,
+        88.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "human_review"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000120000-substack:bee92d7be97d20f4",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:bee92d7be97d20f4",
+      "rect": [
+        268.0,
+        286.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:bee92d7be97d20f4/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        290.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "posts/embeds-and-literals",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:bee92d7be97d20f4/#1",
+      "rect": [
+        287.0,
+        289.5,
+        108.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "posts/embeds-and-literals"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "unsafe_html_withheld · <iframe src=\"https://embed.example.com/chart/1\" width=\"600\" height=\"320\" title=\"Synthetic chart\"></iframe>",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:bee92d7be97d20f4/#2",
+      "rect": [
+        403.9,
+        290.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "unsafe_html_withheld · <iframe src=\"https://embed.example.com/chart/1\" width=\"600\" height=\"320\" title=\"Synthetic chart\"></iframe>"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:bee92d7be97d20f4/#3",
+      "radius": 999.0,
+      "rect": [
+        491.9,
+        290.1,
+        88.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "human_review"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000120000-substack:61acb72e21f530da",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:61acb72e21f530da",
+      "rect": [
+        268.0,
+        308.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:61acb72e21f530da/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        312.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:61acb72e21f530da/#1",
+      "rect": [
+        287.0,
+        311.5,
+        108.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "posts/episode-one"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "podcast_episode · https://api.substack.example.com/feed/podcast/100006/audio.mp3",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:61acb72e21f530da/#2",
+      "rect": [
+        403.9,
+        312.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "podcast_episode · https://api.substack.example.com/feed/podcast/100006/audio.mp3"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:61acb72e21f530da/#3",
+      "radius": 999.0,
+      "rect": [
+        491.9,
+        312.1,
+        88.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "human_review"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000120000-substack:8a3fc166a209f4ce",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:8a3fc166a209f4ce",
+      "rect": [
+        268.0,
+        330.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#8a93a3ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:8a3fc166a209f4ce/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        334.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "posts/field-notes-no-subtitle",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:8a3fc166a209f4ce/#1",
+      "rect": [
+        287.0,
+        333.5,
+        117.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "posts/field-notes-no-subtitle"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "widget_button_stripped · button-wrapper stripped",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:8a3fc166a209f4ce/#2",
+      "rect": [
+        412.6,
+        334.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "widget_button_stripped · button-wrapper stripped"
+    },
+    {
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:8a3fc166a209f4ce/#3",
+      "radius": 999.0,
+      "rect": [
+        500.6,
+        334.1,
+        79.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "unsupported"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000120000-substack:fa055c09daf72b2d",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:fa055c09daf72b2d",
+      "rect": [
+        268.0,
+        352.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:fa055c09daf72b2d/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        356.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "posts/field-notes-no-subtitle",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:fa055c09daf72b2d/#1",
+      "rect": [
+        287.0,
+        355.5,
+        108.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "posts/field-notes-no-subtitle"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "widget_digest_embed_withheld · digest-post-embed withheld: https://lab.example.com/p/welcome-to-the-lab",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:fa055c09daf72b2d/#2",
+      "rect": [
+        403.9,
+        356.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "widget_digest_embed_withheld · digest-post-embed withheld: https://lab.example.com/p/welcome-to-the-lab"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:fa055c09daf72b2d/#3",
+      "radius": 999.0,
+      "rect": [
+        491.9,
+        356.1,
+        88.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "human_review"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000120000-substack:771a6c6f1d1d878c",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:771a6c6f1d1d878c",
+      "rect": [
+        268.0,
+        374.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#8a93a3ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:771a6c6f1d1d878c/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        378.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "posts/field-notes-no-subtitle",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:771a6c6f1d1d878c/#1",
+      "rect": [
+        287.0,
+        377.5,
+        117.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "posts/field-notes-no-subtitle"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "widget_subscription_stripped · subscription-widget-wrap stripped",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:771a6c6f1d1d878c/#2",
+      "rect": [
+        412.6,
+        378.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "widget_subscription_stripped · subscription-widget-wrap stripped"
+    },
+    {
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:771a6c6f1d1d878c/#3",
+      "radius": 999.0,
+      "rect": [
+        500.6,
+        378.1,
+        79.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "unsupported"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000120000-substack:e8d5c9175d8ad23a",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:e8d5c9175d8ad23a",
+      "rect": [
+        268.0,
+        396.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:e8d5c9175d8ad23a/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        400.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "posts/founding-memo",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:e8d5c9175d8ad23a/#1",
+      "rect": [
+        287.0,
+        399.5,
+        108.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "posts/founding-memo"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "restricted_audience · audience founding: emitted as draft, never published",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:e8d5c9175d8ad23a/#2",
+      "rect": [
+        403.9,
+        400.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "restricted_audience · audience founding: emitted as draft, never published"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:e8d5c9175d8ad23a/#3",
+      "radius": 999.0,
+      "rect": [
+        491.9,
+        400.1,
+        88.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "human_review"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000120000-substack:ecf0f26e3c2a7476",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:ecf0f26e3c2a7476",
+      "rect": [
+        268.0,
+        418.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:ecf0f26e3c2a7476/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        422.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "posts/missing-body",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:ecf0f26e3c2a7476/#1",
+      "rect": [
+        287.0,
+        421.5,
+        108.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "posts/missing-body"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "missing_post_html · missing posts/100009.missing-body.html",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:ecf0f26e3c2a7476/#2",
+      "rect": [
+        403.9,
+        422.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "missing_post_html · missing posts/100009.missing-body.html"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:ecf0f26e3c2a7476/#3",
+      "radius": 999.0,
+      "rect": [
+        491.9,
+        422.1,
+        88.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "human_review"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000120000-substack:c456080c75c81520",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:c456080c75c81520",
+      "rect": [
+        268.0,
+        440.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:c456080c75c81520/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        444.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:c456080c75c81520/#1",
+      "rect": [
+        287.0,
+        443.5,
+        108.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "posts/paid-briefing"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "restricted_audience · audience only_paid: emitted as draft, never published",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:c456080c75c81520/#2",
+      "rect": [
+        403.9,
+        444.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "restricted_audience · audience only_paid: emitted as draft, never published"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:c456080c75c81520/#3",
+      "radius": 999.0,
+      "rect": [
+        491.9,
+        444.1,
+        88.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "human_review"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000120000-substack:20e94a1851b973ec",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:20e94a1851b973ec",
+      "rect": [
+        268.0,
+        462.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#8a93a3ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:20e94a1851b973ec/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        466.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:20e94a1851b973ec/#1",
+      "rect": [
+        287.0,
+        465.5,
+        117.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "posts/paid-briefing"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "widget_paywall_stripped · paywall divider stripped",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:20e94a1851b973ec/#2",
+      "rect": [
+        412.6,
+        466.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "widget_paywall_stripped · paywall divider stripped"
+    },
+    {
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:20e94a1851b973ec/#3",
+      "radius": 999.0,
+      "rect": [
+        500.6,
+        466.1,
+        79.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "unsupported"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000120000-substack:a7c72ac1bf8834ec",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:a7c72ac1bf8834ec",
+      "rect": [
+        268.0,
+        484.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:a7c72ac1bf8834ec/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        488.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "posts/reader-thread",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:a7c72ac1bf8834ec/#1",
+      "rect": [
+        287.0,
+        487.5,
+        108.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "posts/reader-thread"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "thread_replies_absent · discussion thread replies absent from export; emitted as draft",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:a7c72ac1bf8834ec/#2",
+      "rect": [
+        403.9,
+        488.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "thread_replies_absent · discussion thread replies absent from export; emitted as draft"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:a7c72ac1bf8834ec/#3",
+      "radius": 999.0,
+      "rect": [
+        491.9,
+        488.1,
+        88.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "human_review"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000120000-substack:53dbbdf2bd1695b5",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:53dbbdf2bd1695b5",
+      "rect": [
+        268.0,
+        506.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:53dbbdf2bd1695b5/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        510.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "posts/welcome-to-the-lab",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:53dbbdf2bd1695b5/#1",
+      "rect": [
+        287.0,
+        509.5,
+        108.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "posts/welcome-to-the-lab"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "remote_image_not_fetched · https://substackcdn.example.com/image/fetch/hero-remote.png",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:53dbbdf2bd1695b5/#2",
+      "rect": [
+        403.9,
+        510.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "remote_image_not_fetched · https://substackcdn.example.com/image/fetch/hero-remote.png"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:53dbbdf2bd1695b5/#3",
+      "radius": 999.0,
+      "rect": [
+        491.9,
+        510.1,
+        88.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "human_review"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000120000-substack:1b535b0cf0bb040d",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:1b535b0cf0bb040d",
+      "rect": [
+        268.0,
+        528.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:1b535b0cf0bb040d/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        532.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "posts/welcome-to-the-lab",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:1b535b0cf0bb040d/#1",
+      "rect": [
+        287.0,
+        531.5,
+        108.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "posts/welcome-to-the-lab"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "unresolved_cross_post_link · https://lab.example.com/p/nonexistent-post",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:1b535b0cf0bb040d/#2",
+      "rect": [
+        403.9,
+        532.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "unresolved_cross_post_link · https://lab.example.com/p/nonexistent-post"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000120000-substack:1b535b0cf0bb040d/#3",
+      "radius": 999.0,
+      "rect": [
+        491.9,
+        532.1,
+        88.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "human_review"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000060000-jekyll:7da45b013874d5ea",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:7da45b013874d5ea",
+      "rect": [
+        268.0,
+        550.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#8a93a3ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:7da45b013874d5ea/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        554.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "_posts/2024-01-02-welcome-post.md",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:7da45b013874d5ea/#1",
+      "rect": [
+        287.0,
+        553.5,
+        117.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "_posts/2024-01-02-welcome-post.md"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "post · layout_not_rendered",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:7da45b013874d5ea/#2",
+      "rect": [
+        412.6,
+        554.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "post · layout_not_rendered"
+    },
+    {
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:7da45b013874d5ea/#3",
+      "radius": 999.0,
+      "rect": [
+        500.6,
+        554.1,
+        79.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "unsupported"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000060000-jekyll:853a4073d38d73c5",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:853a4073d38d73c5",
+      "rect": [
+        268.0,
+        572.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:853a4073d38d73c5/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        576.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:853a4073d38d73c5/#1",
+      "rect": [
+        287.0,
+        575.5,
+        108.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "index.md"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "page · layout_not_rendered; liquid_include; post_url_unresolved",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:853a4073d38d73c5/#2",
+      "rect": [
+        403.9,
+        576.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "page · layout_not_rendered; liquid_include; post_url_unresolved"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:853a4073d38d73c5/#3",
+      "radius": 999.0,
+      "rect": [
+        491.9,
+        576.1,
+        88.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "human_review"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000060000-jekyll:af866c05dec31956",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:af866c05dec31956",
+      "rect": [
+        268.0,
+        594.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#8a93a3ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:af866c05dec31956/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        598.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:af866c05dec31956/#1",
+      "rect": [
+        287.0,
+        597.5,
+        117.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "_includes/note.html"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "not emitted · include body; never inlined",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:af866c05dec31956/#2",
+      "rect": [
+        412.6,
+        598.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "not emitted · include body; never inlined"
+    },
+    {
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:af866c05dec31956/#3",
+      "radius": 999.0,
+      "rect": [
+        500.6,
+        598.1,
+        79.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "unsupported"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000060000-jekyll:66b987db8a40b61f",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:66b987db8a40b61f",
+      "rect": [
+        268.0,
+        616.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#8a93a3ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:66b987db8a40b61f/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        620.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "_internal/checklist.md",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:66b987db8a40b61f/#1",
+      "rect": [
+        287.0,
+        619.5,
+        117.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "_internal/checklist.md"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "not emitted · collection with output: false; Jekyll writes no page",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:66b987db8a40b61f/#2",
+      "rect": [
+        412.6,
+        620.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "not emitted · collection with output: false; Jekyll writes no page"
+    },
+    {
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:66b987db8a40b61f/#3",
+      "radius": 999.0,
+      "rect": [
+        500.6,
+        620.1,
+        79.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "unsupported"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000060000-jekyll:ca599916d3d013d2",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:ca599916d3d013d2",
+      "rect": [
+        268.0,
+        638.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#8a93a3ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:ca599916d3d013d2/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        642.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:ca599916d3d013d2/#1",
+      "rect": [
+        287.0,
+        641.5,
+        117.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "_layouts/default.html"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "not emitted · layout; theme machinery is never rendered",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:ca599916d3d013d2/#2",
+      "rect": [
+        412.6,
+        642.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "not emitted · layout; theme machinery is never rendered"
+    },
+    {
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:ca599916d3d013d2/#3",
+      "radius": 999.0,
+      "rect": [
+        500.6,
+        642.1,
+        79.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "unsupported"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000060000-jekyll:97948677d2b33825",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:97948677d2b33825",
+      "rect": [
+        268.0,
+        660.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#8a93a3ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:97948677d2b33825/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        664.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:97948677d2b33825/#1",
+      "rect": [
+        287.0,
+        663.5,
+        117.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "_layouts/post.html"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "not emitted · layout; theme machinery is never rendered",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:97948677d2b33825/#2",
+      "rect": [
+        412.6,
+        664.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "not emitted · layout; theme machinery is never rendered"
+    },
+    {
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:97948677d2b33825/#3",
+      "radius": 999.0,
+      "rect": [
+        500.6,
+        664.1,
+        79.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "unsupported"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000060000-jekyll:38ff0d6459bdff2d",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:38ff0d6459bdff2d",
+      "rect": [
+        268.0,
+        682.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#8a93a3ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:38ff0d6459bdff2d/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        686.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "_plugins/shout_filter.rb",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:38ff0d6459bdff2d/#1",
+      "rect": [
+        287.0,
+        685.5,
+        117.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "_plugins/shout_filter.rb"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "not emitted · plugin; never executed",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:38ff0d6459bdff2d/#2",
+      "rect": [
+        412.6,
+        686.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "not emitted · plugin; never executed"
+    },
+    {
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:38ff0d6459bdff2d/#3",
+      "radius": 999.0,
+      "rect": [
+        500.6,
+        686.1,
+        79.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "unsupported"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000060000-jekyll:ecf007f57d682c1f",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:ecf007f57d682c1f",
+      "rect": [
+        268.0,
+        704.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:ecf007f57d682c1f/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        708.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:ecf007f57d682c1f/#1",
+      "rect": [
+        287.0,
+        707.5,
+        108.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "_posts/no-date.md"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "not emitted · post filename does not match YYYY-MM-DD-slug; Jekyll ignores it",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:ecf007f57d682c1f/#2",
+      "rect": [
+        403.9,
+        708.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "not emitted · post filename does not match YYYY-MM-DD-slug; Jekyll ignores it"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000060000-jekyll:ecf007f57d682c1f/#3",
+      "radius": 999.0,
+      "rect": [
+        491.9,
+        708.1,
+        88.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "human_review"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000000000-hugo-inventory:a50ab2759399a757",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:a50ab2759399a757",
+      "rect": [
+        268.0,
+        726.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#8a93a3ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:a50ab2759399a757/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        730.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "content/en/guides/_index.md",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:a50ab2759399a757/#1",
+      "rect": [
+        287.0,
+        729.5,
+        119.3,
+        15.0
+      ],
+      "role": "text",
+      "text": "content/en/guides/_index.md"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:a50ab2759399a757/#2",
+      "rect": [
+        414.3,
+        730.1,
+        78.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "branch_bundle"
+    },
+    {
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:a50ab2759399a757/#3",
+      "radius": 999.0,
+      "rect": [
+        500.6,
+        730.1,
+        79.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "unsupported"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000000000-hugo-inventory:30d699411684d250",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:30d699411684d250",
+      "rect": [
+        268.0,
+        748.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:30d699411684d250/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        752.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "content/en/guides/inner/_index.md",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:30d699411684d250/#1",
+      "rect": [
+        287.0,
+        751.5,
+        150.4,
+        15.0
+      ],
+      "role": "text",
+      "text": "content/en/guides/inner/_index.md"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:30d699411684d250/#2",
+      "rect": [
+        445.4,
+        752.1,
+        38.5,
+        13.8
+      ],
+      "role": "text",
+      "text": "section"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:30d699411684d250/#3",
+      "radius": 999.0,
+      "rect": [
+        491.9,
+        752.1,
+        88.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "human_review"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000000000-hugo-inventory:aa42700058856fd0",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:aa42700058856fd0",
+      "rect": [
+        268.0,
+        770.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#8a93a3ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:aa42700058856fd0/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        774.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:aa42700058856fd0/#1",
+      "rect": [
+        287.0,
+        773.5,
+        159.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "content/en/posts/_index.md"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:aa42700058856fd0/#2",
+      "rect": [
+        454.1,
+        774.1,
+        38.5,
+        13.8
+      ],
+      "role": "text",
+      "text": "section"
+    },
+    {
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:aa42700058856fd0/#3",
+      "radius": 999.0,
+      "rect": [
+        500.6,
+        774.1,
+        79.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "unsupported"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000000000-hugo-inventory:d720b12b1dd4e6ca",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:d720b12b1dd4e6ca",
+      "rect": [
+        268.0,
+        792.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:d720b12b1dd4e6ca/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        796.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "content/en/posts/draft-note.md",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:d720b12b1dd4e6ca/#1",
+      "rect": [
+        287.0,
+        795.5,
+        157.5,
+        15.0
+      ],
+      "role": "text",
+      "text": "content/en/posts/draft-note.md"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:d720b12b1dd4e6ca/#2",
+      "rect": [
+        452.5,
+        796.1,
+        31.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "single"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:d720b12b1dd4e6ca/#3",
+      "radius": 999.0,
+      "rect": [
+        491.9,
+        796.1,
+        88.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "human_review"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000000000-hugo-inventory:7692d3cefea87852",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:7692d3cefea87852",
+      "rect": [
+        268.0,
+        814.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#8a93a3ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:7692d3cefea87852/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        818.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "content/en/posts/hello-bundle/index.md",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:7692d3cefea87852/#1",
+      "rect": [
+        287.0,
+        817.5,
+        136.5,
+        15.0
+      ],
+      "role": "text",
+      "text": "content/en/posts/hello-bundle/index.md"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:7692d3cefea87852/#2",
+      "rect": [
+        431.5,
+        818.1,
+        61.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "leaf_bundle"
+    },
+    {
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:7692d3cefea87852/#3",
+      "radius": 999.0,
+      "rect": [
+        500.6,
+        818.1,
+        79.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "unsupported"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-review:1764000000000-hugo-inventory:77ef6d3cf845d80f",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:77ef6d3cf845d80f",
+      "rect": [
+        268.0,
+        836.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:77ef6d3cf845d80f/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        840.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "content/en/posts/markup-shortcode.md",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:77ef6d3cf845d80f/#1",
+      "rect": [
+        287.0,
+        839.5,
+        157.5,
+        15.0
+      ],
+      "role": "text",
+      "text": "content/en/posts/markup-shortcode.md"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:77ef6d3cf845d80f/#2",
+      "rect": [
+        452.5,
+        840.1,
+        31.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "single"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-review:1764000000000-hugo-inventory:77ef6d3cf845d80f/#3",
+      "radius": 999.0,
+      "rect": [
+        491.9,
+        840.1,
+        88.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "human_review"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "reading",
+      "opacity": 1.0,
+      "path": "shell/body/reading",
+      "rect": [
+        588.0,
+        0.0,
+        452.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "reading-scroll",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll",
+      "rect": [
+        588.0,
+        0.0,
+        452.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "reading-head",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head",
+      "rect": [
+        588.0,
+        0.0,
+        452.0,
+        63.8
+      ],
+      "role": "group"
+    },
+    {
+      "key": "breadcrumbs",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs",
+      "rect": [
+        604.0,
+        16.0,
+        420.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "crumb-0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs/crumb-0",
+      "rect": [
+        604.0,
+        16.0,
+        40.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "Migrate"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs/#1",
+      "rect": [
+        648.2,
+        16.0,
+        4.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "›"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "crumb-1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs/crumb-1",
+      "rect": [
+        656.6,
+        16.0,
+        71.7,
+        13.8
+      ],
+      "role": "text",
+      "text": "Needs review"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs/#3",
+      "rect": [
+        732.3,
+        16.0,
+        4.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "›"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "crumb-2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs/crumb-2",
+      "rect": [
+        740.7,
+        16.0,
+        120.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "1764000240000-hugo"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "reading-title",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head/reading-title",
+      "rect": [
+        604.0,
+        35.8,
+        420.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "branch_bundle"
+    },
+    {
+      "key": "reading-body",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body",
+      "rect": [
+        588.0,
+        63.8,
+        452.0,
+        170.8
+      ],
+      "role": "group"
+    },
+    {
+      "key": "line-0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-0",
+      "rect": [
+        604.0,
+        63.8,
+        420.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-0/#0",
+      "rect": [
+        604.0,
+        63.8,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "class"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-0/#1",
+      "rect": [
+        708.0,
+        63.8,
+        316.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "unsupported"
+    },
+    {
+      "key": "line-1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-1",
+      "rect": [
+        604.0,
+        84.8,
+        420.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-1/#0",
+      "rect": [
+        604.0,
+        84.8,
+        96.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "source"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-1/#1",
+      "rect": [
+        708.0,
+        84.8,
+        316.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "content/en/guides/_index.md"
+    },
+    {
+      "key": "line-2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-2",
+      "rect": [
+        604.0,
+        104.5,
+        420.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-2/#0",
+      "rect": [
+        604.0,
+        104.5,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "construct"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-2/#1",
+      "rect": [
+        708.0,
+        104.5,
+        316.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "branch_bundle"
+    },
+    {
+      "key": "line-3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-3",
+      "rect": [
+        604.0,
+        125.5,
+        420.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-3/#0",
+      "rect": [
+        604.0,
+        125.5,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "reason"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-3/#1",
+      "rect": [
+        708.0,
+        125.5,
+        316.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "image cover.png → guides.assets/cover.png"
+    },
+    {
+      "key": "line-4",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-4",
+      "rect": [
+        604.0,
+        146.5,
+        420.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-4/#0",
+      "rect": [
+        604.0,
+        146.5,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "triage"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-4/#1",
+      "rect": [
+        708.0,
+        146.5,
+        316.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "open"
+    },
+    {
+      "key": "line-5",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-5",
+      "rect": [
+        604.0,
+        167.5,
+        420.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-5/#0",
+      "rect": [
+        604.0,
+        167.5,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "run"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-5/#1",
+      "rect": [
+        708.0,
+        167.5,
+        316.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "1764000240000-hugo (hugo)"
+    },
+    {
+      "key": "line-6",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-6",
+      "rect": [
+        604.0,
+        188.5,
+        420.0,
+        30.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-6/#0",
+      "rect": [
+        604.0,
+        188.5,
+        420.0,
+        30.0
+      ],
+      "role": "text",
+      "text": "Review items never block publishing or adoption. Accept or defer one from the command palette (mod+K)."
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "inspector",
+      "opacity": 1.0,
+      "path": "shell/body/inspector",
+      "rect": [
+        1040.0,
+        0.0,
+        240.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "inspector-scroll",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll",
+      "rect": [
+        1040.0,
+        0.0,
+        240.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "inspector-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-head",
+      "rect": [
+        1040.0,
+        0.0,
+        240.0,
+        28.3
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-head/#0",
+      "rect": [
+        1048.0,
+        8.0,
+        224.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Inspector"
+    },
+    {
+      "key": "inspector-body",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body",
+      "rect": [
+        1040.0,
+        28.3,
+        240.0,
+        92.8
+      ],
+      "role": "group"
+    },
+    {
+      "key": "inspector-badges",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/inspector-badges",
+      "rect": [
+        1048.0,
+        28.3,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#8a93a32e",
+      "key": "badge-0",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/inspector-badges/badge-0",
+      "radius": 999.0,
+      "rect": [
+        1048.0,
+        28.3,
+        79.4,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/inspector-badges/badge-0/#0",
+      "rect": [
+        1054.0,
+        28.3,
+        67.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "unsupported"
+    },
+    {
+      "fill": "#8a93a32e",
+      "key": "badge-1",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/inspector-badges/badge-1",
+      "radius": 999.0,
+      "rect": [
+        1131.4,
+        28.3,
+        89.4,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/inspector-badges/badge-1/#0",
+      "rect": [
+        1137.4,
+        28.3,
+        77.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "does not block"
+    },
+    {
+      "key": "field-run",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run",
+      "rect": [
+        1048.0,
+        46.0,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/#0",
+      "rect": [
+        1048.0,
+        46.0,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "run"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/#1",
+      "rect": [
+        1128.0,
+        46.0,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "1764000240000-hugo"
+    },
+    {
+      "key": "field-item",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-item",
+      "rect": [
+        1048.0,
+        63.8,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-item/#0",
+      "rect": [
+        1048.0,
+        63.8,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "item"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-item/#1",
+      "rect": [
+        1128.0,
+        63.8,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "bb34c794ba425415"
+    },
+    {
+      "key": "field-triage",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-triage",
+      "rect": [
+        1048.0,
+        81.5,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-triage/#0",
+      "rect": [
+        1048.0,
+        81.5,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "triage"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-triage/#1",
+      "rect": [
+        1128.0,
+        81.5,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "open"
+    },
+    {
+      "key": "field-sidecar",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-sidecar",
+      "rect": [
+        1048.0,
+        99.3,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-sidecar/#0",
+      "rect": [
+        1048.0,
+        99.3,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "sidecar"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-sidecar/#1",
+      "rect": [
+        1128.0,
+        99.3,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "session only (scene)"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "status",
+      "opacity": 1.0,
+      "path": "shell/status",
+      "rect": [
+        0.0,
+        778.0,
+        1280.0,
+        22.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "help": "Open Doctor: engine, watch and .cv/ health",
+      "key": "status-0",
+      "opacity": 1.0,
+      "path": "shell/status/status-0",
+      "radius": 999.0,
+      "rect": [
+        8.0,
+        780.0,
+        85.4,
+        18.0
+      ],
+      "role": "button"
+    },
+    {
+      "fill": "#3dff9aff",
+      "key": "status-dot",
+      "opacity": 1.0,
+      "path": "shell/status/status-0/status-dot",
+      "radius": 999.0,
+      "rect": [
+        16.0,
+        786.0,
+        6.0,
+        6.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/status/status-0/#1",
+      "rect": [
+        28.0,
+        782.1,
+        57.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "boris/0.9.0"
+    },
+    {
+      "key": "status-1",
+      "label": "3 events",
+      "opacity": 1.0,
+      "path": "shell/status/status-1",
+      "rect": [
+        102.1,
+        780.5,
+        51.4,
+        17.0
+      ],
+      "role": "text",
+      "text": "3 events"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.24",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.24",
+      "rect": [
+        105.4,
+        782.1,
+        6.9,
+        13.8
+      ],
+      "role": "text",
+      "text": "3"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.2",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.2",
+      "rect": [
+        112.3,
+        782.1,
+        2.9,
+        13.8
+      ],
+      "role": "text",
+      "text": " "
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.3",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.3",
+      "rect": [
+        115.2,
+        782.1,
+        6.3,
+        13.8
+      ],
+      "role": "text",
+      "text": "e"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.4",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.4",
+      "rect": [
+        121.5,
+        782.1,
+        6.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "v"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.5",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.5",
+      "rect": [
+        127.6,
+        782.1,
+        6.5,
+        13.8
+      ],
+      "role": "text",
+      "text": "e"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.6",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.6",
+      "rect": [
+        134.0,
+        782.1,
+        6.6,
+        13.8
+      ],
+      "role": "text",
+      "text": "n"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.7",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.7",
+      "rect": [
+        140.6,
+        782.1,
+        3.7,
+        13.8
+      ],
+      "role": "text",
+      "text": "t"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.8",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.8",
+      "rect": [
+        144.3,
+        782.1,
+        5.9,
+        13.8
+      ],
+      "role": "text",
+      "text": "s"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "status-2",
+      "opacity": 1.0,
+      "path": "shell/status/status-2",
+      "radius": 2.0,
+      "rect": [
+        162.2,
+        782.1,
+        52.1,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/status/status-2/#0",
+      "rect": [
+        168.2,
+        782.1,
+        40.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "epoch 1"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/status/#3",
+      "rect": [
+        226.3,
+        789.0,
+        870.5,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/status/#4",
+      "rect": [
+        1108.8,
+        782.1,
+        99.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "mod+K commands"
+    },
+    {
+      "help": "Switch to light theme",
+      "key": "status-3",
+      "label": "Switch to light theme",
+      "opacity": 1.0,
+      "path": "shell/status/status-3",
+      "radius": 4.0,
+      "rect": [
+        1220.0,
+        779.0,
+        20.0,
+        20.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "icon",
+      "opacity": 1.0,
+      "path": "shell/status/status-3/icon",
+      "rect": [
+        1222.0,
+        781.0,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "help": "Motion on — reduce motion",
+      "key": "status-4",
+      "label": "Motion on — reduce motion",
+      "opacity": 1.0,
+      "path": "shell/status/status-4",
+      "radius": 4.0,
+      "rect": [
+        1252.0,
+        779.0,
+        20.0,
+        20.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "icon",
+      "opacity": 1.0,
+      "path": "shell/status/status-4/icon",
+      "rect": [
+        1254.0,
+        781.0,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    }
+  ],
+  "schema": 2
+}

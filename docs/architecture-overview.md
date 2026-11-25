@@ -73,7 +73,7 @@ inheriting UI, storage, or process machinery.
 | `cv-contracts` | Serde mirrors of pinned Boris JSON contracts |
 | `cv-fixtures` | Captured corpora plus stub implementations for tests |
 | `cv-engine` | Boris discovery, subprocess execution, watch sessions |
-| `cv-store` | Sidecar schema/migrations, persistence, rebuildable indexes |
+| `cv-store` | Sidecar schema/migrations, `.cv/` JSONL helpers, confined paths, app-data index location (the SQLite indexes themselves live in `cv-ledger` and `cv-notes`) |
 | `cv-rules` | Deterministic audit rule evaluation |
 | `cv-ledger` | Artifact/check/claim/delivery evidence model |
 | `cv-publish` | Publish planning, preflight, target adapters |

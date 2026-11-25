@@ -12,8 +12,9 @@ publishing Boris content. Outlook-style mailboxes over a graph compiler.
 2. [`spec/architecture.md`](spec/architecture.md) — crate map, engine
    boundary, event/store model.
 3. [`spec/contracts.md`](spec/contracts.md) — frozen contracts.
-4. [`spec/GAMEPLAN.md`](spec/GAMEPLAN.md) — wave-0 exit criteria and
-   current verified state.
+4. [`spec/GAMEPLAN.md`](spec/GAMEPLAN.md) — historical wave-0 plan, kept
+   for the decision trail. Current state lives in FINDINGS, the
+   tech-debt ledger, and open issues.
 5. [`spike/FINDINGS.md`](spike/FINDINGS.md) — what is proven vs unproven.
 6. [`docs/agent-claims.md`](docs/agent-claims.md) — claim the issue before
    writing code. The `pr-claims` CI check fails a PR whose `Fixes #N` has

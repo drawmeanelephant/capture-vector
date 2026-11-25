@@ -59,13 +59,29 @@ pub mod noun_kind {
     pub const CHECK: &str = "check";
     pub const CLAIM: &str = "claim";
     pub const DELIVERY: &str = "delivery";
+    /// A `boris-migration-lab` run under `.cv/imports/`.
+    pub const IMPORT_RUN: &str = "import_run";
+    /// A lab `human_review` / `unsupported` entry, triaged in Migrate.
+    pub const REVIEW_ITEM: &str = "review_item";
 
     /// The closed set every producer mints from — `NounKind::register`
     /// rejects anything outside it, and the noun-view registry asserts
     /// a view for each member.
     pub const ALL: &[&str] = &[
-        PAGE, FINDING, PLAN, RECEIPT, NOTE, OUTPUT, DIAGNOSTIC, EVENT, ARTIFACT, CHECK, CLAIM,
+        PAGE,
+        FINDING,
+        PLAN,
+        RECEIPT,
+        NOTE,
+        OUTPUT,
+        DIAGNOSTIC,
+        EVENT,
+        ARTIFACT,
+        CHECK,
+        CLAIM,
         DELIVERY,
+        IMPORT_RUN,
+        REVIEW_ITEM,
     ];
 }
 

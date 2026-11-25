@@ -5,19 +5,52 @@
 
 use serde_json::Value;
 
-/// Split a key into words across camelCase, digit and `-`/`_` boundaries,
-/// lowercased. `clientPrivateKey` and `client-private-key` both parse to
-/// `[client, private, key]`; an all-caps run with no boundary information
-/// (`PRIVATEKEY`) stays one fused word.
-fn key_words(key: &str) -> Vec<String> {
+/// Key spelling is not a security boundary: JSON producers use snake,
+/// kebab, camel, dot and path separators interchangeably, and flatten
+/// nested objects into dotted or slashed key paths.
+fn is_separator(c: char) -> bool {
+    matches!(c, '-' | '_' | '.' | '/' | '\\') || c.is_whitespace()
+}
+
+/// How a word joins the previous one. The distinction decides whether
+/// `public` and `key` form one terminal compound: a camelCase hump is
+/// inside a single identifier, while explicit separators decompose into
+/// distinct words or path components.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Join {
+    /// First word, or the boundary is not yet decided.
+    Start,
+    /// camelCase hump: no separator character at all (`publicKey`).
+    Hump,
+    /// `-`, `_`, `.` or whitespace: separate words, but not proof of a
+    /// directory-style path decomposition on every producer.
+    Soft,
+    /// `/` or `\\`: unambiguous path-component boundary.
+    Component,
+}
+
+/// Split a key into lowercase words across camelCase, digit and
+/// separator boundaries, keeping how each word joins the previous one.
+/// `clientPrivateKey` and `client-private-key` both parse to
+/// `[client, private, key]`; an all-caps run with no boundary
+/// information (`PRIVATEKEY`) stays one fused word.
+fn key_words(key: &str) -> Vec<(String, Join)> {
     let chars: Vec<char> = key.chars().collect();
-    let mut words = Vec::new();
+    let mut words: Vec<(String, Join)> = Vec::new();
     let mut cur = String::new();
+    let mut join = Join::Start;
     let mut last: Option<char> = None;
     for (i, &c) in chars.iter().enumerate() {
-        if matches!(c, '-' | '_') {
+        if is_separator(c) {
             if !cur.is_empty() {
-                words.push(std::mem::take(&mut cur));
+                words.push((std::mem::take(&mut cur), join));
+            }
+            // The first separator after a word decides the join: in
+            // `a/.b` the component boundary dominates the dot.
+            if matches!(c, '/' | '\\') {
+                join = Join::Component;
+            } else if join != Join::Component {
+                join = Join::Soft;
             }
             last = None;
             continue;
@@ -31,26 +64,27 @@ fn key_words(key: &str) -> Vec<String> {
                 || (p.is_ascii_uppercase() && next_lower))
                 && !cur.is_empty()
             {
-                words.push(std::mem::take(&mut cur));
+                words.push((std::mem::take(&mut cur), join));
+                join = Join::Hump;
             }
         }
         cur.push(c.to_ascii_lowercase());
         last = Some(c);
     }
     if !cur.is_empty() {
-        words.push(cur);
+        words.push((cur, join));
     }
     words
 }
 
 /// Whether a field named `key` may hold a credential.
 pub fn is_secret_key(key: &str) -> bool {
-    // Key spelling is not a security boundary: JSON producers use snake,
-    // kebab and camel case interchangeably. Compare only the letters, so
-    // `privateKey`, `private-key` and `private_key` share one rule.
+    // Compare only the letters, so `privateKey`, `private-key`,
+    // `private_key` and flattened paths like `nested.privateKey` share
+    // one rule.
     let squashed: String = key
         .chars()
-        .filter(|c| !matches!(c, '-' | '_'))
+        .filter(|&c| !is_separator(c))
         .map(|c| c.to_ascii_lowercase())
         .collect();
     if squashed.contains("secret")
@@ -60,19 +94,31 @@ pub fn is_secret_key(key: &str) -> bool {
         || squashed.contains("nsec")
         || squashed.contains("apikey")
         || squashed.contains("credential")
+        || squashed.contains("privatekey")
         || squashed == "authorization"
     {
         return true;
     }
-    // `private key` is a word pair, not a prefix: `clientPrivateKey` is as
-    // secret as `privateKey`, while `publicKey` stays innocent. A fused
-    // word carries no boundary information, so one containing `privatekey`
-    // contiguously is treated as the pair rather than trusted.
+    // `private key` is a word pair, not a prefix or an adjacency:
+    // `privateSigningKey` is as secret as `clientPrivateKey`, while
+    // `publicKey` stays innocent. The fused contiguous case is already
+    // caught above; this catches `private` followed by `key`/`keys`
+    // with intervening words such as `signing`. A `key` immediately
+    // preceded by `public` through a camelCase hump names public-key
+    // material — the terminal `publicKey` compound — so the pair does
+    // not match there. Any explicit separator between `public` and
+    // `key` decomposes them into distinct words or path components
+    // (`private/public/key`, `private/public-key`, `private/public
+    // keys`), where the private-namespace reading wins.
     let words = key_words(key);
-    words
-        .windows(2)
-        .any(|w| w[0] == "private" && (w[1] == "key" || w[1] == "keys"))
-        || words.iter().any(|w| w.contains("privatekey"))
+    words.iter().enumerate().any(|(i, (w, _))| {
+        w == "private"
+            && (i + 1..words.len()).any(|j| {
+                let (wj, join) = &words[j];
+                (wj == "key" || wj == "keys")
+                    && !(words[j - 1].0 == "public" && *join == Join::Hump)
+            })
+    })
 }
 
 /// Drop every object field, at any depth, whose key [`is_secret_key`].
@@ -140,6 +186,108 @@ mod tests {
         }
         for key in ["publicKey", "clientPublicKey", "key", "keyboard", "monkey"] {
             assert!(!is_secret_key(key), "{key}");
+        }
+    }
+
+    #[test]
+    fn postmerge_probe_spellings_are_secret() {
+        // Exact spellings reproduced by the post-merge review probe.
+        for key in [
+            "privateSigningKey",
+            "private_signing_key",
+            "clientPrivateSigningKey",
+            "clientprivateKey",
+            "clientprivate-key",
+            "private-keymaterial",
+            "private-keypem",
+            "nested.privateKey",
+        ] {
+            assert!(is_secret_key(key), "{key}");
+        }
+        for key in [
+            "publicKey",
+            "clientPublicKey",
+            "nested.publicKey",
+            "keyboard",
+        ] {
+            assert!(!is_secret_key(key), "{key}");
+        }
+    }
+
+    #[test]
+    fn whitespace_private_key_spellings_are_secret() {
+        // Exact spellings from the post-#204 verification probe: canonical
+        // human `private key` in lowercase, mixed and uppercase.
+        for key in [
+            "private key",
+            "client private key",
+            "PRIVATE KEY",
+            "Private Key",
+            "my private  key",
+            "private\tsigning\tkey",
+        ] {
+            assert!(is_secret_key(key), "{key}");
+        }
+    }
+
+    #[test]
+    fn terminal_public_key_in_a_private_namespace_is_innocent() {
+        // `private`/`publicKey` flattened paths hold public-key material in
+        // a private namespace: never a credential. Key ids and fingerprints
+        // stay redacted conservatively — they cannot be distinguished from
+        // key material structurally.
+        for key in [
+            "private/publicKey",
+            "private.publicKey",
+            "private/docs/publicKey",
+        ] {
+            assert!(!is_secret_key(key), "{key}");
+        }
+        // Whitespace and dots decompose `public` and `key` into separate
+        // components: not a public-key compound.
+        assert!(is_secret_key("private public key"));
+        assert!(is_secret_key("private.public.key"));
+        for key in ["privateKeyId", "privateKeyFingerprint"] {
+            assert!(is_secret_key(key), "{key}");
+        }
+    }
+
+    #[test]
+    fn decomposed_public_key_paths_do_not_smuggle_private_material() {
+        // Exact abuse forms from the post-`11ed919` verification: `public`
+        // and `key` split into separate components by `/`, `\\`, `.` or
+        // whitespace are not a public-key compound — the exemption applies
+        // only to the camelCase-fused terminal `publicKey`.
+        for key in [
+            "private/public/key",
+            "private/public keys",
+            "private/public.key",
+            "private/public-key",
+            "private\\public\\key",
+        ] {
+            assert!(is_secret_key(key), "{key}");
+        }
+        for key in [
+            "publicKey",
+            "clientPublicKey",
+            "nested.publicKey",
+            "private/publicKey",
+            "private/docs/publicKey",
+        ] {
+            assert!(!is_secret_key(key), "{key}");
+        }
+        assert!(is_secret_key("nested/public/privateKey"));
+    }
+
+    #[test]
+    fn flattened_path_separators_do_not_bypass_protection() {
+        for key in [
+            "a/b/privateKey",
+            "a\\b\\privateKey",
+            "nested.private.signing.key",
+            "deeply.nested.clientPrivateKey",
+        ] {
+            assert!(is_secret_key(key), "{key}");
         }
     }
 
