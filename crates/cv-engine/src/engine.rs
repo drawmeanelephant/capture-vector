@@ -9,7 +9,7 @@ use crate::proc::CancelToken;
 use crate::ring::{DEFAULT_RING, Resume};
 use crate::secrets::{SecretSource, SignOutput, nostr_sign};
 use crate::snapshot::DiskTruth;
-use crate::verbs::{VerbOutput, argv, run_argv, verb_name};
+use crate::verbs::{IR_DIR, VerbOutput, argv, flag_value, run_argv, verb_name};
 use crate::watch::WatchStart;
 use cv_core::engine::{
     Engine, EngineCaps, EngineInfo, EventSink, ExitClass, Fingerprint, PageDraft, Verb,
@@ -99,6 +99,19 @@ impl ProcessEngine {
     }
     pub fn root(&self) -> &Path {
         &self.cfg.root
+    }
+    /// The HTML output tree the watch writes: the scheduler's seat.
+    pub fn html_dir(&self) -> &str {
+        &self.cfg.html_dir
+    }
+
+    /// The IR projection the live session runs beside its watch: Boris
+    /// IR mode into [`IR_DIR`], over the content root the watch was given.
+    pub fn ir_projection(&self) -> Verb {
+        Verb::Ir {
+            out: IR_DIR.into(),
+            input: flag_value(&self.cfg.watch_args, "--input").map(String::from),
+        }
     }
     /// The next envelope will carry `(session, seq)` = this cursor.
     pub fn cursor(&self) -> Cursor {

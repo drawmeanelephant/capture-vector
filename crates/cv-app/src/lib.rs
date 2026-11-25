@@ -4,6 +4,7 @@
 
 pub mod audit;
 pub mod build_info;
+pub mod dialogs;
 pub mod doctor;
 pub mod editor;
 pub mod live;
@@ -577,6 +578,12 @@ pub const SCENES: &[Scene] = &[
     ("publish-unknown", publish::scene::unknown),
     ("publish-empty", publish::scene::empty),
     ("publish-degraded", publish::scene::degraded),
+    ("dialog-confirm", dialogs::confirm),
+    ("dialog-prompt", dialogs::prompt),
+    ("dialog-form", dialogs::form),
+    ("dialog-choose", dialogs::choose),
+    ("dialog-secret", dialogs::secret),
+    ("dialog-progress", dialogs::progress),
     ("effects", effects),
     ("content-only", content_only),
     ("doctor", doctor::scene::healthy),

@@ -12,10 +12,12 @@
 //! - `reference` (feature): replay a headless frame on `rune-ref`'s CPU oracle.
 //! - [`app`]: native window boot + companion windows.
 //! - [`editor`]: the L7 editor surface (form + body, problems, draft sketch).
+//! - [`dialog`]: the shared modal dialog over `cv_model::dialog`.
 
 pub mod app;
 pub mod controls;
 pub mod diagnostic;
+pub mod dialog;
 pub mod editor;
 pub mod fx;
 /// QA machinery (scripted-input harness, golden bless/check). On by

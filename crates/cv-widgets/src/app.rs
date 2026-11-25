@@ -3,6 +3,7 @@
 
 use crate::editor;
 use crate::shell::view;
+use cv_model::dialog::PickPurpose;
 use cv_model::module::ReadingModel;
 use cv_model::theme::Theme;
 use cv_model::windows::WindowId;
@@ -208,6 +209,16 @@ fn open_workspace(s: &mut Workbench, root: PathBuf) {
     }
 }
 
+fn picked(s: &mut Workbench, purpose: PickPurpose, answer: rune::FileDialogResult) {
+    match answer {
+        Ok(path) => s.picked(purpose, path),
+        Err(e) => {
+            let e: String = e.to_string().chars().take(60).collect();
+            s.status = format!("No file picker ({e})");
+        }
+    }
+}
+
 /// Carry out shell requests that need the window: the native folder
 /// picker answers on a later frame through `open_workspace`.
 fn serve_requests(s: &mut Workbench, tx: &mut Tx) -> bool {
@@ -231,6 +242,30 @@ fn serve_requests(s: &mut Workbench, tx: &mut Tx) -> bool {
                             "No folder picker — launch with --project <dir> or set CV_PROJECT ({e})"
                         )
                     }
+                });
+            }
+            ShellRequest::PickFile { filters, purpose } => {
+                let options = FileDialogOptions {
+                    title: "Choose a file".into(),
+                    directory: s.workspace.clone(),
+                    filters: filters
+                        .into_iter()
+                        .map(|f| (f.name, f.extensions))
+                        .collect(),
+                    ..Default::default()
+                };
+                tx.open_file(options, move |s: &mut Workbench, answer, _| {
+                    picked(s, purpose, answer)
+                });
+            }
+            ShellRequest::PickFolder { purpose } => {
+                let options = FileDialogOptions {
+                    title: "Choose a folder".into(),
+                    directory: s.workspace.clone(),
+                    ..Default::default()
+                };
+                tx.open_folder(options, move |s: &mut Workbench, answer, _| {
+                    picked(s, purpose, answer)
                 });
             }
             ShellRequest::OpenWorkspace(root) => open_workspace(s, root),

@@ -349,6 +349,16 @@ fn polling_fallback_rebuilds_on_edits_without_an_automatic_retry() {
     );
 }
 
+/// Capture an idea through the capture prompt, as a typist would.
+fn capture(wb: &mut Workbench, text: &str) {
+    wb.run_command("research.capture.idea");
+    for c in text.chars() {
+        wb.key(&KeyPress::new(KeyInput::Char(c)));
+    }
+    wb.key(&KeyPress::new(KeyInput::Enter));
+    assert!(!wb.dialogs.is_open(), "{}", wb.status);
+}
+
 #[test]
 fn research_notes_are_exclusive_and_persist_across_reopen() {
     let ws = workspace("happy");
@@ -357,8 +367,8 @@ fn research_notes_are_exclusive_and_persist_across_reopen() {
     let mut wb = init();
     open(&mut wb, ws.path(), &env);
     wb.run_command("shell.goto.research");
-    wb.run_command("research.capture.idea");
-    wb.run_command("research.capture.idea");
+    capture(&mut wb, "Idea 1");
+    capture(&mut wb, "Idea 2");
     assert_eq!(module_len(&wb, "research", Some("all")), 2);
     assert!(ws.path().join(".cv/research/notes.jsonl").is_file());
 
@@ -484,7 +494,7 @@ fn promotion_writes_under_the_profile_input() {
     wait_for(&mut wb, "watch handshake", |wb| wb.app.engine.is_some());
     assert!(module_len(&wb, "pages", None) > 0, "pages read from docs/");
     wb.run_command("shell.goto.research");
-    wb.run_command("research.capture.idea");
+    capture(&mut wb, "Idea 1");
     wb.set_nav("all");
     wb.select_key("note-0001");
     wb.run_command("research.promote");
@@ -504,7 +514,7 @@ fn undecodable_journal_lines_open_as_a_disclosed_degradation() {
     let mut wb = init();
     open(&mut wb, ws.path(), &env);
     wb.run_command("shell.goto.research");
-    wb.run_command("research.capture.idea");
+    capture(&mut wb, "Idea 1");
     assert_eq!(module_len(&wb, "research", Some("all")), 1);
     // A complete-but-undecodable committed line (not a torn tail).
     use std::io::Write;
@@ -578,7 +588,7 @@ fn symlinked_input_outside_the_workspace_gets_no_promotion_writer() {
     open(&mut wb, ws.path(), &fake.env(cfg.path()));
     wait_for(&mut wb, "watch handshake", |wb| wb.app.engine.is_some());
     wb.run_command("shell.goto.research");
-    wb.run_command("research.capture.idea");
+    capture(&mut wb, "Idea 1");
     wb.set_nav("all");
     wb.select_key("note-0001");
     wb.run_command("research.promote");

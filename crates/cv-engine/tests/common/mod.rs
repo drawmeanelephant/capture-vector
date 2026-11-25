@@ -75,6 +75,10 @@ impl FakeBoris {
                 );
             }
         }
+        let ir = cv_fixtures::ir_capture(name);
+        for f in ["stdout.txt", "stderr.txt", "exit-code.txt"] {
+            self.set_bytes(&format!("verbs/build-out/{f}"), &ir.file(f));
+        }
     }
 
     pub fn path(&self, rel: &str) -> PathBuf {

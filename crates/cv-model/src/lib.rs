@@ -6,6 +6,7 @@
 pub mod app_state;
 pub mod cascade;
 pub mod command;
+pub mod dialog;
 pub mod module;
 pub mod modules;
 pub mod noun_views;
