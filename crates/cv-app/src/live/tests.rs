@@ -105,11 +105,15 @@ fn a_resync_requested_after_a_mutation_waits_behind_an_in_flight_scan() {
     let _ = slot.resyncer.set(resyncer.clone());
 
     resyncer.request();
-    started_rx.recv().unwrap();
+    started_rx
+        .recv_timeout(Duration::from_secs(2))
+        .expect("initial resync scan did not start");
     slot.request_resync();
     assert!(started_rx.try_recv().is_err());
     release_tx.send(()).unwrap();
-    started_rx.recv().unwrap();
+    started_rx
+        .recv_timeout(Duration::from_secs(2))
+        .expect("post-mutation resync request was dropped behind the in-flight scan");
     release_tx.send(()).unwrap();
 }
 
