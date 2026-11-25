@@ -5,7 +5,7 @@ use crate::editor;
 use crate::shell::view;
 use cv_model::dialog::PickPurpose;
 use cv_model::module::ReadingModel;
-use cv_model::new_workspace::NewWorkspace;
+use cv_model::new_workspace::WorkspaceCreation;
 use cv_model::theme::Theme;
 use cv_model::windows::WindowId;
 use cv_model::workbench::{ShellRequest, Workbench};
@@ -28,7 +28,7 @@ pub struct Launch {
     pub open: fn(&mut Workbench, PathBuf),
     /// Create a workspace with `boris init` (the New workspace form); the
     /// outcome comes back as a `ShellNotice`.
-    pub create: fn(&mut Workbench, NewWorkspace),
+    pub create: fn(&mut Workbench, WorkspaceCreation),
     /// Open a page (relative to the content input) in an editor window.
     pub edit: fn(&mut Workbench, &str),
     pub scenes: &'static [Scene],
@@ -36,7 +36,7 @@ pub struct Launch {
 
 static BOOT: OnceLock<fn(&mut Workbench)> = OnceLock::new();
 static OPEN: OnceLock<fn(&mut Workbench, PathBuf)> = OnceLock::new();
-static CREATE: OnceLock<fn(&mut Workbench, NewWorkspace)> = OnceLock::new();
+static CREATE: OnceLock<fn(&mut Workbench, WorkspaceCreation)> = OnceLock::new();
 static EDIT: OnceLock<fn(&mut Workbench, &str)> = OnceLock::new();
 static WAKE: OnceLock<Waker> = OnceLock::new();
 static BOOTED: AtomicBool = AtomicBool::new(false);
@@ -274,8 +274,8 @@ fn serve_requests(s: &mut Workbench, tx: &mut Tx) -> bool {
                 });
             }
             ShellRequest::OpenWorkspace(root) => open_workspace(s, root),
-            ShellRequest::CreateWorkspace(draft) => match CREATE.get() {
-                Some(create) => create(s, draft),
+            ShellRequest::CreateWorkspace(creation) => match CREATE.get() {
+                Some(create) => create(s, creation),
                 None => s.status = "this build cannot create workspaces".into(),
             },
             ShellRequest::EditPage(page) => match EDIT.get() {

@@ -5,7 +5,7 @@ use crate::WorkspaceEnv;
 use cv_engine::init::Initializer;
 use cv_engine::locate::{Locator, PINNED};
 use cv_engine::proc::CancelToken;
-use cv_model::new_workspace::{Archetypes, NewWorkspace, ShellNotice};
+use cv_model::new_workspace::{Archetypes, ShellNotice, WorkspaceCreation};
 use cv_model::workbench::Workbench;
 use std::path::{Path, PathBuf};
 use std::thread::JoinHandle;
@@ -41,17 +41,37 @@ pub fn probe_archetypes(wb: &mut Workbench, env: &WorkspaceEnv) -> Option<JoinHa
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let locator = locator(env, &cwd);
     let worker_notices = notices.clone();
+    let feed = cv_model::modules::doctor::installed();
+    feed.update(|f| {
+        f.engine = cv_model::modules::doctor::EngineState::Locating;
+        f.candidates = crate::doctor::candidates(&locator);
+    });
     spawn_notice(
         "cv-new-workspace-inventory",
         &notices,
         |e| ShellNotice::Archetypes(Err(format!("could not start the inventory worker: {e}"))),
         move || {
             let result = (|| {
-                let initializer =
-                    Initializer::locate(&locator, &cwd, PINNED).map_err(|e| e.to_string())?;
-                let starters = initializer
-                    .starters(&cwd, &CancelToken::new())
-                    .map_err(|e| e.to_string())?;
+                let initializer = match Initializer::locate(&locator, &cwd, PINNED) {
+                    Ok(i) => i,
+                    Err(e) => {
+                        feed.update(|f| f.engine = crate::doctor::engine_state(&e));
+                        return Err(e.to_string());
+                    }
+                };
+                feed.update(|f| f.engine = crate::doctor::located(initializer.identity()));
+                let starters = match initializer.starters(&cwd, &CancelToken::new()) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        let error = e.to_string();
+                        feed.update(|f| {
+                            f.engine = cv_model::modules::doctor::EngineState::Failed {
+                                error: error.clone(),
+                            }
+                        });
+                        return Err(error);
+                    }
+                };
                 let default = starters
                     .default
                     .as_deref()
@@ -86,30 +106,31 @@ fn failure_text(output: &cv_engine::verbs::VerbOutput) -> String {
 /// workspace-open path when `ShellNotice::Created` reaches the workbench.
 pub fn create_workspace(
     wb: &mut Workbench,
-    draft: NewWorkspace,
+    creation: WorkspaceCreation,
     env: &WorkspaceEnv,
 ) -> Option<JoinHandle<()>> {
     let notices = wb.notices();
-    let cwd = draft.parent.clone();
+    let cwd = creation.draft.parent.clone();
     let locator = locator(env, &cwd);
     let worker_notices = notices.clone();
     spawn_notice(
         "cv-new-workspace-init",
         &notices,
         {
-            let draft = draft.clone();
+            let creation = creation.clone();
             move |e| ShellNotice::Created {
-                draft,
+                creation,
                 result: Err(format!("could not start the workspace worker: {e}")),
             }
         },
         move || {
-            let target = draft.target();
+            let cancel = creation.cancel.clone();
+            let target = creation.draft.target();
             let result = (|| {
                 let initializer =
                     Initializer::locate(&locator, &cwd, PINNED).map_err(|e| e.to_string())?;
                 let out = initializer
-                    .create(&target, &draft.archetype, &CancelToken::new())
+                    .create(&target, &creation.draft.archetype, &cancel)
                     .map_err(|e| e.to_string())?;
                 if out.output.outcome.class() == Some(cv_core::engine::ExitClass::Ok) {
                     Ok(out.target)
@@ -117,11 +138,11 @@ pub fn create_workspace(
                     Err(failure_text(&out.output))
                 }
             })();
-            worker_notices.send(ShellNotice::Created { draft, result });
+            worker_notices.send(ShellNotice::Created { creation, result });
         },
     )
 }
 
-pub fn create_native(wb: &mut Workbench, draft: NewWorkspace) {
-    let _ = create_workspace(wb, draft, &WorkspaceEnv::native());
+pub fn create_native(wb: &mut Workbench, creation: WorkspaceCreation) {
+    let _ = create_workspace(wb, creation, &WorkspaceEnv::native());
 }

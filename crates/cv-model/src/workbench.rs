@@ -9,10 +9,10 @@ use crate::command::{CommandSpec, Intent, Palette};
 use crate::dialog::{Dialogs, FileFilter, PickPurpose, SecretPort};
 use crate::module::{Link, ProjectSnapshot, Registry, RowModel};
 use crate::modules::activity;
-use crate::new_workspace::{self, Archetypes, NewWorkspace, Notices, ShellNotice};
+use crate::new_workspace::{self, Archetypes, Notices, ShellNotice, WorkspaceCreation};
 use crate::theme::{Mode, Theme};
 use crate::windows::{CloseOutcome, PRIMARY, WindowId, Windows};
-use cv_core::engine::{EventSink, WatchHandle};
+use cv_core::engine::{CancelToken, EventSink, WatchHandle};
 use cv_core::events::Envelope;
 use cv_core::events::shell::{DegradedReason, ShellEvent};
 use cv_core::events::{AppEvent, Cursor, EventId, SessionId, SnapshotEpoch};
@@ -142,7 +142,7 @@ pub enum ShellRequest {
     OpenWorkspace(PathBuf),
     /// Run `boris init` for the New workspace form; the outcome comes
     /// back as `ShellNotice::Created`.
-    CreateWorkspace(NewWorkspace),
+    CreateWorkspace(WorkspaceCreation),
     /// Open a page (relative to the content input) in an editor window.
     EditPage(String),
     /// Put text on the system clipboard.
@@ -204,6 +204,8 @@ pub struct Workbench {
     pub archetypes: Result<Archetypes, String>,
     /// New workspace's default location while no workspace is open.
     pub new_parent: Option<PathBuf>,
+    /// Cancellation for the one workspace creation progress dialog.
+    pub(crate) create_cancel: Option<CancelToken>,
     notice_tx: Sender<ShellNotice>,
     notice_rx: Receiver<ShellNotice>,
     /// `(event_id, envelope digest)` — the contract's idempotency key.
@@ -246,6 +248,7 @@ impl Workbench {
             requests: Vec::new(),
             archetypes: Err(new_workspace::LOCATING.into()),
             new_parent: None,
+            create_cancel: None,
             notice_tx,
             notice_rx,
             seen: BTreeSet::new(),

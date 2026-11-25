@@ -5,10 +5,36 @@
 use crate::events::Envelope;
 use crate::sys::{Hash, Timestamp};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Event sink — the channel-sink port shape. Implementations deliver
 /// envelopes; the rune side wakes and drains, never blocks.
 pub type EventSink = Box<dyn FnMut(Envelope) + Send>;
+
+/// Cooperative cancellation shared by a shell operation and the engine
+/// worker carrying it out. Equality is token identity, not momentary state.
+#[derive(Clone, Default, Debug)]
+pub struct CancelToken(Arc<AtomicBool>);
+
+impl CancelToken {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn cancel(&self) {
+        self.0.store(true, Ordering::SeqCst);
+    }
+    pub fn is_cancelled(&self) -> bool {
+        self.0.load(Ordering::SeqCst)
+    }
+}
+
+impl PartialEq for CancelToken {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+impl Eq for CancelToken {}
 
 /// What this engine can do **on this OS** — probed at startup, surfaced
 /// in Doctor. Platform gaps are honest, never hidden.

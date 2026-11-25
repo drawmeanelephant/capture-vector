@@ -744,6 +744,10 @@ impl Workbench {
     }
 
     fn shell_answer(&mut self, id: &str, answer: &DialogAnswer) {
+        if id == crate::new_workspace::CREATING {
+            self.cancel_workspace_creation();
+            return;
+        }
         if id == crate::new_workspace::NEW {
             self.new_workspace_answer(answer);
             return;

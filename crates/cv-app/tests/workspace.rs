@@ -70,20 +70,20 @@ fn new_workspace_from_an_archetype_creates_and_opens_the_workspace() {
         Some(new_workspace::CREATING),
         "creation discloses progress"
     );
-    let draft = match wb.requests.pop() {
-        Some(ShellRequest::CreateWorkspace(draft)) => draft,
+    let creation = match wb.requests.pop() {
+        Some(ShellRequest::CreateWorkspace(creation)) => creation,
         other => panic!("unexpected request {other:?}"),
     };
-    assert_eq!(draft.archetype, "docs");
-    assert_eq!(draft.parent, parent.path());
-    assert_eq!(draft.name, "created-site");
+    assert_eq!(creation.draft.archetype, "docs");
+    assert_eq!(creation.draft.parent, parent.path());
+    assert_eq!(creation.draft.name, "created-site");
 
     fake.set(
         "verbs/init/stderr.txt",
         cv_fixtures::StubEngine::init_report("docs").as_bytes(),
     );
     fake.set("verbs/init/exit-code.txt", b"0");
-    cv_app::new_workspace::create_workspace(&mut wb, draft, &env)
+    cv_app::new_workspace::create_workspace(&mut wb, creation, &env)
         .expect("create worker")
         .join()
         .unwrap();
@@ -113,6 +113,76 @@ fn new_workspace_from_an_archetype_creates_and_opens_the_workspace() {
     assert!(
         module_len(&wb, "pages", None) >= 3,
         "the opened starter has pages"
+    );
+}
+
+#[test]
+fn cancelling_creation_kills_the_init_worker_and_never_opens_the_workspace() {
+    let parent = tempfile::tempdir().unwrap();
+    let recent = tempfile::tempdir().unwrap();
+    let fake = Fake::new("happy", None);
+    let env = fake.env(recent.path());
+    let mut wb = init();
+    let creation =
+        cv_model::new_workspace::WorkspaceCreation::new(cv_model::new_workspace::NewWorkspace {
+            parent: parent.path().to_path_buf(),
+            name: "cancelled-site".into(),
+            archetype: "docs".into(),
+        });
+    fake.set("verbs/init/hold", b"");
+    fake.set(
+        "verbs/init/stderr.txt",
+        cv_fixtures::StubEngine::init_report("docs").as_bytes(),
+    );
+    fake.set("verbs/init/exit-code.txt", b"0");
+    let cancel = creation.cancel.clone();
+    let worker =
+        cv_app::new_workspace::create_workspace(&mut wb, creation, &env).expect("create worker");
+    for _ in 0..100 {
+        if fake
+            .log()
+            .lines()
+            .any(|l| l.contains("init cancelled-site --type docs"))
+        {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(
+        fake.log()
+            .lines()
+            .any(|l| l.contains("init cancelled-site --type docs")),
+        "init did not start: {}",
+        fake.log()
+    );
+    cancel.cancel();
+    worker.join().unwrap();
+    wb.drain();
+    assert!(
+        !wb.requests
+            .iter()
+            .any(|r| matches!(r, ShellRequest::OpenWorkspace(_))),
+        "cancelled init must never open: {:?}",
+        wb.requests
+    );
+}
+
+#[test]
+fn a_failed_archetype_probe_is_the_engine_story_doctor_opens() {
+    let recent = tempfile::tempdir().unwrap();
+    let env = absent_env(recent.path());
+    let mut wb = init();
+    cv_app::new_workspace::probe_archetypes(&mut wb, &env)
+        .expect("inventory worker")
+        .join()
+        .unwrap();
+    wb.drain();
+    assert!(wb.archetypes.is_err());
+    let facts = cv_model::modules::doctor::installed().get();
+    assert_eq!(
+        facts.engine,
+        cv_model::modules::doctor::EngineState::NotFound,
+        "Open Doctor must explain the failed probe, not NotStarted"
     );
 }
 
@@ -234,6 +304,10 @@ impl Fake {
         let p = self.dir.path().join(rel);
         std::fs::create_dir_all(p.parent().unwrap()).unwrap();
         std::fs::write(p, bytes).unwrap();
+    }
+
+    fn log(&self) -> String {
+        std::fs::read_to_string(self.dir.path().join("argv.log")).unwrap_or_default()
     }
 
     fn env(&self, recent: &Path) -> WorkspaceEnv {

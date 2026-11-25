@@ -7,6 +7,7 @@
 use crate::command::Intent;
 use crate::dialog::{ActionTone, DialogAnswer, DialogKind, DialogSpec, Field, Pick, Progress};
 use crate::workbench::{ShellRequest, Waker, Workbench};
+use cv_core::engine::CancelToken;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
@@ -54,6 +55,24 @@ impl NewWorkspace {
     }
 }
 
+/// One creation request and the token that cancels it. The token is
+/// shared verbatim with cv-engine, so dismissing progress kills the child
+/// process tree rather than merely hiding the dialog.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WorkspaceCreation {
+    pub draft: NewWorkspace,
+    pub cancel: CancelToken,
+}
+
+impl WorkspaceCreation {
+    pub fn new(draft: NewWorkspace) -> Self {
+        Self {
+            draft,
+            cancel: CancelToken::new(),
+        }
+    }
+}
+
 /// Shell-level results from worker threads. Unlike `Inbound`, these
 /// outlive a project switch: they are about which project comes next.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -61,7 +80,7 @@ pub enum ShellNotice {
     /// What New workspace can offer; `Err` is why it is unavailable.
     Archetypes(Result<Archetypes, String>),
     Created {
-        draft: NewWorkspace,
+        creation: WorkspaceCreation,
         result: Result<PathBuf, String>,
     },
 }
@@ -90,6 +109,10 @@ impl Notices {
 impl Workbench {
     /// `shell.workspace.new`: ask with the form, or say why it can't.
     pub(crate) fn new_workspace(&mut self) {
+        if self.create_cancel.is_some() {
+            self.status = "A workspace is already being created.".into();
+            return;
+        }
         match self.archetypes.clone() {
             Ok(a) => {
                 let spec = self.new_workspace_form(&a, None, None);
@@ -146,6 +169,10 @@ impl Workbench {
         if answer.action.is_none() {
             return;
         }
+        if self.create_cancel.is_some() {
+            self.status = "A workspace is already being created.".into();
+            return;
+        }
         let Ok(a) = self.archetypes.clone() else {
             return;
         };
@@ -163,22 +190,53 @@ impl Workbench {
             return;
         }
         self.new_parent = Some(draft.parent.clone());
-        self.dialogs.push(DialogSpec::new(
-            CREATING,
-            "Creating workspace",
-            DialogKind::Progress(Progress {
-                label: format!("boris init {} --type {}", draft.name, draft.archetype),
-                permille: None,
-            }),
-        ));
-        self.requests.push(ShellRequest::CreateWorkspace(draft));
+        let creation = WorkspaceCreation::new(draft);
+        self.create_cancel = Some(creation.cancel.clone());
+        self.dialogs.push(
+            DialogSpec::new(
+                CREATING,
+                "Creating workspace",
+                DialogKind::Progress(Progress {
+                    label: format!(
+                        "boris init {} --type {}",
+                        creation.draft.name, creation.draft.archetype
+                    ),
+                    permille: None,
+                }),
+            )
+            .cancel("Cancel"),
+        );
+        self.requests.push(ShellRequest::CreateWorkspace(creation));
+    }
+
+    /// Dismissing creation progress cancels the operation. The worker
+    /// token is shared with cv-engine; the completion path also checks it
+    /// because a fast init can finish before the kill lands.
+    pub(crate) fn cancel_workspace_creation(&mut self) {
+        if let Some(cancel) = &self.create_cancel {
+            cancel.cancel();
+            self.status = "Cancelling workspace creation…".into();
+        }
     }
 
     pub(crate) fn notice(&mut self, n: ShellNotice) {
         match n {
             ShellNotice::Archetypes(a) => self.archetypes = a,
-            ShellNotice::Created { draft, result } => {
+            ShellNotice::Created { creation, result } => {
+                let cancelled = creation.cancel.is_cancelled();
+                if self
+                    .create_cancel
+                    .as_ref()
+                    .is_some_and(|c| *c == creation.cancel)
+                {
+                    self.create_cancel = None;
+                }
                 self.dialogs.close(CREATING);
+                if cancelled {
+                    self.status = "Workspace creation cancelled.".into();
+                    return;
+                }
+                let draft = creation.draft;
                 match (result, self.archetypes.clone()) {
                     (Ok(root), _) => self.requests.push(ShellRequest::OpenWorkspace(root)),
                     (Err(e), Ok(a)) => {
@@ -253,14 +311,15 @@ mod tests {
             name: "notes".into(),
             archetype: "garden".into(),
         };
-        assert_eq!(
-            wb.requests,
-            vec![ShellRequest::CreateWorkspace(draft.clone())]
-        );
+        let Some(ShellRequest::CreateWorkspace(creation)) = wb.requests.first().cloned() else {
+            panic!("unexpected requests {:?}", wb.requests)
+        };
+        assert_eq!(creation.draft, draft);
+        assert!(!creation.cancel.is_cancelled());
         assert_eq!(wb.dialogs.open().unwrap().spec.id, CREATING);
 
         wb.notice(ShellNotice::Created {
-            draft: draft.clone(),
+            creation,
             result: Ok(draft.target()),
         });
         assert!(!wb.dialogs.is_open());
@@ -271,15 +330,45 @@ mod tests {
     }
 
     #[test]
+    fn dismissing_progress_cancels_init_and_success_cannot_force_open() {
+        let mut wb = wb();
+        fill(&mut wb, "notes");
+        wb.key(&KeyPress::new(KeyInput::Enter));
+        let ShellRequest::CreateWorkspace(creation) = wb.requests.remove(0) else {
+            panic!()
+        };
+        assert!(wb.dialogs.open().is_some_and(|d| d.spec.id == CREATING));
+
+        wb.dialog_cancel();
+        assert!(creation.cancel.is_cancelled());
+        assert_eq!(wb.status, "Cancelling workspace creation…");
+
+        wb.notice(ShellNotice::Created {
+            creation,
+            result: Ok("/home/me/notes".into()),
+        });
+        assert!(
+            !wb.requests
+                .iter()
+                .any(|r| matches!(r, ShellRequest::OpenWorkspace(_))),
+            "success after dismissal must not force-open: {:?}",
+            wb.requests
+        );
+        assert!(!wb.dialogs.is_open());
+        assert_eq!(wb.status, "Workspace creation cancelled.");
+        assert!(wb.create_cancel.is_none());
+    }
+
+    #[test]
     fn a_refusal_returns_to_the_filled_form_with_its_reason() {
         let mut wb = wb();
         fill(&mut wb, "notes");
         wb.key(&KeyPress::new(KeyInput::Enter));
-        let ShellRequest::CreateWorkspace(draft) = wb.requests.remove(0) else {
+        let ShellRequest::CreateWorkspace(creation) = wb.requests.remove(0) else {
             panic!()
         };
         wb.notice(ShellNotice::Created {
-            draft,
+            creation,
             result: Err("target directory is not empty".into()),
         });
         let d = wb.dialogs.open().unwrap();

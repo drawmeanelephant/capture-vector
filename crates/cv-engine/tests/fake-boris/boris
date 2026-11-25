@@ -23,10 +23,16 @@ case "$1" in
 esac
 V="$1"
 if [ "$V" = init ] && [ "${2:-}" != "--help" ] && [ -n "${2:-}" ]; then
-  # Test-double filesystem effect: materialize the captured tree a test
-  # installed next to the shim. Production creation remains Boris's job.
-  mkdir -p "$2"
-  [ -d "$D/verbs/init/tree" ] && cp -R "$D/verbs/init/tree/." "$2/"
+  # Test-double filesystem effect: materialize the captured tree only where
+  # Boris may write it. An occupied target is refused before mutation.
+  INIT_EMPTY=1
+  if [ -e "$2" ] && { [ ! -d "$2" ] || [ -n "$(ls -A "$2" 2>/dev/null)" ]; }; then
+    INIT_EMPTY=0
+  fi
+  if [ "$INIT_EMPTY" = 1 ]; then
+    mkdir -p "$2"
+    [ -d "$D/verbs/init/tree" ] && cp -R "$D/verbs/init/tree/." "$2/"
+  fi
 fi
 # IR mode (`build --out DIR`) replays its own capture when one is loaded.
 [ "$2" = "--out" ] && [ -d "$D/verbs/$V-out" ] && V="$V-out"

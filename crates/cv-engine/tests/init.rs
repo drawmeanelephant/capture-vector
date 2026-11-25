@@ -84,6 +84,51 @@ fn create_runs_init_from_the_parent_with_the_folder_name() {
     );
 }
 
+fn copy_tree(src: &std::path::Path, dst: &std::path::Path) {
+    std::fs::create_dir_all(dst).unwrap();
+    for e in std::fs::read_dir(src).unwrap() {
+        let e = e.unwrap();
+        let to = dst.join(e.file_name());
+        if e.file_type().unwrap().is_dir() {
+            copy_tree(&e.path(), &to);
+        } else {
+            std::fs::copy(e.path(), to).unwrap();
+        }
+    }
+}
+
+#[test]
+fn a_refusal_replays_before_any_mutation_of_an_occupied_target() {
+    let fake = FakeBoris::new();
+    copy_tree(
+        &cv_fixtures::fixtures_root().join("captures/init/docs/tree"),
+        &fake.path("verbs/init/tree"),
+    );
+    fake.set("verbs/init/stderr.txt", &StubEngine::init_report("refuse"));
+    fake.set("verbs/init/exit-code.txt", "2");
+    let target = fake.root().join("site");
+    std::fs::create_dir(&target).unwrap();
+    std::fs::write(target.join("sentinel.txt"), "keep me").unwrap();
+
+    let out = initializer(&fake)
+        .create(&target, "docs", &CancelToken::new())
+        .unwrap();
+    assert_eq!(out.output.outcome.class(), Some(ExitClass::UsageError));
+    assert!(out.output.stderr.contains("not empty"));
+    assert_eq!(
+        std::fs::read_to_string(target.join("sentinel.txt")).unwrap(),
+        "keep me"
+    );
+    assert!(
+        !target.join("boris.json").exists(),
+        "the shim copied a starter into a target Boris refused: {:?}",
+        std::fs::read_dir(&target)
+            .unwrap()
+            .map(|e| e.unwrap().file_name())
+            .collect::<Vec<_>>()
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn create_refuses_a_symlinked_target_without_spawning_boris() {
