@@ -618,10 +618,10 @@ fn a_burst_of_watch_builds_runs_one_ir_projection_and_pages_show_boris_fields() 
         sink(finished(seq));
     }
     wb.drain();
-    assert!(page_titles(&wb).contains(&"Mini Site (English)".to_string()));
 
     let argv = root.path().join("argv.log");
     wait_for_ir_graph(&root, &mut wb);
+    assert!(page_titles(&wb).contains(&"Mini Site (English)".to_string()));
     std::thread::sleep(IR_WINDOW * 3);
     assert_eq!(
         std::fs::read_to_string(&argv).unwrap(),
