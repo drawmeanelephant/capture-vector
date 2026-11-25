@@ -206,6 +206,59 @@ fn forced_index_rebuild_restores_rows_a_fresh_index_header_hides() {
 }
 
 #[test]
+fn forced_index_rebuild_drops_stale_sqlite_sidecars() {
+    let ws = tempfile::tempdir().unwrap();
+    research::copy_corpus("promoted", ws.path());
+    let (mut r, _) = open(ws.path());
+    let id = r
+        .capture(
+            Capture::Idea {
+                text: "sidecar contamination probe".into(),
+            },
+            Some("sidecar probe"),
+        )
+        .unwrap();
+    drop(r);
+
+    let index = cv_store::paths::project_index_dir(ws.path(), "research")
+        .unwrap()
+        .join(disk::INDEX);
+
+    // Shape a stale WAL pair at the index path: a foreign database whose
+    // un-checkpointed WAL carries a `victim` schema, as a crashed writer
+    // or a synced foreign artifact would leave behind.
+    let victim_dir = tempfile::tempdir().unwrap();
+    let victim_path = victim_dir.path().join("victim.sqlite");
+    let victim = rusqlite::Connection::open(&victim_path).unwrap();
+    victim
+        .execute_batch(
+            "PRAGMA journal_mode=WAL;
+             CREATE TABLE victim(x);
+             INSERT INTO victim VALUES (1);",
+        )
+        .unwrap();
+    for suffix in ["", "-wal"] {
+        let mut from = victim_path.as_os_str().to_os_string();
+        from.push(suffix);
+        let mut to = index.as_os_str().to_os_string();
+        to.push(suffix);
+        std::fs::copy(&from, &to).unwrap();
+    }
+    drop(victim);
+
+    let clock = || Box::new(FixedClock(cv_core::sys::Timestamp(1_700_000_000_000)));
+    let (r, rep) =
+        disk::open_rebuilding_index(ws.path(), AccountId("local".into()), clock()).unwrap();
+    assert!(rep.index_rebuilt);
+    assert_eq!(r.port.search("sidecar contamination"), Some(vec![id]));
+    let check = rusqlite::Connection::open(&index).unwrap();
+    assert!(
+        check.execute("SELECT * FROM victim", []).is_err(),
+        "stale WAL must not contaminate the rebuilt index"
+    );
+}
+
+#[test]
 fn sidecar_survives_reparent() {
     let ws = tempfile::tempdir().unwrap();
     research::copy_corpus("promoted", ws.path());
