@@ -976,7 +976,7 @@
       "rect": [
         160.2,
         174.8,
-        61.8,
+        62.1,
         0.0
       ],
       "role": "group"
@@ -987,9 +987,9 @@
       "path": "shell/body/nav/nav-scroll/#1/nav-evidence/#2",
       "radius": 999.0,
       "rect": [
-        226.0,
+        226.3,
         167.9,
-        26.0,
+        25.7,
         13.8
       ],
       "role": "group"
@@ -999,13 +999,13 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-scroll/#1/nav-evidence/#2/#0",
       "rect": [
-        232.0,
+        232.3,
         167.9,
-        14.0,
+        13.7,
         13.8
       ],
       "role": "text",
-      "text": "30"
+      "text": "26"
     },
     {
       "fill": "#0e1014ff",
@@ -1290,9 +1290,9 @@
     },
     {
       "fill": "#0e1014ff",
-      "key": "row-run-000003-45",
+      "key": "row-run-000003-44",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000003-45",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000003-44",
       "rect": [
         268.0,
         0.0,
@@ -1306,7 +1306,7 @@
       "fill": "#e6e9efff",
       "key": "rail",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000003-45/rail",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000003-44/rail",
       "radius": 1.5,
       "rect": [
         276.0,
@@ -1318,9 +1318,9 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "Standard.site (ATProto) · run-000003-45",
+      "help": "Standard.site (ATProto) · run-000003-44",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000003-45/#1",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000003-44/#1",
       "rect": [
         287.0,
         3.5,
@@ -1328,13 +1328,13 @@
         15.0
       ],
       "role": "text",
-      "text": "Standard.site (ATProto) · run-000003-45"
+      "text": "Standard.site (ATProto) · run-000003-44"
     },
     {
       "color": "#8a93a3ff",
-      "help": "11 files · 52857 B",
+      "help": "5 files · 12600 B",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000003-45/#2",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000003-44/#2",
       "rect": [
         430.3,
         4.1,
@@ -1342,13 +1342,13 @@
         13.8
       ],
       "role": "text",
-      "text": "11 files · 52857 B"
+      "text": "5 files · 12600 B"
     },
     {
       "color": "#e6e9efff",
       "fill": "#e6e9ef26",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000003-45/#3",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000003-44/#3",
       "radius": 999.0,
       "rect": [
         518.3,
@@ -1361,9 +1361,9 @@
     },
     {
       "fill": "#0e1014ff",
-      "key": "row-run-000002-29",
+      "key": "row-run-000002-28",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-29",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-28",
       "rect": [
         268.0,
         22.0,
@@ -1376,7 +1376,7 @@
       "fill": "#ffb020ff",
       "key": "rail",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-29/rail",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-28/rail",
       "radius": 1.5,
       "rect": [
         276.0,
@@ -1388,9 +1388,9 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "Nostr NIP-23 · run-000002-29",
+      "help": "Nostr NIP-23 · run-000002-28",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-29/#1",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-28/#1",
       "rect": [
         287.0,
         25.5,
@@ -1398,13 +1398,13 @@
         15.0
       ],
       "role": "text",
-      "text": "Nostr NIP-23 · run-000002-29"
+      "text": "Nostr NIP-23 · run-000002-28"
     },
     {
       "color": "#8a93a3ff",
-      "help": "11 files · 52857 B",
+      "help": "5 files · 12600 B",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-29/#2",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-28/#2",
       "rect": [
         431.8,
         26.1,
@@ -1412,13 +1412,13 @@
         13.8
       ],
       "role": "text",
-      "text": "11 files · 52857 B"
+      "text": "5 files · 12600 B"
     },
     {
       "color": "#ffb020ff",
       "fill": "#ffb02026",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-29/#3",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-28/#3",
       "radius": 999.0,
       "rect": [
         519.8,
@@ -1431,9 +1431,9 @@
     },
     {
       "fill": "#0e1014ff",
-      "key": "row-run-000001-17",
+      "key": "row-run-000001-16",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000001-17",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000001-16",
       "rect": [
         268.0,
         44.0,
@@ -1446,7 +1446,7 @@
       "fill": "#ff3d71ff",
       "key": "rail",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000001-17/rail",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000001-16/rail",
       "radius": 1.5,
       "rect": [
         276.0,
@@ -1458,9 +1458,9 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "GitHub Pages · run-000001-17",
+      "help": "GitHub Pages · run-000001-16",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000001-17/#1",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000001-16/#1",
       "rect": [
         287.0,
         47.5,
@@ -1468,13 +1468,13 @@
         15.0
       ],
       "role": "text",
-      "text": "GitHub Pages · run-000001-17"
+      "text": "GitHub Pages · run-000001-16"
     },
     {
       "color": "#8a93a3ff",
       "help": "check: ContentFailure",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000001-17/#2",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000001-16/#2",
       "rect": [
         389.2,
         48.1,
@@ -1488,7 +1488,7 @@
       "color": "#ff3d71ff",
       "fill": "#ff3d7126",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000001-17/#3",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000001-16/#3",
       "radius": 999.0,
       "rect": [
         477.2,
@@ -1542,7 +1542,7 @@
     },
     {
       "color": "#8a93a3ff",
-      "help": "11 files · 52857 B",
+      "help": "5 files · 12600 B",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-run-000000-0/#2",
       "rect": [
@@ -1552,7 +1552,7 @@
         13.8
       ],
       "role": "text",
-      "text": "11 files · 52857 B"
+      "text": "5 files · 12600 B"
     },
     {
       "color": "#3dff9aff",
@@ -1654,11 +1654,11 @@
       "rect": [
         739.2,
         16.0,
-        83.9,
+        84.5,
         13.8
       ],
       "role": "text",
-      "text": "run-000003-45"
+      "text": "run-000003-44"
     },
     {
       "color": "#e6e9efff",
@@ -1861,7 +1861,7 @@
         13.8
       ],
       "role": "text",
-      "text": "11 files · 52857 B → https://pds.example.test/"
+      "text": "5 files · 12600 B → https://pds.example.test/"
     },
     {
       "key": "line-5",
@@ -2066,7 +2066,7 @@
         13.8
       ],
       "role": "text",
-      "text": "run-000003-45"
+      "text": "run-000003-44"
     },
     {
       "key": "field-target",
@@ -2246,7 +2246,7 @@
       "text": "base url"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-base url/#1",
       "rect": [
@@ -2255,8 +2255,8 @@
         144.0,
         13.8
       ],
-      "role": "link",
-      "text": "https://example.test/"
+      "role": "text",
+      "text": "unhosted local copy"
     },
     {
       "key": "field-adapter",
@@ -2370,7 +2370,7 @@
         13.8
       ],
       "role": "text",
-      "text": "11"
+      "text": "5"
     },
     {
       "key": "field-bytes",
@@ -2408,7 +2408,7 @@
         13.8
       ],
       "role": "text",
-      "text": "52857"
+      "text": "12600"
     },
     {
       "key": "field-artifacts",
@@ -2475,7 +2475,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "2f735cf6b3ceb7d096a40bd13ec0dc77f75a4e83c24d0fb097c0399ab5a3d67e",
+      "help": "42d8d33ebc01401fb92696df33740f0c798b293103b3e0d30de58c034c2616ef",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-artifact set/#1",
       "rect": [
@@ -2485,7 +2485,7 @@
         13.8
       ],
       "role": "text",
-      "text": "2f735cf6b3ceb7d096a40bd13ec0dc77f75a4e83c24d0fb097c0399ab5a3d67e"
+      "text": "42d8d33ebc01401fb92696df33740f0c798b293103b3e0d30de58c034c2616ef"
     },
     {
       "key": "field-graph",
@@ -2553,7 +2553,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "8082343c9d7d6dce0996e030dd16816e4cce5c7bcf45cce3ad6bd5050d3dc3d0",
+      "help": "1c015d6199caa5a44e4aad2e3ee39bab40babfb42f53ebe7bce3b46d12d6a66c",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-plan/#1",
       "rect": [
@@ -2563,7 +2563,7 @@
         13.8
       ],
       "role": "text",
-      "text": "8082343c9d7d6dce0996e030dd16816e4cce5c7bcf45cce3ad6bd5050d3dc3d0"
+      "text": "1c015d6199caa5a44e4aad2e3ee39bab40babfb42f53ebe7bce3b46d12d6a66c"
     },
     {
       "key": "field-target cfg",
@@ -2592,7 +2592,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "80811fe6256ef6e939e5243622ef261987cdcbc68817c08f0de7a2fdc4102b5b",
+      "help": "e3da8ee2c46c41a6dfeec3eae8b0e9cea65aff0197e40640cc21f8240255fadb",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-target cfg/#1",
       "rect": [
@@ -2602,7 +2602,7 @@
         13.8
       ],
       "role": "text",
-      "text": "80811fe6256ef6e939e5243622ef261987cdcbc68817c08f0de7a2fdc4102b5b"
+      "text": "e3da8ee2c46c41a6dfeec3eae8b0e9cea65aff0197e40640cc21f8240255fadb"
     },
     {
       "key": "field-ruleset",

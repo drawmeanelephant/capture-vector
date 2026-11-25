@@ -1101,7 +1101,7 @@
     },
     {
       "color": "#8a93a3ff",
-      "help": "11 files · 52857 B",
+      "help": "5 files · 12600 B",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-lost-000000-0/#2",
       "rect": [
@@ -1111,7 +1111,7 @@
         13.8
       ],
       "role": "text",
-      "text": "11 files · 52857 B"
+      "text": "5 files · 12600 B"
     },
     {
       "color": "#ff3d71ff",
@@ -1420,7 +1420,7 @@
         13.8
       ],
       "role": "text",
-      "text": "11 files · 52857 B → publish/static-dist"
+      "text": "5 files · 12600 B → publish/static-dist"
     },
     {
       "key": "line-5",
@@ -1957,7 +1957,7 @@
       "text": "base url"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-base url/#1",
       "rect": [
@@ -1966,8 +1966,8 @@
         144.0,
         13.8
       ],
-      "role": "link",
-      "text": "http://localhost/"
+      "role": "text",
+      "text": "unhosted local copy"
     },
     {
       "key": "field-adapter",
@@ -2081,7 +2081,7 @@
         13.8
       ],
       "role": "text",
-      "text": "11"
+      "text": "5"
     },
     {
       "key": "field-bytes",
@@ -2119,7 +2119,7 @@
         13.8
       ],
       "role": "text",
-      "text": "52857"
+      "text": "12600"
     },
     {
       "key": "field-artifacts",
@@ -2186,7 +2186,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "2f735cf6b3ceb7d096a40bd13ec0dc77f75a4e83c24d0fb097c0399ab5a3d67e",
+      "help": "42d8d33ebc01401fb92696df33740f0c798b293103b3e0d30de58c034c2616ef",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-artifact set/#1",
       "rect": [
@@ -2196,7 +2196,7 @@
         13.8
       ],
       "role": "text",
-      "text": "2f735cf6b3ceb7d096a40bd13ec0dc77f75a4e83c24d0fb097c0399ab5a3d67e"
+      "text": "42d8d33ebc01401fb92696df33740f0c798b293103b3e0d30de58c034c2616ef"
     },
     {
       "key": "field-graph",
@@ -2264,7 +2264,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "7428cdaf614acc11edc02cefadc7e1126fa12ee8b69bda53d1408d3e201363d6",
+      "help": "2df9368e2f0d64695b8bbc61a5e9b861717131c2b16da63ba0661e26b090dcd9",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-plan/#1",
       "rect": [
@@ -2274,7 +2274,7 @@
         13.8
       ],
       "role": "text",
-      "text": "7428cdaf614acc11edc02cefadc7e1126fa12ee8b69bda53d1408d3e201363d6"
+      "text": "2df9368e2f0d64695b8bbc61a5e9b861717131c2b16da63ba0661e26b090dcd9"
     },
     {
       "key": "field-target cfg",
@@ -2303,7 +2303,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "e729951f195f6d60db73a39da7eca3bca5f7f1cd73a45c524f5528fc49c0851d",
+      "help": "2a1253c01b262a397db1d04d92446c39fadb630fded84c8424a2d231adb464e5",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-target cfg/#1",
       "rect": [
@@ -2313,7 +2313,7 @@
         13.8
       ],
       "role": "text",
-      "text": "e729951f195f6d60db73a39da7eca3bca5f7f1cd73a45c524f5528fc49c0851d"
+      "text": "2a1253c01b262a397db1d04d92446c39fadb630fded84c8424a2d231adb464e5"
     },
     {
       "key": "field-ruleset",

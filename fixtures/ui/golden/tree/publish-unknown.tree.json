@@ -976,7 +976,7 @@
       "rect": [
         160.2,
         174.8,
-        61.8,
+        62.1,
         0.0
       ],
       "role": "group"
@@ -987,9 +987,9 @@
       "path": "shell/body/nav/nav-scroll/#1/nav-evidence/#2",
       "radius": 999.0,
       "rect": [
-        226.0,
+        226.3,
         167.9,
-        26.0,
+        25.7,
         13.8
       ],
       "role": "group"
@@ -999,13 +999,13 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-scroll/#1/nav-evidence/#2/#0",
       "rect": [
-        232.0,
+        232.3,
         167.9,
-        14.0,
+        13.7,
         13.8
       ],
       "role": "text",
-      "text": "30"
+      "text": "26"
     },
     {
       "fill": "#0e1014ff",
@@ -1290,9 +1290,9 @@
     },
     {
       "fill": "#0e1014ff",
-      "key": "row-run-000002-29",
+      "key": "row-run-000002-28",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-29",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-28",
       "rect": [
         268.0,
         0.0,
@@ -1306,7 +1306,7 @@
       "fill": "#ffb020ff",
       "key": "rail",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-29/rail",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-28/rail",
       "radius": 1.5,
       "rect": [
         276.0,
@@ -1318,9 +1318,9 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "Nostr NIP-23 · run-000002-29",
+      "help": "Nostr NIP-23 · run-000002-28",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-29/#1",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-28/#1",
       "rect": [
         287.0,
         3.5,
@@ -1328,13 +1328,13 @@
         15.0
       ],
       "role": "text",
-      "text": "Nostr NIP-23 · run-000002-29"
+      "text": "Nostr NIP-23 · run-000002-28"
     },
     {
       "color": "#8a93a3ff",
-      "help": "11 files · 52857 B",
+      "help": "5 files · 12600 B",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-29/#2",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-28/#2",
       "rect": [
         431.8,
         4.1,
@@ -1342,13 +1342,13 @@
         13.8
       ],
       "role": "text",
-      "text": "11 files · 52857 B"
+      "text": "5 files · 12600 B"
     },
     {
       "color": "#ffb020ff",
       "fill": "#ffb02026",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-29/#3",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-28/#3",
       "radius": 999.0,
       "rect": [
         519.8,
@@ -1448,7 +1448,7 @@
         13.8
       ],
       "role": "text",
-      "text": "run-000002-29"
+      "text": "run-000002-28"
     },
     {
       "color": "#e6e9efff",
@@ -1651,7 +1651,7 @@
         13.8
       ],
       "role": "text",
-      "text": "11 files · 52857 B → https://relay.example.test/"
+      "text": "5 files · 12600 B → https://relay.example.test/"
     },
     {
       "key": "line-5",
@@ -1932,7 +1932,7 @@
         13.8
       ],
       "role": "text",
-      "text": "run-000002-29"
+      "text": "run-000002-28"
     },
     {
       "key": "field-target",
@@ -2112,7 +2112,7 @@
       "text": "base url"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-base url/#1",
       "rect": [
@@ -2121,8 +2121,8 @@
         144.0,
         13.8
       ],
-      "role": "link",
-      "text": "https://example.test/"
+      "role": "text",
+      "text": "unhosted local copy"
     },
     {
       "key": "field-adapter",
@@ -2236,7 +2236,7 @@
         13.8
       ],
       "role": "text",
-      "text": "11"
+      "text": "5"
     },
     {
       "key": "field-bytes",
@@ -2274,7 +2274,7 @@
         13.8
       ],
       "role": "text",
-      "text": "52857"
+      "text": "12600"
     },
     {
       "key": "field-artifacts",
@@ -2341,7 +2341,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "2f735cf6b3ceb7d096a40bd13ec0dc77f75a4e83c24d0fb097c0399ab5a3d67e",
+      "help": "42d8d33ebc01401fb92696df33740f0c798b293103b3e0d30de58c034c2616ef",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-artifact set/#1",
       "rect": [
@@ -2351,7 +2351,7 @@
         13.8
       ],
       "role": "text",
-      "text": "2f735cf6b3ceb7d096a40bd13ec0dc77f75a4e83c24d0fb097c0399ab5a3d67e"
+      "text": "42d8d33ebc01401fb92696df33740f0c798b293103b3e0d30de58c034c2616ef"
     },
     {
       "key": "field-graph",
@@ -2419,7 +2419,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "4cc565ca48979b1129e92bea857bded9e899ae075efa7744826ae5aeef11e0a4",
+      "help": "f455d633140e1f996a130650fdedfc16e6ffc3bf5b6b3645b01b38beb76e4aab",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-plan/#1",
       "rect": [
@@ -2429,7 +2429,7 @@
         13.8
       ],
       "role": "text",
-      "text": "4cc565ca48979b1129e92bea857bded9e899ae075efa7744826ae5aeef11e0a4"
+      "text": "f455d633140e1f996a130650fdedfc16e6ffc3bf5b6b3645b01b38beb76e4aab"
     },
     {
       "key": "field-target cfg",
@@ -2458,7 +2458,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "3aa5433a6e85d2ee42c179fef5f4285241180fd7684646823571a04074d44f30",
+      "help": "dae210805289c6f0bc4f6439785cb0fb6bdc588489f67c5a26b66a9f711e1464",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-target cfg/#1",
       "rect": [
@@ -2468,7 +2468,7 @@
         13.8
       ],
       "role": "text",
-      "text": "3aa5433a6e85d2ee42c179fef5f4285241180fd7684646823571a04074d44f30"
+      "text": "dae210805289c6f0bc4f6439785cb0fb6bdc588489f67c5a26b66a9f711e1464"
     },
     {
       "key": "field-ruleset",

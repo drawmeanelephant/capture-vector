@@ -1102,7 +1102,7 @@
     },
     {
       "color": "#8a93a3ff",
-      "help": "11 files · 52857 B",
+      "help": "5 files · 12600 B",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-run-000000-0/#2",
       "rect": [
@@ -1112,7 +1112,7 @@
         13.8
       ],
       "role": "text",
-      "text": "11 files · 52857 B"
+      "text": "5 files · 12600 B"
     },
     {
       "color": "#e6e9efff",
@@ -1242,7 +1242,7 @@
         588.0,
         63.8,
         452.0,
-        377.8
+        335.8
       ],
       "role": "group"
     },
@@ -1355,7 +1355,7 @@
         604.0,
         126.8,
         420.0,
-        15.0
+        30.0
       ],
       "role": "group"
     },
@@ -1367,7 +1367,7 @@
         604.0,
         126.8,
         96.0,
-        15.0
+        30.0
       ],
       "role": "text",
       "text": "advisory"
@@ -1380,10 +1380,10 @@
         708.0,
         126.8,
         316.0,
-        15.0
+        30.0
       ],
       "role": "text",
-      "text": "AEO-LLMS-TXT-H1 on Llms · heuristic"
+      "text": "SEO-CANONICAL-PRESENT on guides/getting-started · heuristic"
     },
     {
       "key": "line-4",
@@ -1391,9 +1391,9 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-4",
       "rect": [
         604.0,
-        147.8,
+        162.8,
         420.0,
-        15.0
+        30.0
       ],
       "role": "group"
     },
@@ -1403,9 +1403,9 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-4/#0",
       "rect": [
         604.0,
-        147.8,
+        162.8,
         96.0,
-        15.0
+        30.0
       ],
       "role": "text",
       "text": "advisory"
@@ -1416,12 +1416,12 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-4/#1",
       "rect": [
         708.0,
-        147.8,
+        162.8,
         316.0,
-        15.0
+        30.0
       ],
       "role": "text",
-      "text": "AEO-LLMS-TXT-SUMMARY on Llms · heuristic"
+      "text": "SEO-CANONICAL-PRESENT on guides/publishing · heuristic"
     },
     {
       "key": "line-5",
@@ -1429,9 +1429,9 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-5",
       "rect": [
         604.0,
-        168.8,
+        198.8,
         420.0,
-        30.0
+        15.0
       ],
       "role": "group"
     },
@@ -1441,9 +1441,9 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-5/#0",
       "rect": [
         604.0,
-        168.8,
+        198.8,
         96.0,
-        30.0
+        15.0
       ],
       "role": "text",
       "text": "advisory"
@@ -1454,12 +1454,12 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-5/#1",
       "rect": [
         708.0,
-        168.8,
+        198.8,
         316.0,
-        30.0
+        15.0
       ],
       "role": "text",
-      "text": "SEO-CANONICAL-PRESENT on guides/getting-started · heuristic"
+      "text": "SEO-CANONICAL-PRESENT on index · heuristic"
     },
     {
       "key": "line-6",
@@ -1467,7 +1467,7 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-6",
       "rect": [
         604.0,
-        204.8,
+        219.8,
         420.0,
         30.0
       ],
@@ -1479,7 +1479,7 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-6/#0",
       "rect": [
         604.0,
-        204.8,
+        219.8,
         96.0,
         30.0
       ],
@@ -1492,12 +1492,12 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-6/#1",
       "rect": [
         708.0,
-        204.8,
+        219.8,
         316.0,
         30.0
       ],
       "role": "text",
-      "text": "SEO-CANONICAL-PRESENT on guides/publishing · heuristic"
+      "text": "SEO-META-DESCRIPTION on guides/getting-started · heuristic"
     },
     {
       "key": "line-7",
@@ -1505,9 +1505,9 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-7",
       "rect": [
         604.0,
-        240.8,
+        255.8,
         420.0,
-        15.0
+        30.0
       ],
       "role": "group"
     },
@@ -1517,9 +1517,9 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-7/#0",
       "rect": [
         604.0,
-        240.8,
+        255.8,
         96.0,
-        15.0
+        30.0
       ],
       "role": "text",
       "text": "advisory"
@@ -1530,12 +1530,12 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-7/#1",
       "rect": [
         708.0,
-        240.8,
+        255.8,
         316.0,
-        15.0
+        30.0
       ],
       "role": "text",
-      "text": "SEO-CANONICAL-PRESENT on index · heuristic"
+      "text": "SEO-META-DESCRIPTION on guides/publishing · heuristic"
     },
     {
       "key": "line-8",
@@ -1543,9 +1543,9 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-8",
       "rect": [
         604.0,
-        261.8,
+        291.8,
         420.0,
-        30.0
+        15.0
       ],
       "role": "group"
     },
@@ -1555,9 +1555,9 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-8/#0",
       "rect": [
         604.0,
-        261.8,
+        291.8,
         96.0,
-        30.0
+        15.0
       ],
       "role": "text",
       "text": "advisory"
@@ -1568,12 +1568,12 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-8/#1",
       "rect": [
         708.0,
-        261.8,
+        291.8,
         316.0,
-        30.0
+        15.0
       ],
       "role": "text",
-      "text": "SEO-META-DESCRIPTION on guides/getting-started · heuristic"
+      "text": "SEO-META-DESCRIPTION on index · heuristic"
     },
     {
       "key": "line-9",
@@ -1581,9 +1581,9 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-9",
       "rect": [
         604.0,
-        297.8,
+        312.8,
         420.0,
-        30.0
+        15.0
       ],
       "role": "group"
     },
@@ -1593,9 +1593,9 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-9/#0",
       "rect": [
         604.0,
-        297.8,
+        312.8,
         96.0,
-        30.0
+        15.0
       ],
       "role": "text",
       "text": "advisory"
@@ -1606,12 +1606,12 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-9/#1",
       "rect": [
         708.0,
-        297.8,
+        312.8,
         316.0,
-        30.0
+        15.0
       ],
       "role": "text",
-      "text": "SEO-META-DESCRIPTION on guides/publishing · heuristic"
+      "text": "TGT-ROBOTS-SITEMAP on RobotsTxt · heuristic"
     },
     {
       "key": "line-10",
@@ -1621,7 +1621,7 @@
         604.0,
         333.8,
         420.0,
-        15.0
+        13.8
       ],
       "role": "group"
     },
@@ -1633,23 +1633,23 @@
         604.0,
         333.8,
         96.0,
-        15.0
+        13.8
       ],
       "role": "text",
-      "text": "advisory"
+      "text": "plan"
     },
     {
-      "color": "#8a93a3ff",
+      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/reading/reading-scroll/reading-body/line-10/#1",
       "rect": [
         708.0,
         333.8,
         316.0,
-        15.0
+        13.8
       ],
       "role": "text",
-      "text": "SEO-META-DESCRIPTION on index · heuristic"
+      "text": "5 files · 12600 B → publish/static-dist"
     },
     {
       "key": "line-11",
@@ -1657,9 +1657,9 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-11",
       "rect": [
         604.0,
-        354.8,
+        353.5,
         420.0,
-        15.0
+        30.0
       ],
       "role": "group"
     },
@@ -1669,83 +1669,7 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-11/#0",
       "rect": [
         604.0,
-        354.8,
-        96.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "advisory"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-11/#1",
-      "rect": [
-        708.0,
-        354.8,
-        316.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "TGT-ROBOTS-SITEMAP on RobotsTxt · heuristic"
-    },
-    {
-      "key": "line-12",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-12",
-      "rect": [
-        604.0,
-        375.8,
-        420.0,
-        13.8
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-12/#0",
-      "rect": [
-        604.0,
-        375.8,
-        96.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "plan"
-    },
-    {
-      "color": "#e6e9efff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-12/#1",
-      "rect": [
-        708.0,
-        375.8,
-        316.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "11 files · 52857 B → publish/static-dist"
-    },
-    {
-      "key": "line-13",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-13",
-      "rect": [
-        604.0,
-        395.5,
-        420.0,
-        30.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-13/#0",
-      "rect": [
-        604.0,
-        395.5,
+        353.5,
         96.0,
         30.0
       ],
@@ -1755,10 +1679,10 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-13/#1",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-11/#1",
       "rect": [
         708.0,
-        395.5,
+        353.5,
         316.0,
         30.0
       ],
@@ -2110,7 +2034,7 @@
       "text": "base url"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-base url/#1",
       "rect": [
@@ -2119,8 +2043,8 @@
         144.0,
         13.8
       ],
-      "role": "link",
-      "text": "http://localhost/"
+      "role": "text",
+      "text": "unhosted local copy"
     },
     {
       "key": "field-adapter",
@@ -2234,7 +2158,7 @@
         13.8
       ],
       "role": "text",
-      "text": "11"
+      "text": "5"
     },
     {
       "key": "field-bytes",
@@ -2272,7 +2196,7 @@
         13.8
       ],
       "role": "text",
-      "text": "52857"
+      "text": "12600"
     },
     {
       "key": "field-artifacts",
@@ -2339,7 +2263,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "2f735cf6b3ceb7d096a40bd13ec0dc77f75a4e83c24d0fb097c0399ab5a3d67e",
+      "help": "42d8d33ebc01401fb92696df33740f0c798b293103b3e0d30de58c034c2616ef",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-artifact set/#1",
       "rect": [
@@ -2349,7 +2273,7 @@
         13.8
       ],
       "role": "text",
-      "text": "2f735cf6b3ceb7d096a40bd13ec0dc77f75a4e83c24d0fb097c0399ab5a3d67e"
+      "text": "42d8d33ebc01401fb92696df33740f0c798b293103b3e0d30de58c034c2616ef"
     },
     {
       "key": "field-graph",
@@ -2417,7 +2341,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "486a53f0d488767825dd245c31ccc628138d28d4adc8dd22401bf08577c02ea4",
+      "help": "9bfdb7048b6896865505cfd16e10b408b64f9e395549edabc8467d3a1a72b814",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-plan/#1",
       "rect": [
@@ -2427,7 +2351,7 @@
         13.8
       ],
       "role": "text",
-      "text": "486a53f0d488767825dd245c31ccc628138d28d4adc8dd22401bf08577c02ea4"
+      "text": "9bfdb7048b6896865505cfd16e10b408b64f9e395549edabc8467d3a1a72b814"
     },
     {
       "key": "field-target cfg",
@@ -2456,7 +2380,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "e729951f195f6d60db73a39da7eca3bca5f7f1cd73a45c524f5528fc49c0851d",
+      "help": "2a1253c01b262a397db1d04d92446c39fadb630fded84c8424a2d231adb464e5",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-target cfg/#1",
       "rect": [
@@ -2466,7 +2390,7 @@
         13.8
       ],
       "role": "text",
-      "text": "e729951f195f6d60db73a39da7eca3bca5f7f1cd73a45c524f5528fc49c0851d"
+      "text": "2a1253c01b262a397db1d04d92446c39fadb630fded84c8424a2d231adb464e5"
     },
     {
       "key": "field-ruleset",
@@ -3414,9 +3338,9 @@
       "radius": 6.0,
       "rect": [
         420.0,
-        94.0,
+        84.0,
         440.0,
-        612.0
+        632.0
       ],
       "role": "dialog",
       "shadows": [
@@ -3444,9 +3368,9 @@
       "path": "shell/dialog-layer/dialog-dialog/header",
       "rect": [
         420.0,
-        94.0,
+        84.0,
         440.0,
-        576.0
+        596.0
       ],
       "role": "group"
     },
@@ -3455,9 +3379,9 @@
       "path": "shell/dialog-layer/dialog-dialog/header/#0",
       "rect": [
         436.0,
-        110.0,
+        100.0,
         390.0,
-        544.0
+        564.0
       ],
       "role": "group"
     },
@@ -3467,7 +3391,7 @@
       "path": "shell/dialog-layer/dialog-dialog/header/#0/#0",
       "rect": [
         436.0,
-        110.0,
+        100.0,
         390.0,
         20.0
       ],
@@ -3480,12 +3404,12 @@
       "path": "shell/dialog-layer/dialog-dialog/header/#0/#1",
       "rect": [
         436.0,
-        134.0,
+        124.0,
         390.0,
-        520.0
+        540.0
       ],
       "role": "text",
-      "text": "Static dist · 11 files · 52857 B by copy-to-folder to publish/static-dist\nApproval is recorded in the ledger before anything is dispatched. Dispatch delivers exactly these sealed bytes, once; a hash that no longer matches refuses.\n\nSealed hashes\n  artifact set: 2f735cf6b3ceb7d0…\n  graph: d1020957f0580499…\n  plan: 486a53f0d4887678…\n  target cfg: e729951f195f6d60…\n  ruleset: 3424026284a0d80c…\n  boris: boris/0.9.0\n\nAdvisory findings (9): heuristic or below error, these never block\n  advisory · AEO-LLMS-TXT-H1 on Llms · heuristic\n  advisory · AEO-LLMS-TXT-SUMMARY on Llms · heuristic\n  advisory · SEO-CANONICAL-PRESENT on guides/getting-started · heuristic\n  advisory · SEO-CANONICAL-PRESENT on guides/publishing · heuristic\n  advisory · SEO-CANONICAL-PRESENT on index · heuristic\n  advisory · SEO-META-DESCRIPTION on guides/getting-started · heuristic\n  … 3 more in the run's reading"
+      "text": "Static dist · 5 files · 12600 B by copy-to-folder to publish/static-dist\nApproval is recorded in the ledger before anything is dispatched. Dispatch delivers exactly these sealed bytes, once; a hash that no longer matches refuses.\n\nSealed hashes\n  artifact set: 42d8d33ebc01401f…\n  graph: d1020957f0580499…\n  plan: 9bfdb7048b689686…\n  target cfg: 2a1253c01b262a39…\n  ruleset: 3424026284a0d80c…\n  boris: boris/0.9.0\n\nAdvisory findings (7): heuristic or below error, these never block\n  advisory · SEO-CANONICAL-PRESENT on guides/getting-started · heuristic\n  advisory · SEO-CANONICAL-PRESENT on guides/publishing · heuristic\n  advisory · SEO-CANONICAL-PRESENT on index · heuristic\n  advisory · SEO-META-DESCRIPTION on guides/getting-started · heuristic\n  advisory · SEO-META-DESCRIPTION on guides/publishing · heuristic\n  advisory · SEO-META-DESCRIPTION on index · heuristic\n  … 1 more in the run's reading"
     },
     {
       "key": "close",
@@ -3495,7 +3419,7 @@
       "radius": 6.0,
       "rect": [
         826.0,
-        108.0,
+        98.0,
         20.0,
         20.0
       ],
@@ -3508,7 +3432,7 @@
       "path": "shell/dialog-layer/dialog-dialog/header/close/icon",
       "rect": [
         828.0,
-        110.0,
+        100.0,
         16.0,
         16.0
       ],
@@ -3520,7 +3444,7 @@
       "path": "shell/dialog-layer/dialog-dialog/body",
       "rect": [
         420.0,
-        670.0,
+        680.0,
         440.0,
         36.0
       ],
@@ -3532,7 +3456,7 @@
       "path": "shell/dialog-layer/dialog-dialog/body/dialog-prompt",
       "rect": [
         420.0,
-        670.0,
+        680.0,
         440.0,
         36.0
       ],
@@ -3543,7 +3467,7 @@
       "path": "shell/dialog-layer/dialog-dialog/body/dialog-prompt/#0",
       "rect": [
         436.0,
-        680.0,
+        690.0,
         127.8,
         0.0
       ],
@@ -3557,7 +3481,7 @@
       "radius": 4.0,
       "rect": [
         571.8,
-        670.0,
+        680.0,
         56.5,
         20.0
       ],
@@ -3570,7 +3494,7 @@
       "path": "shell/dialog-layer/dialog-dialog/body/dialog-prompt/dialog-cancel/label",
       "rect": [
         581.8,
-        674.0,
+        684.0,
         36.5,
         12.0
       ],
@@ -3587,7 +3511,7 @@
       "radius": 4.0,
       "rect": [
         636.3,
-        670.0,
+        680.0,
         64.5,
         20.0
       ],
@@ -3610,7 +3534,7 @@
       "path": "shell/dialog-layer/dialog-dialog/body/dialog-prompt/dialog-approve/label",
       "rect": [
         646.3,
-        674.0,
+        684.0,
         44.5,
         12.0
       ],
@@ -3625,7 +3549,7 @@
       "radius": 4.0,
       "rect": [
         708.8,
-        670.0,
+        680.0,
         135.2,
         20.0
       ],
@@ -3638,7 +3562,7 @@
       "path": "shell/dialog-layer/dialog-dialog/body/dialog-prompt/dialog-approve-dispatch/label",
       "rect": [
         718.8,
-        674.0,
+        684.0,
         115.2,
         12.0
       ],
