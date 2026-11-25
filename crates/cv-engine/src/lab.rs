@@ -620,10 +620,11 @@ mod tests {
         assert_eq!(p.inputs, vec![("--root", real.join("site"))]);
         assert_eq!(p.out, real.join("imports").join("run-1"));
         assert_eq!(p.cwd, real);
+        let link_str = link.to_str().unwrap();
         assert!(
             p.argv
                 .iter()
-                .all(|a| !Path::new(a).starts_with(&link) && !a.to_string_lossy().contains("/tmp/")),
+                .all(|a| !Path::new(a).starts_with(&link) && !a.to_string_lossy().contains(link_str)),
             "{:?}",
             p.argv
         );
