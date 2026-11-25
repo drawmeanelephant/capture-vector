@@ -106,6 +106,15 @@ impl Engine for FakeEngine {
             _ => Ok(ExitClass::Ok),
         }
     }
+    fn run_caused(
+        &self,
+        cmd: &Verb,
+        sink: EventSink,
+        _: Option<&cv_core::events::EventId>,
+    ) -> cv_core::Result<ExitClass> {
+        self.run(cmd, sink)
+    }
+
     fn write_content(
         &self,
         _: &PageDraft,

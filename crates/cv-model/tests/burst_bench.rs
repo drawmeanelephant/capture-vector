@@ -87,6 +87,7 @@ fn river(n: usize) -> Vec<Diagnostic> {
 
 fn failed(seq: u64, phase: BuildPhase, diagnostics: Vec<Diagnostic>) -> Envelope {
     Envelope {
+        cause: None,
         workspace: WorkspaceId("bench".into()),
         snapshot_epoch: SnapshotEpoch(1),
         build_id: Some(BuildId(format!("b{seq}"))),

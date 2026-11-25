@@ -9,6 +9,7 @@
 //! See `spec/lanes/L4-audit-seo-aeo.md`.
 
 pub mod artifacts;
+pub mod boris_check;
 mod eval;
 pub mod html;
 pub mod jsonpath;

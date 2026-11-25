@@ -445,6 +445,7 @@ fn engine_builds_reach_the_editor_session_through_the_tee() {
     let s = seen.clone();
     let mut sink = editor::host::tee_builds(Box::new(move |_| *s.lock().unwrap() += 1));
     sink(Envelope {
+        cause: None,
         workspace: WorkspaceId("w".into()),
         snapshot_epoch: SnapshotEpoch(0),
         build_id: Some(BuildId("tee-1".into())),

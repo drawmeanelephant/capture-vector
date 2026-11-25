@@ -277,6 +277,11 @@ pub trait Module {
     fn answer(&mut self, _command: &str, _answer: &DialogAnswer) -> Vec<Intent> {
         Vec::new()
     }
+    /// Intents an `ingest` left owing (a finished run closes its
+    /// progress dialog); the shell applies them after each commit.
+    fn take_owed(&mut self) -> Vec<Intent> {
+        Vec::new()
+    }
     /// Resync from a project snapshot. Returns whether state changed.
     fn load(&mut self, _snap: &ProjectSnapshot) -> bool {
         false
