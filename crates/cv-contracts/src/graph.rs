@@ -1,6 +1,6 @@
 //! Boris IR graph (`graph.json`, written by IR-mode `build --no-rag`,
 //! default `.boris/`). Only the page fields the app displays are typed;
-//! edges, nav, and the reverse index are left to the lanes that need them.
+//! nav and the reverse index are left to the lanes that need them.
 
 use serde::{Deserialize, Serialize};
 
@@ -12,6 +12,9 @@ pub struct Graph {
     /// Absent when the corpus declares no semantic relations.
     #[serde(default)]
     pub relations: Vec<Relation>,
+    /// Authoring edges (`parent`, `reference`) used for impact disclosure.
+    #[serde(default)]
+    pub edges: Vec<Relation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

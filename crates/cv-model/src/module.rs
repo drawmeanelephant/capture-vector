@@ -194,6 +194,8 @@ pub struct PageRecord {
     pub tags: Vec<String>,
     /// `(relation, target id)` pairs.
     pub relations: Vec<(String, String)>,
+    /// `[[wikilink]]` targets from Boris IR edges; empty before IR coverage.
+    pub wikilinks: Vec<String>,
     /// Frontmatter exactly as authored, in source order.
     pub frontmatter: Vec<(String, String)>,
     pub body: String,
@@ -250,6 +252,11 @@ pub trait Module {
         InspectorModel::default()
     }
     fn noun(&self, _key: &str) -> Option<NounId> {
+        None
+    }
+    /// The row key currently holding `noun`, when the key is not stable
+    /// across a lane mutation (a page path moves; its StableId does not).
+    fn key_for(&self, _noun: &NounId) -> Option<String> {
         None
     }
     /// The primary selection's row key, told just before `run` (`None`

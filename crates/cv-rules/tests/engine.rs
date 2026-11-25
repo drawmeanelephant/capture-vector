@@ -670,6 +670,32 @@ fn robots_none_uppercase_names_and_mixed_case_jsonld_are_recognised() {
 }
 
 #[test]
+fn page_findings_survive_a_rename_when_the_entity_is_stable() {
+    // The entity is the StableId; the output route is only where the bytes
+    // currently live. A page-level rule emits at most one finding for a
+    // page+rule, so its dedup target must be the stable check target rather
+    // than the route string.
+    let html = page_html("guides/old.html", "Intro", "", "").replace(
+        "<link rel=\"canonical\"",
+        "<link data-removed data-rel=\"canonical\"",
+    );
+    let key_at = |route: &str| {
+        let set = clean().page(page("guides/intro", route, &html)).build();
+        eval(&set, &Ruleset::v1())
+            .findings
+            .iter()
+            .find(|f| f.finding.code == "SEO-CANONICAL-PRESENT")
+            .map(|f| f.finding.key.clone())
+            .expect("canonical finding")
+    };
+    assert_eq!(
+        key_at("guides/old.html"),
+        key_at("guides/renamed.html"),
+        "rename changed the page finding dedup key"
+    );
+}
+
+#[test]
 fn export_subjects_survive_a_rename() {
     // `StableId` is never a filesystem path: the same artifact at a
     // renamed location must keep the same `DedupKey.subject`, so a

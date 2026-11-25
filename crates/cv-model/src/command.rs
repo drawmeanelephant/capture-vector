@@ -2,6 +2,7 @@
 //! `CommandSpec`s; the shell adds its own `shell.*` verbs.
 
 use crate::dialog::{DialogSpec, Pick};
+use cv_core::events::pages::PagesEvent;
 use cv_core::events::shell::DegradedReason;
 use serde::Serialize;
 
@@ -48,6 +49,9 @@ impl Intent {
 pub enum Intent {
     Degrade(DegradedReason),
     Recover,
+    /// A page lifecycle fact the model just performed; committed as a
+    /// local envelope so Activity and the journal see it like any event.
+    Pages(PagesEvent),
     Status(String),
     /// Close the open stores, rebuild every SQLite index from `.cv/` JSONL,
     /// and reopen the same workspace.
