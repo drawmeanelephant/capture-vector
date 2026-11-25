@@ -25,10 +25,6 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 const CLOCK: FixedClock = FixedClock(Timestamp(1_700_000_000_000));
-/// No `boris graph` capture exists; a grant only needs the graph bytes
-/// its run sealed.
-const GRAPH: &str = "graph TD\n  index --> guides\n";
-
 pub(super) struct CapturedBuild {
     pub(super) root: PathBuf,
     pub(super) check: ExitClass,
