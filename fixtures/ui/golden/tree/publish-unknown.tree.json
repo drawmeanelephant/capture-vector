@@ -1384,7 +1384,7 @@
         588.0,
         63.8,
         452.0,
-        183.3
+        169.5
       ],
       "role": "group"
     },
@@ -1535,7 +1535,7 @@
         604.0,
         162.8,
         420.0,
-        27.5
+        13.8
       ],
       "role": "group"
     },
@@ -1547,7 +1547,7 @@
         604.0,
         162.8,
         96.0,
-        27.5
+        13.8
       ],
       "role": "text",
       "text": "plan"
@@ -1560,7 +1560,7 @@
         708.0,
         162.8,
         316.0,
-        27.5
+        13.8
       ],
       "role": "text",
       "text": "10 files · 52843 B → https://relay.example.test/"
@@ -1571,7 +1571,7 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-5",
       "rect": [
         604.0,
-        196.3,
+        182.5,
         420.0,
         13.8
       ],
@@ -1583,7 +1583,7 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-5/#0",
       "rect": [
         604.0,
-        196.3,
+        182.5,
         96.0,
         13.8
       ],
@@ -1596,7 +1596,7 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-5/#1",
       "rect": [
         708.0,
-        196.3,
+        182.5,
         316.0,
         13.8
       ],
@@ -1609,7 +1609,7 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-6",
       "rect": [
         604.0,
-        216.0,
+        202.3,
         420.0,
         15.0
       ],
@@ -1621,7 +1621,7 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-6/#0",
       "rect": [
         604.0,
-        216.0,
+        202.3,
         96.0,
         15.0
       ],
@@ -1634,7 +1634,7 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-6/#1",
       "rect": [
         708.0,
-        216.0,
+        202.3,
         316.0,
         15.0
       ],
@@ -2063,7 +2063,6 @@
     },
     {
       "color": "#00d1ffff",
-      "help": "https://relay.example.test/",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-destination/#1",
       "rect": [
@@ -2487,7 +2486,6 @@
     },
     {
       "color": "#e6e9efff",
-      "help": ".cv/ledger/ledger.jsonl",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ledger/#1",
       "rect": [
@@ -3077,7 +3075,7 @@
       "rect": [
         162.2,
         782.1,
-        59.6,
+        52.1,
         13.8
       ],
       "role": "group"
@@ -3089,7 +3087,7 @@
       "rect": [
         168.2,
         782.1,
-        47.6,
+        40.1,
         13.8
       ],
       "role": "text",
@@ -3099,9 +3097,9 @@
       "opacity": 1.0,
       "path": "shell/status/#3",
       "rect": [
-        233.8,
+        226.3,
         789.0,
-        863.0,
+        870.5,
         0.0
       ],
       "role": "group"

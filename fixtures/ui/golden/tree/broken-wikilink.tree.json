@@ -1181,7 +1181,6 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "Page with Broken Wikilink",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-title/#1",
       "rect": [
@@ -1828,7 +1827,7 @@
       "rect": [
         162.5,
         782.1,
-        59.6,
+        52.1,
         13.8
       ],
       "role": "group"
@@ -1840,7 +1839,7 @@
       "rect": [
         168.5,
         782.1,
-        47.6,
+        40.1,
         13.8
       ],
       "role": "text",
@@ -1850,9 +1849,9 @@
       "opacity": 1.0,
       "path": "shell/status/#3",
       "rect": [
-        234.2,
+        226.7,
         789.0,
-        862.7,
+        870.2,
         0.0
       ],
       "role": "group"
