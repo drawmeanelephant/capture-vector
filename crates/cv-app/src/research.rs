@@ -93,6 +93,14 @@ fn promote_with(wb: &mut Workbench, port: impl FnOnce(MemoryPort) -> Box<dyn Res
     wb.run_command("research.promote");
 }
 
+/// The seeded notebook with the first note selected, nothing run yet.
+pub fn notes(wb: &mut Workbench) {
+    let (mem, nb) = seeded();
+    open(wb, Box::new(SceneWriter(mem)), nb);
+    wb.set_nav("all");
+    wb.select_key("note-0001");
+}
+
 pub fn promote(wb: &mut Workbench) {
     promote_with(wb, |m| Box::new(SceneWriter(m)));
 }

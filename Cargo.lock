@@ -802,6 +802,7 @@ dependencies = [
  "cv-rules",
  "serde",
  "serde_json",
+ "zeroize",
 ]
 
 [[package]]

@@ -813,6 +813,11 @@ pub fn view(s: &Workbench, cx: &mut Cx<Workbench>) -> El {
             .child(crate::palette::scrim(s))
             .child(crate::palette::panel(s, w));
     }
+    if let Some(d) = s.dialogs.open() {
+        let mut layer = Vec::new();
+        crate::dialog::build::<Workbench>(t, "dialog", d, &mut layer);
+        root = root.children(layer);
+    }
     root
 }
 
