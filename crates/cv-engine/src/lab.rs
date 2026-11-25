@@ -297,7 +297,10 @@ fn canonical_out(out: &Path) -> Result<(PathBuf, PathBuf), LabError> {
         path: out.to_path_buf(),
         reason,
     };
-    if out.components().any(|c| matches!(c, Component::ParentDir)) {
+    // Compare the component text, not just Component::ParentDir: on
+    // Windows `canonicalize` returns `\\?\` verbatim paths, whose `..`
+    // segments parse as `Normal("..")`. No real directory is named `..`.
+    if out.components().any(|c| c.as_os_str() == "..") {
         return Err(refuse("must not contain `..`".into()));
     }
     let abs = std::path::absolute(out).map_err(|e| refuse(e.to_string()))?;
