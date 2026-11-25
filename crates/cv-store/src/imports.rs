@@ -88,8 +88,12 @@ pub struct RunRecord {
     pub started_ms: i64,
     /// `None` while the lab runs (or when the app stopped before it ended).
     pub finished: Option<Finished>,
-    /// The adapter refused the run before spawning, with its reason.
+    /// The adapter or lab refused the run, in plain language.
     pub refused: Option<String>,
+    /// The lab's stderr, kept verbatim as run evidence. `None` for records
+    /// written by an older Capture Vector or before a process produced any.
+    #[serde(default)]
+    pub stderr: Option<String>,
     pub adopted: Option<Adopted>,
 }
 
@@ -112,6 +116,7 @@ impl RunRecord {
             started_ms,
             finished: None,
             refused: None,
+            stderr: None,
             adopted: None,
         }
     }

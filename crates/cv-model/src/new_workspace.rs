@@ -4,7 +4,7 @@
 //! the result opens as the workspace or returns to the form as its error.
 //! What a starter holds, and which folders may take one, is Boris's.
 
-use crate::command::Intent;
+use crate::command::{ImportJob, Intent};
 use crate::dialog::{ActionTone, DialogAnswer, DialogKind, DialogSpec, Field, Pick, Progress};
 use crate::workbench::{ShellRequest, Waker, Workbench};
 use cv_core::engine::CancelToken;
@@ -82,6 +82,12 @@ pub enum ShellNotice {
     Created {
         creation: WorkspaceCreation,
         result: Result<PathBuf, String>,
+    },
+    ImportFinished {
+        job: ImportJob,
+        /// An error means the composition root could not even record the
+        /// attempt; ordinary lab failures are recorded in the run itself.
+        result: Result<(), String>,
     },
 }
 
@@ -244,6 +250,33 @@ impl Workbench {
                         self.dialogs.push(spec);
                     }
                     (Err(e), Err(_)) => self.status = e,
+                }
+            }
+            ShellNotice::ImportFinished { job, result } => {
+                self.dialogs.close(crate::modules::migrate::IMPORT_PROGRESS);
+                if self.workspace.as_ref() != Some(&job.workspace) {
+                    self.status = format!(
+                        "{} finished for a workspace that is no longer open",
+                        job.phase.label()
+                    );
+                    return;
+                }
+                let Some(i) = self.registry.index_of(crate::modules::migrate::ID) else {
+                    return;
+                };
+                let intents = self
+                    .registry
+                    .get_mut(i)
+                    .map(|m| m.run(crate::modules::migrate::FINISHED))
+                    .unwrap_or_default();
+                for it in intents {
+                    self.apply(it);
+                }
+                if i == self.active {
+                    self.revalidate_selection();
+                }
+                if let Err(e) = result {
+                    self.status = format!("{} could not be recorded: {e}", job.phase.label());
                 }
             }
         }

@@ -11,6 +11,8 @@
 
 #[cfg(test)]
 mod tests;
+mod wizard;
+pub(crate) use wizard::PROGRESS as IMPORT_PROGRESS;
 
 use crate::command::{CommandSpec, Intent};
 use crate::module::{
@@ -25,12 +27,12 @@ use std::collections::BTreeMap;
 pub const ID: &str = "migrate";
 pub const NEW: &str = "migrate.new";
 pub const REFRESH: &str = "migrate.refresh";
+pub(crate) const FINISHED: &str = "migrate.import.finished";
 pub const ADOPT: &str = "migrate.adopt";
 pub const ACCEPT: &str = "migrate.review.accept";
 pub const DEFER: &str = "migrate.review.defer";
 pub const REOPEN: &str = "migrate.review.reopen";
 
-const NEW_UNAVAILABLE: &str = "starting an import from Capture Vector is not in this build yet";
 const ADOPT_UNAVAILABLE: &str = "adopting a run into a workspace is not in this build yet";
 
 /// Which lab binary this window found, as the `--version` gate saw it.
@@ -75,6 +77,7 @@ pub struct Family {
 pub enum RunStatus {
     Running,
     Ok,
+    Cancelled,
     Refused,
     Failed,
     Adopted,
@@ -85,6 +88,7 @@ impl RunStatus {
         match self {
             Self::Running => "running",
             Self::Ok => "ok",
+            Self::Cancelled => "cancelled",
             Self::Refused => "refused",
             Self::Failed => "failed",
             Self::Adopted => "adopted",
@@ -94,7 +98,7 @@ impl RunStatus {
         match self {
             Self::Running => Tone::Dim,
             Self::Ok | Self::Adopted => Tone::Ok,
-            Self::Refused => Tone::Warn,
+            Self::Cancelled | Self::Refused => Tone::Warn,
             Self::Failed => Tone::Error,
         }
     }
@@ -132,11 +136,21 @@ pub struct ReviewItem {
     pub state: ReviewState,
 }
 
+/// One input exactly as the run record stores it: path plus the hash of
+/// that path. Contents are never copied into `.cv/`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportRunInput {
+    pub flag: String,
+    pub path: String,
+    pub path_sha256: String,
+}
+
 /// One run directory under `.cv/imports/`, as read from disk.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportRun {
     pub id: String,
     pub mode: String,
+    pub inputs: Vec<ImportRunInput>,
     pub family: Option<String>,
     /// Display name of the input (its last path segment).
     pub source: String,
@@ -174,6 +188,7 @@ impl ImportRun {
         Self {
             id: id.into(),
             mode: String::new(),
+            inputs: Vec::new(),
             family: None,
             source: String::new(),
             status,
@@ -198,11 +213,41 @@ impl ImportRun {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImportInputKind {
+    File,
+    Folder,
+}
+
+/// One path-valued mode input, projected from `cv-engine`'s mode table.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportInput {
+    pub flag: String,
+    pub label: String,
+    pub kind: ImportInputKind,
+    pub required: bool,
+    pub extensions: Vec<String>,
+}
+
+/// One pinned migration-lab mode, projected for the wizard. The strings are
+/// metadata, not behavior: validation and execution stay in `cv-engine`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportMode {
+    pub name: String,
+    pub family: String,
+    pub description: String,
+    pub inputs: Vec<ImportInput>,
+    /// Read-only companion mode to run before emitting, when one exists.
+    pub inventory: Option<String>,
+    pub safety: Vec<String>,
+}
+
 /// Everything the module shows.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Imports {
     pub lab: LabState,
     pub families: Vec<Family>,
+    pub modes: Vec<ImportMode>,
     pub runs: Vec<ImportRun>,
     /// `.cv/imports/` itself could not be read.
     pub error: Option<String>,
@@ -283,6 +328,7 @@ enum Target<'a> {
 pub struct MigrateModule {
     port: Box<dyn MigratePort>,
     imports: Imports,
+    wizard: wizard::Wizard,
     selected: Option<String>,
 }
 
@@ -333,6 +379,7 @@ impl MigrateModule {
         Self {
             port,
             imports,
+            wizard: wizard::Wizard::default(),
             selected: None,
         }
     }
@@ -629,6 +676,17 @@ impl MigrateModule {
                 "No exit was recorded yet. A run whose app quit before the lab ended stays running.",
             ));
         }
+        for input in &r.inputs {
+            lines.push(mono(
+                &input.flag,
+                format!("{} · path sha256 {}", input.path, input.path_sha256),
+            ));
+        }
+        if !r.inputs.is_empty() {
+            lines.push(note(
+                "Inputs stayed at those paths; only path strings and path hashes are recorded.",
+            ));
+        }
         for (k, n) in &r.totals {
             lines.push(line(k, n.to_string()));
         }
@@ -778,14 +836,23 @@ impl Module for MigrateModule {
         };
         match self.target(&key) {
             Some(Target::Lab) => self.lab_row(),
-            Some(Target::New) => RowModel {
-                key,
-                title: "New import…".into(),
-                detail: NEW_UNAVAILABLE.into(),
-                tone: Tone::Dim,
-                badge: Some(Chip::new("unavailable", Tone::Dim)),
-                ..RowModel::default()
-            },
+            Some(Target::New) => {
+                let unavailable = self.new_unavailable();
+                RowModel {
+                    key,
+                    title: "New import…".into(),
+                    detail: unavailable.clone().unwrap_or_else(|| {
+                        "choose a source, pick its file or folder, inventory first when supported, then emit".into()
+                    }),
+                    tone: if unavailable.is_some() { Tone::Dim } else { Tone::Normal },
+                    badge: Some(if unavailable.is_some() {
+                        Chip::new("unavailable", Tone::Dim)
+                    } else {
+                        Chip::new("wizard", Tone::Ok)
+                    }),
+                    ..RowModel::default()
+                }
+            }
             Some(Target::Run(r)) => Self::run_row(r),
             Some(Target::Item(r, i)) => Self::item_row(r, i),
             None => RowModel::default(),
@@ -799,17 +866,31 @@ impl Module for MigrateModule {
     fn reading(&self, key: &str) -> ReadingModel {
         match self.target(key) {
             Some(Target::Lab) => self.lab_reading(),
-            Some(Target::New) => ReadingModel {
-                title: "New import".into(),
-                lines: vec![
-                    note(format!("Not available: {NEW_UNAVAILABLE}.")),
-                    note(
-                        "Runs written under .cv/imports/<run-id>/ (a run.json beside the lab's out/) appear in Runs. Run Reload import runs (mod+K) after adding one.",
-                    ),
-                ],
-                breadcrumbs: vec!["Migrate".into()],
-                markdown: None,
-            },
+            Some(Target::New) => {
+                let lines = if let Some(why) = self.new_unavailable() {
+                    vec![
+                        note(format!("Not available: {why}.")),
+                        note(
+                            "Runs written under .cv/imports/<run-id>/ (a run.json beside the lab's out/) appear in Runs.",
+                        ),
+                    ]
+                } else {
+                    vec![
+                        note(
+                            "Run New import… (mod+K → migrate.new) to choose a source family and mode, pick the export file or folder, inventory first when the lab supports it, then emit.",
+                        ),
+                        note(
+                            "Inputs are never copied into the workspace or repository. Output is staged under .cv/imports/<run-id>/out.",
+                        ),
+                    ]
+                };
+                ReadingModel {
+                    title: "New import".into(),
+                    lines,
+                    breadcrumbs: vec!["Migrate".into()],
+                    markdown: None,
+                }
+            }
             Some(Target::Run(r)) => self.run_reading(r),
             Some(Target::Item(r, i)) => Self::item_reading(r, i),
             None => {
@@ -860,10 +941,19 @@ impl Module for MigrateModule {
                     badges,
                     fields,
                     diagnostics: Vec::new(),
-                    lists: vec![(
-                        "Counts".into(),
-                        r.counts.iter().map(|(k, n)| format!("{k}: {n}")).collect(),
-                    )],
+                    lists: vec![
+                        (
+                            "Inputs".into(),
+                            r.inputs
+                                .iter()
+                                .map(|i| format!("{} {} ({})", i.flag, i.path, i.path_sha256))
+                                .collect(),
+                        ),
+                        (
+                            "Counts".into(),
+                            r.counts.iter().map(|(k, n)| format!("{k}: {n}")).collect(),
+                        ),
+                    ],
                 }
             }
             Some(Target::Item(r, i)) => InspectorModel {
@@ -900,7 +990,7 @@ impl Module for MigrateModule {
 
     fn commands(&self) -> Vec<CommandSpec> {
         vec![
-            CommandSpec::new(NEW, "New import…").disabled(Some(NEW_UNAVAILABLE.into())),
+            CommandSpec::new(NEW, "New import…").disabled(self.new_unavailable()),
             CommandSpec::new(REFRESH, "Reload import runs"),
             CommandSpec::new(ACCEPT, "Accept review item"),
             CommandSpec::new(DEFER, "Defer review item"),
@@ -921,10 +1011,15 @@ impl Module for MigrateModule {
                     self.imports.runs.len()
                 ))]
             }
-            NEW => vec![Intent::Status(format!("New import: {NEW_UNAVAILABLE}"))],
+            FINISHED => self.finish_import_job(),
+            NEW => self.begin_import(),
             ADOPT => vec![Intent::Status(format!("Adopt: {ADOPT_UNAVAILABLE}"))],
             _ => Vec::new(),
         }
+    }
+
+    fn answer(&mut self, command: &str, answer: &crate::dialog::DialogAnswer) -> Vec<Intent> {
+        self.answer_wizard(command, answer)
     }
 
     fn contains(&self, key: &str) -> bool {

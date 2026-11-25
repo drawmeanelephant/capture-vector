@@ -3,15 +3,18 @@
 //! review triage in `.cv/imports/review.jsonl`. Also records a lab run
 //! ([`run_lab`]): the spawn itself stays in `cv_engine::lab::run`.
 
+pub mod job;
 pub mod scene;
 
 use cv_contracts::lab::{Disposition, Document, Inventory, Report};
 use cv_core::engine::EngineSource;
+use cv_engine::error::EngineError;
 use cv_engine::lab::{self as engine_lab, LabError, LabExit, LabIdentity, LabRun, ModeSpec};
 use cv_engine::proc::CancelToken;
 use cv_model::modules::doctor::source_label;
 use cv_model::modules::migrate::{
-    Family, ImportRun, Imports, LabState, MigratePort, ReviewItem, ReviewState, RunStatus,
+    Family, ImportInput, ImportInputKind, ImportMode, ImportRun, ImportRunInput, Imports, LabState,
+    MigratePort, ReviewItem, ReviewState, RunStatus,
 };
 use cv_store::imports::{self as store, ReviewLog, RunDir, RunRecord};
 use std::collections::HashMap;
@@ -40,6 +43,50 @@ pub fn families() -> Vec<Family> {
 
 fn family_of(mode: &str) -> Option<String> {
     engine_lab::mode(mode).map(|m| m.family.key().to_string())
+}
+
+/// The pinned lab's mode table projected for the wizard. This is metadata
+/// only; `cv-engine` remains the sole validator of flags, path kinds, argv,
+/// overlap and output ownership.
+pub fn modes() -> Vec<ImportMode> {
+    engine_lab::MODES
+        .iter()
+        .map(|mode| ImportMode {
+            name: mode.name.into(),
+            family: mode.family.key().into(),
+            description: mode.description().into(),
+            inputs: mode
+                .inputs
+                .iter()
+                .map(|input| ImportInput {
+                    flag: input.flag.into(),
+                    label: format!(
+                        "{} {}",
+                        input.flag.trim_start_matches('-'),
+                        match input.kind {
+                            engine_lab::InputKind::File => "file",
+                            engine_lab::InputKind::Dir => "folder",
+                        }
+                    ),
+                    kind: match input.kind {
+                        engine_lab::InputKind::File => ImportInputKind::File,
+                        engine_lab::InputKind::Dir => ImportInputKind::Folder,
+                    },
+                    required: input.required,
+                    extensions: engine_lab::input_extensions(input.flag)
+                        .iter()
+                        .map(|e| e.to_string())
+                        .collect(),
+                })
+                .collect(),
+            inventory: mode.inventory().map(str::to_string),
+            safety: mode
+                .safety_notes()
+                .into_iter()
+                .map(str::to_string)
+                .collect(),
+        })
+        .collect()
 }
 
 /// Gate the lab for `root` with the production search order.
@@ -139,6 +186,7 @@ impl MigratePort for DiskPort {
         let mut out = Imports {
             lab: self.lab.clone(),
             families: families(),
+            modes: modes(),
             runs: Vec::new(),
             error: self.log_error.clone(),
             store: match (&self.log, &self.root) {
@@ -190,6 +238,7 @@ fn status(rec: &RunRecord) -> RunStatus {
     match rec.finished.as_ref().map(|f| f.exit.as_str()) {
         None => RunStatus::Running,
         Some("ok") => RunStatus::Ok,
+        Some("cancelled") => RunStatus::Cancelled,
         Some("usage") => RunStatus::Refused,
         Some(_) => RunStatus::Failed,
     }
@@ -495,6 +544,15 @@ fn project(d: &RunDir) -> ImportRun {
     };
     let mut run = ImportRun::new(&d.id, status(rec));
     run.mode = rec.mode.clone();
+    run.inputs = rec
+        .inputs
+        .iter()
+        .map(|i| ImportRunInput {
+            flag: i.flag.clone(),
+            path: i.path.clone(),
+            path_sha256: i.path_sha256.clone(),
+        })
+        .collect();
     run.family = family_of(&rec.mode);
     run.source = rec
         .inputs
@@ -593,6 +651,82 @@ impl std::fmt::Display for RunError {
     }
 }
 
+fn show(path: &Path) -> String {
+    path.display().to_string()
+}
+
+/// Adapter refusals are mechanical safety failures, so translate the typed
+/// error once at the app boundary instead of exposing debug formatting.
+pub(crate) fn plain_prepare_refusal(e: &LabError) -> String {
+    match e {
+        LabError::MissingInput { mode, flag } => {
+            format!("Mode {mode} needs {flag}; choose that input before running it.")
+        }
+        LabError::FlagNotAllowed { mode, flag } => {
+            format!("Mode {mode} does not accept {flag}; the run was not started.")
+        }
+        LabError::DuplicateInput { flag } => {
+            format!("{flag} was given more than once; the run was not started.")
+        }
+        LabError::InputPath { flag, path, source } => format!(
+            "{flag} at {} could not be read ({source}); the run was not started.",
+            show(path)
+        ),
+        LabError::InputKind {
+            flag,
+            path,
+            expected,
+        } => format!(
+            "{flag} must be a {}, but {} is not; the run was not started.",
+            expected.noun(),
+            show(path)
+        ),
+        LabError::OutPath { path, reason } => format!(
+            "The output path {} cannot be used because it {reason}; the run was not started.",
+            show(path)
+        ),
+        LabError::Overlap { flag, input, out } => format!(
+            "The output path {} overlaps {flag} input {}. Choose an output outside the input; the run was not started.",
+            show(out),
+            show(input)
+        ),
+        other => other.to_string(),
+    }
+}
+
+/// The lab reports refusals as exit 2 plus a stable error name on stderr.
+/// Keep stderr verbatim in the record and put the actionable explanation,
+/// including the relevant path, in `refused`.
+pub(crate) fn plain_lab_refusal(stderr: &str, out: &Path) -> String {
+    let path = show(out);
+    if stderr.contains("OutputSymlink") {
+        return format!(
+            "The migration lab refused to write to {path} because a symlink appears in that output path. Nothing was written there."
+        );
+    }
+    if stderr.contains("InputOutputOverlap") || stderr.contains("overlap") {
+        return format!(
+            "The migration lab refused to write because the output path {path} overlaps an input path. Choose an output outside the input."
+        );
+    }
+    if stderr.contains("OutputNotOwned")
+        || stderr.contains("OutputNotEmpty")
+        || stderr.contains("non-empty")
+        || stderr.contains("not empty")
+    {
+        return format!(
+            "The migration lab refused to write to {path} because it is not empty and is not owned by an earlier lab run. That folder was left unchanged."
+        );
+    }
+    let detail = stderr
+        .lines()
+        .find(|l| !l.trim().is_empty())
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .unwrap_or("the lab rejected the command line or paths");
+    format!("The migration lab refused the run for {path}: {detail}")
+}
+
 /// Run `mode` into `<root>/.cv/imports/<run_id>/out`, recording the run
 /// before the spawn and again when it ends. A run the adapter refuses
 /// (bad input, overlap, symlinked path) is recorded as refused.
@@ -620,7 +754,7 @@ pub fn run_lab(
     let prepared = match run.prepare() {
         Ok(p) => p,
         Err(e) => {
-            rec.refused = Some(e.to_string());
+            rec.refused = Some(plain_prepare_refusal(&e));
             store::write(root, &rec).map_err(RunError::Store)?;
             return Ok(rec);
         }
@@ -636,8 +770,34 @@ pub fn run_lab(
         .map(|a| a.to_string_lossy().into_owned())
         .collect();
     store::write(root, &rec).map_err(RunError::Store)?;
-    let out = engine_lab::run(lab, &run, cancel).map_err(RunError::Lab)?;
+    let wait_started = std::time::Instant::now();
+    let out = match engine_lab::run(lab, &run, cancel) {
+        Ok(out) => out,
+        Err(LabError::Engine(e)) => {
+            let cancelled = matches!(e, EngineError::Cancelled) && cancel.is_cancelled();
+            rec.finished = Some(store::Finished {
+                exit_code: None,
+                exit: if cancelled { "cancelled" } else { "io" }.into(),
+                outcome: e.to_string(),
+                duration_ms: wait_started.elapsed().as_millis() as u64,
+            });
+            store::write(root, &rec).map_err(RunError::Store)?;
+            return Ok(rec);
+        }
+        Err(e) => {
+            // Input or output state can change between the first validation
+            // and cv-engine's validation immediately before the spawn. That
+            // is still a pre-spawn refusal, not a lab failure.
+            rec.refused = Some(plain_prepare_refusal(&e));
+            store::write(root, &rec).map_err(RunError::Store)?;
+            return Ok(rec);
+        }
+    };
     let (exit_code, outcome) = outcome_text(out.outcome);
+    rec.stderr = Some(out.stderr.clone());
+    if out.exit == LabExit::UsageError {
+        rec.refused = Some(plain_lab_refusal(&out.stderr, &out.run.out));
+    }
     rec.finished = Some(store::Finished {
         exit_code,
         exit: exit_name(out.exit).into(),
@@ -647,6 +807,8 @@ pub fn run_lab(
     store::write(root, &rec).map_err(RunError::Store)?;
     Ok(rec)
 }
+
+pub use job::{run_stub_lab, spawn_import, spawn_import_with};
 
 #[cfg(test)]
 mod tests;

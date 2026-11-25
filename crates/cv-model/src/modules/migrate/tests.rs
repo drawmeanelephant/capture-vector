@@ -46,6 +46,7 @@ fn imports() -> Imports {
                 label: "Social/data downloads".into(),
             },
         ],
+        modes: Vec::new(),
         runs: vec![bad, ok],
         error: None,
         store: "in memory".into(),
@@ -234,4 +235,352 @@ fn every_run_and_review_item_projects_a_registered_noun() {
             crate::noun_views::NounView::Lane(ID)
         );
     }
+}
+
+// ---- New import wizard state machine ----
+
+fn wizard_modes() -> Vec<ImportMode> {
+    vec![
+        ImportMode {
+            name: "wordpress".into(),
+            family: "blog-cms".into(),
+            description: "Converts a WordPress WXR export".into(),
+            inputs: vec![
+                ImportInput {
+                    flag: "--wxr".into(),
+                    label: "wxr file".into(),
+                    kind: ImportInputKind::File,
+                    required: true,
+                    extensions: vec!["xml".into()],
+                },
+                ImportInput {
+                    flag: "--media".into(),
+                    label: "media folder".into(),
+                    kind: ImportInputKind::Folder,
+                    required: false,
+                    extensions: Vec::new(),
+                },
+            ],
+            inventory: None,
+            safety: vec!["Inputs are read-only".into()],
+        },
+        ImportMode {
+            name: "hugo-inventory".into(),
+            family: "static-site".into(),
+            description: "Reads a Hugo project root without converting it".into(),
+            inputs: vec![ImportInput {
+                flag: "--root".into(),
+                label: "root folder".into(),
+                kind: ImportInputKind::Folder,
+                required: true,
+                extensions: Vec::new(),
+            }],
+            inventory: None,
+            safety: vec![],
+        },
+        ImportMode {
+            name: "hugo".into(),
+            family: "static-site".into(),
+            description: "Converts a Hugo project root".into(),
+            inputs: vec![ImportInput {
+                flag: "--root".into(),
+                label: "root folder".into(),
+                kind: ImportInputKind::Folder,
+                required: true,
+                extensions: Vec::new(),
+            }],
+            inventory: Some("hugo-inventory".into()),
+            safety: vec![],
+        },
+    ]
+}
+
+fn wizard_module_with(runs: Vec<ImportRun>) -> MigrateModule {
+    let mut i = imports();
+    i.lab = LabState::Located {
+        tool_id: "lab".into(),
+        source: "test".into(),
+        path: "/lab".into(),
+    };
+    i.families.push(Family {
+        key: "blog-cms".into(),
+        label: "Blog/CMS exports".into(),
+    });
+    i.modes = wizard_modes();
+    i.runs = runs;
+    MigrateModule::new(Box::new(MemoryPort {
+        imports: i,
+        records: Vec::new(),
+    }))
+}
+
+fn wizard_module() -> MigrateModule {
+    wizard_module_with(Vec::new())
+}
+
+/// A port whose runs can grow after construction, the way `.cv/imports/`
+/// does while the shell-owned worker executes the lab.
+struct WizardPort {
+    imports: Imports,
+    appeared: std::rc::Rc<std::cell::RefCell<Vec<ImportRun>>>,
+}
+
+impl MigratePort for WizardPort {
+    fn load(&mut self) -> Imports {
+        let mut i = self.imports.clone();
+        i.runs.extend(self.appeared.borrow().iter().cloned());
+        i
+    }
+    fn record(&mut self, _run: &str, _item: &str, _to: ReviewState) -> Result<(), String> {
+        Ok(())
+    }
+}
+
+fn dynamic_wizard_module() -> (
+    MigrateModule,
+    std::rc::Rc<std::cell::RefCell<Vec<ImportRun>>>,
+) {
+    let mut i = imports();
+    i.lab = LabState::Located {
+        tool_id: "lab".into(),
+        source: "test".into(),
+        path: "/lab".into(),
+    };
+    i.families.push(Family {
+        key: "blog-cms".into(),
+        label: "Blog/CMS exports".into(),
+    });
+    i.modes = wizard_modes();
+    i.runs = Vec::new();
+    let appeared = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+    let port = WizardPort {
+        imports: i,
+        appeared: appeared.clone(),
+    };
+    (MigrateModule::new(Box::new(port)), appeared)
+}
+
+fn drive_hugo_to_inventory(m: &mut MigrateModule) -> String {
+    m.run(NEW);
+    m.answer(FAMILY, &answer(Some("choose"), &[(CHOICE, "static-site")]));
+    m.answer(MODE, &answer(Some("choose"), &[(CHOICE, "hugo")]));
+    let out = m.answer(INPUT, &answer(Some("go"), &[("root", "/elsewhere/site")]));
+    import_job(&out)
+        .expect("hugo starts its inventory")
+        .run_id
+        .clone()
+}
+
+use crate::dialog::{CHOICE, DialogAnswer, Value};
+
+fn answer(action: Option<&str>, values: &[(&str, &str)]) -> DialogAnswer {
+    let mut a = DialogAnswer {
+        action: action.map(str::to_string),
+        ..Default::default()
+    };
+    for (k, v) in values {
+        a.values.insert((*k).into(), Value::Text((*v).into()));
+    }
+    a
+}
+
+fn dialog_id(intents: &[Intent]) -> Option<&str> {
+    intents.iter().find_map(|i| match i {
+        Intent::Dialog(d) => Some(d.id.as_str()),
+        _ => None,
+    })
+}
+
+fn import_job(intents: &[Intent]) -> Option<&crate::command::ImportJob> {
+    intents.iter().find_map(|i| match i {
+        Intent::RunImport(job) => Some(job),
+        _ => None,
+    })
+}
+
+use wizard::{FAMILY, INPUT, INVENTORY, MODE};
+
+fn to_wordpress_form(m: &mut MigrateModule) {
+    m.run(NEW);
+    m.answer(FAMILY, &answer(Some("choose"), &[(CHOICE, "blog-cms")]));
+    m.answer(MODE, &answer(Some("choose"), &[(CHOICE, "wordpress")]));
+}
+
+#[test]
+fn cancelling_the_wizard_resets_it_so_a_new_import_can_start() {
+    let mut m = wizard_module();
+    m.run(NEW);
+    m.answer(FAMILY, &answer(Some("choose"), &[(CHOICE, "blog-cms")]));
+    assert!(m.wizard.family.is_some());
+    let out = m.answer(MODE, &answer(None, &[]));
+    assert!(
+        out.iter()
+            .any(|i| matches!(i, Intent::Status(s) if s.contains("cancelled"))),
+        "{out:?}"
+    );
+    assert_eq!(m.wizard, wizard::Wizard::default());
+    // A fresh start is a dialog again, not a stuck state.
+    assert_eq!(dialog_id(&m.run(NEW)), Some(FAMILY));
+}
+
+#[test]
+fn back_from_mode_selection_returns_to_the_family_step() {
+    let mut m = wizard_module();
+    m.run(NEW);
+    m.answer(FAMILY, &answer(Some("choose"), &[(CHOICE, "blog-cms")]));
+    let out = m.answer(MODE, &answer(Some("back"), &[]));
+    assert_eq!(dialog_id(&out), Some(FAMILY));
+    // The family step still lists every family, not only the one left.
+    let Some(Intent::Dialog(d)) = out.iter().find(|i| matches!(i, Intent::Dialog(_))) else {
+        panic!("expected a dialog, got {out:?}");
+    };
+    let crate::dialog::DialogKind::Choose(choices) = &d.kind else {
+        panic!("family step is a choice dialog");
+    };
+    assert!(choices.iter().any(|c| c.id == "static-site"));
+    assert!(choices.iter().any(|c| c.id == "blog-cms"));
+}
+
+#[test]
+fn a_missing_required_input_reopens_the_form_with_typed_values_kept() {
+    let mut m = wizard_module();
+    to_wordpress_form(&mut m);
+    let out = m.answer(
+        INPUT,
+        &answer(Some("go"), &[("wxr", ""), ("media", "/elsewhere/media")]),
+    );
+    let Some(Intent::Dialog(d)) = out.iter().find(|i| matches!(i, Intent::Dialog(_))) else {
+        panic!("expected the form again, got {out:?}");
+    };
+    assert_eq!(d.id, INPUT);
+    assert!(d.error.is_some(), "the refusal is shown in the form");
+    assert!(import_job(&out).is_none(), "nothing runs without --wxr");
+    assert_eq!(
+        m.wizard.inputs.get("--media").map(String::as_str),
+        Some("/elsewhere/media"),
+        "the typed optional input survives validation"
+    );
+    let crate::dialog::DialogKind::Form(fields) = &d.kind else {
+        panic!("input step is a form");
+    };
+    let media = fields.iter().find(|f| f.id == "media").unwrap();
+    assert_eq!(
+        media.value(),
+        Value::Path("/elsewhere/media".into()),
+        "the form is prefilled"
+    );
+}
+
+#[test]
+fn a_valid_file_input_starts_the_emit_job_without_an_inventory() {
+    let mut m = wizard_module();
+    to_wordpress_form(&mut m);
+    let out = m.answer(
+        INPUT,
+        &answer(Some("go"), &[("wxr", "/elsewhere/export.xml")]),
+    );
+    let job = import_job(&out).expect("a valid form starts the import");
+    assert_eq!(job.mode, "wordpress");
+    assert_eq!(job.phase, crate::command::ImportPhase::Emit);
+    assert_eq!(
+        job.inputs,
+        vec![(
+            "--wxr".into(),
+            std::path::PathBuf::from("/elsewhere/export.xml")
+        )]
+    );
+    assert!(
+        out.iter()
+            .any(|i| matches!(i, Intent::Dialog(d) if d.id == wizard::PROGRESS)),
+        "progress is shown while the lab runs"
+    );
+}
+
+#[test]
+fn hugo_starts_its_read_only_inventory_companion_first() {
+    let mut m = wizard_module();
+    m.run(NEW);
+    m.answer(FAMILY, &answer(Some("choose"), &[(CHOICE, "static-site")]));
+    m.answer(MODE, &answer(Some("choose"), &[(CHOICE, "hugo")]));
+    let out = m.answer(INPUT, &answer(Some("go"), &[("root", "/elsewhere/site")]));
+    let job = import_job(&out).expect("hugo starts a job");
+    assert_eq!(job.mode, "hugo-inventory");
+    assert_eq!(job.phase, crate::command::ImportPhase::Inventory);
+}
+
+fn inventory_lands(appeared: &std::rc::Rc<std::cell::RefCell<Vec<ImportRun>>>, run_id: &str) {
+    let mut done = ImportRun::new(run_id, RunStatus::Ok);
+    done.mode = "hugo-inventory".into();
+    appeared.borrow_mut().push(done);
+}
+
+#[test]
+fn inventory_completion_never_emits_without_an_explicit_decision() {
+    let (mut m, appeared) = dynamic_wizard_module();
+    let run_id = drive_hugo_to_inventory(&mut m);
+    inventory_lands(&appeared, &run_id);
+
+    let finished = m.run(FINISHED);
+    assert!(
+        import_job(&finished).is_none(),
+        "finishing the inventory must not emit on its own: {finished:?}"
+    );
+    assert_eq!(dialog_id(&finished), Some(INVENTORY));
+
+    // "Stop here" keeps the inventory and emits nothing.
+    let stop = m.answer(INVENTORY, &answer(None, &[]));
+    assert!(import_job(&stop).is_none());
+    assert_eq!(m.wizard, wizard::Wizard::default());
+}
+
+#[test]
+fn choosing_emit_after_the_inventory_starts_the_emitting_mode() {
+    let (mut m, appeared) = dynamic_wizard_module();
+    let run_id = drive_hugo_to_inventory(&mut m);
+    inventory_lands(&appeared, &run_id);
+    m.run(FINISHED);
+    let out = m.answer(INVENTORY, &answer(Some("emit"), &[]));
+    let job = import_job(&out).expect("an explicit emit starts the import");
+    assert_eq!(job.mode, "hugo");
+    assert_eq!(job.phase, crate::command::ImportPhase::Emit);
+    assert_eq!(
+        job.inputs,
+        vec![("--root".into(), std::path::PathBuf::from("/elsewhere/site"))],
+        "the same source paths are used"
+    );
+}
+
+#[test]
+fn inventory_companions_are_not_offered_as_emitting_modes() {
+    let mut m = wizard_module();
+    m.run(NEW);
+    let out = m.answer(FAMILY, &answer(Some("choose"), &[(CHOICE, "static-site")]));
+    let Some(Intent::Dialog(d)) = out.iter().find(|i| matches!(i, Intent::Dialog(_))) else {
+        panic!("expected the mode step, got {out:?}");
+    };
+    let crate::dialog::DialogKind::Choose(choices) = &d.kind else {
+        panic!("mode step is a choice dialog");
+    };
+    assert!(choices.iter().any(|c| c.id == "hugo"));
+    assert!(
+        !choices.iter().any(|c| c.id == "hugo-inventory"),
+        "the read-only companion runs through hugo, never directly"
+    );
+}
+
+#[test]
+fn progress_cancellation_cancels_the_shared_token() {
+    let mut m = wizard_module();
+    to_wordpress_form(&mut m);
+    m.answer(
+        INPUT,
+        &answer(Some("go"), &[("wxr", "/elsewhere/export.xml")]),
+    );
+    let wizard::WizardStage::Running { cancel, .. } = &m.wizard.stage else {
+        panic!("the job is running");
+    };
+    let cancel = cancel.clone();
+    assert!(!cancel.is_cancelled());
+    m.answer(wizard::PROGRESS, &answer(None, &[]));
+    assert!(cancel.is_cancelled(), "escape cancels the lab's token");
 }

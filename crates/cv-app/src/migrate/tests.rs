@@ -1,6 +1,7 @@
 use super::scene::{SEEDED, corrupt, seed, seed_run};
 use super::*;
 use cv_fixtures::lab::lab_captures;
+use std::path::{Path, PathBuf};
 
 fn load(root: &Path) -> Imports {
     DiskPort::open(root, LabState::NoWorkspace).load()
@@ -152,4 +153,57 @@ fn seeded_scene_modes_are_captured() {
     for m in SEEDED {
         assert!(lab_captures().iter().any(|c| c == m), "{m}");
     }
+}
+
+#[test]
+fn lab_refusals_are_plain_language_and_name_the_output_path() {
+    let out = Path::new("/site/.cv/imports/run/out");
+    let symlink = plain_lab_refusal("error: migration-lab (hugo) failed: OutputSymlink\n", out);
+    assert!(symlink.contains("symlink"), "{symlink}");
+    assert!(symlink.contains(out.to_str().unwrap()), "{symlink}");
+    let overlap = plain_lab_refusal(
+        "error: migration-lab (hugo) failed: InputOutputOverlap\n",
+        out,
+    );
+    assert!(overlap.contains("overlaps an input path"), "{overlap}");
+    assert!(overlap.contains(out.to_str().unwrap()), "{overlap}");
+    let unowned = plain_lab_refusal("error: migration-lab (hugo) failed: OutputNotOwned\n", out);
+    assert!(unowned.contains("not empty"), "{unowned}");
+    assert!(unowned.contains("left unchanged"), "{unowned}");
+    assert!(unowned.contains(out.to_str().unwrap()), "{unowned}");
+}
+
+#[test]
+fn adapter_overlap_refusal_is_plain_language_with_both_paths() {
+    let err = LabError::Overlap {
+        flag: "--root",
+        input: PathBuf::from("/input"),
+        out: PathBuf::from("/input/out"),
+    };
+    let text = plain_prepare_refusal(&err);
+    assert!(text.contains("--root"), "{text}");
+    assert!(text.contains("/input/out"), "{text}");
+    assert!(text.contains("/input"), "{text}");
+    assert!(text.contains("overlaps"), "{text}");
+}
+
+#[test]
+fn cancelled_exit_projects_as_cancelled_instead_of_a_lab_failure() {
+    let mut rec = RunRecord::started(
+        "run",
+        "hugo",
+        store::RecordedLab {
+            tool_id: "lab".into(),
+            source: "test".into(),
+            path: "/lab".into(),
+        },
+        0,
+    );
+    rec.finished = Some(store::Finished {
+        exit_code: None,
+        exit: "cancelled".into(),
+        outcome: "cancelled; child process group killed".into(),
+        duration_ms: 3,
+    });
+    assert_eq!(status(&rec), RunStatus::Cancelled);
 }
