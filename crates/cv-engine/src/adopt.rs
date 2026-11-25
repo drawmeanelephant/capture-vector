@@ -605,19 +605,15 @@ fn sweep_starter(
             delete.push((target, f.source.clone()));
             continue;
         }
-        // Not byte-proven starter. The only other legitimate occupants
-        // are the adoption's own partial output — at a planned target
-        // path, byte-identical to the incoming source — and debris of
-        // the atomic staged write itself, which a crash mid-rename can
-        // strand. Staged writes are temp+rename, so a `.cv-write-*.tmp`
-        // file is never user data and never complete: deleting it is
-        // the only correct outcome, and without it a crash in exactly
-        // that window would make every later resume refuse.
-        let name = f.relative.rsplit('/').next().unwrap_or(&f.relative);
-        if name.starts_with(".cv-write-") && name.ends_with(".tmp") {
-            delete.push((target, f.source.clone()));
-            continue;
-        }
+        // Not byte-proven starter. The only other legitimate occupant is
+        // the adoption's own partial output: at a planned target path and
+        // byte-identical to the incoming source. Note what is not here:
+        // stranded `.cv-write-*.tmp` debris from a crash mid-rename. A
+        // filename convention is user-controlled and is not provenance
+        // evidence — automated deletion by name is a data-loss capability
+        // this design refuses to have. Debris blocks the resume as
+        // foreign; the user recognizes it as litter, removes it, and the
+        // retry converges. Rare, explicit, and safe beats automatic.
         let partial_output = planned
             .iter()
             .find(|p| p.target == target)
@@ -840,11 +836,12 @@ pub struct TxReport {
 ///   data, refuses the resume, and is never deleted or overwritten.
 ///   Byte-identical files at planned paths are the interrupted attempt's
 ///   own output (staged writes are atomic) and are skipped, so resume
-///   converges without restarting the copy. The one bounded window: a
-///   file written into the tree between `boris init` completing and the
-///   journal landing is indistinguishable from starter — but the
-///   workspace is never opened or disclosed before the adoption
-///   finishes, so no user can legitimately write there.
+///   converges without restarting the copy. One race limitation, not
+///   ownership proof: a file written into the tree between `boris init`
+///   completing and the starter-manifest capture is indistinguishable
+///   from starter — even though the app never opens the workspace before
+///   the adoption finishes, nothing technically prevents another tool
+///   from writing there in that window.
 ///
 /// What this does not serialize: filesystem reactions of an already
 /// running watch are the caller's concern (the composition root stops

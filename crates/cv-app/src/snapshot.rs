@@ -154,13 +154,16 @@ fn split_frontmatter(raw: &str) -> Option<(&str, &str)> {
 /// Without an explicit `id` the path (sans extension) stands in,
 /// matching the `[[guides/x]]` links the corpora use.
 ///
-/// `explicit_id` conformance: the accepted `id` spellings here are exactly
-/// the ones Boris 0.9.0 binds — verified against the real engine as oracle
-/// (`validate` + duplicate-detection probes, see snapshot tests): plain,
-/// no-space, space-before-colon, and double-quoted values bind; indented
-/// lines, uppercase keys, single-quoted and empty values are
-/// `EFRONTMATTER` rejections in Boris, so any residual scanner divergence
-/// on them is unobservable in a workspace that validates.
+/// `explicit_id` conformance: bounded to the Boris forms actually probed
+/// against the real 0.9.0 engine as oracle (`validate` + duplicate-
+/// detection binding probes, see snapshot tests), not an exhaustive
+/// grammar proof. For those probed forms the scanner matches Boris
+/// exactly: plain, no-space, space-before-colon, and double-quoted values
+/// bind identically; indented lines, uppercase keys, single-quoted and
+/// empty values are `EFRONTMATTER` rejections in Boris, so any residual
+/// scanner divergence on them is unobservable in a workspace that
+/// validates. Unprobed exotica (escapes inside quotes, unusual Unicode
+/// in keys) remain an honestly unproven margin.
 pub fn page(path: &str, raw: &str) -> PageRecord {
     let (fm, body) = split_frontmatter(raw).unwrap_or(("", raw));
     let mut p = PageRecord {

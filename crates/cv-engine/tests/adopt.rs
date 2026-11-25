@@ -642,11 +642,12 @@ fn a_foreign_file_written_after_the_crash_survives_and_refuses_the_resume() {
         .expect("after the user reclaims their file the retry converges");
 }
 
-/// A crash mid-rename strands the atomic write's tempfile. That debris
-/// is not foreign data — the resume must clean it up and converge,
-/// never refuse on it.
+/// The exact review probe: a file merely NAMED like staged-write debris
+/// is user-controlled input, not provenance. It must survive byte-for-
+/// byte and the resume must refuse — automated deletion by filename is
+/// a data-loss capability this design does not have.
 #[test]
-fn staged_write_debris_from_a_crash_does_not_block_the_resume() {
+fn a_file_named_like_write_debris_is_user_data_and_survives() {
     let (source_ws, run_id) = hugo_source();
     let target = tempfile::tempdir().unwrap();
     let root = target.path().canonicalize().unwrap();
@@ -657,17 +658,60 @@ fn staged_write_debris_from_a_crash_does_not_block_the_resume() {
     let journal = new_workspace_journal(&root, &run_id, &src);
     store::write_pending(&root, &journal).unwrap();
     std::fs::remove_dir_all(root.join("content")).unwrap();
-    // The stranded tempfile exactly as a mid-rename crash leaves it.
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    std::fs::write(
+        root.join("content/.cv-write-user-notes.tmp"),
+        "important user data",
+    )
+    .unwrap();
+
+    let err =
+        adopt::transact(&root, &src, "content", None, "new", &BTreeMap::new(), 42).unwrap_err();
+    assert!(
+        matches!(err, AdoptError::Foreign(_)),
+        "temp-named user data refuses the resume: {err}"
+    );
+    assert_eq!(
+        std::fs::read_to_string(root.join("content/.cv-write-user-notes.tmp")).unwrap(),
+        "important user data",
+        "the file survives byte-for-byte"
+    );
+}
+
+/// Genuine stranded debris gets the same treatment: safe refusal, never
+/// deletion. The user recognizes it as litter, removes it explicitly,
+/// and the retry converges.
+#[test]
+fn staged_write_debris_refuses_safely_until_the_user_cleans_it() {
+    let (source_ws, run_id) = hugo_source();
+    let target = tempfile::tempdir().unwrap();
+    let root = target.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    std::fs::write(root.join("content/index.md"), "starter\n").unwrap();
+    let src = adopt::source(source_ws.path(), &run_id).unwrap();
+
+    let journal = new_workspace_journal(&root, &run_id, &src);
+    store::write_pending(&root, &journal).unwrap();
+    std::fs::remove_dir_all(root.join("content")).unwrap();
     std::fs::create_dir_all(root.join("content")).unwrap();
     std::fs::write(root.join("content/.cv-write-x7f2.tmp"), "partial bytes").unwrap();
 
-    let tx = adopt::transact(&root, &src, "content", None, "new", &BTreeMap::new(), 42)
-        .expect("write debris is adoption-own litter, not foreign data");
-    assert!(tx.written > 0);
+    let err =
+        adopt::transact(&root, &src, "content", None, "new", &BTreeMap::new(), 42).unwrap_err();
     assert!(
-        !root.join("content/.cv-write-x7f2.tmp").exists(),
-        "the debris is cleaned up"
+        matches!(err, AdoptError::Foreign(_)),
+        "even real debris is a safe refusal, never a deletion: {err}"
     );
+    assert!(
+        root.join("content/.cv-write-x7f2.tmp").exists(),
+        "untouched"
+    );
+
+    // Explicit user cleanup, then convergence.
+    std::fs::remove_file(root.join("content/.cv-write-x7f2.tmp")).unwrap();
+    let tx = adopt::transact(&root, &src, "content", None, "new", &BTreeMap::new(), 42)
+        .expect("after explicit cleanup the retry converges");
+    assert!(tx.written > 0);
 }
 
 /// A foreign EDIT to a starter path: the bytes no longer match the

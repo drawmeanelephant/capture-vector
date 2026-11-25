@@ -104,7 +104,11 @@ fn run_gate_fresh(
 /// unwinding through the batch, so a panicking mutation can never strand
 /// the workspace unobserved. Lock poisoning inside the scheduler is
 /// tolerated there — see the scheduler — and the worker boundary
-/// converts the panic into a loud failure notice.
+/// converts the panic into a loud failure notice. This protection covers
+/// unwinding panics only: the workspace builds with the default unwind
+/// strategy, but a `panic=abort` build is process-fatal and no guard or
+/// catch_unwind can run — the journal's resume path is the only recovery
+/// there, exactly as for a kill or a crash.
 struct WatchRestore<'a> {
     slot: &'a crate::live::EngineSlot,
     watching: Option<cv_core::events::SessionId>,
