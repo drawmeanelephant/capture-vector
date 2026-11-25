@@ -188,7 +188,7 @@ mod tests {
             system_dark: true,
             scale: 1.0,
         };
-        let mut rt = Runtime::new((), view, (200.0, 200.0), env);
+        let mut rt = Runtime::with_text((), view, (200.0, 200.0), env, crate::fonts::text_system());
         rt.frame(0.0);
         rt.settle_all();
         rt.frame(1.0 / 60.0);

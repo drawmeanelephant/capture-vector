@@ -883,6 +883,7 @@ dependencies = [
  "cv-fixtures",
  "cv-model",
  "cv-ui-editor",
+ "flate2",
  "png 0.18.1",
  "rune",
  "rune-fx",

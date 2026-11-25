@@ -178,6 +178,8 @@ fn ime_marked_text_snapshot() {
         vec![rune::WindowSpec::new(
             "ed",
             rune::AppSpec {
+                fonts: cv_widgets::fonts::FONTS,
+                families: cv_widgets::fonts::FAMILIES,
                 poll: Some(editor::poll),
                 on_key: Some(editor::on_key),
                 ..rune::AppSpec::new("ed", editor::SIZE, pending_ed, editor::view)
@@ -301,6 +303,8 @@ fn dirty_close_prompt_snapshot() {
         vec![rune::WindowSpec::new(
             "ed",
             rune::AppSpec {
+                fonts: cv_widgets::fonts::FONTS,
+                families: cv_widgets::fonts::FAMILIES,
                 poll: Some(editor::poll),
                 on_key: Some(editor::on_key),
                 ..rune::AppSpec::new("ed", editor::SIZE, pending_ed, editor::view)

@@ -11,7 +11,7 @@ use cv_model::workbench::Workbench;
 use cv_store::paths::confined_file;
 use cv_ui_editor::EditorSession;
 use cv_ui_editor::completion::CompletionIndex;
-use cv_ui_editor::save::{FsWriter, fingerprint_file};
+use cv_ui_editor::save::{FsWriter, SaveStatus, fingerprint_file};
 use cv_widgets::editor::{self, Closing, EditorWindow, host};
 use std::cell::RefCell;
 use std::path::{Component, Path};
@@ -108,7 +108,11 @@ fn open_for_editing(wb: &mut Workbench, rel: &str) {
 }
 
 /// Editor scenes: `cv-app --scene editor --snap e.png`.
-pub const SCENES: &[editor::Scene] = &[("editor", broken_wikilink), ("editor-close", close_prompt)];
+pub const SCENES: &[editor::Scene] = &[
+    ("editor", broken_wikilink),
+    ("editor-cjk", committed_cjk),
+    ("editor-close", close_prompt),
+];
 
 /// The diagnostics of one captured build of `corpus`, under the build id
 /// its StubEngine run reports.
@@ -154,6 +158,21 @@ fn broken_wikilink(w: &mut EditorWindow) {
     *w = EditorWindow::new(w.id, ses, buf, w.theme.clone());
 }
 
+/// Committed CJK in the body and in the header's status text. This is the
+/// font-fallback golden for issue #87; the buffer semantics are ordinary
+/// committed text, not IME preedit.
+fn committed_cjk(w: &mut EditorWindow) {
+    const TEXT: &str = "日本語お\n中文漢字\n한국어\n";
+    let ses = Rc::new(RefCell::new(EditorSession::new()));
+    let buf = ses.borrow_mut().open("cjk.md", TEXT, None);
+    if let Some(e) = ses.borrow_mut().get_mut(buf) {
+        e.save = SaveStatus::Failed {
+            message: "日本語お".into(),
+        };
+    }
+    *w = EditorWindow::new(w.id, ses, buf, w.theme.clone());
+}
+
 /// That page edited, then closed: the unsaved-edits dialog over stale problems.
 fn close_prompt(w: &mut EditorWindow) {
     broken_wikilink(w);
@@ -186,6 +205,25 @@ mod tests {
         close_prompt(&mut w);
         assert!(w.is_dirty());
         assert_eq!(w.closing, Closing::Confirm { stuck: false });
+    }
+
+    #[test]
+    fn cjk_scene_commits_text_to_the_body_and_status_line() {
+        let mut w = EditorWindow::new(
+            WindowId(9),
+            Rc::new(RefCell::new(EditorSession::new())),
+            cv_ui_editor::BufferId(0),
+            cv_model::theme::Theme::dark(),
+        );
+        committed_cjk(&mut w);
+        assert!(w.body.text.contains("日本語お"));
+        assert!(w.body.text.contains("中文漢字"));
+        assert!(w.body.text.contains("한국어"));
+        let status = w.save_status();
+        assert!(
+            matches!(status, SaveStatus::Failed { ref message } if message == "日本語お"),
+            "{status:?}"
+        );
     }
 
     #[test]

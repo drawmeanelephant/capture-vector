@@ -170,8 +170,9 @@ only canonical on the Linux Lavapipe configuration.
 ## Platform status
 
 - macOS is the primary development platform.
-- Linux has real-window evidence; CJK/font fallback and GPU behavior still
-  have open edges.
+- Linux has real-window evidence. Common BMP CJK text has a bundled
+  fallback font; rare ideograph extensions and GPU behavior still have
+  open edges.
 - Windows is explicitly unproven unless a linked issue/test says
   otherwise.
 

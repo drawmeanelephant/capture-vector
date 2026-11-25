@@ -27,3 +27,12 @@ ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
 WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR
 IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+Droid Sans Fallback
+-------------------
+
+crates/cv-widgets/assets/fonts/DroidSansFallback.ttf.gz contains the
+Android Open Source Project's Droid Sans Fallback font, digitized data
+copyright Google Corporation © 2006, under the Apache License, Version
+2.0. The upstream NOTICE and licence text are distributed beside it as
+DroidSansFallback-LICENSE.txt.

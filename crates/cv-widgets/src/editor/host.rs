@@ -145,6 +145,8 @@ pub fn open(id: WindowId, path: &str, theme: &Theme) -> Option<WindowHandle> {
         WindowSpec::new(
             format!("editor-{}-{n}", id.0),
             AppSpec {
+                fonts: crate::fonts::FONTS,
+                families: crate::fonts::FAMILIES,
                 poll: Some(super::poll),
                 on_key: Some(super::on_key),
                 ..AppSpec::new("Capture Vector — editor", super::SIZE, init, super::view)
