@@ -14,6 +14,7 @@ pub mod engine;
 pub mod error;
 pub mod exit;
 pub mod fallback;
+pub mod init;
 pub mod locate;
 pub mod probe;
 pub mod proc;

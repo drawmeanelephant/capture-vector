@@ -22,6 +22,12 @@ case "$1" in
     printf '%s' "$KEY" > "$D/stdin.txt" ;;
 esac
 V="$1"
+if [ "$V" = init ] && [ "${2:-}" != "--help" ] && [ -n "${2:-}" ]; then
+  # Test-double filesystem effect: materialize the captured tree a test
+  # installed next to the shim. Production creation remains Boris's job.
+  mkdir -p "$2"
+  [ -d "$D/verbs/init/tree" ] && cp -R "$D/verbs/init/tree/." "$2/"
+fi
 # IR mode (`build --out DIR`) replays its own capture when one is loaded.
 [ "$2" = "--out" ] && [ -d "$D/verbs/$V-out" ] && V="$V-out"
 if [ ! -d "$D/verbs/$V" ]; then echo "usage: fake-boris has no '$V'" >&2; exit 2; fi
