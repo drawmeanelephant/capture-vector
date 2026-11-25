@@ -3,14 +3,11 @@
 
 use crate::editor;
 use crate::shell::view;
-use crate::theme::{color, font};
 use cv_model::module::ReadingModel;
 use cv_model::theme::Theme;
 use cv_model::windows::WindowId;
 use cv_model::workbench::{ShellRequest, Workbench};
-use rune::{
-    AppSpec, Cx, El, FileDialogOptions, Tx, Waker, WindowHandle, WindowSpec, col, row, text,
-};
+use rune::{AppSpec, Cx, El, FileDialogOptions, Tx, Waker, WindowHandle, WindowSpec};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, VecDeque};
 use std::path::PathBuf;
@@ -27,11 +24,14 @@ pub struct Launch {
     pub boot: fn(&mut Workbench),
     /// Open a workspace root (folder dialog answer, recent entry).
     pub open: fn(&mut Workbench, PathBuf),
+    /// Open a page (relative to the content input) in an editor window.
+    pub edit: fn(&mut Workbench, &str),
     pub scenes: &'static [Scene],
 }
 
 static BOOT: OnceLock<fn(&mut Workbench)> = OnceLock::new();
 static OPEN: OnceLock<fn(&mut Workbench, PathBuf)> = OnceLock::new();
+static EDIT: OnceLock<fn(&mut Workbench, &str)> = OnceLock::new();
 static WAKE: OnceLock<Waker> = OnceLock::new();
 static BOOTED: AtomicBool = AtomicBool::new(false);
 
@@ -44,11 +44,10 @@ thread_local! {
     static CLOSED: RefCell<Vec<WindowId>> = const { RefCell::new(Vec::new()) };
 }
 
-/// A companion window's own state: a pinned noun's reading model.
-/// L3 replaces the body with its editor; the host contract stays.
+/// A reading companion's own state: a pinned noun's reading model.
+/// Editable pages get an editor companion instead (`editor::host`).
 pub struct Companion {
     pub id: WindowId,
-    pub title: String,
     pub reading: ReadingModel,
     pub theme: Theme,
 }
@@ -58,44 +57,13 @@ fn companion_init() -> Companion {
         .with(|p| p.borrow_mut().pop_front())
         .unwrap_or(Companion {
             id: WindowId(u32::MAX),
-            title: String::new(),
             reading: ReadingModel::default(),
             theme: Theme::dark(),
         })
 }
 
 pub fn companion_view(s: &Companion, _cx: &mut Cx<Companion>) -> El {
-    let t = &s.theme;
-    let mut body = col()
-        .key("companion")
-        .w_full()
-        .h_full()
-        .padding(t.spacing.unit * 4.0)
-        .gap(t.spacing.unit * 1.5)
-        .fill(color(t.colors.bg))
-        .child(
-            text(s.title.clone())
-                .font(font(t.type_.title))
-                .color(color(t.colors.text)),
-        );
-    for l in &s.reading.lines {
-        let mut r = row().gap(t.spacing.unit * 2.0);
-        if let Some(lb) = &l.label {
-            r = r.child(
-                text(lb.clone())
-                    .font(font(t.type_.label))
-                    .color(color(t.colors.text_dim)),
-            );
-        }
-        body = body.child(
-            r.child(
-                text(l.text.clone())
-                    .font(font(t.type_.body))
-                    .color(color(t.colors.text)),
-            ),
-        );
-    }
-    body
+    crate::shell::reading_pane(&s.theme, "companion", s.reading.clone()).w_full()
 }
 
 fn companion_closed(s: &mut Companion, _tx: &mut Tx) {
@@ -149,7 +117,6 @@ fn sync_companions(s: &mut Workbench) -> bool {
         PENDING.with(|p| {
             p.borrow_mut().push_back(Companion {
                 id: c.id,
-                title: c.title.clone(),
                 reading,
                 theme: s.theme.clone(),
             })
@@ -235,6 +202,10 @@ fn serve_requests(s: &mut Workbench, tx: &mut Tx) -> bool {
                 });
             }
             ShellRequest::OpenWorkspace(root) => open_workspace(s, root),
+            ShellRequest::EditPage(page) => match EDIT.get() {
+                Some(edit) => edit(s, &page),
+                None => s.status = "this build cannot edit pages".into(),
+            },
         }
     }
     changed
@@ -289,6 +260,7 @@ fn poll(s: &mut Workbench, t: f64, tx: &mut Tx) -> bool {
 pub fn run(l: Launch) {
     let _ = BOOT.set(l.boot);
     let _ = OPEN.set(l.open);
+    let _ = EDIT.set(l.edit);
     // `rune::run` without the hooks: quitting must stop the engine watch.
     let app = rune::App::new(AppSpec {
         scenes: l.scenes,
@@ -309,4 +281,42 @@ pub fn run(l: Launch) {
             }
         })
         .run();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cv_model::module::ReadingLine;
+
+    #[test]
+    fn a_reading_companion_shows_its_whole_reading_model() {
+        let s = Companion {
+            id: WindowId(1),
+            reading: ReadingModel {
+                title: "Guide".into(),
+                lines: vec![ReadingLine {
+                    label: Some("tags".into()),
+                    text: "guides".into(),
+                    ..Default::default()
+                }],
+                breadcrumbs: vec!["Home".into(), "Guide".into()],
+                markdown: Some("Body text of the guide.".into()),
+            },
+            theme: Theme::dark(),
+        };
+        let env = rune::Env {
+            system_dark: true,
+            scale: 1.0,
+        };
+        let mut rt = rune::Runtime::new(s, companion_view, (560.0, 640.0), env);
+        rt.frame(0.0);
+        for key in ["companion", "crumb-0", "line-0", "sketch"] {
+            assert!(rt.find(key).is_some(), "no {key}");
+        }
+        let texts: Vec<String> = rt.elements().into_iter().filter_map(|e| e.text).collect();
+        assert!(
+            texts.iter().any(|t| t.contains("Body text of the guide.")),
+            "{texts:?}"
+        );
+    }
 }

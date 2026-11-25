@@ -505,6 +505,10 @@ impl Module for PagesModule {
         self.by_path.contains_key(key) || key == PROJECT_KEY
     }
 
+    fn source(&self, key: &str) -> Option<String> {
+        self.by_path.get(key).map(|&i| self.pages[i].path.clone())
+    }
+
     fn link(&self, key: &str) -> Option<Link> {
         let p = &self.pages[*self.by_path.get(key)?];
         p.output.as_ref().map(|o| Link {

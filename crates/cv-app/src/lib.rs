@@ -505,6 +505,7 @@ pub fn launch() -> Launch {
         init,
         boot: native_boot,
         open: open_native,
+        edit: editor::edit_page,
         scenes: SCENES,
     }
 }

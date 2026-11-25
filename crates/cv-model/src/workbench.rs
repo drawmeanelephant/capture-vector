@@ -129,6 +129,8 @@ impl Inbox {
 pub enum ShellRequest {
     PickWorkspace,
     OpenWorkspace(PathBuf),
+    /// Open a page (relative to the content input) in an editor window.
+    EditPage(String),
 }
 
 /// Toolkit-neutral key input; `cv-widgets` maps rune keys onto it.
@@ -670,6 +672,12 @@ impl Workbench {
                 let Some(m) = self.registry.get(self.active) else {
                     return;
                 };
+                // Only a workspace's pages are edited: the fixture demo
+                // reads the checkout's own corpora.
+                if let Some(page) = m.source(&key).filter(|_| self.workspace.is_some()) {
+                    self.requests.push(ShellRequest::EditPage(page));
+                    return;
+                }
                 let title = m.reading(&key).title;
                 let module = m.spec().id;
                 self.windows.open_companion(module, &key, &title);
