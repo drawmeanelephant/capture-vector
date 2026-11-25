@@ -465,12 +465,13 @@ impl Engine for StubEngine {
             };
             self.emitter.emit_caused(&mut sink, ev, cause);
         }
-        self.emit(
+        self.emitter.emit_caused(
             &mut sink,
             EngineEvent::VerbFinished {
                 verb: cmd.name(),
                 exit,
             },
+            cause,
         );
         Ok(exit)
     }

@@ -311,6 +311,16 @@ fn caused_one_shot_events_are_minted_and_replayed_with_their_cause() {
     };
     assert_eq!(replayed.len(), 1);
     assert_eq!(replayed[0].cause.as_ref(), Some(&cause));
+
+    // The fixture oracle implements the same causal port; in particular
+    // the terminal VerbFinished carries the cause that lets Doctor close
+    // the recovery window.
+    let stub = StubEngine::new("happy");
+    let (sink, got) = collector();
+    stub.run_caused(&Verb::Build, sink, Some(&cause)).unwrap();
+    let envs = got.lock().unwrap();
+    assert_eq!(envs.len(), 2);
+    assert!(envs.iter().all(|e| e.cause.as_ref() == Some(&cause)));
 }
 
 /// The projection never takes the watch's seat: the live watch child
