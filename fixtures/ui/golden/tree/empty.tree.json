@@ -746,7 +746,7 @@
       "path": "shell/body/list-pane/list-empty/#0",
       "rect": [
         414.0,
-        313.1,
+        300.1,
         28.0,
         28.0
       ],
@@ -759,7 +759,7 @@
       "path": "shell/body/list-pane/list-empty/list-empty-title",
       "rect": [
         375.9,
-        349.1,
+        336.1,
         104.3,
         16.3
       ],
@@ -773,7 +773,7 @@
       "path": "shell/body/list-pane/list-empty/list-empty-hint",
       "rect": [
         349.3,
-        373.4,
+        360.4,
         157.5,
         13.8
       ],
@@ -786,9 +786,9 @@
       "path": "shell/body/list-pane/list-empty/list-empty-actions",
       "rect": [
         284.0,
-        395.1,
+        382.1,
         288.0,
-        69.8
+        95.8
       ],
       "role": "group"
     },
@@ -802,7 +802,7 @@
       "radius": 4.0,
       "rect": [
         335.9,
-        399.1,
+        386.1,
         184.3,
         20.0
       ],
@@ -831,7 +831,7 @@
       "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-open/#0",
       "rect": [
         345.9,
-        402.1,
+        389.1,
         164.3,
         14.0
       ],
@@ -844,7 +844,7 @@
       "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-open/#0/label",
       "rect": [
         345.9,
-        403.1,
+        390.1,
         99.3,
         12.0
       ],
@@ -858,7 +858,7 @@
       "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-open/#0/keys",
       "rect": [
         451.2,
-        402.1,
+        389.1,
         58.9,
         14.0
       ],
@@ -871,7 +871,7 @@
       "radius": 2.0,
       "rect": [
         451.2,
-        402.1,
+        389.1,
         19.6,
         14.0
       ],
@@ -883,7 +883,7 @@
       "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-open/#0/keys/key0/#0",
       "rect": [
         455.2,
-        403.6,
+        390.6,
         11.6,
         11.0
       ],
@@ -897,7 +897,7 @@
       "radius": 2.0,
       "rect": [
         472.8,
-        402.1,
+        389.1,
         18.9,
         14.0
       ],
@@ -909,7 +909,7 @@
       "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-open/#0/keys/key1/#0",
       "rect": [
         476.8,
-        403.6,
+        390.6,
         10.9,
         11.0
       ],
@@ -923,7 +923,7 @@
       "radius": 2.0,
       "rect": [
         493.7,
-        402.1,
+        389.1,
         16.4,
         14.0
       ],
@@ -935,7 +935,7 @@
       "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-open/#0/keys/key2/#0",
       "rect": [
         497.7,
-        403.6,
+        390.6,
         8.4,
         11.0
       ],
@@ -952,7 +952,7 @@
       "radius": 4.0,
       "rect": [
         338.2,
-        425.1,
+        412.1,
         179.5,
         20.0
       ],
@@ -981,7 +981,7 @@
       "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-new/#0",
       "rect": [
         348.2,
-        428.1,
+        415.1,
         159.5,
         14.0
       ],
@@ -994,7 +994,7 @@
       "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-new/#0/label",
       "rect": [
         348.2,
-        429.1,
+        416.1,
         94.7,
         12.0
       ],
@@ -1008,7 +1008,7 @@
       "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-new/#0/keys",
       "rect": [
         449.0,
-        428.1,
+        415.1,
         58.8,
         14.0
       ],
@@ -1021,7 +1021,7 @@
       "radius": 2.0,
       "rect": [
         449.0,
-        428.1,
+        415.1,
         19.6,
         14.0
       ],
@@ -1033,7 +1033,7 @@
       "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-new/#0/keys/key0/#0",
       "rect": [
         453.0,
-        429.6,
+        416.6,
         11.6,
         11.0
       ],
@@ -1047,7 +1047,7 @@
       "radius": 2.0,
       "rect": [
         470.5,
-        428.1,
+        415.1,
         18.9,
         14.0
       ],
@@ -1059,7 +1059,7 @@
       "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-new/#0/keys/key1/#0",
       "rect": [
         474.5,
-        429.6,
+        416.6,
         10.9,
         11.0
       ],
@@ -1073,7 +1073,7 @@
       "radius": 2.0,
       "rect": [
         491.5,
-        428.1,
+        415.1,
         16.3,
         14.0
       ],
@@ -1085,7 +1085,7 @@
       "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-new/#0/keys/key2/#0",
       "rect": [
         495.5,
-        429.6,
+        416.6,
         8.3,
         11.0
       ],
@@ -1099,12 +1099,59 @@
       "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-new-why",
       "rect": [
         284.0,
-        451.1,
+        438.1,
         288.0,
         13.8
       ],
       "role": "text",
       "text": "New workspace needs Boris: Boris has not been located yet"
+    },
+    {
+      "fill": "#17191dff",
+      "key": "list-empty-doctor",
+      "label": "Open Doctor",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-doctor",
+      "radius": 4.0,
+      "rect": [
+        384.6,
+        457.9,
+        86.7,
+        20.0
+      ],
+      "role": "button",
+      "shadows": [
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.5,
+          "#262b35ff",
+          false
+        ],
+        [
+          0.0,
+          1.0,
+          1.5,
+          0.0,
+          "#0000004d",
+          false
+        ]
+      ]
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "label",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-doctor/label",
+      "rect": [
+        394.6,
+        461.9,
+        66.7,
+        12.0
+      ],
+      "role": "text",
+      "text": "Open Doctor"
     },
     {
       "key": "list-viewport",

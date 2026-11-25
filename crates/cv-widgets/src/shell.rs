@@ -667,11 +667,19 @@ fn workspace_actions(s: &Workbench) -> El {
             |s: &mut Workbench, _| s.run_command(cv_model::new_workspace::NEW),
         ));
     if let Some(why) = why {
-        actions = actions.child(
-            label(t, format!("New workspace needs Boris: {why}"))
-                .key("list-empty-new-why")
-                .truncate(),
-        );
+        actions = actions
+            .child(
+                label(t, format!("New workspace needs Boris: {why}"))
+                    .key("list-empty-new-why")
+                    .truncate(),
+            )
+            .child(controls::button(
+                t,
+                "list-empty-doctor",
+                "Open Doctor",
+                controls::Variant::Neutral,
+                |s: &mut Workbench| s.run_command("shell.doctor"),
+            ));
     }
     actions
 }
