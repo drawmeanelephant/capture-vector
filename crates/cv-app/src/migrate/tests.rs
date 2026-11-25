@@ -398,3 +398,104 @@ fn a_foreign_owned_workspace_is_never_swept() {
 fn migrate_port_load(mut port: DiskPort) -> Imports {
     port.load()
 }
+
+#[test]
+fn foreign_review_writes_are_refused_and_owned_writes_work() {
+    let d = tempfile::tempdir().unwrap();
+    let root = std::fs::canonicalize(d.path()).unwrap();
+    let id = seed_run(&root, "jekyll", 1);
+    let item = load(&root).runs[0].review.first().map(|i| i.id.clone());
+
+    let mut foreign =
+        DiskPort::open_with_ownership(&root, LabState::NoWorkspace, Ownership::Foreign);
+    if let Some(item) = &item {
+        let err = foreign
+            .record(&id, item, ReviewState::Accepted)
+            .unwrap_err();
+        assert!(err.contains("not owned"), "{err}");
+    }
+    let mut unsafe_port =
+        DiskPort::open_with_ownership(&root, LabState::NoWorkspace, Ownership::Unsafe);
+    if let Some(item) = &item {
+        assert!(
+            unsafe_port
+                .record(&id, item, ReviewState::Accepted)
+                .is_err()
+        );
+    }
+    let mut owned = DiskPort::open_with_ownership(&root, LabState::NoWorkspace, Ownership::Owned);
+    if let Some(item) = &item {
+        owned.record(&id, item, ReviewState::Accepted).unwrap();
+    }
+}
+
+#[test]
+fn orphaned_inventory_companions_are_not_actual_wizard_choices() {
+    use cv_model::command::Intent;
+    use cv_model::module::Module;
+    use cv_model::modules::migrate::{Imports, MigrateModule, MigratePort};
+    struct RealPort(Imports);
+    impl MigratePort for RealPort {
+        fn load(&mut self) -> Imports {
+            self.0.clone()
+        }
+        fn record(&mut self, _: &str, _: &str, _: ReviewState) -> Result<(), String> {
+            Ok(())
+        }
+    }
+    let mut imports = Imports {
+        lab: LabState::Located {
+            tool_id: "lab".into(),
+            source: "test".into(),
+            path: "/lab".into(),
+        },
+        families: families(),
+        modes: modes(),
+        runs: Vec::new(),
+        error: None,
+        store: "test".into(),
+    };
+    let _ = &mut imports;
+    let mut m = MigrateModule::new(Box::new(RealPort(imports)));
+    use cv_model::modules::migrate::NEW;
+    let intents = m.run(NEW);
+    // choose the blog-cms family, then inspect the actual mode choices
+    let fam = intents.iter().find_map(|i| match i {
+        Intent::Dialog(d) => Some(d.id.clone()),
+        _ => None,
+    });
+    assert_eq!(fam.as_deref(), Some("migrate.new.family"));
+    let out = m.answer(
+        "migrate.new.family",
+        &cv_model::dialog::DialogAnswer {
+            action: Some("choose".into()),
+            values: [(
+                cv_model::dialog::CHOICE.into(),
+                cv_model::dialog::Value::Text("blog-cms".into()),
+            )]
+            .into_iter()
+            .collect(),
+            ..Default::default()
+        },
+    );
+    let Some(Intent::Dialog(d)) = out.iter().find(|i| matches!(i, Intent::Dialog(_))) else {
+        panic!("expected mode dialog, got {out:?}");
+    };
+    let cv_model::dialog::DialogKind::Choose(choices) = &d.kind else {
+        panic!("mode step is a choice dialog");
+    };
+    let ids: Vec<_> = choices.iter().map(|c| c.id.as_str()).collect();
+    assert!(ids.contains(&"wordpress"), "{ids:?}");
+    assert!(ids.contains(&"substack"), "{ids:?}");
+    for dead in [
+        "ghost",
+        "ghost-inventory",
+        "substack-inventory",
+        "tinderbox-inventory",
+    ] {
+        assert!(
+            !ids.contains(&dead),
+            "{dead} must never be a wizard choice: {ids:?}"
+        );
+    }
+}

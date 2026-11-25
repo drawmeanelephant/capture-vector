@@ -62,9 +62,24 @@ fn inventory_decodable(companion: &str) -> bool {
 }
 
 pub fn modes() -> Vec<ImportMode> {
+    let emitters = engine_lab::MODES
+        .iter()
+        .filter(|mode| mode.inventory().is_none_or(inventory_decodable))
+        .filter(|mode| !mode.name.ends_with("-inventory"))
+        .map(|mode| mode.name)
+        .collect::<std::collections::HashSet<_>>();
     engine_lab::MODES
         .iter()
         .filter(|mode| mode.inventory().is_none_or(inventory_decodable))
+        // An inventory companion whose emitting mode was filtered out is an
+        // orphan: without the emitter nothing can pair with it, and the
+        // wizard's companion-hiding is keyed on offered emitters — so it
+        // would surface as a selectable import in its own right. Orphans
+        // leave with their emitters.
+        .filter(|mode| {
+            !mode.name.ends_with("-inventory")
+                || emitters.contains(mode.name.trim_end_matches("-inventory"))
+        })
         .map(|mode| ImportMode {
             name: mode.name.into(),
             family: mode.family.key().into(),
@@ -213,7 +228,7 @@ impl DiskPort {
         // writing here, so the stale-write race is structurally impossible —
         // not merely narrowed. Unchecked platforms sweep best-effort, which
         // matches their honestly-unproven status.
-        if ownership != Ownership::Foreign {
+        if matches!(ownership, Ownership::Owned | Ownership::Unchecked) {
             sweep_interrupted(root);
         }
         let mut port = Self::detached(lab);
@@ -237,7 +252,7 @@ impl DiskPort {
     /// cv-engine's wlock tests).
     #[cfg(test)]
     pub fn open_with_ownership(root: &Path, lab: LabState, ownership: Ownership) -> Self {
-        if ownership != Ownership::Foreign {
+        if matches!(ownership, Ownership::Owned | Ownership::Unchecked) {
             sweep_interrupted(root);
         }
         let mut port = Self::detached(lab);
@@ -273,8 +288,11 @@ impl MigratePort for DiskPort {
         };
         if self.ownership == Ownership::Foreign {
             out.error = Some(
-                "another Capture Vector process has this workspace open; run state here                  is read-only observation and may belong to that process"
-                    .into(),
+                concat!(
+                    "another Capture Vector process has this workspace open; run state here ",
+                    "is read-only observation and may belong to that process"
+                )
+                .into(),
             );
         }
         match store::scan(root) {
@@ -298,6 +316,16 @@ impl MigratePort for DiskPort {
     }
 
     fn record(&mut self, run: &str, item: &str, to: ReviewState) -> Result<(), String> {
+        // Ownership is a write capability, not advisory metadata: a
+        // foreign-held or unsafe workspace is read-only observation in
+        // fact, for triage exactly as for run records and the sweep.
+        // Adoption (#210) must consume the same capability before writing.
+        if matches!(self.ownership, Ownership::Foreign | Ownership::Unsafe) {
+            return Err(
+                "this workspace is not owned by this process, so review decisions cannot be written here"
+                    .into(),
+            );
+        }
         if let Some(log) = &mut self.log {
             log.append(run, item, to_store(to))
                 .map_err(|e| e.to_string())?;

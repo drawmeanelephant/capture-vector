@@ -1,13 +1,17 @@
-//! Process-lifetime workspace ownership via `flock` on
-//! `.cv/workspace.lock`. The kernel releases the lock when the holder
-//! dies, so there is no stale-lock case to break. Callers use ownership
-//! to decide whether destructive repair sweeps are race-free: only a
-//! process holding the lock can know no other live process writes here.
+//! Workspace ownership via `flock` on `.cv/workspace.lock`, scoped to the
+//! single active workspace of the process. The kernel releases the lock
+//! when the holder dies, so there is no stale-lock case to break; and
+//! acquiring a different workspace drops the previous handle, so the
+//! workspace the user switched away from is released rather than wedged
+//! for the process lifetime. Callers use ownership to decide whether
+//! destructive repair sweeps are race-free: only a process holding the
+//! lock can know no other live process writes here. Mutation paths treat
+//! ownership as a write capability: `Foreign` and `Unsafe` workspaces are
+//! read-only.
 //!
 //! Windows is unchecked: flock has no std/libc primitive there and
 //! Windows behavior is honestly unproven throughout this crate.
 
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,6 +23,10 @@ pub enum Ownership {
     /// No locking primitive on this platform, or the lock file is
     /// unavailable.
     Unchecked,
+    /// `.cv` is a symlink: sidecar state in potentially untrusted cloned
+    /// content must never be followed blindly, so the workspace cannot be
+    /// owned — or written — here at all.
+    Unsafe,
 }
 
 /// Acquire (or re-report) this process's ownership of the workspace at
@@ -29,18 +37,39 @@ pub enum Ownership {
 #[cfg(unix)]
 pub fn ownership(root: &Path) -> Ownership {
     use std::sync::{Mutex, OnceLock};
-    static LOCKS: OnceLock<Mutex<HashMap<PathBuf, std::fs::File>>> = OnceLock::new();
+    // One active workspace per process: acquiring a different workspace
+    // replaces the slot and drops the previous File, so the kernel
+    // releases the earlier lock instead of wedging the workspace the user
+    // switched away from. Multi-window use of several workspaces in one
+    // process is not a supported shape today.
+    static LOCK: OnceLock<Mutex<Option<(PathBuf, std::fs::File)>>> = OnceLock::new();
     let Ok(canon) = std::fs::canonicalize(root) else {
         return Ownership::Unchecked;
     };
-    let locks = LOCKS.get_or_init(|| Mutex::new(HashMap::new()));
-    let mut locks = locks.lock().unwrap();
-    if locks.contains_key(&canon) {
+    let slot = LOCK.get_or_init(|| Mutex::new(None));
+    let mut slot = slot.lock().unwrap();
+    if slot.as_ref().is_some_and(|(path, _)| path == &canon) {
         return Ownership::Owned;
     }
-    let lock_path = canon.join(".cv").join("workspace.lock");
+    let cv = canon.join(".cv");
+    // `.cv` is sidecar state in potentially untrusted cloned content.
+    // Inspect before creating anything: a symlinked `.cv` is never
+    // followed — no lock file materializes in its target.
+    if let Ok(meta) = std::fs::symlink_metadata(&cv)
+        && meta.file_type().is_symlink()
+    {
+        return Ownership::Unsafe;
+    }
+    let lock_path = cv.join("workspace.lock");
     if let Some(parent) = lock_path.parent() {
         let _ = std::fs::create_dir_all(parent);
+    }
+    // Re-check after creation: a hostile or careless process could have
+    // swapped `.cv` for a symlink in between.
+    if let Ok(meta) = std::fs::symlink_metadata(&cv)
+        && meta.file_type().is_symlink()
+    {
+        return Ownership::Unsafe;
     }
     let Ok(file) = std::fs::OpenOptions::new()
         .read(true)
@@ -55,7 +84,9 @@ pub fn ownership(root: &Path) -> Ownership {
     // SAFETY: flock on a valid fd; non-blocking exclusive.
     let rc = unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) };
     if rc == 0 {
-        locks.insert(canon, file);
+        // Replacing the slot drops any previous File here, releasing the
+        // earlier workspace's lock exactly once.
+        *slot = Some((canon, file));
         Ownership::Owned
     } else {
         Ownership::Foreign
@@ -162,5 +193,33 @@ mod tests {
         } else {
             Ownership::Foreign
         }
+    }
+
+    #[test]
+    fn a_symlinked_cv_is_never_followed_for_locking() {
+        let t = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(t.path()).unwrap();
+        let outside = t.path().join("outside");
+        std::fs::create_dir_all(&outside).unwrap();
+        std::os::unix::fs::symlink(&outside, root.join(".cv")).unwrap();
+        assert_eq!(ownership(&root), Ownership::Unsafe);
+        assert!(
+            !outside.join("workspace.lock").exists(),
+            "no lock materializes through the symlink"
+        );
+    }
+
+    #[test]
+    fn acquiring_a_new_workspace_releases_the_previous_lock() {
+        let t1 = tempfile::tempdir().unwrap();
+        let r1 = std::fs::canonicalize(t1.path()).unwrap();
+        let t2 = tempfile::tempdir().unwrap();
+        let r2 = std::fs::canonicalize(t2.path()).unwrap();
+        assert_eq!(ownership(&r1), Ownership::Owned);
+        assert_eq!(ownership(&r2), Ownership::Owned);
+        // r1's lock was dropped with the slot switch: a fresh probe can
+        // acquire it, proving the kernel release happened.
+        let probe = r1.join(".cv").join("workspace.lock");
+        assert_eq!(raw_probe(&probe), Ownership::Owned);
     }
 }
