@@ -9,7 +9,8 @@
 use crate::EngineError;
 use crate::verbs::{is_mutating, own_out_dir, writes_html};
 use cv_core::engine::{
-    Engine, EventSink, ExitClass, Fingerprint, PageDraft, Verb, WatchHandle, WriteOutcome,
+    Engine, EventSink, ExitClass, Fingerprint, MoveOutcome, PageDraft, PageMove, RemoveOutcome,
+    Verb, WatchHandle, WriteOutcome,
 };
 use cv_core::events::SessionId;
 use cv_core::rules::ArtifactSet;
@@ -177,6 +178,19 @@ impl<E: Engine + Sync> EngineScheduler<E> {
     ) -> cv_core::Result<WriteOutcome> {
         let _w = self.rw.write().unwrap();
         self.engine.write_content(draft, base)
+    }
+
+    /// Serialized fingerprint-checked delete.
+    pub fn remove_content(&self, path: &str, base: Fingerprint) -> cv_core::Result<RemoveOutcome> {
+        let _w = self.rw.write().unwrap();
+        self.engine.remove_content(path, base)
+    }
+
+    /// Serialized move: the destination write and source removal are
+    /// covered by one writer lock against every other engine mutation.
+    pub fn move_content(&self, mv: &PageMove) -> cv_core::Result<MoveOutcome> {
+        let _w = self.rw.write().unwrap();
+        self.engine.move_content(mv)
     }
 
     /// Disk truth; a read, so it runs alongside other reads.

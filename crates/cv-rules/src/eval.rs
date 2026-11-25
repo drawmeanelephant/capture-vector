@@ -271,7 +271,7 @@ impl<'a> Ctx<'a, '_> {
                 };
                 for page in pages {
                     let n = page.doc.select(&css).len() as u64;
-                    self.verdict(Subject::Page(page), &page.route, s, n, pred);
+                    self.verdict(Subject::Page(page), s, s, n, pred);
                 }
             }
             Selector::JsonPath(p) => {
@@ -284,13 +284,8 @@ impl<'a> Ctx<'a, '_> {
                 };
                 for page in pages {
                     let n = page.jsonld.iter().flatten().map(|v| jp.count(v)).sum();
-                    self.verdict(
-                        Subject::Page(page),
-                        &page.route,
-                        &format!("JSON-LD {p}"),
-                        n,
-                        pred,
-                    );
+                    let what = format!("JSON-LD {p}");
+                    self.verdict(Subject::Page(page), &what, &what, n, pred);
                 }
             }
             Selector::IrNode { kind, field } => {
@@ -305,13 +300,8 @@ impl<'a> Ctx<'a, '_> {
                         .is_some_and(|node| {
                             node.kind_matches(kind) && node.field_matches(field.as_deref())
                         }) as u64;
-                    self.verdict(
-                        Subject::Page(page),
-                        &page.route,
-                        &format!("IR {kind} {field:?}"),
-                        n,
-                        pred,
-                    );
+                    let what = format!("IR {kind} {field:?}");
+                    self.verdict(Subject::Page(page), &what, &what, n, pred);
                 }
             }
         }
@@ -417,7 +407,7 @@ impl<'a> Ctx<'a, '_> {
                 {
                     let n = export.is_some_and(|e| self.export_lists(e, page)) as u64;
                     let what = format!("page matching `{s}` listed in {}", kind_name(kind));
-                    self.verdict(Subject::Page(page), &page.route, &what, n, pred);
+                    self.verdict(Subject::Page(page), &what, &what, n, pred);
                 }
             }
             Selector::IrNode { kind: nk, field } => {

@@ -29,6 +29,7 @@ use serde::{Deserialize, Serialize};
 pub mod audit;
 pub mod engine;
 pub mod notes;
+pub mod pages;
 pub mod publish;
 pub mod shell;
 
@@ -71,6 +72,7 @@ pub enum AppEvent {
     Audit(audit::AuditEvent),
     Engine(engine::EngineEvent),
     Notes(notes::NotesEvent),
+    Pages(pages::PagesEvent),
     Publish(publish::PublishEvent),
     Shell(shell::ShellEvent),
 }

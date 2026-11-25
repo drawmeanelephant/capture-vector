@@ -398,6 +398,7 @@ impl Module for ActivityModule {
             AppEvent::Shell(ShellEvent::Degraded { reason }) => {
                 boundary(self, EntryKind::Degraded(reason.clone()))
             }
+            AppEvent::Pages(ev) => boundary(self, EntryKind::Other(ev.summary())),
             AppEvent::Shell(_) => return false,
             other => {
                 let name = serde_json::to_value(other)

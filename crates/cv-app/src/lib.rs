@@ -9,6 +9,7 @@ pub mod doctor;
 pub mod editor;
 pub mod live;
 pub mod logging;
+pub mod pages;
 pub mod publish;
 pub mod snapshot;
 pub mod workspace;
@@ -166,6 +167,11 @@ pub fn open_workspace(
     wb.stop_watch();
     wb.registry = Registry::default();
     let slot = live::EngineSlot::default();
+    let input = snapshot::content_input(&root);
+    cv_model::modules::pages::install_in(
+        Box::new(pages::WorkspacePages::new(&root, slot.clone())),
+        &input,
+    );
     let research = cv_notes::disk::open(
         &root,
         cv_core::id::AccountId("local".into()),
@@ -175,7 +181,6 @@ pub fn open_workspace(
     let research_err = match research {
         Ok((r, report)) => {
             opened.research.lock = Some(LockHolder::ThisWindow);
-            let input = snapshot::content_input(&root);
             // Promotion writes under the input; one that resolves outside
             // the workspace (a symlink) gets no writer, so promotion
             // refuses instead of writing elsewhere.

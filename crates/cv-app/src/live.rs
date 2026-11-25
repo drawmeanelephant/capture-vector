@@ -10,8 +10,8 @@
 
 use crate::snapshot::workspace_snapshot;
 use cv_core::engine::{
-    Engine, EngineCaps, EngineInfo, EventSink, ExitClass, Fingerprint, PageDraft, Verb,
-    WatchHandle, WriteOutcome,
+    Engine, EngineCaps, EngineInfo, EventSink, ExitClass, Fingerprint, MoveOutcome, PageDraft,
+    PageMove, RemoveOutcome, Verb, WatchHandle, WriteOutcome,
 };
 use cv_core::events::engine::EngineEvent;
 use cv_core::events::shell::DegradedReason;
@@ -81,6 +81,12 @@ impl Engine for SlotEngine {
         base: Option<Fingerprint>,
     ) -> cv_core::Result<WriteOutcome> {
         self.0.get().ok_or_else(absent)?.write_content(draft, base)
+    }
+    fn remove_content(&self, path: &str, base: Fingerprint) -> cv_core::Result<RemoveOutcome> {
+        self.0.get().ok_or_else(absent)?.remove_content(path, base)
+    }
+    fn move_content(&self, mv: &PageMove) -> cv_core::Result<MoveOutcome> {
+        self.0.get().ok_or_else(absent)?.move_content(mv)
     }
 }
 
@@ -957,15 +963,17 @@ mod tests {
             sink(finished(seq));
         }
         wb.drain();
-        assert!(page_titles(&wb).contains(&"\"Mini Site (English)\"".to_string()));
+        assert!(page_titles(&wb).contains(&"Mini Site (English)".to_string()));
 
         let argv = root.path().join("argv.log");
         let deadline = Instant::now() + Duration::from_secs(10);
-        while !page_titles(&wb).contains(&"Mini Site (English)".to_string()) {
+        while !root.path().join(".cv/ir/graph.json").is_file() {
             assert!(Instant::now() < deadline, "{:?}", page_titles(&wb));
             std::thread::sleep(Duration::from_millis(10));
             wb.drain();
         }
+        wb.drain();
+        assert!(page_titles(&wb).contains(&"Mini Site (English)".to_string()));
         std::thread::sleep(IR_WINDOW * 3);
         assert_eq!(
             std::fs::read_to_string(&argv).unwrap(),
@@ -1005,7 +1013,7 @@ mod tests {
     #[test]
     fn a_failed_html_build_still_gets_boris_fields_from_the_ir_projection() {
         use std::time::Instant;
-        let (_root, mut wb, delivery) = ir_workspace(None);
+        let (root, mut wb, delivery) = ir_workspace(None);
         let sched = Arc::new(EngineScheduler::new(
             delivery.engine.clone(),
             SeatPolicy::StopWatch,
@@ -1019,11 +1027,13 @@ mod tests {
         // its sink: the pending projection still runs.
         drop(sink);
         let deadline = Instant::now() + Duration::from_secs(10);
-        while !page_titles(&wb).contains(&"Mini Site (English)".to_string()) {
+        while !root.path().join(".cv/ir/graph.json").is_file() {
             assert!(Instant::now() < deadline, "{:?}", page_titles(&wb));
             std::thread::sleep(Duration::from_millis(10));
             wb.drain();
         }
+        wb.drain();
+        assert!(page_titles(&wb).contains(&"Mini Site (English)".to_string()));
     }
 
     #[cfg(unix)]
@@ -1046,7 +1056,7 @@ mod tests {
             std::thread::sleep(Duration::from_millis(10));
             wb.drain();
         }
-        assert!(page_titles(&wb).contains(&"\"Mini Site (English)\"".to_string()));
+        assert!(page_titles(&wb).contains(&"Mini Site (English)".to_string()));
         assert_eq!(
             wb.app.degraded,
             Some(DegradedReason::InitialBuildFailed {
@@ -1071,11 +1081,13 @@ mod tests {
         });
         sink(finished(0));
         let deadline = Instant::now() + Duration::from_secs(10);
-        while !page_titles(&wb).contains(&"Mini Site (English)".to_string()) {
+        while !root.path().join(".cv/ir/graph.json").is_file() {
             assert!(Instant::now() < deadline, "{:?}", page_titles(&wb));
             std::thread::sleep(Duration::from_millis(10));
             wb.drain();
         }
+        wb.drain();
+        assert!(page_titles(&wb).contains(&"Mini Site (English)".to_string()));
 
         std::fs::write(
             root.path().join("boris"),

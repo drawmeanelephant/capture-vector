@@ -4,7 +4,7 @@
 //! No frontmatter validation here — `boris validate` is authoritative.
 
 use crate::error::{EngineError, Result};
-use cv_core::engine::{Fingerprint, WriteOutcome};
+use cv_core::engine::{Fingerprint, MoveOutcome, PageMove, RemoveOutcome, WriteOutcome};
 use cv_core::sys::{Hash, Timestamp};
 use cv_store::paths::{confined_file, confirm_confined_file, create_confined_parent};
 use sha2::{Digest, Sha256};
@@ -120,6 +120,88 @@ pub fn write_staged(
     let fp = retry_sharing(|| fingerprint(&target))?
         .ok_or_else(|| EngineError::Refused(format!("{rel}: vanished after write")))?;
     Ok(WriteOutcome::Written { fingerprint: fp })
+}
+
+/// Fingerprint-checked delete. A changed file stays on disk; a missing
+/// one is an honest error, never a successful no-op.
+pub fn remove_staged(root: &Path, rel: &str, expected: Fingerprint) -> Result<RemoveOutcome> {
+    resolve(root, rel)?;
+    let stale = retry_sharing(|| -> std::io::Result<Option<Fingerprint>> {
+        let target = confirm_confined_file(root, Path::new(rel))?;
+        match fingerprint(&target)? {
+            Some(found) if found == expected => {
+                std::fs::remove_file(&target)?;
+                Ok(None)
+            }
+            Some(found) => Ok(Some(found)),
+            None => Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "the file was removed since it was opened",
+            )),
+        }
+    })?;
+    Ok(match stale {
+        Some(found) => RemoveOutcome::StaleBase { found },
+        None => RemoveOutcome::Removed,
+    })
+}
+
+fn fingerprint_confined(root: &Path, rel: &str) -> Result<Option<Fingerprint>> {
+    let target = resolve(root, rel)?;
+    Ok(retry_sharing(|| fingerprint(&target))?)
+}
+
+fn rollback_target(root: &Path, rel: &str, fp: Fingerprint) {
+    let _ = remove_staged(root, rel, fp);
+}
+
+/// Write `body` at `to` and remove `from`, with both sides fingerprinted.
+/// The destination write is staged + atomic; the pair cannot be atomic on
+/// any supported filesystem, so a post-write source race rolls the
+/// unchanged destination back before reporting the conflict.
+pub fn move_staged(root: &Path, mv: &PageMove) -> Result<MoveOutcome> {
+    if mv.from == mv.to {
+        let found = fingerprint_confined(root, &mv.from)?
+            .ok_or_else(|| EngineError::Refused(format!("{}: source no longer exists", mv.from)))?;
+        if found != mv.base {
+            return Ok(MoveOutcome::SourceStale { found });
+        }
+        // Still route through the staged writer: the body may pin an id.
+        return match write_staged(root, &mv.to, mv.body.as_bytes(), Some(mv.base))? {
+            WriteOutcome::Written { fingerprint } => Ok(MoveOutcome::Moved { fingerprint }),
+            WriteOutcome::StaleBase { found } => Ok(MoveOutcome::SourceStale { found }),
+        };
+    }
+    match fingerprint_confined(root, &mv.from)? {
+        Some(found) if found == mv.base => {}
+        Some(found) => return Ok(MoveOutcome::SourceStale { found }),
+        None => {
+            return Err(EngineError::Refused(format!(
+                "{}: source no longer exists",
+                mv.from
+            )));
+        }
+    }
+    if let Some(found) = fingerprint_confined(root, &mv.to)? {
+        return Ok(MoveOutcome::TargetExists { found });
+    }
+    let written = match write_staged(root, &mv.to, mv.body.as_bytes(), None)? {
+        WriteOutcome::Written { fingerprint } => fingerprint,
+        WriteOutcome::StaleBase { found } => return Ok(MoveOutcome::TargetExists { found }),
+    };
+    match remove_staged(root, &mv.from, mv.base) {
+        Ok(RemoveOutcome::Removed) => Ok(MoveOutcome::Moved {
+            fingerprint: written,
+        }),
+        Ok(RemoveOutcome::StaleBase { found }) => {
+            rollback_target(root, &mv.to, written);
+            Ok(MoveOutcome::SourceStale { found })
+        }
+        Err(e) => {
+            rollback_target(root, &mv.to, written);
+            Err(e)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -332,5 +414,94 @@ mod tests {
         });
         assert!(r.is_err());
         assert_eq!(n, 1);
+    }
+
+    #[test]
+    fn remove_staged_deletes_only_the_fingerprinted_file() {
+        let t = tempfile::tempdir().unwrap();
+        let WriteOutcome::Written {
+            fingerprint: created,
+        } = write_staged(t.path(), "content/a.md", b"one", None).unwrap()
+        else {
+            panic!("create")
+        };
+        std::fs::write(t.path().join("content/a.md"), b"theirs").unwrap();
+        assert!(matches!(
+            remove_staged(t.path(), "content/a.md", created).unwrap(),
+            RemoveOutcome::StaleBase { .. }
+        ));
+        assert_eq!(
+            std::fs::read(t.path().join("content/a.md")).unwrap(),
+            b"theirs"
+        );
+
+        let fp = fingerprint(&t.path().join("content/a.md"))
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            remove_staged(t.path(), "content/a.md", fp).unwrap(),
+            RemoveOutcome::Removed
+        );
+        assert!(!t.path().join("content/a.md").exists());
+    }
+
+    #[test]
+    fn move_staged_moves_bytes_and_refuses_conflicts_without_overwriting() {
+        let t = tempfile::tempdir().unwrap();
+        let WriteOutcome::Written { fingerprint: base } =
+            write_staged(t.path(), "content/a.md", b"one", None).unwrap()
+        else {
+            panic!("create")
+        };
+        let mv = PageMove {
+            from: "content/a.md".into(),
+            to: "content/nested/b.md".into(),
+            body: "one".into(),
+            base,
+        };
+        assert!(matches!(
+            move_staged(t.path(), &mv).unwrap(),
+            MoveOutcome::Moved { .. }
+        ));
+        assert!(!t.path().join("content/a.md").exists());
+        assert_eq!(
+            std::fs::read(t.path().join("content/nested/b.md")).unwrap(),
+            b"one"
+        );
+
+        let WriteOutcome::Written { fingerprint: base } =
+            write_staged(t.path(), "content/c.md", b"c", None).unwrap()
+        else {
+            panic!("create c")
+        };
+        let conflict = PageMove {
+            from: "content/c.md".into(),
+            to: "content/nested/b.md".into(),
+            body: "c".into(),
+            base,
+        };
+        assert!(matches!(
+            move_staged(t.path(), &conflict).unwrap(),
+            MoveOutcome::TargetExists { .. }
+        ));
+        assert_eq!(std::fs::read(t.path().join("content/c.md")).unwrap(), b"c");
+        assert_eq!(
+            std::fs::read(t.path().join("content/nested/b.md")).unwrap(),
+            b"one"
+        );
+
+        std::fs::write(t.path().join("content/c.md"), b"theirs").unwrap();
+        assert!(matches!(
+            move_staged(t.path(), &conflict).unwrap(),
+            MoveOutcome::SourceStale { .. }
+        ));
+        assert_eq!(
+            std::fs::read(t.path().join("content/c.md")).unwrap(),
+            b"theirs"
+        );
+        assert_eq!(
+            std::fs::read(t.path().join("content/nested/b.md")).unwrap(),
+            b"one"
+        );
     }
 }

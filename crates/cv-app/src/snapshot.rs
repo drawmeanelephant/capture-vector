@@ -111,6 +111,13 @@ fn output(v: &Value) -> OutputRecord {
     }
 }
 
+fn scalar(v: &str) -> String {
+    v.strip_prefix('"')
+        .and_then(|x| x.strip_suffix('"'))
+        .unwrap_or(v)
+        .to_string()
+}
+
 fn list(v: &str) -> Vec<String> {
     v.trim()
         .trim_start_matches('[')
@@ -159,9 +166,9 @@ pub fn page(path: &str, raw: &str) -> PageRecord {
     for (k, v) in fm.lines().filter_map(|l| l.split_once(':')) {
         let v = v.trim().to_string();
         match k.trim() {
-            "id" => p.id = v.clone(),
-            "title" => p.title = v.clone(),
-            "parent" => p.parent = Some(v.clone()),
+            "id" => p.id = scalar(&v),
+            "title" => p.title = scalar(&v),
+            "parent" => p.parent = Some(scalar(&v)),
             "tags" => p.tags = list(&v),
             "relations" => {
                 p.relations = list(&v)
@@ -414,6 +421,17 @@ fn apply_ir(pages: &mut [PageRecord], graph: &Graph) {
             .filter(|r| r.from.kind == "page" && r.from.value == n.id)
             .map(|r| (r.kind.clone(), r.to.value.clone()))
             .collect();
+        p.wikilinks = graph
+            .edges
+            .iter()
+            .filter(|e| {
+                e.kind == "reference"
+                    && e.from.kind == "page"
+                    && e.from.value == n.id
+                    && e.to.kind == "page"
+            })
+            .map(|e| e.to.value.clone())
+            .collect();
         p.fields = FieldSource::Boris;
     }
 }
@@ -618,6 +636,31 @@ mod tests {
 
         set_mtime(ws.path(), "dist/graph.json", SystemTime::now());
         assert_eq!(title(2), "My Boris Site");
+    }
+
+    #[test]
+    fn source_fallback_reads_boris_double_quoted_scalars_without_quotes() {
+        let temp = tempfile::tempdir().unwrap();
+        write(
+            temp.path(),
+            "content/guides/renamed.md",
+            "---\nid: \"guides/getting-started\"\ntitle: \"Getting Started\"\nparent: \"index\"\n---\n# Body\n",
+        );
+        let snap = workspace_snapshot(temp.path(), "dist", None, 1);
+        let p = by_path(&snap, "guides/renamed.md");
+        assert_eq!(p.fields, FieldSource::Source);
+        assert_eq!(p.id, "guides/getting-started");
+        assert_eq!(p.title, "Getting Started");
+        assert_eq!(p.parent.as_deref(), Some("index"));
+        assert_eq!(
+            p.frontmatter,
+            vec![
+                ("id".into(), "\"guides/getting-started\"".into()),
+                ("title".into(), "\"Getting Started\"".into()),
+                ("parent".into(), "\"index\"".into()),
+            ],
+            "frontmatter rows stay exactly as authored"
+        );
     }
 
     #[test]

@@ -414,7 +414,7 @@ impl Workbench {
         self.drain();
     }
 
-    fn degraded_envelope(&mut self, reason: DegradedReason) -> Envelope {
+    fn local_envelope(&mut self, payload: AppEvent) -> Envelope {
         self.local_seq += 1;
         Envelope {
             workspace: WorkspaceId("local".into()),
@@ -425,8 +425,12 @@ impl Workbench {
                 seq: self.local_seq,
             },
             event_id: EventId(format!("shell-{}", self.local_seq)),
-            payload: AppEvent::Shell(ShellEvent::Degraded { reason }),
+            payload,
         }
+    }
+
+    fn degraded_envelope(&mut self, reason: DegradedReason) -> Envelope {
+        self.local_envelope(AppEvent::Shell(ShellEvent::Degraded { reason }))
     }
 
     // ---- theme ----
@@ -568,15 +572,30 @@ impl Workbench {
     }
 
     fn reclamp_rows(&mut self) {
-        let Some((_, key)) = &self.windows.primary.row else {
+        let Some((_, key)) = self.windows.primary.row.clone() else {
             return;
         };
-        match self.row_index(key) {
+        let key = match self.row_index(&key) {
             Some(i) => {
                 if let Some(row) = &mut self.windows.primary.row {
                     row.0 = i;
                 }
+                return;
             }
+            None => self
+                .windows
+                .primary
+                .selection
+                .noun
+                .clone()
+                .and_then(|noun| {
+                    self.registry
+                        .get(self.active)
+                        .and_then(|m| m.key_for(&noun))
+                }),
+        };
+        match key.and_then(|k| self.row_index(&k).map(|i| (i, k))) {
+            Some((i, _)) => self.select_row(i),
             None => self.clear_selection(),
         }
     }
@@ -767,6 +786,10 @@ impl Workbench {
     pub fn apply(&mut self, intent: Intent) {
         match intent {
             Intent::Degrade(reason) => self.disclose(reason),
+            Intent::Pages(ev) => {
+                let env = self.local_envelope(AppEvent::Pages(ev));
+                self.commit(&env);
+            }
             Intent::Recover => self.app.degraded = None,
             Intent::Status(s) => self.status = s,
             Intent::MarkDirty => self.windows.set_dirty(PRIMARY, true),
