@@ -18,7 +18,6 @@ use cv_core::events::shell::DegradedReason;
 use cv_core::events::{AppEvent, Envelope, SessionId};
 use cv_core::rules::ArtifactSet;
 use cv_engine::cursor::{CursorTracker, Observation};
-use cv_engine::debounce::Debounced;
 use cv_engine::probe::WatchMode;
 use cv_engine::{EngineConfig, EngineError, EngineScheduler, ProcessEngine, SeatPolicy};
 use cv_model::cascade::WANT_ENGINE;
@@ -34,6 +33,9 @@ pub type Scheduler = EngineScheduler<ProcessEngine>;
 
 /// Watch builds inside this window share one IR projection.
 const IR_WINDOW: Duration = Duration::from_millis(250);
+
+mod projection;
+use projection::IrProjection;
 
 /// The workspace's scheduler once the engine has passed its gate.
 #[derive(Clone, Default)]
@@ -85,16 +87,6 @@ impl Engine for SlotEngine {
 }
 
 /// The coalesced IR projection.
-struct IrProjection {
-    worker: Debounced,
-}
-
-impl IrProjection {
-    fn request(&self) {
-        self.worker.request();
-    }
-}
-
 /// The workbench's handle on the scheduler-owned watch session.
 struct SessionWatch {
     sched: Arc<Scheduler>,
@@ -260,72 +252,28 @@ impl LiveDelivery {
         )));
     }
 
-    /// The coalescing worker for [`Self::project_ir`]. `None` (logged)
-    /// when the OS refuses a thread: Pages then keeps its marked fallback.
-    fn ir_projector(&self, sched: Weak<Scheduler>) -> Option<IrProjection> {
-        let delivery = self.clone();
-        Debounced::spawn("cv-ir-projection", IR_WINDOW, move || {
-            delivery.project_ir(&sched)
-        })
-        .inspect_err(|e| {
-            crate::logging::warn(
-                "ir_projection_unavailable",
-                &[("error", serde_json::json!(e.to_string()))],
-            )
-        })
-        .ok()
-        .map(|worker| IrProjection { worker })
-    }
-
-    /// Boris IR into `.cv/ir` beside the live watch, then a resync so
-    /// Pages reads it. IR mode needs no layout, so it also runs after a
-    /// failed HTML build. A failed projection is always disclosed in
-    /// Activity, even when the watch build was already red: Pages keeping
-    /// fallback or stale fields needs the projection's own cause.
-    fn project_ir(&self, sched: &Weak<Scheduler>) {
-        let Some(sched) = sched.upgrade() else {
-            return;
-        };
-        let held = Arc::new(Mutex::new(Vec::new()));
-        let sink = held.clone();
-        let result = sched.run(
-            &self.engine.ir_projection(),
-            Box::new(move |env| sink.lock().unwrap_or_else(|e| e.into_inner()).push(env)),
-        );
-        drop(sched);
-        if matches!(&result, Ok(r) if r.exit == ExitClass::Ok) {
-            self.resync();
-            return;
-        }
-        let why = match &result {
-            Ok(r) => format!("{:?}", r.exit),
-            Err(e) => e.to_string(),
-        };
-        crate::logging::warn("ir_projection_failed", &[("why", serde_json::json!(why))]);
-        let mut deliver = self.inbox.sink();
-        for env in std::mem::take(&mut *held.lock().unwrap_or_else(|e| e.into_inner())) {
-            deliver(env);
-        }
-        if let Err(e) = result {
-            self.inbox.send(Inbound::Status(format!(
-                "Boris IR projection failed: {e} · Pages keeps its current fields · {}",
-                self.workspace_identity()
-            )));
-        }
-    }
-
     /// Refresh disk truth on a new session, a sequence gap or a build
     /// result, before forwarding the original envelope to the workbench
     /// and editor. Replay overlap is dropped before routing.
     fn resync_sink(
         &self,
+        route: impl FnMut(&mut EventSink, Envelope) + Send + 'static,
+    ) -> EventSink {
+        self.resync_sink_with_tracker(Arc::new(Mutex::new(CursorTracker::new())), route)
+    }
+
+    fn resync_sink_with_tracker(
+        &self,
+        tracker: Arc<Mutex<CursorTracker>>,
         mut route: impl FnMut(&mut EventSink, Envelope) + Send + 'static,
     ) -> EventSink {
         let delivery = self.clone();
-        let mut tracker = CursorTracker::new();
         let mut deliver = cv_widgets::editor::host::tee_builds(self.inbox.sink());
         Box::new(move |env| {
-            let obs = tracker.observe(&env.cursor);
+            let obs = tracker
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .observe(&env.cursor);
             if obs == Observation::Duplicate {
                 return;
             }
@@ -349,16 +297,32 @@ impl LiveDelivery {
     /// open, not one per event. Polling already runs one-shot builds on
     /// edits, so it never uses that attempt. Every other build result asks
     /// `ir` for a projection; the sink owns it, so it ends with the watch.
+    #[cfg(test)]
     fn watch_sink(
         &self,
         mode: WatchMode,
         ir: Option<IrProjection>,
         recover: impl FnOnce(SessionId) + Send + 'static,
     ) -> EventSink {
+        self.watch_sink_with_tracker(
+            mode,
+            ir,
+            recover,
+            Arc::new(Mutex::new(CursorTracker::new())),
+        )
+    }
+
+    fn watch_sink_with_tracker(
+        &self,
+        mode: WatchMode,
+        ir: Option<IrProjection>,
+        recover: impl FnOnce(SessionId) + Send + 'static,
+        tracker: Arc<Mutex<CursorTracker>>,
+    ) -> EventSink {
         let mut recover = Some(recover);
         let mut polling_failure = false;
         let inbox = self.inbox.clone();
-        self.resync_sink(move |deliver, env| {
+        self.resync_sink_with_tracker(tracker, move |deliver, env| {
             let fatal = matches!(
                 &env.payload,
                 AppEvent::Engine(EngineEvent::BuildFailed { diagnostics, recoverable: false, .. })
@@ -392,6 +356,21 @@ impl LiveDelivery {
                 }
             }
         })
+    }
+
+    /// Build the single ordered route shared by the watch child and IR
+    /// projection. The outer sink only forwards; the inner sink owns the
+    /// cursor tracker, while the projector holds the route weakly so the
+    /// pipeline drops cleanly with the watch.
+    fn watch_pipeline(
+        &self,
+        mode: WatchMode,
+        sched: Weak<Scheduler>,
+        recover: impl FnOnce(SessionId) + Send + 'static,
+    ) -> EventSink {
+        let tracker = Arc::new(Mutex::new(CursorTracker::new()));
+        let ir = self.ir_projector(sched, tracker.clone());
+        self.watch_sink_with_tracker(mode, ir, recover, tracker)
     }
 }
 
@@ -504,8 +483,7 @@ fn start_workspace_watch(sched: Arc<Scheduler>, delivery: LiveDelivery, warning:
     let recover_sched = Arc::downgrade(&sched);
     let recover_delivery = delivery.clone();
     let recover_warning = warning.clone();
-    let ir = delivery.ir_projector(Arc::downgrade(&sched));
-    let sink = delivery.watch_sink(mode, ir, move |session| {
+    let sink = delivery.watch_pipeline(mode, Arc::downgrade(&sched), move |session| {
         std::thread::spawn(move || {
             // A fatal initial build can arrive before `start_watch`
             // returns. Publish the watch handle/status before retiring it.
@@ -652,6 +630,51 @@ mod tests {
     }
 
     #[test]
+    fn projection_and_watch_share_cursor_gap_duplicate_and_replay_rules() {
+        let root = tempfile::tempdir().unwrap();
+        let mut wb = Workbench::new(Registry::with_all());
+        let delivery = test_delivery(root.path(), WatchMode::Native, &wb);
+        let tracker = Arc::new(Mutex::new(CursorTracker::new()));
+        let mut projection = delivery.projection_sink(tracker.clone());
+        let mut watch = delivery.watch_sink_with_tracker(
+            WatchMode::Native,
+            None,
+            |_| panic!("no fatal watch build in this stream"),
+            tracker,
+        );
+        let result = |seq| {
+            build(
+                seq,
+                EngineEvent::BuildFinished {
+                    phase: BuildPhase::Initial,
+                    pages_written: 0,
+                    diagnostics: vec![],
+                    duration_ms: 0,
+                },
+            )
+        };
+
+        projection(result(0));
+        watch(build(
+            2,
+            EngineEvent::WatchSessionEnded {
+                reason: cv_core::events::engine::WatchEndReason::CleanExit,
+            },
+        ));
+        wb.drain();
+        assert_eq!(wb.app.committed, 2);
+
+        // Replaying the sequence the gap skipped is overlap, not a new
+        // committed event. The next unseen sequence still commits.
+        projection(result(1));
+        wb.drain();
+        assert_eq!(wb.app.committed, 2);
+        projection(result(3));
+        wb.drain();
+        assert_eq!(wb.app.committed, 3);
+    }
+
+    #[test]
     fn polling_watch_discloses_failures_without_retrying_and_clears_on_success() {
         let root = tempfile::tempdir().unwrap();
         let mut wb = Workbench::new(Registry::with_all());
@@ -775,7 +798,15 @@ mod tests {
             .registry
             .get(wb.registry.index_of("activity").unwrap())
             .unwrap();
-        assert_eq!(activity.list_len(Some("builds")), 2);
+        assert_eq!(activity.list_len(Some("builds")), 1);
+        assert_eq!(
+            activity
+                .row(Some("builds"), 0)
+                .badge
+                .map(|c| c.text)
+                .as_deref(),
+            Some("×2")
+        );
         let reason = cv_widgets::shell::degraded_text(wb.app.degraded.as_ref().unwrap());
         let harness = cv_widgets::harness::Harness::new(wb);
         assert!(harness.rt.find("banner").is_some());
@@ -949,8 +980,7 @@ mod tests {
             delivery.engine.clone(),
             SeatPolicy::StopWatch,
         ));
-        let ir = delivery.ir_projector(Arc::downgrade(&sched));
-        let mut sink = delivery.watch_sink(WatchMode::Native, ir, |_| {
+        let mut sink = delivery.watch_pipeline(WatchMode::Native, Arc::downgrade(&sched), |_| {
             panic!("a green build never recovers")
         });
         for seq in 0..8 {
@@ -969,7 +999,7 @@ mod tests {
         std::thread::sleep(IR_WINDOW * 3);
         assert_eq!(
             std::fs::read_to_string(&argv).unwrap(),
-            "build --out .cv/ir\n"
+            format!("build --out {}\n", cv_engine::ir::IR_STAGING_DIR)
         );
         assert!(root.path().join(".cv/ir/graph.json").is_file());
         assert!(!root.path().join("dist").exists());
@@ -1010,8 +1040,7 @@ mod tests {
             delivery.engine.clone(),
             SeatPolicy::StopWatch,
         ));
-        let ir = delivery.ir_projector(Arc::downgrade(&sched));
-        let mut sink = delivery.watch_sink(WatchMode::Native, ir, |_| {
+        let mut sink = delivery.watch_pipeline(WatchMode::Native, Arc::downgrade(&sched), |_| {
             panic!("a located failure does not recover")
         });
         sink(layout_failed(0));
@@ -1030,18 +1059,19 @@ mod tests {
     #[test]
     fn a_failed_ir_projection_is_disclosed_after_a_red_watch_build_and_pages_keep_the_fallback() {
         use std::time::Instant;
-        let (_root, mut wb, delivery) = ir_workspace(Some(3));
+        let (_root, mut wb, delivery) = ir_workspace(Some(1));
         let sched = Arc::new(EngineScheduler::new(
             delivery.engine.clone(),
             SeatPolicy::StopWatch,
         ));
-        let ir = delivery.ir_projector(Arc::downgrade(&sched));
-        let mut sink = delivery.watch_sink(WatchMode::Native, ir, |_| {
+        let mut sink = delivery.watch_pipeline(WatchMode::Native, Arc::downgrade(&sched), |_| {
             panic!("a failed projection is not a failed watch")
         });
         sink(layout_failed(0));
         let deadline = Instant::now() + Duration::from_secs(10);
-        while !activity_rows(&wb).contains(&"ir finished · IoFailure".to_string()) {
+        while !activity_rows(&wb).iter().any(|r| {
+            r.starts_with("ir finished · ContentFailure") && r.contains("last published Boris IR")
+        }) {
             assert!(Instant::now() < deadline, "{:?}", activity_rows(&wb));
             std::thread::sleep(Duration::from_millis(10));
             wb.drain();
@@ -1065,8 +1095,7 @@ mod tests {
             delivery.engine.clone(),
             SeatPolicy::StopWatch,
         ));
-        let ir = delivery.ir_projector(Arc::downgrade(&sched));
-        let mut sink = delivery.watch_sink(WatchMode::Native, ir, |_| {
+        let mut sink = delivery.watch_pipeline(WatchMode::Native, Arc::downgrade(&sched), |_| {
             panic!("a green build never recovers")
         });
         sink(finished(0));
@@ -1079,12 +1108,14 @@ mod tests {
 
         std::fs::write(
             root.path().join("boris"),
-            "#!/bin/sh\necho \"$*\" >> \"$(dirname \"$0\")/argv.log\"\necho 'error: EIO: disk full' >&2\nexit 3\n",
+            "#!/bin/sh\necho \"$*\" >> \"$(dirname \"$0\")/argv.log\"\nrm -f \"$3/graph.json\"\necho 'error: EFRONTMATTER: unknown key' >&2\nexit 1\n",
         )
         .unwrap();
         sink(finished(1));
         let deadline = Instant::now() + Duration::from_secs(10);
-        while !activity_rows(&wb).contains(&"ir finished · IoFailure".to_string()) {
+        while !activity_rows(&wb).iter().any(|r| {
+            r.starts_with("ir finished · ContentFailure") && r.contains("last published Boris IR")
+        }) {
             assert!(Instant::now() < deadline, "{:?}", activity_rows(&wb));
             std::thread::sleep(Duration::from_millis(10));
             wb.drain();

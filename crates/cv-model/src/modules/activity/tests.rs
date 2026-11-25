@@ -87,6 +87,50 @@ fn rebuild_bursts_coalesce_without_dropping_events() {
 }
 
 #[test]
+fn repeated_ir_projection_outcomes_fold_without_dropping_events_or_hiding_fallback() {
+    use cv_core::engine::ExitClass;
+
+    let mut m = ActivityModule::default();
+    let mut ids = BTreeSet::new();
+    for n in 0..6 {
+        for payload in [
+            EngineEvent::BuildFinished {
+                phase: BuildPhase::Initial,
+                pages_written: 0,
+                diagnostics: vec![],
+                duration_ms: n,
+            },
+            EngineEvent::VerbFinished {
+                verb: "ir".into(),
+                exit: ExitClass::ContentFailure,
+            },
+        ] {
+            let is_verb = matches!(&payload, EngineEvent::VerbFinished { .. });
+            let e = env(n * 2 + u64::from(is_verb), payload);
+            ids.insert(e.event_id.0.clone());
+            m.ingest(&e);
+        }
+    }
+
+    assert_eq!(m.entries().len(), 2);
+    assert_eq!(m.accounted(), ids);
+    let verb = m
+        .entries()
+        .iter()
+        .find(|e| matches!(e.kind, EntryKind::Verb { .. }))
+        .unwrap();
+    assert_eq!(verb.occurrences.len(), 6);
+    assert!(verb.title().contains("ir"));
+    assert!(verb.detail().contains("ContentFailure"));
+    assert!(
+        verb.detail().contains("last published Boris IR")
+            && verb.detail().contains("marked source fields"),
+        "{}",
+        verb.detail()
+    );
+}
+
+#[test]
 fn persisting_diagnostic_coalesces_and_keeps_latest_value() {
     let mut m = ActivityModule::default();
     m.ingest(&failed(

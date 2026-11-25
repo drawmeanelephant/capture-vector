@@ -277,7 +277,7 @@ fn ir_projection_equals_across_engines() {
         assert!(
             fake.read("argv.log")
                 .lines()
-                .any(|l| l == "build --out .cv/ir"),
+                .any(|l| l == format!("build --out {}", cv_engine::ir::IR_STAGING_DIR)),
             "{name}: {}",
             fake.read("argv.log")
         );
@@ -311,7 +311,10 @@ fn ir_projection_runs_beside_a_live_watch() {
         .filter(|l| l.starts_with("build"))
         .map(String::from)
         .collect();
-    assert_eq!(builds, ["build --out .cv/ir"]);
+    assert_eq!(
+        builds,
+        [format!("build --out {}", cv_engine::ir::IR_STAGING_DIR)]
+    );
     sched.stop_watch();
 }
 

@@ -16,6 +16,7 @@ pub mod engine;
 pub mod error;
 pub mod exit;
 pub mod fallback;
+pub mod ir;
 pub mod lab;
 pub mod locate;
 pub mod probe;

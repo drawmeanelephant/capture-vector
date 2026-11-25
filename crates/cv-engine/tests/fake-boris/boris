@@ -29,4 +29,8 @@ if [ ! -d "$D/verbs/$V" ]; then echo "usage: fake-boris has no '$V'" >&2; exit 2
 [ -f "$D/verbs/$V/stderr.txt" ] && cat "$D/verbs/$V/stderr.txt" >&2
 if [ -f "$D/verbs/$V/hold" ]; then sleep 300 & wait; fi
 C=0; [ -f "$D/verbs/$V/exit-code.txt" ] && C=$(cat "$D/verbs/$V/exit-code.txt")
+if [ "$V" = "build-out" ] && [ "$C" = 0 ] && [ -f "$D/verbs/$V/graph.json" ]; then
+  mkdir -p "$3"
+  cp "$D/verbs/$V/graph.json" "$3/graph.json"
+fi
 exit "$C"

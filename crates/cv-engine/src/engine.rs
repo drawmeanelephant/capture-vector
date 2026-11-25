@@ -137,27 +137,66 @@ impl ProcessEngine {
     }
 
     /// `Engine::run` with cancellation. Build verbs emit
-    /// `BuildFinished`/`BuildFailed`; every verb ends with `VerbFinished`.
+    /// `BuildFinished`/`BuildFailed`; every completed verb ends with
+    /// `VerbFinished`, while a failure before a Boris exit lands as
+    /// `VerbFailed` so the stream never silently consumes cursor events.
     pub fn run_cancellable(
         &self,
         verb: &Verb,
         mut sink: EventSink,
         cancel: &CancelToken,
     ) -> Result<ExitClass> {
-        let out = self.run_verb(verb, cancel)?;
+        match self.run_cancellable_inner(verb, &mut sink, cancel) {
+            Ok(exit) => Ok(exit),
+            Err(e) => {
+                self.emitter.emit(
+                    &mut sink,
+                    None,
+                    None,
+                    EngineEvent::VerbFailed {
+                        verb: verb_name(verb),
+                        error: e.to_string(),
+                    },
+                );
+                Err(e)
+            }
+        }
+    }
+
+    fn run_cancellable_inner(
+        &self,
+        verb: &Verb,
+        sink: &mut EventSink,
+        cancel: &CancelToken,
+    ) -> Result<ExitClass> {
+        let staged = crate::ir::staged_verb(verb)?;
+        if staged.is_some() {
+            crate::ir::prepare(&self.cfg.root)?;
+        }
+        let out = self.run_verb(staged.as_ref().unwrap_or(verb), cancel)?;
         let exit = out
             .outcome
             .class()
             .ok_or(EngineError::Abnormal(out.outcome))?;
+        if let Verb::Ir { out, .. } = verb {
+            if exit == ExitClass::Ok {
+                if let Err(e) = crate::ir::publish(&self.cfg.root, out) {
+                    crate::ir::cleanup(&self.cfg.root);
+                    return Err(e);
+                }
+            } else {
+                crate::ir::cleanup(&self.cfg.root);
+            }
+        }
         let n = self.runs.fetch_add(1, Ordering::SeqCst) + 1;
         let build = BuildId(format!("{}:r{n}", self.emitter.session().0));
         let is_build = matches!(argv(verb)?.first().map(String::as_str), Some("build"));
         if is_build {
             let ev = build_event(&out, BuildPhase::Initial, &build);
-            self.emitter.emit(&mut sink, None, Some(build.clone()), ev);
+            self.emitter.emit(sink, None, Some(build.clone()), ev);
         }
         self.emitter.emit(
-            &mut sink,
+            sink,
             None,
             Some(build),
             EngineEvent::VerbFinished {

@@ -85,6 +85,10 @@ pub enum EntryKind {
         verb: String,
         exit: String,
     },
+    VerbFailed {
+        verb: String,
+        error: String,
+    },
     WatchEnded(WatchEndReason),
     Malformed(String),
     Degraded(DegradedReason),
@@ -108,7 +112,9 @@ impl Entry {
     fn severity(&self) -> Option<Severity> {
         match &self.kind {
             EntryKind::Diagnostic(d) => Some(d.severity),
-            EntryKind::Build { ok: false, .. } | EntryKind::Malformed(_) => Some(Severity::Error),
+            EntryKind::Build { ok: false, .. }
+            | EntryKind::VerbFailed { .. }
+            | EntryKind::Malformed(_) => Some(Severity::Error),
             EntryKind::Degraded(_) => Some(Severity::Warning),
             _ => None,
         }
@@ -131,6 +137,7 @@ impl Entry {
             } => format!("Build failed ({})", phase(p)),
             EntryKind::Diagnostic(d) => diagnostic_title(&d.code, &d.message),
             EntryKind::Verb { verb, .. } => format!("{} finished", verb.to_lowercase()),
+            EntryKind::VerbFailed { verb, .. } => format!("{} failed", verb.to_lowercase()),
             EntryKind::WatchEnded(r) => format!("Watch session ended ({r:?})"),
             EntryKind::Malformed(_) => "Malformed engine line".into(),
             EntryKind::Degraded(r) => format!("Degraded: {r:?}"),
@@ -150,7 +157,8 @@ impl Entry {
                 format!("{pages} pages · {duration_ms} ms · {diagnostics} diagnostics")
             }
             EntryKind::Diagnostic(d) => location(d),
-            EntryKind::Verb { exit, .. } => exit.clone(),
+            EntryKind::Verb { verb, exit } => ir_verb_detail(verb, exit),
+            EntryKind::VerbFailed { verb, error } => ir_verb_detail(verb, error),
             EntryKind::Malformed(raw) => raw.clone(),
             _ => String::new(),
         }
@@ -173,6 +181,11 @@ pub struct ActivityModule {
     open: BTreeMap<DiagIdentity, usize>,
     /// The burst a further rebuild of the same outcome folds into.
     last_build: Option<usize>,
+    /// Repeated one-shot initial build summaries fold into one entry.
+    initial_builds: BTreeMap<(bool, u64, usize), usize>,
+    /// Repeated identical verb outcomes fold into one entry. The first
+    /// key digit separates process-exited from failed-before-exit.
+    verb_outcomes: BTreeMap<(u8, String, String), usize>,
     /// Built from `views` only, so `push` is its one invalidation point.
     nav_cache: NavCache,
 }
@@ -305,16 +318,27 @@ impl ActivityModule {
             duration_ms,
             diagnostics: diagnostics.len(),
         };
-        let fold = self.last_build.filter(|&i| {
-            phase == BuildPhase::Rebuild
-                && matches!(self.entries[i].kind, EntryKind::Build { phase: BuildPhase::Rebuild, ok: o, .. } if o == ok)
-        });
+        let initial_key = (ok, pages, diagnostics.len());
+        let fold = if phase == BuildPhase::Rebuild {
+            self.last_build.filter(|&i| {
+                matches!(self.entries[i].kind, EntryKind::Build { phase: BuildPhase::Rebuild, ok: o, .. } if o == ok)
+            })
+        } else {
+            self.initial_builds.get(&initial_key).copied()
+        };
         match fold {
             Some(i) => {
                 self.entries[i].kind = kind;
                 self.entries[i].occurrences.push(occ.clone());
             }
-            None => self.last_build = Some(self.push(kind, occ.clone())),
+            None => {
+                let i = self.push(kind, occ.clone());
+                if phase == BuildPhase::Rebuild {
+                    self.last_build = Some(i);
+                } else {
+                    self.initial_builds.insert(initial_key, i);
+                }
+            }
         }
         if ok && diagnostics.iter().all(|d| d.severity != Severity::Error) {
             self.open.clear();
@@ -334,6 +358,17 @@ impl ActivityModule {
                 }
             }
         }
+    }
+}
+
+const IR_FALLBACK_DETAIL: &str =
+    "Pages keeps the last published Boris IR; when none exists, it keeps marked source fields";
+
+fn ir_verb_detail(verb: &str, outcome: &str) -> String {
+    if verb == "ir" && outcome != "Ok" {
+        format!("{outcome} · {IR_FALLBACK_DETAIL}")
+    } else {
+        outcome.into()
     }
 }
 
@@ -384,13 +419,41 @@ impl Module for ActivityModule {
                 EngineEvent::WatchSessionEnded { reason } => {
                     boundary(self, EntryKind::WatchEnded(reason.clone()))
                 }
-                EngineEvent::VerbFinished { verb, exit } => boundary(
-                    self,
-                    EntryKind::Verb {
-                        verb: verb.clone(),
-                        exit: format!("{exit:?}"),
-                    },
-                ),
+                EngineEvent::VerbFinished { verb, exit } => {
+                    let exit = format!("{exit:?}");
+                    let key = (0u8, verb.clone(), exit.clone());
+                    self.last_build = None;
+                    match self.verb_outcomes.get(&key).copied() {
+                        Some(i) => self.entries[i].occurrences.push(occ.clone()),
+                        None => {
+                            let i = self.push(
+                                EntryKind::Verb {
+                                    verb: verb.clone(),
+                                    exit,
+                                },
+                                occ.clone(),
+                            );
+                            self.verb_outcomes.insert(key, i);
+                        }
+                    }
+                }
+                EngineEvent::VerbFailed { verb, error } => {
+                    let key = (1u8, verb.clone(), error.clone());
+                    self.last_build = None;
+                    match self.verb_outcomes.get(&key).copied() {
+                        Some(i) => self.entries[i].occurrences.push(occ.clone()),
+                        None => {
+                            let i = self.push(
+                                EntryKind::VerbFailed {
+                                    verb: verb.clone(),
+                                    error: error.clone(),
+                                },
+                                occ.clone(),
+                            );
+                            self.verb_outcomes.insert(key, i);
+                        }
+                    }
+                }
                 EngineEvent::MalformedLine { raw } => {
                     boundary(self, EntryKind::Malformed(raw.clone()))
                 }

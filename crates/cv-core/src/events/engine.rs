@@ -33,6 +33,13 @@ pub enum EngineEvent {
         verb: String,
         exit: ExitClass,
     },
+    /// A verb failed before Boris could return an exit code (spawn,
+    /// cancellation, output capture, or CV-side artifact publication).
+    /// The cause is engine text, never argv or secret material.
+    VerbFailed {
+        verb: String,
+        error: String,
+    },
     /// stderr bytes that did not decode to a known event — surfaced, not
     /// swallowed (malformed lines are handled, never tolerated silently).
     MalformedLine {

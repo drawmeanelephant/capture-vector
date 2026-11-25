@@ -129,6 +129,12 @@ fn describe(ev: &EngineEvent) -> (String, String, Tone, Vec<ReadingLine>) {
                 line("exit", format!("{exit:?}")),
             ],
         ),
+        EngineEvent::VerbFailed { verb, error } => (
+            format!("{verb} failed"),
+            error.clone(),
+            Tone::Error,
+            vec![line("verb", verb.clone()), line("error", error.clone())],
+        ),
         EngineEvent::MalformedLine { raw } => (
             "Malformed engine line".into(),
             raw.clone(),
