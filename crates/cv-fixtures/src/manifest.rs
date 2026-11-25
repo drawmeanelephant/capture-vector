@@ -14,8 +14,38 @@ pub struct Manifest {
     pub engine_version: String,
     pub capture_command: String,
     pub captured: String,
+    /// `[migration_lab]`: the pinned `boris-migration-lab` build.
+    pub migration_lab: Option<MigrationLabPin>,
     /// `captures/<corpus>/<verb>/<file>` or `corpus-src/…` → sha256 hex.
     files: BTreeMap<String, String>,
+}
+
+/// Where `scripts/fetch-migration-lab.sh` builds the lab from, and what
+/// the built binary must print for `--version`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MigrationLabPin {
+    pub repo: String,
+    /// Full 40-hex commit.
+    pub commit: String,
+    pub tool_id: String,
+    pub zig_version: String,
+}
+
+impl MigrationLabPin {
+    fn parse(t: &toml::Table) -> Self {
+        let get = |k: &str| -> String {
+            t.get(k)
+                .and_then(|v| v.as_str())
+                .unwrap_or_else(|| panic!("MANIFEST.toml [migration_lab] missing `{k}`"))
+                .to_string()
+        };
+        Self {
+            repo: get("repo"),
+            commit: get("commit"),
+            tool_id: get("tool_id"),
+            zig_version: get("zig_version"),
+        }
+    }
 }
 
 impl Manifest {
@@ -60,6 +90,12 @@ impl Manifest {
             engine_version: get("engine_version"),
             capture_command: get("capture_command"),
             captured: get("captured"),
+            migration_lab: table.get("migration_lab").map(|v| {
+                MigrationLabPin::parse(
+                    v.as_table()
+                        .expect("MANIFEST.toml `migration_lab` is not a table"),
+                )
+            }),
             files,
         }
     }

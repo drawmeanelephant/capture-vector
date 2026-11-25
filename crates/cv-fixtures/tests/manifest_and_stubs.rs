@@ -39,6 +39,26 @@ fn every_pinned_file_exists_and_hashes() {
 }
 
 #[test]
+fn manifest_pins_one_migration_lab_build_outside_the_file_list() {
+    let manifest = Manifest::load(&fixtures_root().join("MANIFEST.toml"));
+    let lab = manifest
+        .migration_lab
+        .as_ref()
+        .expect("[migration_lab] pin");
+    assert_eq!(lab.commit.len(), 40, "{}", lab.commit);
+    assert!(lab.commit.bytes().all(|b| b.is_ascii_hexdigit()));
+    assert!(lab.tool_id.starts_with("boris-migration-lab/"));
+    assert!(lab.repo.starts_with("https://"));
+    assert!(!lab.zig_version.is_empty());
+    // A tool pin is not a capture: it must not join the hashed file list.
+    assert!(
+        manifest
+            .pinned_files()
+            .all(|(k, _)| k.starts_with("captures/") || k.starts_with("corpus-src/"))
+    );
+}
+
+#[test]
 fn corpus_reads_are_hash_verified() {
     let c: Corpus = corpus("happy");
     // round-trips through manifest verification

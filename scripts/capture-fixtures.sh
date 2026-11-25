@@ -107,6 +107,9 @@ done
 printf -v capture_command 'scripts/capture-fixtures.sh %q' "$CORPUS_SRC"
 capture_command=${capture_command//\\/\\\\}
 capture_command=${capture_command//\"/\\\"}
+# Tool pins are not captures: carry [migration_lab] (the last table) forward
+# verbatim. Read it before the redirect below truncates the manifest.
+lab_pin=$(sed -n '/^\[migration_lab\]$/,$p' "$FIX/MANIFEST.toml" 2>/dev/null || true)
 ( cd "$FIX" && {
   echo 'schema_version = 1'
   # engine-version.txt is JSON — a TOML literal string keeps it valid
@@ -117,6 +120,7 @@ capture_command=${capture_command//\"/\\\"}
   find corpus-src captures -type f | sort | while IFS= read -r f; do
     h=$(fixture_sha256 "$f") || exit 1
     echo "\"$f\" = \"$h\""
-  done
+  done || exit 1
+  [ -z "$lab_pin" ] || printf '\n%s\n' "$lab_pin"
 } > MANIFEST.toml ) || exit 1
 echo "done -> $FIX"

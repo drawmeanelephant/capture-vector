@@ -14,6 +14,10 @@ test fails on a hash.
 - Fixtures are byte-pinned in `fixtures/MANIFEST.toml`; commit the
   manifest and the captures together.
 - Ordinary CI and tests must not need a Boris binary; only capture does.
+- `[migration_lab]` at the end of the manifest is a tool pin, not a
+  capture. The capture script carries it forward unchanged; change it
+  only together with `cv_engine::lab::PINNED` and rebuild with
+  `scripts/fetch-migration-lab.sh`.
 
 ## Steps
 

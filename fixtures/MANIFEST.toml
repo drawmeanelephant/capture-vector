@@ -214,3 +214,12 @@ captured = "2026-11-23T23:53:19Z"
 "corpus-src/happy/content/index.md" = "d52ea10095094dc38b6916cbc5456d433a01ef5e60be1e9ab324bb7042888b8d"
 "corpus-src/happy/themes/boris/assets/css/boris.css" = "ac4dc197bb46ade5432be1a4ed5d0a958c4834f386909577c3b5f1b74e8d219e"
 "corpus-src/happy/themes/boris/layouts/main.html" = "efd2870bd5632cb0d6097938e29f3646571c8782a11901ac1867b54f708eec3c"
+
+[migration_lab]
+# The second pinned tool. scripts/fetch-migration-lab.sh builds this commit
+# and cv_engine::lab::PINNED mirrors it; capture-fixtures.sh carries this
+# table forward unchanged when it rewrites the manifest.
+repo = "https://github.com/drawmeanelephant/boris-migration-lab"
+commit = "ce40d78a0cd20f3e36550c7a85391903672bcb5a"
+tool_id = "boris-migration-lab/0.8.1"
+zig_version = "0.17.1"

@@ -43,6 +43,31 @@ the folder picker; the recent list lives under the platform config dir
   pinned tag (`v0.9.0`) or point `CV_BORIS_BIN` at it.
 - A sibling checkout is only considered with `CV_BORIS_SIBLING=1`.
 
+## Symptom: migration lab absent / version mismatch
+
+`boris-migration-lab` powers the Migrate utility. It is optional: without
+it everything else works, and the app discloses the absence.
+
+- Build the pinned lab (commit and tool id are in `fixtures/MANIFEST.toml`
+  under `[migration_lab]`; needs git, zig 0.17.x, and network):
+  `./scripts/fetch-migration-lab.sh`. It builds into
+  `vendor/boris-migration-lab/zig-out/bin/` and prints the
+  `CV_MIGRATION_LAB_BIN` line to export.
+- Discovery order matches Boris: `CV_MIGRATION_LAB_BIN` → bundled
+  `engines/` → `PATH` → `<workspace>/../boris-migration-lab/zig-out/bin`,
+  the last only with `CV_MIGRATION_LAB_SIBLING=1`.
+- The gate is `boris-migration-lab --version` printing the pinned tool id
+  (`boris-migration-lab/0.8.1`). The binary cannot report its commit, so
+  build from the pinned commit rather than trusting a renamed binary.
+- `error: migration-lab (<mode>) failed: OutputSymlink` (exit 2) means a
+  path reached the lab through a symlink, for example `/tmp` on macOS.
+  `cv-engine` canonicalizes inputs and `--out` before it spawns the lab,
+  so this error from the app is a bug; from a shell, pass
+  `/private/tmp/...`.
+- Live checks, including the pin-skew check of emitted pages against the
+  pinned Boris:
+  `CV_MIGRATION_LAB_BIN=… CV_BORIS_BIN=… cargo test -p cv-engine --test lab_live -- --ignored --nocapture`.
+
 ## Symptom: watch dead / rebuilds never land
 
 1. Confirm the engine version gate passes: `boris --version` and

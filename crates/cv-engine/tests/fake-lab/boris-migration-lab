@@ -1,0 +1,20 @@
+#!/bin/sh
+# fake-lab (POSIX): a boris-migration-lab test double. Records argv, cwd and
+# env next to this script, then replays the version, stderr and exit code
+# the test placed there.
+D=$(cd "$(dirname "$0")" && pwd)
+printf '%s\n' "$@" > "$D/argv.log"
+pwd -P > "$D/cwd.log"
+env > "$D/env.log"
+case "$1" in
+  --version|-V) cat "$D/version.txt"; exit 0 ;;
+  --help|-h) echo "usage: fake-lab"; exit 0 ;;
+esac
+[ -f "$D/stderr.txt" ] && cat "$D/stderr.txt" >&2
+if [ -f "$D/hold" ]; then
+  # A grandchild holding the pipes: only a group kill ends the run.
+  sleep 300 &
+  wait
+fi
+C=0; [ -f "$D/exit-code.txt" ] && C=$(cat "$D/exit-code.txt")
+exit "$C"
