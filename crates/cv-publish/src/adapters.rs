@@ -113,6 +113,27 @@ pub const COPY_TO_FOLDER: &str = "copy-to-folder";
 pub const RUN_COMMAND: &str = "run-command";
 pub const HTTP_POST: &str = "http-post";
 
+#[cfg(unix)]
+fn fsync_chain(root: &Path, parents: impl IntoIterator<Item = PathBuf>) -> Vec<PathBuf> {
+    let mut chain = std::collections::BTreeSet::new();
+    for dir in parents {
+        let mut cur = Some(dir.as_path());
+        while let Some(d) = cur {
+            if !d.starts_with(root) {
+                break;
+            }
+            chain.insert(d.to_path_buf());
+            if d == root {
+                break;
+            }
+            cur = d.parent();
+        }
+    }
+    let mut chain: Vec<_> = chain.into_iter().collect();
+    chain.sort_by_key(|p| std::cmp::Reverse(p.components().count()));
+    chain
+}
+
 impl DeliveryAdapter for CopyToFolder {
     fn id(&self) -> &str {
         COPY_TO_FOLDER
@@ -176,23 +197,7 @@ impl DeliveryAdapter for CopyToFolder {
             // fsync equivalent on this path; there the terminal journal record
             // can acknowledge renames before the directory entries themselves
             // are guaranteed durable.
-            let mut chain = std::collections::BTreeSet::new();
-            for dir in parents {
-                let mut cur = Some(dir.as_path());
-                while let Some(d) = cur {
-                    if !d.starts_with(&self.root) {
-                        break;
-                    }
-                    chain.insert(d.to_path_buf());
-                    if d == self.root {
-                        break;
-                    }
-                    cur = d.parent();
-                }
-            }
-            let mut chain: Vec<_> = chain.into_iter().collect();
-            chain.sort_by_key(|p| std::cmp::Reverse(p.components().count()));
-            for dir in chain {
+            for dir in fsync_chain(&self.root, parents) {
                 std::fs::File::open(&dir)
                     .and_then(|d| d.sync_all())
                     .map_err(|e| TransportFailure::after_contact(format!("fsync {dir:?}: {e}")))?;
@@ -360,5 +365,33 @@ impl<T: HttpTransport> DeliveryAdapter for HttpPost<T> {
             400..=499 => Ok(Delivered::Complete(RunStatus::Failed)),
             s => Err(TransportFailure::after_contact(format!("http {s}"))),
         }
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::fsync_chain;
+    use std::path::{Path, PathBuf};
+
+    #[test]
+    fn copy_fsync_chain_is_complete_and_deepest_first() {
+        let root = Path::new("/project");
+        let chain = fsync_chain(
+            root,
+            [
+                PathBuf::from("/project/deploy/guides"),
+                PathBuf::from("/project"),
+                PathBuf::from("/elsewhere/deploy"),
+            ],
+        );
+        let pos = |p: &Path| chain.iter().position(|x| x == p).unwrap_or(usize::MAX);
+        assert_eq!(chain.first().unwrap(), Path::new("/project/deploy/guides"));
+        assert_eq!(chain.last().unwrap(), root);
+        assert!(
+            pos(Path::new("/project/deploy/guides")) < pos(Path::new("/project/deploy"))
+                && pos(Path::new("/project/deploy")) < pos(root),
+            "deepest-first chain: {chain:?}"
+        );
+        assert!(!chain.iter().any(|p| p.starts_with("/elsewhere")));
     }
 }
