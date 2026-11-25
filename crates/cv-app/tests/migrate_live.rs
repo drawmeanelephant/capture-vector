@@ -47,7 +47,11 @@ fn real_lab_runs_project_like_the_captures() {
         )
         .unwrap();
         assert_eq!(rec.refused, None, "{mode}");
-        assert_eq!(rec.finished.as_ref().unwrap().exit, "ok", "{mode}");
+        assert_eq!(
+            rec.finished.as_ref().unwrap().exit,
+            cv_store::imports::FinishedExit::Ok,
+            "{mode}"
+        );
     }
     let state = locate(&root);
     assert!(matches!(state, LabState::Located { .. }), "{state:?}");
@@ -98,7 +102,11 @@ fn real_inventory_modes_decode_with_count_evidence() {
         )
         .unwrap();
         assert_eq!(rec.refused, None, "{mode}");
-        assert_eq!(rec.finished.as_ref().unwrap().exit, "ok", "{mode}");
+        assert_eq!(
+            rec.finished.as_ref().unwrap().exit,
+            cv_store::imports::FinishedExit::Ok,
+            "{mode}"
+        );
     }
     let imports = DiskPort::open(&root, locate(&root)).load();
     assert_eq!(imports.runs.len(), cases.len());

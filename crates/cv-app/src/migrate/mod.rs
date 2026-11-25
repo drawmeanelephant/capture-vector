@@ -285,7 +285,7 @@ fn status(root: &Path, rec: &RunRecord) -> RunStatus {
     if rec.refused.is_some() {
         return RunStatus::Refused;
     }
-    match rec.finished.as_ref().map(|f| f.exit.as_str()) {
+    match rec.finished.as_ref().map(|f| f.exit) {
         // A recorded outcome is authoritative even if lock state has changed
         // since the worker wrote it. Only outcome-less records are projected
         // through the per-run lock, read-only.
@@ -293,9 +293,9 @@ fn status(root: &Path, rec: &RunRecord) -> RunStatus {
             Ok(store::RunProbe::Held) => RunStatus::Running,
             Ok(store::RunProbe::Free | store::RunProbe::Missing) | Err(_) => RunStatus::Unfinished,
         },
-        Some("ok") => RunStatus::Ok,
-        Some("cancelled") => RunStatus::Cancelled,
-        Some("usage") => RunStatus::Refused,
+        Some(store::FinishedExit::Ok) => RunStatus::Ok,
+        Some(store::FinishedExit::Cancelled) => RunStatus::Cancelled,
+        Some(store::FinishedExit::Usage) => RunStatus::Refused,
         Some(_) => RunStatus::Failed,
     }
 }
@@ -766,11 +766,11 @@ fn outcome_text(o: cv_engine::exit::ExitOutcome) -> (Option<i32>, String) {
     }
 }
 
-fn exit_name(e: LabExit) -> &'static str {
+fn exit_name(e: LabExit) -> store::FinishedExit {
     match e {
-        LabExit::Ok => "ok",
-        LabExit::UsageError => "usage",
-        LabExit::IoFailure => "io",
+        LabExit::Ok => store::FinishedExit::Ok,
+        LabExit::UsageError => store::FinishedExit::Usage,
+        LabExit::IoFailure => store::FinishedExit::Io,
     }
 }
 
@@ -876,7 +876,7 @@ pub(crate) fn plain_prepare_refusal(e: &LabError) -> String {
 /// code is mode-dependent (2 when mode-specific validation fires first,
 /// 3 once validateRoots runs — both proven against the real pinned lab),
 /// so the name, not the exit code, is the refusal signal.
-/// Keep stderr verbatim in the record and put the actionable explanation,
+/// Keep raw stderr bytes in `stderr.log` and put the actionable explanation,
 /// including the relevant path, in `refused`.
 /// The pinned lab's refusal error names, as `migration-lab (<mode>)
 /// failed: <Name>` on stderr at the pinned commit.
@@ -997,7 +997,11 @@ pub fn run_lab(
             let cancelled = matches!(e, EngineError::Cancelled) && cancel.is_cancelled();
             rec.finished = Some(store::Finished {
                 exit_code: None,
-                exit: if cancelled { "cancelled" } else { "io" }.into(),
+                exit: if cancelled {
+                    store::FinishedExit::Cancelled
+                } else {
+                    store::FinishedExit::Io
+                },
                 outcome: e.to_string(),
                 duration_ms: wait_started.elapsed().as_millis() as u64,
             });
@@ -1014,7 +1018,9 @@ pub fn run_lab(
         }
     };
     let (exit_code, outcome) = outcome_text(out.outcome);
-    rec.stderr = Some(out.stderr.clone());
+    let (len, sha256) = store::write_stderr(&lock, &out.stderr_bytes).map_err(RunError::Store)?;
+    rec.stderr_bytes = Some(len);
+    rec.stderr_sha256 = Some(sha256);
     // The pinned lab reports safety refusals as exit 3 (its io_error code)
     // with a stable error name on stderr; exit 2 is a usage failure. Either
     // way the run never emitted, so both read as refusals — but only the
@@ -1024,7 +1030,7 @@ pub fn run_lab(
     }
     rec.finished = Some(store::Finished {
         exit_code,
-        exit: exit_name(out.exit).into(),
+        exit: exit_name(out.exit),
         outcome,
         duration_ms: out.duration_ms,
     });

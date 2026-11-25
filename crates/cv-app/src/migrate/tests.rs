@@ -157,11 +157,11 @@ fn run_status_follows_the_recorded_outcome() {
     };
     let lock = store::lock_run(d.path(), &id).unwrap();
     for (exit, want) in [
-        ("ok", RunStatus::Ok),
-        ("usage", RunStatus::Refused),
-        ("io", RunStatus::Failed),
+        (store::FinishedExit::Ok, RunStatus::Ok),
+        (store::FinishedExit::Usage, RunStatus::Refused),
+        (store::FinishedExit::Io, RunStatus::Failed),
     ] {
-        rec.finished.as_mut().unwrap().exit = exit.into();
+        rec.finished.as_mut().unwrap().exit = exit;
         store::write(&lock, &rec).unwrap();
         assert_eq!(load(d.path()).runs[0].status, want, "{exit}");
     }
@@ -312,7 +312,7 @@ fn cancelled_exit_projects_as_cancelled_instead_of_a_lab_failure() {
     );
     rec.finished = Some(store::Finished {
         exit_code: None,
-        exit: "cancelled".into(),
+        exit: store::FinishedExit::Cancelled,
         outcome: "cancelled; child process group killed".into(),
         duration_ms: 3,
     });

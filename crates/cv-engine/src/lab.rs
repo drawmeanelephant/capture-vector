@@ -548,9 +548,10 @@ impl LabExit {
     }
 }
 
-/// A finished run. `stderr` is the lab's evidence, kept verbatim up to the
+/// A finished run. `stderr_bytes` is the lab's raw evidence up to the
 /// engine's 8 MiB capture bound; capture overflow fails the run rather than
-/// truncating silently. With `-q` off it holds the progress lines too.
+/// truncating silently. `stderr` is only a lossy UTF-8 view for diagnostics
+/// and refusal detection. With `-q` off it holds the progress lines too.
 #[derive(Debug, Clone)]
 pub struct LabOutput {
     pub run: PreparedRun,
@@ -558,6 +559,7 @@ pub struct LabOutput {
     pub exit: LabExit,
     pub stdout: String,
     pub stderr: String,
+    pub stderr_bytes: Vec<u8>,
     pub duration_ms: u64,
 }
 
@@ -570,12 +572,14 @@ pub fn run(lab: &LabIdentity, run: &LabRun, cancel: &CancelToken) -> Result<LabO
     let started = Instant::now();
     let c = run_captured(cmd, None, cancel)?;
     let exit = LabExit::from_outcome(c.outcome).ok_or(EngineError::Cancelled)?;
+    let stderr = String::from_utf8_lossy(&c.stderr).into_owned();
     Ok(LabOutput {
         run: prepared,
         outcome: c.outcome,
         exit,
         stdout: String::from_utf8_lossy(&c.stdout).into_owned(),
-        stderr: String::from_utf8_lossy(&c.stderr).into_owned(),
+        stderr,
+        stderr_bytes: c.stderr,
         duration_ms: started.elapsed().as_millis() as u64,
     })
 }

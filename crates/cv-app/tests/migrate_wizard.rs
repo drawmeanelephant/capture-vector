@@ -127,7 +127,7 @@ fn wordpress_wxr_file_picker_emits_into_runs_without_copying_the_input() {
     );
     let rec = run_record(&root, &job.run_id);
     assert_eq!(rec.mode, "wordpress");
-    assert_eq!(rec.finished.unwrap().exit, "ok");
+    assert_eq!(rec.finished.unwrap().exit, store::FinishedExit::Ok);
     assert_eq!(rec.inputs.len(), 1);
     assert_eq!(rec.inputs[0].path, wxr.display().to_string());
     assert_eq!(rec.inputs[0].path_sha256.len(), 64);
@@ -189,7 +189,7 @@ fn hugo_folder_picker_inventories_first_then_emits_into_runs() {
     ] {
         let rec = run_record(&root, id);
         assert_eq!(rec.mode, mode);
-        assert_eq!(rec.finished.unwrap().exit, "ok");
+        assert_eq!(rec.finished.unwrap().exit, store::FinishedExit::Ok);
         assert_eq!(rec.inputs[0].path, hugo.display().to_string());
     }
     assert!(
@@ -262,7 +262,7 @@ fn cancelling_progress_kills_the_lab_and_records_a_cancelled_run() {
 
     let rec = run_record(&root, &inventory.run_id);
     let finished = rec.finished.expect("cancelled run has a finish record");
-    assert_eq!(finished.exit, "cancelled");
+    assert_eq!(finished.exit, store::FinishedExit::Cancelled);
     assert!(finished.outcome.contains("cancelled"));
     assert_eq!(
         h.state().selected_key(),
@@ -357,7 +357,10 @@ fn switching_workspaces_during_import_keeps_the_run_lock_and_record_intact() {
     inventory.cancel.cancel();
     worker.join().unwrap();
     let rec = run_record(&root, &inventory.run_id);
-    assert_eq!(rec.finished.expect("finished record").exit, "cancelled");
+    assert_eq!(
+        rec.finished.expect("finished record").exit,
+        store::FinishedExit::Cancelled
+    );
     assert_eq!(
         store::probe_run(&root, &inventory.run_id).unwrap(),
         store::RunProbe::Free,

@@ -135,11 +135,14 @@ pub fn run_stub_lab(
         }
         Err(e) => {
             let text = e.to_string();
-            rec.stderr = Some(text.clone());
+            let (len, sha256) =
+                store::write_stderr(&lock, text.as_bytes()).map_err(|e| e.to_string())?;
+            rec.stderr_bytes = Some(len);
+            rec.stderr_sha256 = Some(sha256);
             rec.refused = Some(super::plain_lab_refusal(&text, &prepared.out));
             rec.finished = Some(store::Finished {
                 exit_code: Some(2),
-                exit: "usage".into(),
+                exit: store::FinishedExit::Usage,
                 outcome: "stub replay refused".into(),
                 duration_ms: 0,
             });
@@ -147,18 +150,21 @@ pub fn run_stub_lab(
             return Ok(rec);
         }
     };
-    rec.stderr = Some(done.stderr.clone());
+    let (len, sha256) =
+        store::write_stderr(&lock, done.stderr.as_bytes()).map_err(|e| e.to_string())?;
+    rec.stderr_bytes = Some(len);
+    rec.stderr_sha256 = Some(sha256);
     if done.exit_code == 2 {
         rec.refused = Some(super::plain_lab_refusal(&done.stderr, &prepared.out));
     }
     let exit = match done.exit_code {
-        0 => "ok",
-        2 => "usage",
-        _ => "io",
+        0 => store::FinishedExit::Ok,
+        2 => store::FinishedExit::Usage,
+        _ => store::FinishedExit::Io,
     };
     rec.finished = Some(store::Finished {
         exit_code: Some(done.exit_code),
-        exit: exit.into(),
+        exit,
         outcome: format!("exited {}", done.exit_code),
         duration_ms: 0,
     });

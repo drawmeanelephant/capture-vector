@@ -45,14 +45,16 @@ pub fn seed_run(root: &Path, mode: &str, started_ms: i64) -> String {
     rec.argv = t.argv.clone();
     let pin = cv_engine::locate::PINNED;
     rec.boris_pin = Some(format!("{} @ {}", pin.version, pin.vcs_revision));
+    let (len, sha256) = store::write_stderr(&lock, t.stderr.as_bytes()).expect("scene stderr");
+    rec.stderr_bytes = Some(len);
+    rec.stderr_sha256 = Some(sha256);
     rec.finished = Some(Finished {
         exit_code: Some(t.exit_code),
         exit: match t.exit_code {
-            0 => "ok",
-            2 => "usage",
-            _ => "io",
-        }
-        .into(),
+            0 => store::FinishedExit::Ok,
+            2 => store::FinishedExit::Usage,
+            _ => store::FinishedExit::Io,
+        },
         outcome: format!("exited {}", t.exit_code),
         duration_ms: 0,
     });
