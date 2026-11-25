@@ -1,0 +1,27 @@
+{
+  "format": "boris-frontmatter-review-lab",
+  "schema_version": 2,
+  "tool_version": "0.1.0",
+  "source_root": "/CAPTURE_ROOT/src/fm-review-mixed/content",
+  "total_unknown_keys": 5,
+  "total_occurrences": 5,
+  "field_summaries": [
+    {"key": "caseNumber", "disposition": "identity_source", "occurrence_count": 1, "affected_file_count": 1},
+    {"key": "description", "disposition": "body_candidate", "occurrence_count": 1, "affected_file_count": 1},
+    {"key": "mascotId", "disposition": "identity_source", "occurrence_count": 1, "affected_file_count": 1},
+    {"key": "slug", "disposition": "identity_source", "occurrence_count": 1, "affected_file_count": 1},
+    {"key": "updatedAt", "disposition": "sidecar_only", "occurrence_count": 1, "affected_file_count": 1}
+  ],
+  "files": [
+    {
+      "source_path": "mascots/cass.md",
+      "incompatible_fence": false,
+      "unknown_keys": [{ "key": "mascotId", "line": 3, "value": "cass-d", "disposition": "identity_source" }, { "key": "description", "line": 4, "value": "The primary mascot for failure states.", "disposition": "body_candidate" }]
+    },
+    {
+      "source_path": "posts/case-alpha.md",
+      "incompatible_fence": false,
+      "unknown_keys": [{ "key": "caseNumber", "line": 3, "value": "CASE-ALPHA-001", "disposition": "identity_source" }, { "key": "slug", "line": 4, "value": "posts/case-alpha", "disposition": "identity_source" }, { "key": "updatedAt", "line": 6, "value": "2026-07-01", "disposition": "sidecar_only" }]
+    }
+  ]
+}

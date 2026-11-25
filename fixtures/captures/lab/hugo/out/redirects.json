@@ -1,0 +1,9 @@
+{
+  "format": "boris-hugo-migration-lab",
+  "schema_version": 1,
+  "redirects": [
+    {"kind": "alias", "from": "/legacy/hb", "to_entity_id": "en/posts/hello-bundle", "source": "content/en/posts/hello-bundle/index.md"},
+    {"kind": "alias", "from": "/old/hello-bundle/", "to_entity_id": "en/posts/hello-bundle", "source": "content/en/posts/hello-bundle/index.md"},
+    {"kind": "slug", "from": "hello-custom-slug", "to_entity_id": "en/posts/hello-bundle", "source": "content/en/posts/hello-bundle/index.md"}
+  ]
+}

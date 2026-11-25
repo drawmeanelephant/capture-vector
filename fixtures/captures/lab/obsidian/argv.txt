@@ -1,0 +1,3 @@
+--mode=obsidian
+--vault=/CAPTURE_ROOT/src/mini-obsidian
+--out=/CAPTURE_ROOT/out/obsidian

@@ -1,14 +1,17 @@
-//! cv-fixtures — captured corpora + `StubEngine` + `StubStore`.
+//! cv-fixtures — captured corpora + `StubEngine` + `StubStore`, and
+//! captured migration-lab runs + `StubLab` ([`lab`]).
 //!
 //! Every fixture is a **real capture** pinned by sha256 in
 //! `fixtures/MANIFEST.toml`. Lanes assert by corpus + file name; bytes are
 //! verified against the manifest on read so stale or hand-authored
 //! fixtures fail loudly.
 
+pub mod lab;
 pub mod manifest;
 pub mod stub_engine;
 pub mod stub_store;
 
+pub use lab::StubLab;
 pub use manifest::Manifest;
 pub use stub_engine::StubEngine;
 pub use stub_store::StubStore;
@@ -92,6 +95,11 @@ fn check_rel(rel: &str) {
 /// Open a corpus by name (`happy`, `broken-frontmatter`, …).
 pub fn corpus(name: &str) -> Corpus {
     check_rel(name);
+    assert_ne!(
+        name,
+        lab::LAB_DIR,
+        "lab captures open with lab::lab_capture"
+    );
     let manifest = Manifest::load(&fixtures_root().join("MANIFEST.toml"));
     let dir = fixtures_root().join("captures");
     assert!(
@@ -127,12 +135,13 @@ pub fn ir_capture(name: &str) -> Corpus {
 /// it has no sources, builds or watch session.
 pub const INIT: &str = "init";
 
-/// Every corpus name present on disk.
+/// Every Boris corpus name present on disk (neither the lab captures nor
+/// the init pseudo-capture).
 pub fn corpora() -> Vec<String> {
     let mut v: Vec<_> = std::fs::read_dir(fixtures_root().join("captures"))
         .unwrap()
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().is_dir())
+        .filter(|e| e.path().is_dir() && e.file_name() != lab::LAB_DIR)
         .map(|e| e.file_name().to_string_lossy().into_owned())
         .filter(|n| n != INIT)
         .collect();

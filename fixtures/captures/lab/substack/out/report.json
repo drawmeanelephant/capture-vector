@@ -1,0 +1,69 @@
+{
+  "format": "boris-substack-migration-lab",
+  "schema_version": 1,
+  "mode": "emit",
+  "tool_version": "0.1.0",
+  "source": { "path": "/CAPTURE_ROOT/src/mini-substack/posts.csv", "sha256": "27da73dc27b806f2d992111c55963c6966e8b2e17e812545eff5b77a080ac70d", "ignored_pii_files": 0 },
+  "reconciliation": {
+    "missing_post_html": ["100009.missing-body"],
+    "orphan_post_html": ["100099.orphan-post.html"]
+  },
+  "dispositions": [
+    { "construct": "posts.csv newsletter row (published, everyone, post_date + subtitle)", "class": "transformed", "count": 3 },
+    { "construct": "published row with post_date and empty subtitle (published_at_needs_summary)", "class": "transformed", "count": 1 },
+    { "construct": "draft row (is_published=false)", "class": "transformed", "count": 1 },
+    { "construct": "restricted audience (audience != everyone)", "class": "human_review", "count": 2 },
+    { "construct": "podcast row (type=podcast)", "class": "human_review", "count": 1 },
+    { "construct": "thread row (type=thread)", "class": "human_review", "count": 1 },
+    { "construct": "missing_post_html (CSV row missing posts/<post_id>.html)", "class": "human_review", "count": 1 },
+    { "construct": "orphan_post_html (posts/*.html absent from posts.csv)", "class": "human_review", "count": 1 },
+    { "construct": "CSV quoted fields", "class": "exact", "count": 2 },
+    { "construct": "post_id (<numeric-id>.<slug>)", "class": "unsupported", "count": 9 },
+    { "construct": "email_sent_at / inbox_sent_at", "class": "unsupported", "count": 16 },
+    { "construct": "subscribers.csv / email_list.*.csv (ignored PII files)", "class": "unsupported", "count": 0 },
+    { "construct": "standard HTML body", "class": "transformed", "count": 8 },
+    { "construct": "footnotes (anchors + definitions)", "class": "transformed", "count": 2 },
+    { "construct": "captioned image (local existing)", "class": "transformed", "count": 1 },
+    { "construct": "captioned image (local missing, unsafe, or symlink)", "class": "human_review", "count": 0 },
+    { "construct": "captioned image (remote URL)", "class": "human_review", "count": 1 },
+    { "construct": "internal cross-post link (resolved)", "class": "transformed", "count": 2 },
+    { "construct": "internal cross-post link (unresolved)", "class": "human_review", "count": 1 },
+    { "construct": "subscription-widget-wrap", "class": "unsupported", "count": 1 },
+    { "construct": "button-wrapper", "class": "unsupported", "count": 1 },
+    { "construct": "paywall", "class": "unsupported", "count": 1 },
+    { "construct": "digest-post-embed", "class": "human_review", "count": 1 },
+    { "construct": "unsafe HTML", "class": "human_review", "count": 1 },
+    { "construct": "literal Boris-syntax sequences", "class": "transformed", "count": 3 }
+  ],
+  "pages": [
+    { "entity_id": "posts/draft-outline", "post_id": "100003.draft-outline", "output": "content/posts/draft-outline.md", "emitted": true, "type": "newsletter", "audience": "everyone", "substack_published": false, "boris_status": "draft", "conversion": "transformed" },
+    { "entity_id": "posts/embeds-and-literals", "post_id": "100008.embeds-and-literals", "output": "content/posts/embeds-and-literals.md", "emitted": true, "type": "newsletter", "audience": "everyone", "substack_published": true, "boris_status": "published", "conversion": "human_review" },
+    { "entity_id": "posts/episode-one", "post_id": "100006.episode-one", "output": "content/posts/episode-one.md", "emitted": true, "type": "podcast", "audience": "everyone", "substack_published": true, "boris_status": "published", "conversion": "human_review" },
+    { "entity_id": "posts/field-notes-no-subtitle", "post_id": "100002.field-notes-no-subtitle", "output": "content/posts/field-notes-no-subtitle.md", "emitted": true, "type": "newsletter", "audience": "everyone", "substack_published": true, "boris_status": "published", "conversion": "human_review" },
+    { "entity_id": "posts/founding-memo", "post_id": "100005.founding-memo", "output": "content/posts/founding-memo.md", "emitted": true, "type": "newsletter", "audience": "founding", "substack_published": true, "boris_status": "draft", "conversion": "human_review" },
+    { "entity_id": "posts/missing-body", "post_id": "100009.missing-body", "output": null, "emitted": false, "type": "newsletter", "audience": "everyone", "substack_published": true, "boris_status": "draft", "conversion": "human_review" },
+    { "entity_id": "posts/paid-briefing", "post_id": "100004.paid-briefing", "output": "content/posts/paid-briefing.md", "emitted": true, "type": "newsletter", "audience": "only_paid", "substack_published": true, "boris_status": "draft", "conversion": "human_review" },
+    { "entity_id": "posts/reader-thread", "post_id": "100007.reader-thread", "output": "content/posts/reader-thread.md", "emitted": true, "type": "thread", "audience": "everyone", "substack_published": true, "boris_status": "draft", "conversion": "human_review" },
+    { "entity_id": "posts/welcome-to-the-lab", "post_id": "100001.welcome-to-the-lab", "output": "content/posts/welcome-to-the-lab.md", "emitted": true, "type": "newsletter", "audience": "everyone", "substack_published": true, "boris_status": "published", "conversion": "human_review" }
+  ],
+  "findings": [
+    { "entity_id": "", "code": "orphan_post_html", "class": "human_review", "detail": "posts/100099.orphan-post.html not listed in posts.csv" },
+    { "entity_id": "posts/embeds-and-literals", "code": "unsafe_html_withheld", "class": "human_review", "detail": "<iframe src=\"https://embed.example.com/chart/1\" width=\"600\" height=\"320\" title=\"Synthetic chart\"></iframe>" },
+    { "entity_id": "posts/episode-one", "code": "podcast_episode", "class": "human_review", "detail": "https://api.substack.example.com/feed/podcast/100006/audio.mp3" },
+    { "entity_id": "posts/field-notes-no-subtitle", "code": "published_at_needs_summary", "class": "transformed", "detail": "empty subtitle; Boris requires summary whenever published_at is present, date kept in provenance" },
+    { "entity_id": "posts/field-notes-no-subtitle", "code": "widget_button_stripped", "class": "unsupported", "detail": "button-wrapper stripped" },
+    { "entity_id": "posts/field-notes-no-subtitle", "code": "widget_digest_embed_withheld", "class": "human_review", "detail": "digest-post-embed withheld: https://lab.example.com/p/welcome-to-the-lab" },
+    { "entity_id": "posts/field-notes-no-subtitle", "code": "widget_subscription_stripped", "class": "unsupported", "detail": "subscription-widget-wrap stripped" },
+    { "entity_id": "posts/founding-memo", "code": "restricted_audience", "class": "human_review", "detail": "audience founding: emitted as draft, never published" },
+    { "entity_id": "posts/missing-body", "code": "missing_post_html", "class": "human_review", "detail": "missing posts/100009.missing-body.html" },
+    { "entity_id": "posts/paid-briefing", "code": "restricted_audience", "class": "human_review", "detail": "audience only_paid: emitted as draft, never published" },
+    { "entity_id": "posts/paid-briefing", "code": "widget_paywall_stripped", "class": "unsupported", "detail": "paywall divider stripped" },
+    { "entity_id": "posts/reader-thread", "code": "thread_replies_absent", "class": "human_review", "detail": "discussion thread replies absent from export; emitted as draft" },
+    { "entity_id": "posts/welcome-to-the-lab", "code": "footnote_converted", "class": "transformed", "detail": "footnote 1" },
+    { "entity_id": "posts/welcome-to-the-lab", "code": "remote_image_not_fetched", "class": "human_review", "detail": "https://substackcdn.example.com/image/fetch/hero-remote.png" },
+    { "entity_id": "posts/welcome-to-the-lab", "code": "unresolved_cross_post_link", "class": "human_review", "detail": "https://lab.example.com/p/nonexistent-post" }
+  ],
+  "assets": [
+    { "entity_id": "posts/welcome-to-the-lab", "source": "images/hero.png", "output": "content/posts/welcome-to-the-lab.assets/images/hero.png" }
+  ]
+}

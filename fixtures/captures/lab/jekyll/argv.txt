@@ -1,0 +1,3 @@
+--mode=jekyll
+--root=/CAPTURE_ROOT/src/mini-jekyll
+--out=/CAPTURE_ROOT/out/jekyll

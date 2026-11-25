@@ -1,0 +1,4 @@
+--mode=wordpress
+--wxr=/CAPTURE_ROOT/src/mini-wxr/export.xml
+--media=/CAPTURE_ROOT/src/mini-wxr/media
+--out=/CAPTURE_ROOT/out/wordpress

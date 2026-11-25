@@ -1,0 +1,1 @@
+hugo: wrote 12 pages to /CAPTURE_ROOT/out/hugo/content, report.json, REPORT.md, redirects.json

@@ -1,0 +1,23 @@
+{
+  "format": "boris-hugo-migration-lab",
+  "schema_version": 1,
+  "entity_id": "en/about",
+  "source": "content/en/about.md",
+  "kind": "single",
+  "language": "en",
+  "hugo_path": "about",
+  "front_matter_format": "yaml",
+  "role": "trunk",
+  "parent": null,
+  "class": "transformed",
+  "published_at_source": "date",
+  "summary_source": "body",
+  "provenance_fields": {},
+  "dropped_keys": [],
+  "assets": [],
+  "shortcodes": [
+    {"name": "ref", "delimiter": "{{<", "disposition": "transformed", "detail": "posts/hello-bundle → [[en/posts/hello-bundle]]"},
+    {"name": "relref", "delimiter": "{{<", "disposition": "transformed", "detail": "posts/draft-note.md → [[en/posts/draft-note]]"}
+  ],
+  "notes": []
+}

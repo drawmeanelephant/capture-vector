@@ -1,0 +1,24 @@
+{
+  "format": "boris-hugo-migration-lab",
+  "schema_version": 1,
+  "entity_id": "en/guides",
+  "source": "content/en/guides/_index.md",
+  "kind": "branch_bundle",
+  "language": "en",
+  "hugo_path": "guides",
+  "front_matter_format": "yaml",
+  "role": "trunk",
+  "parent": null,
+  "class": "unsupported",
+  "published_at_source": "none",
+  "summary_source": "none",
+  "provenance_fields": {
+    "weight": "20"
+  },
+  "dropped_keys": [],
+  "assets": [
+    {"source": "content/en/guides/cover.png", "output": "content/en/guides.assets/cover.png"}
+  ],
+  "shortcodes": [],
+  "notes": ["image cover.png → guides.assets/cover.png"]
+}

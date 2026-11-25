@@ -1,0 +1,1 @@
+enex-inventory: wrote /CAPTURE_ROOT/out/enex-inventory/inventory.json, /CAPTURE_ROOT/out/enex-inventory/INVENTORY.md

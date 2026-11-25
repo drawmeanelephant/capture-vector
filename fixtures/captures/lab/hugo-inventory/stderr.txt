@@ -1,0 +1,1 @@
+hugo-inventory: wrote /CAPTURE_ROOT/out/hugo-inventory/inventory.json, /CAPTURE_ROOT/out/hugo-inventory/INVENTORY.md

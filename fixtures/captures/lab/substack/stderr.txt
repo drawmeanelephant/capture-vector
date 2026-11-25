@@ -1,0 +1,1 @@
+substack: wrote content/, inventory.json, INVENTORY.md, report.json, REPORT.md, provenance_manifest.json under /CAPTURE_ROOT/out/substack

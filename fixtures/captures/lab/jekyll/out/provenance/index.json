@@ -1,0 +1,33 @@
+{
+  "format": "boris-jekyll-migration-lab",
+  "schema_version": 1,
+  "source_root": "/CAPTURE_ROOT/src/mini-jekyll",
+  "source_path": "index.md",
+  "kind": "page",
+  "collection": null,
+  "entity_id": "index",
+  "class": "human_review",
+  "review": ["layout_not_rendered", "liquid_include", "post_url_unresolved"],
+  "filename_date": null,
+  "slug": null,
+  "summary_source": null,
+  "permalink": null,
+  "config_permalink": "pretty",
+  "config_baseurl": "",
+  "categories": [],
+  "layout": "default",
+  "provenance_keys": ["layout"],
+  "raw_frontmatter": "title: Home\nlayout: default\n",
+  "assets": [
+    { "source": "assets/images/hero.png", "dest": "content/index.assets/images/hero.png" }
+  ],
+  "liquid_sites": [
+    { "line": 8, "construct": "_includes/ + {% include %}", "class": "unsupported", "text": "{% include note.html text=\"Included from _includes.\" %}", "landing": "verbatim; include body not inlined" },
+    { "line": 10, "construct": "{% post_url YYYY-MM-DD-slug %} (resolves)", "class": "transformed", "text": "{% post_url 2024-01-02-welcome-post %}", "landing": "[[posts/welcome-post]]" },
+    { "line": 11, "construct": "{% link path %} (resolves)", "class": "transformed", "text": "{% link _docs/guide-one.md %}", "landing": "[[docs/guide-one]]" },
+    { "line": 13, "construct": "{% post_url %} (broken target)", "class": "human_review", "text": "{% post_url 1999-01-01-ghost-post %}", "landing": "verbatim" },
+    { "line": 15, "construct": "{{ site.baseurl }}", "class": "transformed", "text": "{{ site.baseurl }}/assets/images/hero.png", "landing": "index.assets/images/hero.png" },
+    { "line": 17, "construct": "{% raw %}…{% endraw %}", "class": "exact", "text": "{% raw %}", "landing": "verbatim" },
+    { "line": 22, "construct": "Liquid tag inside a fenced code block", "class": "exact", "text": "{% post_url 2024-01-02-welcome-post %}", "landing": "verbatim" }
+  ]
+}

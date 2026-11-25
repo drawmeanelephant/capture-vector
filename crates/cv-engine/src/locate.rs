@@ -77,15 +77,17 @@ pub fn exe_name() -> String {
 impl Locator {
     /// The production search space for a workspace rooted at `root`.
     pub fn from_env(root: &Path) -> Self {
+        Self::from_env_vars(ENV_OVERRIDE, sibling_dirs(root, env_opt_in(ENV_SIBLING)))
+    }
+
+    /// The process-env search space for any pinned tool: `override_var`,
+    /// bundled dirs next to the running app, `PATH`, then `sibling_dirs`.
+    pub(crate) fn from_env_vars(override_var: &str, sibling_dirs: Vec<PathBuf>) -> Self {
         let bundled_dirs = std::env::current_exe()
             .map(|exe| bundled_dirs(&exe))
             .unwrap_or_default();
-        let sibling_dirs = sibling_dirs(
-            root,
-            std::env::var_os(ENV_SIBLING).is_some_and(|v| v == "1"),
-        );
         Self {
-            env_override: std::env::var_os(ENV_OVERRIDE)
+            env_override: std::env::var_os(override_var)
                 .filter(|v| !v.is_empty())
                 .map(PathBuf::from),
             bundled_dirs,
@@ -96,7 +98,10 @@ impl Locator {
 
     /// Every path probed, in order, with the source it represents.
     pub fn candidates(&self) -> Vec<(EngineSource, PathBuf)> {
-        let name = exe_name();
+        self.candidates_named(&exe_name())
+    }
+
+    pub(crate) fn candidates_named(&self, name: &str) -> Vec<(EngineSource, PathBuf)> {
         let mut out = Vec::new();
         if let Some(p) = &self.env_override {
             out.push((EngineSource::EnvOverride, p.clone()));
@@ -104,15 +109,15 @@ impl Locator {
         out.extend(
             self.bundled_dirs
                 .iter()
-                .map(|d| (EngineSource::Bundled, d.join(&name))),
+                .map(|d| (EngineSource::Bundled, d.join(name))),
         );
         if let Some(pv) = &self.path_var {
-            out.extend(std::env::split_paths(pv).map(|d| (EngineSource::Path, d.join(&name))));
+            out.extend(std::env::split_paths(pv).map(|d| (EngineSource::Path, d.join(name))));
         }
         out.extend(
             self.sibling_dirs
                 .iter()
-                .map(|d| (EngineSource::SiblingCheckout, d.join(&name))),
+                .map(|d| (EngineSource::SiblingCheckout, d.join(name))),
         );
         out
     }
@@ -120,12 +125,16 @@ impl Locator {
     /// First existing candidate. An explicit override that doesn't exist
     /// is an error: silently using some other boris would hide a typo.
     pub fn find(&self) -> Result<(EngineSource, PathBuf)> {
+        self.find_named(&exe_name())
+    }
+
+    pub(crate) fn find_named(&self, name: &str) -> Result<(EngineSource, PathBuf)> {
         if let Some(p) = &self.env_override
             && !is_executable(p)
         {
             return Err(EngineError::OverrideMissing(p.clone()));
         }
-        let all = self.candidates();
+        let all = self.candidates_named(name);
         all.iter()
             .find(|(_, p)| is_executable(p))
             .cloned()
@@ -143,12 +152,22 @@ impl Locator {
 /// `<root>/../boris/zig-out/bin`, only when opted in: nothing derived
 /// from the workspace location is executed by default.
 pub fn sibling_dirs(root: &Path, opt_in: bool) -> Vec<PathBuf> {
+    sibling_checkout_dirs(root, "boris", opt_in)
+}
+
+/// `<root>/../<checkout>/zig-out/bin`, only when opted in.
+pub(crate) fn sibling_checkout_dirs(root: &Path, checkout: &str, opt_in: bool) -> Vec<PathBuf> {
     if !opt_in {
         return vec![];
     }
     root.parent()
-        .map(|p| vec![p.join("boris").join("zig-out").join("bin")])
+        .map(|p| vec![p.join(checkout).join("zig-out").join("bin")])
         .unwrap_or_default()
+}
+
+/// `<var>=1` opts in; any other value (or none) does not.
+pub(crate) fn env_opt_in(var: &str) -> bool {
+    std::env::var_os(var).is_some_and(|v| v == "1")
 }
 
 pub fn is_executable(p: &Path) -> bool {

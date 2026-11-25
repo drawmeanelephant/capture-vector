@@ -25,8 +25,8 @@ survived eight adversarial reviews — the rationale trail is in
 
 ```
 cv-core       domain types + SYNC ports + event/state vocab. NO IO, NO async, NO UI.
-cv-contracts  serde mirrors of Boris JSON, version-keyed. Fixture-decode tests only.
-cv-fixtures   captured corpora + StubEngine + StubStore. Dev-dep of every lane.
+cv-contracts  serde mirrors of Boris + migration-lab JSON, version-keyed. Fixture-decode tests only.
+cv-fixtures   captured corpora + lab runs, StubEngine + StubStore + StubLab. Dev-dep of every lane.
 cv-engine     the ONLY Command owner: RawSubprocess + EngineScheduler.
 cv-store      rusqlite + JSONL evidence trail. Per-namespace migration tracks.
 cv-rules      SEO/AEO: pure fn(ArtifactSet, Ruleset) -> Report.

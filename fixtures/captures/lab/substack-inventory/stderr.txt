@@ -1,0 +1,1 @@
+substack-inventory: wrote /CAPTURE_ROOT/out/substack-inventory/inventory.json, /CAPTURE_ROOT/out/substack-inventory/INVENTORY.md
