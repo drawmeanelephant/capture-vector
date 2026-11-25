@@ -358,6 +358,12 @@ impl LabCapture {
 pub enum StubLabError {
     /// No capture for this mode: the stub never substitutes another.
     NoCapture(String),
+    /// A publication-backed output has files but no exact ownership marker.
+    OutputNotOwned(PathBuf),
+    /// The output path exists and is not a directory.
+    OutputNotDirectory(PathBuf),
+    /// The output path or one of its ancestors is a symlink.
+    OutputSymlink(PathBuf),
     Io(io::Error),
 }
 
@@ -365,12 +371,63 @@ impl std::fmt::Display for StubLabError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::NoCapture(m) => write!(f, "stub lab has no capture for mode {m:?}"),
+            Self::OutputNotOwned(p) => write!(
+                f,
+                "stub lab output {} is not owned by the captured lab",
+                p.display()
+            ),
+            Self::OutputNotDirectory(p) => {
+                write!(f, "stub lab output {} is not a directory", p.display())
+            }
+            Self::OutputSymlink(p) => {
+                write!(f, "stub lab output {} is a symlink", p.display())
+            }
             Self::Io(e) => write!(f, "stub lab: {e}"),
         }
     }
 }
 
 impl std::error::Error for StubLabError {}
+
+const OUTPUT_MARKER: &str = ".boris-migration-lab-output";
+
+/// Publication-backed modes replace a complete owned output tree. They may
+/// write into an absent or empty output, and they may replace a non-empty
+/// output only when its marker is byte-identical to the capture's owner
+/// marker. Anything else is refused before mutation, matching the pinned
+/// lab's publication contract. Modes without a marker write directly, as the
+/// pinned non-publication modes do.
+fn prepare_publication_output(out: &Path, marker: &[u8]) -> Result<(), StubLabError> {
+    for path in out.ancestors() {
+        if let Ok(meta) = std::fs::symlink_metadata(path)
+            && meta.file_type().is_symlink()
+        {
+            return Err(StubLabError::OutputSymlink(path.to_path_buf()));
+        }
+    }
+    let meta = match std::fs::symlink_metadata(out) {
+        Ok(meta) => meta,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(StubLabError::Io(e)),
+    };
+    if !meta.is_dir() {
+        return Err(StubLabError::OutputNotDirectory(out.to_path_buf()));
+    }
+    let empty = std::fs::read_dir(out)
+        .map_err(StubLabError::Io)?
+        .next()
+        .is_none();
+    if empty {
+        return Ok(());
+    }
+    let owned = std::fs::read(out.join(OUTPUT_MARKER))
+        .map(|found| found == marker)
+        .unwrap_or(false);
+    if !owned {
+        return Err(StubLabError::OutputNotOwned(out.to_path_buf()));
+    }
+    std::fs::remove_dir_all(out).map_err(StubLabError::Io)
+}
 
 /// Replays captured lab runs. The stub answers by mode only; inputs are
 /// whatever the capture used (see [`LAB_CAPTURES`]).
@@ -397,6 +454,9 @@ impl StubLab {
             return Err(StubLabError::NoCapture(mode.into()));
         }
         let t = lab_capture(mode).transcript();
+        if let Some(marker) = t.out.get(OUTPUT_MARKER) {
+            prepare_publication_output(out, marker)?;
+        }
         write_tree(&t.out, out).map_err(StubLabError::Io)?;
         Ok(t)
     }

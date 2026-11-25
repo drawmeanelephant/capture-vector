@@ -4,6 +4,7 @@ use cv_fixtures::lab::{
     CAPTURE_ROOT, LAB_CAPTURES, LAB_DIR, StubLabError, lab_capture, lab_captures,
 };
 use cv_fixtures::{Manifest, StubLab, corpora, fixtures_root};
+use std::collections::BTreeMap;
 use std::path::Path;
 
 fn manifest() -> Manifest {
@@ -109,6 +110,8 @@ fn captures_carry_no_host_paths() {
 fn stub_lab_writes_the_captured_tree_into_out() {
     let tmp = std::env::temp_dir().join(format!("cv-stub-lab-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let tmp = std::fs::canonicalize(tmp).unwrap();
     let t = StubLab::new().run("jekyll", &tmp).unwrap();
     for (rel, bytes) in &t.out {
         assert_eq!(&std::fs::read(tmp.join(rel)).unwrap(), bytes, "{rel}");
@@ -119,6 +122,120 @@ fn stub_lab_writes_the_captured_tree_into_out() {
         Some(Ok(cv_contracts::lab::Document::Report(_)))
     ));
     std::fs::remove_dir_all(&tmp).unwrap();
+}
+
+fn test_dir(name: &str) -> std::path::PathBuf {
+    let dir = std::env::temp_dir().join(format!("cv-stub-lab-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::canonicalize(dir).unwrap()
+}
+
+fn read_output_tree(dir: &Path) -> BTreeMap<String, Vec<u8>> {
+    fn walk(dir: &Path, prefix: &str, out: &mut BTreeMap<String, Vec<u8>>) {
+        for entry in std::fs::read_dir(dir).unwrap().flatten() {
+            let rel = format!("{prefix}{}", entry.file_name().to_string_lossy());
+            if entry.path().is_dir() {
+                walk(&entry.path(), &format!("{rel}/"), out);
+            } else {
+                out.insert(rel, std::fs::read(entry.path()).unwrap());
+            }
+        }
+    }
+    let mut files = BTreeMap::new();
+    walk(dir, "", &mut files);
+    files
+}
+
+#[test]
+fn publication_backed_stub_replaces_an_owned_output_and_drops_stale_files() {
+    let captured = lab_capture("jekyll").transcript();
+    let marker = captured.out[".boris-migration-lab-output"].clone();
+    let root = test_dir("owned-replacement");
+    let out = root.join("out");
+    std::fs::create_dir_all(out.join("stale-dir")).unwrap();
+    std::fs::write(out.join(".boris-migration-lab-output"), marker).unwrap();
+    std::fs::write(out.join("stale-dir/stale.txt"), b"stale").unwrap();
+    std::fs::write(out.join("stale.txt"), b"stale").unwrap();
+
+    StubLab::new().run("jekyll", &out).unwrap();
+
+    assert!(!out.join("stale.txt").exists());
+    assert!(!out.join("stale-dir").exists());
+    assert_eq!(read_output_tree(&out), captured.out);
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+#[test]
+fn publication_backed_stub_refuses_an_unowned_output_before_mutation() {
+    let root = test_dir("unowned-refusal");
+    let out = root.join("out");
+    std::fs::create_dir_all(&out).unwrap();
+    std::fs::write(out.join("stale.txt"), b"stale").unwrap();
+
+    let err = match StubLab::new().run("jekyll", &out) {
+        Ok(_) => panic!("unowned output replayed"),
+        Err(err) => err,
+    };
+
+    assert!(matches!(err, StubLabError::OutputNotOwned(_)), "{err}");
+    assert_eq!(std::fs::read(out.join("stale.txt")).unwrap(), b"stale");
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+#[test]
+fn publication_backed_stub_refuses_another_mode_owned_output() {
+    let root = test_dir("wrong-owner");
+    let out = root.join("out");
+    std::fs::create_dir_all(&out).unwrap();
+    let hugo_marker = &lab_capture("hugo").transcript().out[".boris-migration-lab-output"];
+    std::fs::write(out.join(".boris-migration-lab-output"), hugo_marker).unwrap();
+
+    let err = match StubLab::new().run("jekyll", &out) {
+        Ok(_) => panic!("another mode's output replayed"),
+        Err(err) => err,
+    };
+
+    assert!(matches!(err, StubLabError::OutputNotOwned(_)), "{err}");
+    assert_eq!(
+        std::fs::read(out.join(".boris-migration-lab-output")).unwrap(),
+        *hugo_marker
+    );
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+#[test]
+fn publication_backed_stub_refuses_a_file_output_before_mutation() {
+    let root = test_dir("file-output");
+    let out = root.join("out");
+    std::fs::write(&out, b"not a directory").unwrap();
+
+    let err = match StubLab::new().run("jekyll", &out) {
+        Ok(_) => panic!("file output replayed"),
+        Err(err) => err,
+    };
+
+    assert!(matches!(err, StubLabError::OutputNotDirectory(_)), "{err}");
+    assert_eq!(std::fs::read(&out).unwrap(), b"not a directory");
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+#[test]
+fn non_publication_stub_writes_without_deleting_unowned_files() {
+    let captured = lab_capture("obsidian").transcript();
+    assert!(!captured.out.contains_key(".boris-migration-lab-output"));
+    let root = test_dir("direct-write");
+    let out = root.join("out");
+    std::fs::create_dir_all(&out).unwrap();
+    std::fs::write(out.join("keep.txt"), b"keep").unwrap();
+
+    StubLab::new().run("obsidian", &out).unwrap();
+
+    assert_eq!(std::fs::read(out.join("keep.txt")).unwrap(), b"keep");
+    for (rel, bytes) in &captured.out {
+        assert_eq!(std::fs::read(out.join(rel)).unwrap(), *bytes, "{rel}");
+    }
+    std::fs::remove_dir_all(&root).unwrap();
 }
 
 #[test]

@@ -268,12 +268,14 @@ impl<'de> Deserialize<'de> for FieldDisposition {
 }
 
 /// Per-class totals (`summary.by_class`, `class_counts`, Jekyll `summary`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ClassCounts {
     pub exact: u64,
     pub transformed: u64,
     pub unsupported: u64,
     pub human_review: u64,
+    #[serde(flatten)]
+    pub extra: Extra,
 }
 
 /// One row of a `dispositions` table (Substack, ENEX).
@@ -282,6 +284,8 @@ pub struct DispositionCount {
     pub construct: String,
     pub class: Disposition,
     pub count: u64,
+    #[serde(flatten)]
+    pub extra: Extra,
 }
 
 /// One `findings` row (Substack, ENEX). `entity_id` is empty for
@@ -292,6 +296,8 @@ pub struct Finding {
     pub code: String,
     pub class: Disposition,
     pub detail: String,
+    #[serde(flatten)]
+    pub extra: Extra,
 }
 
 /// `source: { "root": … }`.
@@ -309,6 +315,8 @@ pub struct SubstackSource {
     pub path: String,
     pub sha256: String,
     pub ignored_pii_files: u64,
+    #[serde(flatten)]
+    pub extra: Extra,
 }
 
 /// One emitted (or, for Substack, considered) page, projected the same way
@@ -351,7 +359,7 @@ pub struct HugoSummary {
 pub struct HugoPage {
     pub entity_id: String,
     pub output: String,
-    pub source: String,
+    pub source: Option<String>,
     pub kind: String,
     pub language: String,
     pub role: String,
@@ -409,6 +417,8 @@ pub struct NotEmitted {
     pub path: String,
     pub class: Disposition,
     pub reason: String,
+    #[serde(flatten)]
+    pub extra: Extra,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -417,6 +427,8 @@ pub struct JekyllConstruct {
     pub class: Disposition,
     pub count: u64,
     pub landing: String,
+    #[serde(flatten)]
+    pub extra: Extra,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -513,7 +525,7 @@ pub struct WordPressReport {
     pub schema_version: u32,
     pub tool_version: String,
     pub source_export: String,
-    pub media_dir: String,
+    pub media_dir: Option<String>,
     pub site_title: String,
     pub pages: Vec<WordPressPage>,
     #[serde(flatten)]
@@ -596,7 +608,7 @@ impl Report {
                 .map(|p| PageRow {
                     entity_id: &p.entity_id,
                     output: Some(&p.output),
-                    source: Some(&p.source),
+                    source: p.source.as_deref(),
                     disposition: &p.class,
                 })
                 .collect(),
@@ -795,6 +807,8 @@ pub struct Redirects {
     pub format: String,
     pub schema_version: u32,
     pub redirects: Vec<Redirect>,
+    #[serde(flatten)]
+    pub extra: Extra,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -803,6 +817,8 @@ pub struct Redirect {
     pub from: String,
     pub to_entity_id: String,
     pub source: String,
+    #[serde(flatten)]
+    pub extra: Extra,
 }
 
 /// WordPress `media_manifest.json`.
@@ -812,17 +828,21 @@ pub struct MediaManifest {
     pub schema_version: u32,
     pub policy: String,
     pub entries: Vec<MediaEntry>,
+    #[serde(flatten)]
+    pub extra: Extra,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MediaEntry {
     pub source_output: String,
     pub original_reference: String,
-    pub upload_key: String,
+    pub upload_key: Option<String>,
     pub matched_source: Option<String>,
     pub emitted_asset_path: Option<String>,
     pub status: String,
     pub reason: String,
+    #[serde(flatten)]
+    pub extra: Extra,
 }
 
 /// Obsidian `attachments_manifest.json`.
@@ -831,6 +851,8 @@ pub struct AttachmentsManifest {
     pub format: String,
     pub schema_version: u32,
     pub entries: Vec<Attachment>,
+    #[serde(flatten)]
+    pub extra: Extra,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -839,6 +861,8 @@ pub struct Attachment {
     pub output_path: String,
     pub referenced: bool,
     pub copied: bool,
+    #[serde(flatten)]
+    pub extra: Extra,
 }
 
 // ---- cross-cutting modes -------------------------------------------------
@@ -851,6 +875,8 @@ pub struct LinkAudit {
     pub schema_version: u32,
     pub html_files: u64,
     pub findings: Vec<serde_json::Value>,
+    #[serde(flatten)]
+    pub extra: Extra,
 }
 
 /// `frontmatter-review` `frontmatter_review.json` (schema 2).
@@ -864,6 +890,8 @@ pub struct FrontmatterReview {
     pub total_occurrences: u64,
     pub field_summaries: Vec<FieldSummary>,
     pub files: Vec<ReviewedFile>,
+    #[serde(flatten)]
+    pub extra: Extra,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -872,6 +900,8 @@ pub struct FieldSummary {
     pub disposition: FieldDisposition,
     pub occurrence_count: u64,
     pub affected_file_count: u64,
+    #[serde(flatten)]
+    pub extra: Extra,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -879,6 +909,8 @@ pub struct ReviewedFile {
     pub source_path: String,
     pub incompatible_fence: bool,
     pub unknown_keys: Vec<UnknownKey>,
+    #[serde(flatten)]
+    pub extra: Extra,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -887,6 +919,8 @@ pub struct UnknownKey {
     pub line: u64,
     pub value: String,
     pub disposition: FieldDisposition,
+    #[serde(flatten)]
+    pub extra: Extra,
 }
 
 // ---- dispatch by file role -----------------------------------------------

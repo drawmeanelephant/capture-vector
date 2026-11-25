@@ -367,6 +367,133 @@ fn an_unknown_format_or_file_is_a_typed_error() {
     ));
 }
 
+fn document_to_value(doc: Document) -> serde_json::Value {
+    match doc {
+        Document::Report(Report::Hugo(v)) => serde_json::to_value(v),
+        Document::Report(Report::Jekyll(v)) => serde_json::to_value(v),
+        Document::Report(Report::Substack(v)) => serde_json::to_value(v),
+        Document::Report(Report::Enex(v)) => serde_json::to_value(v),
+        Document::Report(Report::Obsidian(v)) => serde_json::to_value(v),
+        Document::Report(Report::WordPress(v)) => serde_json::to_value(v),
+        Document::Inventory(Inventory::Hugo(v)) => serde_json::to_value(v),
+        Document::Inventory(Inventory::Jekyll(v)) => serde_json::to_value(v),
+        Document::Inventory(Inventory::Substack(v)) => serde_json::to_value(v),
+        Document::Inventory(Inventory::Enex(v)) => serde_json::to_value(v),
+        Document::PageProvenance(v) => serde_json::to_value(v),
+        Document::ProvenanceManifest(v) => serde_json::to_value(v),
+        Document::Redirects(v) => serde_json::to_value(v),
+        Document::MediaManifest(v) => serde_json::to_value(v),
+        Document::AttachmentsManifest(v) => serde_json::to_value(v),
+        Document::LinkAudit(v) => serde_json::to_value(v),
+        Document::FrontmatterReview(v) => serde_json::to_value(v),
+    }
+    .unwrap()
+}
+
+#[test]
+fn nullable_upstream_fields_decode_instead_of_failing() {
+    let bytes = edited("hugo", "report.json", |v| {
+        v["pages"][0]["source"] = serde_json::Value::Null
+    });
+    let Report::Hugo(h) = Report::decode(&bytes)
+        .unwrap_or_else(|e| panic!("synthesized Hugo section source null did not decode: {e}"))
+    else {
+        panic!("hugo family")
+    };
+    assert!(h.pages[0].source.is_none());
+
+    let bytes = edited("wordpress", "report.json", |v| {
+        v["media_dir"] = serde_json::Value::Null
+    });
+    let Report::WordPress(w) = Report::decode(&bytes)
+        .unwrap_or_else(|e| panic!("WordPress without --media did not decode: {e}"))
+    else {
+        panic!("wordpress family")
+    };
+    assert!(w.media_dir.is_none());
+
+    let bytes = edited("wordpress", "media_manifest.json", |v| {
+        v["entries"][0]["upload_key"] = serde_json::Value::Null
+    });
+    let Document::MediaManifest(m) = Document::decode("media_manifest.json", &bytes)
+        .unwrap_or_else(|e| panic!("media reference outside uploads did not decode: {e}"))
+    else {
+        panic!("media manifest")
+    };
+    assert!(m.entries[0].upload_key.is_none());
+}
+
+#[test]
+fn captured_documents_retain_all_fields_when_reserialized() {
+    for mode in modes() {
+        for (rel, bytes) in documents(&mode) {
+            let original: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+            let doc =
+                Document::decode(&rel, &bytes).unwrap_or_else(|e| panic!("{mode}/{rel}: {e}"));
+            assert_eq!(
+                document_to_value(doc),
+                original,
+                "{mode}/{rel} lost or changed fields"
+            );
+        }
+    }
+}
+
+#[test]
+fn additive_fields_roundtrip_in_nested_rows_across_lab_documents() {
+    type AdditiveCase = (&'static str, &'static str, fn(&mut serde_json::Value));
+    let cases: [AdditiveCase; 9] = [
+        ("hugo", "report.json", |v| {
+            v["summary"]["by_class"]["future_count"] = 1.into();
+        }),
+        ("jekyll", "report.json", |v| {
+            v["summary"]["future_summary"] = true.into();
+            v["not_emitted"][0]["future_row"] = true.into();
+            v["constructs"][0]["future_construct"] = true.into();
+        }),
+        ("substack", "report.json", |v| {
+            v["source"]["future_source"] = true.into();
+            v["dispositions"][0]["future_disposition"] = true.into();
+            v["findings"][0]["future_finding"] = true.into();
+        }),
+        ("enex", "report.json", |v| {
+            v["dispositions"][0]["future_disposition"] = true.into();
+            v["findings"][0]["future_finding"] = true.into();
+        }),
+        ("hugo", "redirects.json", |v| {
+            v["future_additive"] = true.into();
+            v["redirects"][0]["future_row"] = true.into();
+        }),
+        ("wordpress", "media_manifest.json", |v| {
+            v["future_additive"] = true.into();
+            v["entries"][0]["future_row"] = true.into();
+        }),
+        ("obsidian", "attachments_manifest.json", |v| {
+            v["future_additive"] = true.into();
+            v["entries"][0]["future_row"] = true.into();
+        }),
+        ("link-audit", "link_audit.json", |v| {
+            v["future_additive"] = true.into();
+        }),
+        ("frontmatter-review", "frontmatter_review.json", |v| {
+            v["future_additive"] = true.into();
+            v["field_summaries"][0]["future_summary"] = true.into();
+            v["files"][0]["future_file"] = true.into();
+            v["files"][0]["unknown_keys"][0]["future_key"] = true.into();
+        }),
+    ];
+    for (mode, rel, edit) in cases {
+        let bytes = edited(mode, rel, edit);
+        let expected: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        let doc = Document::decode(rel, &bytes).unwrap_or_else(|e| panic!("{mode}/{rel}: {e}"));
+        assert_eq!(
+            document_to_value(doc),
+            expected,
+            "{mode}/{rel} dropped an additive field"
+        );
+    }
+}
+
 #[test]
 fn additive_fields_under_a_known_version_are_kept() {
     let bytes = edited("hugo", "report.json", |v| {
