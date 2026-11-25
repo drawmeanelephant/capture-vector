@@ -1065,3 +1065,67 @@ esac
     assert!(sched.stop_watch_session(&restored));
     drop(wb);
 }
+
+/// A panicking batch must not strand the watch: restoration rides the
+/// unwinding, and the scheduler stays usable because its locks tolerate
+/// the poisoning a panic leaves behind.
+#[cfg(unix)]
+#[test]
+fn a_panicking_batch_still_restores_the_watch_and_the_scheduler_survives() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let root = tempfile::tempdir().unwrap();
+    let bin = root.path().join("boris");
+    std::fs::write(
+        &bin,
+        r#"#!/bin/sh
+case "$1" in
+watch) echo '{"event":"hello","watch_events_schema":1,"compiler":"boris/0.9.0"}' >&2; sleep 30;;
+validate) exit 0;;
+*) exit 2;;
+esac
+"#,
+    )
+    .unwrap();
+    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+    let wb = Workbench::new(Registry::with_all());
+    let delivery = test_delivery(root.path(), WatchMode::Native, &wb);
+    let sched = Arc::new(EngineScheduler::new(
+        delivery.engine.clone(),
+        SeatPolicy::StopWatch,
+    ));
+    let slot = EngineSlot::default();
+    let _ = slot.sched.set(sched.clone());
+    let _ = slot.verbs.set(VerbRoute {
+        delivery: delivery.clone(),
+        warning: None,
+    });
+
+    let session = sched.start_watch(Box::new(|_| {})).unwrap();
+    let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        crate::migrate::adopt::batch_watch_safe(&slot, &sched, || {
+            panic!("a defect inside the transaction")
+        })
+    }));
+    assert!(panicked.is_err(), "the panic itself still propagates");
+
+    let deadline = std::time::Instant::now() + Duration::from_secs(3);
+    while sched.watch_session().is_none() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "restoration happens during unwinding, not only on normal return"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let restored = sched.watch_session().unwrap();
+    assert_ne!(restored, session.clone());
+
+    // The poisoned write lock did not brick the scheduler: a fresh batch
+    // still serializes and completes.
+    let after = sched.mutation_batch(|| "still usable");
+    assert_eq!(after, "still usable");
+
+    assert!(sched.stop_watch_session(&restored));
+    drop(wb);
+}

@@ -18,6 +18,25 @@ use std::path::{Component, Path};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 
+/// Lock poisoning is tolerated here deliberately: this lock serializes
+/// access — it does not guard invariants a panic could violate. The
+/// state inside (session ids, seat bookkeeping) is plain data whose
+/// writes complete or don't run at all, and the filesystem truth a
+/// panicking mutation batch might strand is recovered by the adoption
+/// journal, not by this lock. Refusing all future access because one
+/// batch panicked would brick the workspace for no consistency gain.
+fn write<T>(lock: &RwLock<T>) -> std::sync::RwLockWriteGuard<'_, T> {
+    lock.write().unwrap_or_else(|e| e.into_inner())
+}
+
+fn read<T>(lock: &RwLock<T>) -> std::sync::RwLockReadGuard<'_, T> {
+    lock.read().unwrap_or_else(|e| e.into_inner())
+}
+
+fn mutex<T>(lock: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    lock.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SeatPolicy {
     /// Stop the live watch before an HTML-writing verb; the caller
@@ -113,8 +132,8 @@ impl<E: Engine + Sync> EngineScheduler<E> {
     /// Start the single watch session. Takes the writer lock so it never
     /// races an in-flight build for `dist/`.
     pub fn start_watch(&self, sink: EventSink) -> cv_core::Result<SessionId> {
-        let _w = self.rw.write().unwrap();
-        let mut slot = self.watch.lock().unwrap();
+        let _w = write(&self.rw);
+        let mut slot = mutex(&self.watch);
         if slot.is_some() {
             return Err(crate::EngineError::WatchAlreadyLive.into());
         }
@@ -125,7 +144,7 @@ impl<E: Engine + Sync> EngineScheduler<E> {
     }
 
     pub fn stop_watch(&self) -> Option<SessionId> {
-        let mut h = self.watch.lock().unwrap().take()?;
+        let mut h = mutex(&self.watch).take()?;
         h.stop();
         Some(h.session().clone())
     }
@@ -133,7 +152,7 @@ impl<E: Engine + Sync> EngineScheduler<E> {
     /// Stop the watch only while it is still `session`: a handle that
     /// outlived its session must not stop the watch that replaced it.
     pub fn stop_watch_session(&self, session: &SessionId) -> bool {
-        let mut slot = self.watch.lock().unwrap();
+        let mut slot = mutex(&self.watch);
         if slot.as_ref().is_none_or(|w| w.session() != session) {
             return false;
         }
@@ -177,7 +196,7 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         sink: EventSink,
         cause: Option<&EventId>,
     ) -> cv_core::Result<RecoveryBuild> {
-        let _w = self.rw.write().unwrap();
+        let _w = write(&self.rw);
         if let Some(session) = self
             .watch
             .lock()
@@ -208,7 +227,7 @@ impl<E: Engine + Sync> EngineScheduler<E> {
             .into());
         }
         if !is_mutating(verb) {
-            let _r = self.rw.read().unwrap();
+            let _r = read(&self.rw);
             let exit = run(&self.engine, verb)?;
             return Ok(RunReport {
                 exit,
@@ -216,11 +235,11 @@ impl<E: Engine + Sync> EngineScheduler<E> {
                 out_dir: None,
             });
         }
-        let _w = self.rw.write().unwrap();
+        let _w = write(&self.rw);
         let mut stopped_watch = None;
         let mut out_dir = own;
         let mut verb = verb.clone();
-        let seat_held = self.watch.lock().unwrap().is_some();
+        let seat_held = mutex(&self.watch).is_some();
         if seat_held && writes_html(&verb) {
             match &self.policy {
                 SeatPolicy::StopWatch => stopped_watch = self.stop_watch(),
@@ -261,7 +280,7 @@ impl<E: Engine + Sync> EngineScheduler<E> {
     /// and restore it afterwards — see the composition root's
     /// `batch_watch_safe`.
     pub fn mutation_batch<R>(&self, f: impl FnOnce() -> R) -> R {
-        let _w = self.rw.write().unwrap();
+        let _w = write(&self.rw);
         f()
     }
 
@@ -270,26 +289,26 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         draft: &PageDraft,
         base: Option<Fingerprint>,
     ) -> cv_core::Result<WriteOutcome> {
-        let _w = self.rw.write().unwrap();
+        let _w = write(&self.rw);
         self.engine.write_content(draft, base)
     }
 
     /// Serialized fingerprint-checked delete.
     pub fn remove_content(&self, path: &str, base: Fingerprint) -> cv_core::Result<RemoveOutcome> {
-        let _w = self.rw.write().unwrap();
+        let _w = write(&self.rw);
         self.engine.remove_content(path, base)
     }
 
     /// Serialized move: the destination write and source removal are
     /// covered by one writer lock against every other engine mutation.
     pub fn move_content(&self, mv: &PageMove) -> cv_core::Result<MoveOutcome> {
-        let _w = self.rw.write().unwrap();
+        let _w = write(&self.rw);
         self.engine.move_content(mv)
     }
 
     /// Disk truth; a read, so it runs alongside other reads.
     pub fn snapshot(&self) -> cv_core::Result<ArtifactSet> {
-        let _r = self.rw.read().unwrap();
+        let _r = read(&self.rw);
         self.engine.snapshot()
     }
 }

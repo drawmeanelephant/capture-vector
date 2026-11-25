@@ -100,6 +100,23 @@ fn run_gate_fresh(
     adopt::validate_then_build(&run, &sink).map_err(|e| e.to_string())
 }
 
+/// Restore-on-drop guard: the watch is put back even while a panic is
+/// unwinding through the batch, so a panicking mutation can never strand
+/// the workspace unobserved. Lock poisoning inside the scheduler is
+/// tolerated there — see the scheduler — and the worker boundary
+/// converts the panic into a loud failure notice.
+struct WatchRestore<'a> {
+    slot: &'a crate::live::EngineSlot,
+    watching: Option<cv_core::events::SessionId>,
+}
+
+impl Drop for WatchRestore<'_> {
+    fn drop(&mut self) {
+        self.slot
+            .restore_watch(self.watching.take(), "adoption copy".into());
+    }
+}
+
 /// Run one scheduler mutation batch with the workspace watch paused for
 /// the batch's duration. `mutation_batch` alone serializes only
 /// scheduler-mediated mutations and watch starts; an already-running
@@ -107,7 +124,8 @@ fn run_gate_fresh(
 /// half-copied tree. Stopping the watch first means nothing observes the
 /// intermediate state, the explicit post-batch resync delivers disk truth
 /// once, and the watch is restored with the same contract the palette
-/// verb route honors — in every outcome, refusal included.
+/// verb route honors — in every outcome: refusal, and panic too, since
+/// the guard's `Drop` rides the unwinding.
 pub(crate) fn batch_watch_safe<R>(
     slot: &crate::live::EngineSlot,
     sched: &Arc<crate::live::Scheduler>,
@@ -117,9 +135,8 @@ pub(crate) fn batch_watch_safe<R>(
     if let Some(session) = &watching {
         sched.stop_watch_session(session);
     }
-    let out = sched.mutation_batch(batch);
-    slot.restore_watch(watching, "adoption copy".into());
-    out
+    let _restore = WatchRestore { slot, watching };
+    sched.mutation_batch(batch)
 }
 
 fn finish_report(
@@ -246,7 +263,25 @@ pub fn adopt(wb: &mut Workbench, job: AdoptionJob, env: &WorkspaceEnv) -> Option
     match std::thread::Builder::new()
         .name("cv-migrate-adopt".into())
         .spawn(move || {
-            let result = execute(&job, env_locator, &inbox);
+            // A panic inside the transaction is a defect, not a supported
+            // path — but it must never die silently here, with the wizard
+            // waiting forever. The watch is already restored by the
+            // drop-guard during unwinding; what remains is surfacing the
+            // failure as loudly as the channel allows.
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                execute(&job, env_locator, &inbox)
+            }))
+            .unwrap_or_else(|panic| {
+                let detail = panic
+                    .downcast_ref::<&str>()
+                    .map(|s| (*s).to_string())
+                    .or_else(|| panic.downcast_ref::<String>().cloned())
+                    .unwrap_or_else(|| "unknown panic".into());
+                Err(format!(
+                    "the adoption worker panicked — this is a defect, please report it. \
+                     The watch was restored and any interrupted copy is resumable; detail: {detail}"
+                ))
+            });
             worker_notices.send(ShellNotice::Adopted {
                 run_id: worker_run,
                 result,
