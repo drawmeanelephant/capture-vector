@@ -186,6 +186,36 @@ impl FtsIndex {
         self.set_lines(lines)
     }
 
+    fn close(self) -> Result<(), DiskError> {
+        self.conn.close().map_err(|(_, e)| DiskError::Sql(e))
+    }
+
+    /// Build a complete replacement beside `path`, then install it with a
+    /// same-directory rename. The old index remains readable until the
+    /// replacement is complete.
+    fn rebuild_atomic(path: &Path, nb: &Notebook, lines: u64) -> Result<(), DiskError> {
+        let dir = path.parent().ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::InvalidInput, "index path has no parent")
+        })?;
+        let tmp = tempfile::Builder::new()
+            .prefix("index-rebuild-")
+            .suffix(".sqlite")
+            .tempfile_in(dir)?;
+        let tmp = tmp.into_temp_path();
+        let tmp_path: &Path = tmp.as_ref();
+        let result = (|| {
+            let mut idx = Self::open(tmp_path)?;
+            idx.rebuild(nb, lines)?;
+            idx.close()?;
+            cv_store::paths::replace_file(tmp_path, path)?;
+            Ok(())
+        })();
+        for suffix in ["-journal", "-wal", "-shm"] {
+            let _ = std::fs::remove_file(PathBuf::from(format!("{}{suffix}", tmp_path.display())));
+        }
+        result
+    }
+
     fn apply(&self, rec: &Record, lines: u64) -> Result<(), DiskError> {
         match rec {
             Record::Captured { note } => {
@@ -319,6 +349,25 @@ pub fn open(
     account: AccountId,
     clock: Box<dyn Clock + Send>,
 ) -> Result<(Research<DiskPort>, OpenReport), DiskError> {
+    open_inner(root, account, clock, false)
+}
+
+/// Open after forcibly rebuilding the SQLite projection from JSONL. The
+/// writer lock is held before either the journals or index are touched.
+pub fn open_rebuilding_index(
+    root: &Path,
+    account: AccountId,
+    clock: Box<dyn Clock + Send>,
+) -> Result<(Research<DiskPort>, OpenReport), DiskError> {
+    open_inner(root, account, clock, true)
+}
+
+fn open_inner(
+    root: &Path,
+    account: AccountId,
+    clock: Box<dyn Clock + Send>,
+    force_index_rebuild: bool,
+) -> Result<(Research<DiskPort>, OpenReport), DiskError> {
     // Stamping uses a separate schema lock and does not touch the journals
     // or index. Reject unsupported schemas before creating the writer lock.
     let schema = sidecar::ensure(root, &SIDECAR)?;
@@ -345,13 +394,18 @@ pub fn open(
         }
     }
     let index_dir = cv_store::paths::create_project_index_dir(root, "research")?;
-    let mut index = FtsIndex::open_or_reset(&index_dir.join(INDEX))?;
+    let index_path = index_dir.join(INDEX);
+    if force_index_rebuild {
+        FtsIndex::rebuild_atomic(&index_path, &nb, notes.lines())?;
+        report.index_rebuilt = true;
+    }
+    let mut index = FtsIndex::open_or_reset(&index_path)?;
     // Drop a pre-app-data index (and its journal artifacts); it
     // rebuilds from the journals.
     for suffix in ["", "-journal", "-wal", "-shm"] {
         let _ = std::fs::remove_file(dir.join(format!("{INDEX}{suffix}")));
     }
-    if index.journal_lines()? != Some(notes.lines()) {
+    if !force_index_rebuild && index.journal_lines()? != Some(notes.lines()) {
         index.rebuild(&nb, notes.lines())?;
         report.index_rebuilt = true;
     }

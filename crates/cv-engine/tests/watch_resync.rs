@@ -20,7 +20,7 @@ const T: Duration = Duration::from_secs(30);
 
 fn ended(v: &[Envelope]) -> Option<WatchEndReason> {
     v.iter().find_map(|e| match &e.payload {
-        AppEvent::Engine(EngineEvent::WatchSessionEnded { reason }) => Some(reason.clone()),
+        AppEvent::Engine(EngineEvent::WatchSessionEnded { reason, .. }) => Some(reason.clone()),
         _ => None,
     })
 }
@@ -207,7 +207,8 @@ fn probe_drives_one_shot_fallback() {
     assert!(matches!(
         p.last(),
         Some(EngineEvent::WatchSessionEnded {
-            reason: WatchEndReason::Killed
+            reason: WatchEndReason::Killed,
+            ..
         })
     ));
     let builds = fake

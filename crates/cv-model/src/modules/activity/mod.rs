@@ -115,6 +115,7 @@ impl Entry {
             EntryKind::Build { ok: false, .. }
             | EntryKind::VerbFailed { .. }
             | EntryKind::Malformed(_) => Some(Severity::Error),
+            EntryKind::Verb { exit, .. } if exit != "Ok" => Some(Severity::Error),
             EntryKind::Degraded(_) => Some(Severity::Warning),
             _ => None,
         }
@@ -233,10 +234,14 @@ impl ActivityModule {
             EntryKind::Build { .. } => views.push(BUILDS.into()),
             _ => {}
         }
-        if matches!(
-            kind,
-            EntryKind::Malformed(_) | EntryKind::Build { ok: false, .. }
-        ) {
+        let error_entry = match &kind {
+            EntryKind::Malformed(_)
+            | EntryKind::Build { ok: false, .. }
+            | EntryKind::VerbFailed { .. } => true,
+            EntryKind::Verb { exit, .. } => exit != "Ok",
+            _ => false,
+        };
+        if error_entry {
             views.push(ERRORS.into());
         }
         for v in views {
@@ -416,7 +421,7 @@ impl Module for ActivityModule {
                         compiler: compiler.clone(),
                     },
                 ),
-                EngineEvent::WatchSessionEnded { reason } => {
+                EngineEvent::WatchSessionEnded { reason, .. } => {
                     boundary(self, EntryKind::WatchEnded(reason.clone()))
                 }
                 EngineEvent::VerbFinished { verb, exit } => {

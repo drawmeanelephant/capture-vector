@@ -25,13 +25,14 @@ use crate::module::{
 };
 use cv_core::diagnostic::{Diagnostic, Severity};
 use cv_core::engine::{EngineSource, ExitClass};
-use cv_core::events::engine::{BuildPhase, EngineEvent, WatchEndReason};
+use cv_core::events::engine::{BuildPhase, EngineEvent, WatchEndReason, WatchExit};
 use cv_core::events::shell::{DegradedReason, ShellEvent};
 use cv_core::events::{AppEvent, Cursor, Envelope};
 use std::cell::RefCell;
 
 pub const ID: &str = "doctor";
 pub const COPY_BUNDLE: &str = "doctor.copy-bundle";
+pub const REBUILD_INDEX: &str = "doctor.rebuild-index";
 
 thread_local! {
     static FEED: RefCell<Option<Feed>> = const { RefCell::new(None) };
@@ -59,9 +60,19 @@ pub fn register(r: &mut Registry) {
 pub struct Fatal {
     pub phase: BuildPhase,
     pub diagnostics: Vec<Diagnostic>,
-    /// The failure itself carried none; these came from the next failed
-    /// build (the one-shot build run for diagnostics).
+    /// The failure itself carried none; these came from the diagnostic
+    /// one-shot build in this fatal session's recovery window.
     pub from_followup: bool,
+    session: String,
+    seq: u64,
+    followup_armed: bool,
+}
+
+/// A one-shot build outcome waiting for the `VerbFinished` envelope that
+/// identifies whether it was the recovery `build` or another verb such as `ir`.
+#[derive(Debug, Clone, PartialEq)]
+struct Followup {
+    diagnostics: Vec<Diagnostic>,
 }
 
 /// The watch session as the committed event stream tells it.
@@ -74,8 +85,10 @@ pub struct WatchLog {
     pub last_cursor: Option<Cursor>,
     pub engine_events: u64,
     pub ended: Option<WatchEndReason>,
+    pub watch_exit: Option<WatchExit>,
     pub last_verb: Option<(String, ExitClass)>,
     pub fatal: Option<Fatal>,
+    followup: Option<Followup>,
     /// A watch-dead disclosure arrived after the newest session start.
     pub dead: bool,
     pub degraded: Option<DegradedReason>,
@@ -93,30 +106,59 @@ impl WatchLog {
                         self.schema = Some(*schema);
                         self.compiler = Some(compiler.clone());
                         self.ended = None;
+                        self.watch_exit = None;
                         self.dead = false;
+                        if let Some(f) = &mut self.fatal {
+                            f.followup_armed = false;
+                        }
+                        self.followup = None;
                     }
-                    EngineEvent::WatchSessionEnded { reason } => self.ended = Some(reason.clone()),
+                    EngineEvent::WatchSessionEnded { reason, exit } => {
+                        self.ended = Some(reason.clone());
+                        self.watch_exit = *exit;
+                        if let Some(f) = &mut self.fatal
+                            && f.session == env.cursor.session.0
+                            && f.seq < env.cursor.seq
+                            && f.diagnostics.is_empty()
+                            && !f.from_followup
+                        {
+                            // A native fatal watch has now ended. Subsequent
+                            // one-shot build outcomes are recovery candidates,
+                            // but only a following `build` verb completion may
+                            // graft their diagnostics onto this fatal failure.
+                            f.followup_armed = true;
+                        }
+                    }
                     EngineEvent::VerbFinished { verb, exit } => {
                         self.last_verb = Some((verb.clone(), *exit));
+                        self.close_followup(verb);
+                    }
+                    EngineEvent::VerbFailed { verb, .. } => self.close_followup(verb),
+                    EngineEvent::BuildFinished { diagnostics, .. } => {
+                        if self.followup_open(&env.cursor) {
+                            self.followup = Some(Followup {
+                                diagnostics: diagnostics.clone(),
+                            });
+                        }
                     }
                     EngineEvent::BuildFailed {
                         phase,
                         diagnostics,
-                        recoverable: false,
+                        recoverable,
                     } => {
-                        self.fatal = Some(Fatal {
-                            phase: *phase,
-                            diagnostics: diagnostics.clone(),
-                            from_followup: false,
-                        });
-                    }
-                    EngineEvent::BuildFailed { diagnostics, .. } => {
-                        if let Some(f) = &mut self.fatal
-                            && f.diagnostics.is_empty()
-                            && !diagnostics.is_empty()
-                        {
-                            f.diagnostics = diagnostics.clone();
-                            f.from_followup = true;
+                        if self.followup_open(&env.cursor) {
+                            self.followup = Some(Followup {
+                                diagnostics: diagnostics.clone(),
+                            });
+                        } else if !recoverable {
+                            self.fatal = Some(Fatal {
+                                phase: *phase,
+                                diagnostics: diagnostics.clone(),
+                                from_followup: false,
+                                session: env.cursor.session.0.clone(),
+                                seq: env.cursor.seq,
+                                followup_armed: false,
+                            });
                         }
                     }
                     _ => {}
@@ -134,6 +176,36 @@ impl WatchLog {
                 true
             }
             _ => false,
+        }
+    }
+
+    fn followup_open(&self, cursor: &Cursor) -> bool {
+        self.fatal.as_ref().is_some_and(|f| {
+            f.followup_armed
+                && f.session == cursor.session.0
+                && f.seq < cursor.seq
+                && f.diagnostics.is_empty()
+                && !f.from_followup
+        })
+    }
+
+    /// Pair a one-shot build outcome with the verb that produced it. Only
+    /// the recovery `build` closes the window and may supply diagnostics;
+    /// an `ir` projection in the same session is related output, not the
+    /// recovery probe, so it must not be grafted onto the fatal watch failure.
+    fn close_followup(&mut self, verb: &str) {
+        let followup = self.followup.take();
+        if verb != "build" {
+            return;
+        }
+        if let Some(f) = &mut self.fatal {
+            if let Some(followup) = followup
+                && !followup.diagnostics.is_empty()
+            {
+                f.diagnostics = followup.diagnostics;
+                f.from_followup = true;
+            }
+            f.followup_armed = false;
         }
     }
 
@@ -507,6 +579,17 @@ fn probe_items(f: &Facts) -> Vec<Item> {
     ]
 }
 
+fn watch_exit_label(exit: WatchExit) -> String {
+    match exit {
+        WatchExit::Exited { code } if (0..=3).contains(&code) => {
+            exit_label(ExitClass::from_code(code)).into()
+        }
+        WatchExit::Exited { code } => format!("exit code {code}"),
+        WatchExit::Signaled { signal } => format!("signal {signal}"),
+        WatchExit::Killed => "killed by us".into(),
+    }
+}
+
 fn exit_label(e: ExitClass) -> &'static str {
     match e {
         ExitClass::Ok => "0 (ok)",
@@ -569,6 +652,20 @@ fn watch_items(f: &Facts, w: &WatchLog) -> Vec<Item> {
     if let Some(r) = &w.ended {
         out.push(Item::new("watch.ended", "Session end", format!("{r:?}")));
     }
+    if let Some(exit) = w.watch_exit {
+        let t = match exit {
+            WatchExit::Exited { code: 0 } | WatchExit::Killed => Tone::Dim,
+            WatchExit::Exited { .. } | WatchExit::Signaled { .. } => Tone::Warn,
+        };
+        out.push(
+            Item::new(
+                "watch.process-exit",
+                "Watch process exit",
+                watch_exit_label(exit),
+            )
+            .tone(t),
+        );
+    }
     if let Some((verb, exit)) = &w.last_verb {
         let t = if *exit == ExitClass::Ok {
             Tone::Normal
@@ -576,7 +673,7 @@ fn watch_items(f: &Facts, w: &WatchLog) -> Vec<Item> {
             Tone::Warn
         };
         out.push(
-            Item::new("watch.exit", "Last exit", exit_label(*exit))
+            Item::new("watch.verb-exit", "Last verb exit", exit_label(*exit))
                 .tone(t)
                 .line("verb", verb.clone()),
         );
@@ -688,6 +785,17 @@ fn store_items(f: &Facts) -> Vec<Item> {
                 .tone(Tone::Error)
                 .badge("locked", Tone::Error)
                 .say("Another Capture Vector has this workspace open. Close it (or end a stuck one), then reopen the workspace."),
+                LockHolder::NotHeld => Item {
+                    value: "not held".into(),
+                    ..lock
+                }
+                .tone(Tone::Dim),
+                LockHolder::Unknown => Item {
+                    value: "unknown".into(),
+                    ..lock
+                }
+                .tone(Tone::Warn)
+                .say("The lock exists, but Doctor could not determine its holder."),
             });
         }
         if let Some(ix) = &ns.index {
@@ -858,10 +966,23 @@ impl Module for DoctorModule {
     }
 
     fn commands(&self) -> Vec<CommandSpec> {
-        vec![CommandSpec::new(COPY_BUNDLE, "Copy Doctor support bundle")]
+        let mut out = vec![CommandSpec::new(COPY_BUNDLE, "Copy Doctor support bundle")];
+        if self.feed.get().store.root.is_some() {
+            out.push(CommandSpec::new(
+                REBUILD_INDEX,
+                "Rebuild local indexes from .cv JSONL",
+            ));
+        }
+        out
     }
 
     fn run(&mut self, command: &str) -> Vec<Intent> {
+        if command == REBUILD_INDEX {
+            return vec![
+                Intent::Status("Rebuilding local indexes from .cv JSONL…".into()),
+                Intent::RebuildIndexes,
+            ];
+        }
         if command != COPY_BUNDLE {
             return Vec::new();
         }

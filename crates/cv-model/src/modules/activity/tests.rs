@@ -87,6 +87,33 @@ fn rebuild_bursts_coalesce_without_dropping_events() {
 }
 
 #[test]
+fn non_ok_verb_outcomes_are_error_rows_in_the_errors_mailbox() {
+    use cv_core::engine::ExitClass;
+
+    let mut m = ActivityModule::default();
+    m.ingest(&env(
+        1,
+        EngineEvent::VerbFinished {
+            verb: "ir".into(),
+            exit: ExitClass::ContentFailure,
+        },
+    ));
+    m.ingest(&env(
+        2,
+        EngineEvent::VerbFailed {
+            verb: "ir".into(),
+            error: "publish failed".into(),
+        },
+    ));
+
+    assert_eq!(m.list_len(Some("all")), 2);
+    assert_eq!(m.list_len(Some("errors")), 2);
+    for i in 0..m.list_len(Some("errors")) {
+        assert_eq!(m.row(Some("errors"), i).tone, crate::module::Tone::Error);
+    }
+}
+
+#[test]
 fn repeated_ir_projection_outcomes_fold_without_dropping_events_or_hiding_fallback() {
     use cv_core::engine::ExitClass;
 

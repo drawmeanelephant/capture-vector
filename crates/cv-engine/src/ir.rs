@@ -3,6 +3,12 @@
 //! against the published `.cv/ir` tree directly: the child writes a
 //! CV-owned staging tree, and a successful run publishes regular files
 //! with sibling temporary files + atomic renames (`graph.json` last).
+//! `graph.json` is the self-contained atomic commit point Pages consume.
+//! Auxiliary files are best-effort Boris output: they are cleaned before
+//! commit and then installed from one candidate generation, never left as
+//! mixed old/new generations. Portable filesystems offer no atomic
+//! multi-file directory swap, so auxiliary completeness is deliberately
+//! not the consistency contract.
 
 use crate::error::{EngineError, Result};
 use crate::write::retry_sharing;
@@ -124,6 +130,22 @@ fn inventory(dir: &Path, base: &Path, out: &mut Vec<(PathBuf, PathBuf)>) -> Resu
     Ok(())
 }
 
+fn existing_output(root: &Path, final_rel: &Path) -> Result<Vec<(PathBuf, PathBuf)>> {
+    let final_path = confined(root, final_rel).map_err(path_error)?;
+    match fs::symlink_metadata(&final_path) {
+        Ok(meta) if meta.is_dir() && !is_link(&meta) => {
+            let mut files = Vec::new();
+            inventory(&final_path, &final_path, &mut files)?;
+            Ok(files)
+        }
+        Ok(_) => Err(EngineError::Refused(format!(
+            "IR output {final_rel:?} is not an ordinary directory"
+        ))),
+        Err(e) if e.kind() == ErrorKind::NotFound => Ok(vec![]),
+        Err(e) => Err(EngineError::Io(e)),
+    }
+}
+
 struct StagedFile {
     rel: PathBuf,
     target: PathBuf,
@@ -175,11 +197,22 @@ fn persist(tmp: NamedTempFile, target: &Path) -> io::Result<()> {
     })
 }
 
-/// Publish a complete successful staging tree over `final_out`. Every
-/// file is first copied beside its target; only then do atomic renames
-/// begin, auxiliary files before `graph.json`. A failure therefore leaves
-/// either the old or the new graph, never a truncated graph.
+/// Publish a successful staging tree over `final_out`. Every candidate
+/// file is first copied beside its target. Existing auxiliary files are
+/// then removed as a generation-cleaning step, candidate auxiliary files
+/// are renamed, and `graph.json` — the sole consistency contract — is
+/// atomically renamed last. A failure before that final rename preserves
+/// the old graph; it can remove or omit non-contractual auxiliary files,
+/// but never mixes old and new auxiliary generations.
 pub fn publish(root: &Path, final_out: &str) -> Result<()> {
+    publish_impl(root, final_out, persist)
+}
+
+fn publish_impl(
+    root: &Path,
+    final_out: &str,
+    mut persist_file: impl FnMut(NamedTempFile, &Path) -> io::Result<()>,
+) -> Result<()> {
     let final_rel = Path::new(final_out);
     let stage_rel = Path::new(IR_STAGING_DIR);
     let staging = confined(root, stage_rel).map_err(path_error)?;
@@ -203,15 +236,24 @@ pub fn publish(root: &Path, final_out: &str) -> Result<()> {
         ));
     }
 
+    let existing = existing_output(root, final_rel)?;
     let mut staged = Vec::new();
     for (source, rel) in files {
         staged.push(copy_staged(root, final_rel, &source, &rel)?);
+    }
+
+    // Generation-clean auxiliary output before the first rename. The old
+    // graph stays untouched until it is atomically replaced last.
+    for (path, rel) in existing {
+        if rel != Path::new("graph.json") {
+            fs::remove_file(path).map_err(EngineError::Io)?;
+        }
     }
     staged.sort_by_key(|f| f.rel == Path::new("graph.json"));
     for file in staged {
         let target = confirm_confined_file(root, &final_rel.join(&file.rel)).map_err(path_error)?;
         debug_assert_eq!(target, file.target);
-        persist(file.tmp, &target).map_err(EngineError::Io)?;
+        persist_file(file.tmp, &target).map_err(EngineError::Io)?;
     }
     cleanup(root);
     Ok(())
@@ -231,6 +273,7 @@ mod tests {
     fn a_successful_publish_replaces_graph_and_keeps_auxiliary_output() {
         let t = tempfile::tempdir().unwrap();
         write(t.path(), ".cv/ir/graph.json", b"old-graph");
+        write(t.path(), ".cv/ir/obsolete.json", b"obsolete");
         write(t.path(), ".cv/ir.staging/graph.json", b"new-graph");
         write(t.path(), ".cv/ir.staging/completion.json", b"completion");
 
@@ -243,7 +286,39 @@ mod tests {
             fs::read(t.path().join(".cv/ir/completion.json")).unwrap(),
             b"completion"
         );
+        assert!(!t.path().join(".cv/ir/obsolete.json").exists());
         assert!(!t.path().join(IR_STAGING_DIR).exists());
+    }
+
+    #[test]
+    fn a_pre_commit_failure_leaves_no_mixed_auxiliary_generation() {
+        let t = tempfile::tempdir().unwrap();
+        write(t.path(), ".cv/ir/graph.json", b"old-graph");
+        write(t.path(), ".cv/ir/old-aux.json", b"old-aux");
+        write(t.path(), ".cv/ir.staging/graph.json", b"new-graph");
+        write(t.path(), ".cv/ir.staging/a-new-aux.json", b"new-aux");
+        write(t.path(), ".cv/ir.staging/b-new-aux.json", b"new-aux");
+
+        let mut renames = 0;
+        assert!(
+            publish_impl(t.path(), ".cv/ir", |tmp, target| {
+                renames += 1;
+                if renames == 2 {
+                    return Err(io::Error::other("injected rename failure"));
+                }
+                persist(tmp, target)
+            })
+            .is_err()
+        );
+        assert_eq!(
+            fs::read(t.path().join(".cv/ir/graph.json")).unwrap(),
+            b"old-graph"
+        );
+        assert!(!t.path().join(".cv/ir/old-aux.json").exists());
+        assert_eq!(
+            fs::read(t.path().join(".cv/ir/a-new-aux.json")).unwrap(),
+            b"new-aux"
+        );
     }
 
     #[test]

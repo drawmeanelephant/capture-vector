@@ -88,7 +88,7 @@ impl LiveDelivery {
                 return;
             }
             if matches!(obs, Observation::Resync(_)) {
-                delivery.resync();
+                delivery.request_resync();
             }
             deliver(env);
         })

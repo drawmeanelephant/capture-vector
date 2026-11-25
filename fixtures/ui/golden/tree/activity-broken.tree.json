@@ -555,7 +555,7 @@
       "rect": [
         142.3,
         66.8,
-        86.8,
+        86.5,
         0.0
       ],
       "role": "group"
@@ -566,9 +566,9 @@
       "path": "shell/body/nav/nav-scroll/#1/nav-errors/#2",
       "radius": 999.0,
       "rect": [
-        233.1,
+        232.8,
         59.9,
-        18.9,
+        19.2,
         13.8
       ],
       "role": "group"
@@ -578,13 +578,13 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-scroll/#1/nav-errors/#2/#0",
       "rect": [
-        239.1,
+        238.8,
         59.9,
-        6.9,
+        7.2,
         13.8
       ],
       "role": "text",
-      "text": "3"
+      "text": "4"
     },
     {
       "fill": "#0e1014ff",

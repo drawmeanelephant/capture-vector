@@ -41,6 +41,9 @@ pub enum Intent {
     Degrade(DegradedReason),
     Recover,
     Status(String),
+    /// Close the open stores, rebuild every SQLite index from `.cv/` JSONL,
+    /// and reopen the same workspace.
+    RebuildIndexes,
     OpenCompanion {
         key: String,
     },

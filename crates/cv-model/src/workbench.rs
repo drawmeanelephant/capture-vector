@@ -207,6 +207,7 @@ pub struct Workbench {
     store: Option<Box<dyn Store>>,
     pub(crate) secrets: Option<Box<dyn SecretPort>>,
     watch: Option<Box<dyn WatchHandle>>,
+    index_rebuild_requested: bool,
     local_seq: u64,
 }
 
@@ -242,6 +243,7 @@ impl Workbench {
             store: None,
             secrets: None,
             watch: None,
+            index_rebuild_requested: false,
             local_seq: 0,
         }
     }
@@ -764,11 +766,24 @@ impl Workbench {
         }
     }
 
+    /// Consume a queued index-rebuild maintenance request. The
+    /// composition root uses it while reopening the same workspace.
+    pub fn take_index_rebuild_request(&mut self) -> bool {
+        std::mem::take(&mut self.index_rebuild_requested)
+    }
+
     pub fn apply(&mut self, intent: Intent) {
         match intent {
             Intent::Degrade(reason) => self.disclose(reason),
             Intent::Recover => self.app.degraded = None,
             Intent::Status(s) => self.status = s,
+            Intent::RebuildIndexes => match self.workspace.clone() {
+                Some(root) => {
+                    self.index_rebuild_requested = true;
+                    self.requests.push(ShellRequest::OpenWorkspace(root));
+                }
+                None => self.status = "no workspace open; nothing to rebuild".into(),
+            },
             Intent::MarkDirty => self.windows.set_dirty(PRIMARY, true),
             Intent::Copy(text) => self.requests.push(ShellRequest::Copy(text)),
             Intent::OpenCompanion { key } => {

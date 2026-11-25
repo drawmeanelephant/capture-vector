@@ -148,7 +148,7 @@ impl cv_core::engine::WatchHandle for Gone {
     fn stop(&mut self) {}
 }
 
-fn assert_semantics(name: &str, t: &Transcript) {
+fn assert_semantics(name: &str, t: &Transcript, watch_exit: serde_json::Value) {
     for (what, w) in [("watch1", &t.watch1), ("watch2", &t.watch2)] {
         assert_cursor(&format!("{name} {what}"), w, 0);
         assert!(
@@ -167,6 +167,11 @@ fn assert_semantics(name: &str, t: &Transcript) {
             ends[0].payload.pointer("/Engine/WatchSessionEnded/reason"),
             Some(&serde_json::json!("Killed")),
             "{name} {what}: stopped ⇒ Killed"
+        );
+        assert_eq!(
+            ends[0].payload.pointer("/Engine/WatchSessionEnded/exit"),
+            Some(&watch_exit),
+            "{name} {what}: the watch child outcome is preserved"
         );
         assert_eq!(w.last(), Some(ends[0]), "{name} {what}: end is last");
     }
@@ -215,8 +220,8 @@ fn stub_equals_process_on_every_corpus() {
 
         let s = scenario(&stub, expect);
         let p = scenario(&process, expect);
-        assert_semantics(&format!("{name} stub"), &s);
-        assert_semantics(&format!("{name} process"), &p);
+        assert_semantics(&format!("{name} stub"), &s, serde_json::json!("Killed"));
+        assert_semantics(&format!("{name} process"), &p, serde_json::json!("Killed"));
 
         assert_eq!(
             relative(&s.watch1),
@@ -293,17 +298,19 @@ fn ir_projection_runs_beside_a_live_watch() {
     fake.set("watch-hold", "");
     let engine = std::sync::Arc::new(fake.engine());
     let sched = EngineScheduler::new(engine.clone(), SeatPolicy::StopWatch);
-    let (sink, got) = collector();
-    let session = sched.start_watch(sink).unwrap();
-    wait_until("hello", T, || !got.lock().unwrap().is_empty());
+    let got = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let push = |got: &std::sync::Arc<std::sync::Mutex<Vec<Envelope>>>| {
+        let got = got.clone();
+        Box::new(move |e| got.lock().unwrap().push(e)) as cv_core::engine::EventSink
+    };
+    let session = sched.start_watch(push(&got)).unwrap();
+    wait_until("watch build events", T, || got.lock().unwrap().len() >= 3);
 
-    let r = sched
-        .run(&engine.ir_projection(), Box::new(|_| {}))
-        .unwrap();
+    let r = sched.run(&engine.ir_projection(), push(&got)).unwrap();
     assert_eq!(r.exit, ExitClass::Ok);
     assert_eq!(r.stopped_watch, None);
     assert_eq!(r.out_dir.as_deref(), Some(".cv/ir"));
-    assert_eq!(sched.watch_session(), Some(session));
+    assert_eq!(sched.watch_session(), Some(session.clone()));
     assert!(engine.watch_live());
     let builds: Vec<String> = fake
         .read("argv.log")
@@ -315,6 +322,25 @@ fn ir_projection_runs_beside_a_live_watch() {
         builds,
         [format!("build --out {}", cv_engine::ir::IR_STAGING_DIR)]
     );
+    // Real emitter-minted envelopes from one live engine session, not
+    // handcrafted cursors: watch build results occupy 1-2, while the IR
+    // projection's build result and verb completion occupy 3-4.
+    {
+        let envs = got.lock().unwrap();
+        assert!(envs.iter().all(|e| e.cursor.session == session));
+        assert_eq!(
+            envs.iter().map(|e| e.cursor.seq).collect::<Vec<_>>(),
+            [0, 1, 2, 3, 4]
+        );
+        assert!(matches!(
+            engine_payload(&envs[3]),
+            Some(EngineEvent::BuildFinished { .. })
+        ));
+        assert!(matches!(
+            engine_payload(&envs[4]),
+            Some(EngineEvent::VerbFinished { verb, exit: ExitClass::Ok }) if verb == "ir"
+        ));
+    }
     sched.stop_watch();
 }
 

@@ -68,33 +68,156 @@ fn rows(m: &DoctorModule, nav: &str) -> Vec<RowModel> {
         .collect()
 }
 
-#[test]
-fn a_fatal_failure_without_diagnostics_takes_the_followup_builds() {
-    let mut w = WatchLog::default();
-    w.ingest(&engine("s", 0, hello()));
-    w.ingest(&engine(
-        "s",
-        1,
+fn fatal_initial(session: &str, seq: u64) -> Envelope {
+    engine(
+        session,
+        seq,
         EngineEvent::BuildFailed {
             phase: BuildPhase::Initial,
             diagnostics: vec![],
             recoverable: false,
         },
-    ));
-    w.ingest(&engine(
-        "r",
-        0,
+    )
+}
+
+fn diagnostic_failure(session: &str, seq: u64, code: &str) -> Envelope {
+    engine(
+        session,
+        seq,
         EngineEvent::BuildFailed {
             phase: BuildPhase::Initial,
-            diagnostics: vec![diag("EFRONTMATTER")],
+            diagnostics: vec![diag(code)],
             recoverable: true,
         },
-    ));
+    )
+}
+
+fn verb_finished(session: &str, seq: u64, verb: &str) -> Envelope {
+    engine(
+        session,
+        seq,
+        EngineEvent::VerbFinished {
+            verb: verb.into(),
+            exit: ExitClass::ContentFailure,
+        },
+    )
+}
+
+fn build_finished(session: &str, seq: u64) -> Envelope {
+    engine(
+        session,
+        seq,
+        EngineEvent::BuildFinished {
+            phase: BuildPhase::Initial,
+            pages_written: 0,
+            diagnostics: vec![],
+            duration_ms: 1,
+        },
+    )
+}
+
+fn ended(session: &str, seq: u64, exit: Option<cv_core::events::engine::WatchExit>) -> Envelope {
+    engine(
+        session,
+        seq,
+        EngineEvent::WatchSessionEnded {
+            reason: WatchEndReason::Desync,
+            exit,
+        },
+    )
+}
+
+#[test]
+fn a_fatal_failure_takes_diagnostics_only_from_its_recovery_window() {
+    let mut w = WatchLog::default();
+    w.ingest(&engine("s", 0, hello()));
+    w.ingest(&fatal_initial("s", 1));
+    // An ordinary later build in the same live session is not the diagnostic
+    // one-shot: the watch must have ended before recovery can be running.
+    w.ingest(&diagnostic_failure("s", 2, "EEARLY"));
+    assert!(!w.fatal.as_ref().unwrap().from_followup);
+    assert!(w.fatal.as_ref().unwrap().diagnostics.is_empty());
+
+    w.ingest(&ended("s", 3, None));
+    w.ingest(&diagnostic_failure("s", 4, "EFRONTMATTER"));
+    assert!(!w.fatal.as_ref().unwrap().from_followup);
+    w.ingest(&verb_finished("s", 5, "build"));
     let f = w.fatal.as_ref().unwrap();
     assert!(f.from_followup);
     assert_eq!(f.diagnostics[0].code, "EFRONTMATTER");
-    assert_eq!(w.last_cursor.as_ref().unwrap().session.0, "r");
-    assert_eq!(w.engine_events, 3);
+    assert_eq!(w.last_cursor.as_ref().unwrap().session.0, "s");
+    assert_eq!(w.engine_events, 6);
+}
+
+#[test]
+fn an_ir_projection_in_the_recovery_window_is_not_the_diagnostic_build() {
+    let mut w = WatchLog::default();
+    w.ingest(&engine("s", 0, hello()));
+    w.ingest(&fatal_initial("s", 1));
+    w.ingest(&ended("s", 2, None));
+    w.ingest(&diagnostic_failure("s", 3, "EIR"));
+    w.ingest(&verb_finished("s", 4, "ir"));
+    assert!(!w.fatal.as_ref().unwrap().from_followup);
+    assert!(w.fatal.as_ref().unwrap().diagnostics.is_empty());
+
+    w.ingest(&diagnostic_failure("s", 5, "EFRONTMATTER"));
+    w.ingest(&verb_finished("s", 6, "build"));
+    let f = w.fatal.as_ref().unwrap();
+    assert!(f.from_followup);
+    assert_eq!(f.diagnostics[0].code, "EFRONTMATTER");
+}
+
+#[test]
+fn a_finished_recovery_build_closes_the_window_before_later_ir_output() {
+    let mut w = WatchLog::default();
+    w.ingest(&engine("s", 0, hello()));
+    w.ingest(&fatal_initial("s", 1));
+    w.ingest(&ended("s", 2, None));
+    w.ingest(&build_finished("s", 3));
+    w.ingest(&verb_finished("s", 4, "build"));
+    w.ingest(&diagnostic_failure("s", 5, "EIR"));
+    w.ingest(&verb_finished("s", 6, "ir"));
+    let f = w.fatal.as_ref().unwrap();
+    assert!(!f.from_followup);
+    assert!(f.diagnostics.is_empty());
+}
+
+#[test]
+fn a_new_watch_session_closes_the_fatal_recovery_window() {
+    let mut w = WatchLog::default();
+    w.ingest(&engine("s", 0, hello()));
+    w.ingest(&fatal_initial("s", 1));
+    w.ingest(&ended("s", 2, None));
+    w.ingest(&engine("r", 0, hello()));
+    w.ingest(&diagnostic_failure("r", 1, "ENEW"));
+    let f = w.fatal.as_ref().unwrap();
+    assert!(!f.from_followup);
+    assert!(f.diagnostics.is_empty(), "unrelated diagnostics grafted");
+    assert_eq!(w.session.as_deref(), Some("r"));
+}
+
+#[test]
+fn watch_process_exit_and_last_verb_exit_are_separate_facts() {
+    use cv_core::events::engine::WatchExit;
+    let mut m = module(Facts::default());
+    m.ingest(&engine("s", 0, hello()));
+    m.ingest(&engine(
+        "s",
+        1,
+        EngineEvent::VerbFinished {
+            verb: "ir".into(),
+            exit: ExitClass::Ok,
+        },
+    ));
+    m.ingest(&ended("s", 2, Some(WatchExit::Exited { code: 1 })));
+    let r = rows(&m, "watch");
+    let process = r.iter().find(|r| r.key == "watch.process-exit").unwrap();
+    assert_eq!(process.title, "Watch process exit");
+    assert_eq!(process.detail, "1 (content)");
+    let verb = r.iter().find(|r| r.key == "watch.verb-exit").unwrap();
+    assert_eq!(verb.title, "Last verb exit");
+    assert_eq!(verb.detail, "0 (ok)");
+    assert!(r.iter().all(|r| r.title != "Last exit"));
 }
 
 #[test]
@@ -322,6 +445,33 @@ fn the_support_bundle_leaves_out_paths_env_values_and_secret_fields() {
     assert_eq!(v["engine"]["candidatesSearched"], 2);
     assert_eq!(v["engine"]["buildInfo"]["vcsRevision"], "66efcfb");
     assert_eq!(v["store"]["namespaces"][0]["hasIndex"], true);
+}
+
+#[test]
+fn rebuild_index_is_a_workspace_command_and_requests_reopen_for_maintenance() {
+    let mut facts = Facts::default();
+    facts.store.root = Some("/workspace".into());
+    let mut m = module(facts);
+    let cmds = m.commands();
+    assert!(
+        cmds.iter().any(|c| c.id == "doctor.rebuild-index"),
+        "{cmds:?}"
+    );
+    let intents = m.run("doctor.rebuild-index");
+    assert_eq!(intents.len(), 2, "{intents:?}");
+    assert_eq!(intents[1], Intent::RebuildIndexes);
+
+    let mut wb = Workbench::new(Registry::default());
+    wb.workspace = Some(std::path::PathBuf::from("/workspace"));
+    wb.apply(intents[1].clone());
+    assert_eq!(
+        wb.requests,
+        vec![ShellRequest::OpenWorkspace(std::path::PathBuf::from(
+            "/workspace"
+        ))]
+    );
+    assert!(wb.take_index_rebuild_request());
+    assert!(!wb.take_index_rebuild_request());
 }
 
 #[test]
