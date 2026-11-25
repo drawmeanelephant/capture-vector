@@ -9,6 +9,7 @@ pub mod command;
 pub mod dialog;
 pub mod module;
 pub mod modules;
+pub mod new_workspace;
 pub mod noun_views;
 pub mod theme;
 pub mod windows;

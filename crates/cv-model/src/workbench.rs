@@ -9,6 +9,7 @@ use crate::command::{CommandSpec, Intent, Palette};
 use crate::dialog::{Dialogs, FileFilter, PickPurpose, SecretPort};
 use crate::module::{Link, ProjectSnapshot, Registry, RowModel};
 use crate::modules::activity;
+use crate::new_workspace::{self, Archetypes, NewWorkspace, Notices, ShellNotice};
 use crate::theme::{Mode, Theme};
 use crate::windows::{CloseOutcome, PRIMARY, WindowId, Windows};
 use cv_core::engine::{EventSink, WatchHandle};
@@ -139,6 +140,9 @@ pub enum ShellRequest {
         purpose: PickPurpose,
     },
     OpenWorkspace(PathBuf),
+    /// Run `boris init` for the New workspace form; the outcome comes
+    /// back as `ShellNotice::Created`.
+    CreateWorkspace(NewWorkspace),
     /// Open a page (relative to the content input) in an editor window.
     EditPage(String),
     /// Put text on the system clipboard.
@@ -196,6 +200,12 @@ pub struct Workbench {
     pub recent: Vec<PathBuf>,
     /// Pending requests for the windowing layer; drained by its poll.
     pub requests: Vec<ShellRequest>,
+    /// What New workspace offers, or why it is unavailable.
+    pub archetypes: Result<Archetypes, String>,
+    /// New workspace's default location while no workspace is open.
+    pub new_parent: Option<PathBuf>,
+    notice_tx: Sender<ShellNotice>,
+    notice_rx: Receiver<ShellNotice>,
     /// `(event_id, envelope digest)` — the contract's idempotency key.
     seen: BTreeSet<(String, u64)>,
     /// Applied but not yet journaled (store write failed); retried on replay.
@@ -213,6 +223,7 @@ pub struct Workbench {
 impl Workbench {
     pub fn new(registry: Registry) -> Self {
         let (tx, rx) = channel();
+        let (notice_tx, notice_rx) = channel();
         let nav = registry
             .iter()
             .map(|m| m.nav().items.first().map(|i| i.key.clone()))
@@ -233,6 +244,10 @@ impl Workbench {
             workspace: None,
             recent: Vec::new(),
             requests: Vec::new(),
+            archetypes: Err(new_workspace::LOCATING.into()),
+            new_parent: None,
+            notice_tx,
+            notice_rx,
             seen: BTreeSet::new(),
             unjournaled: BTreeSet::new(),
             tx,
@@ -276,6 +291,14 @@ impl Workbench {
         self.inbox().sink()
     }
 
+    /// Where shell-level workers report; survives `reset_project`.
+    pub fn notices(&self) -> Notices {
+        Notices {
+            tx: self.notice_tx.clone(),
+            waker: self.waker.clone(),
+        }
+    }
+
     pub fn inbox(&self) -> Inbox {
         Inbox {
             tx: self.tx.clone(),
@@ -311,6 +334,10 @@ impl Workbench {
     /// Drain pending envelopes. Returns true when visible state changed.
     pub fn drain(&mut self) -> bool {
         let mut changed = false;
+        while let Ok(n) = self.notice_rx.try_recv() {
+            self.notice(n);
+            changed = true;
+        }
         while let Ok(q) = self.rx.try_recv() {
             let m = match q {
                 Queued::Msg(m) => m,
@@ -601,6 +628,9 @@ impl Workbench {
             CommandSpec::new("shell.follow", "Open linked noun").chord("mod+o"),
             CommandSpec::new("shell.workspace.open", "Open workspace…").chord("mod+shift+o"),
             CommandSpec::new("shell.doctor", "Open Doctor"),
+            CommandSpec::new(new_workspace::NEW, "New workspace…")
+                .chord("mod+shift+n")
+                .disabled(self.archetypes.as_ref().err().cloned()),
         ];
         // Offered only while the banner it backs is up; a live watch
         // needs no restart and the palette stays honest.
@@ -690,6 +720,7 @@ impl Workbench {
                 None => self.status = "no workspace open".into(),
             },
             "shell.workspace.open" => self.requests.push(ShellRequest::PickWorkspace),
+            new_workspace::NEW => self.new_workspace(),
             crate::dialog::RECENT => self.choose_recent(),
             // Reopening the open workspace starts a new watch and rearms recovery.
             "shell.watch.restart" => match self.workspace.clone() {
@@ -848,6 +879,7 @@ impl Workbench {
             KeyInput::Command('k') => self.palette.toggle(),
             KeyInput::Command('i') => self.run_command("shell.inspector.toggle"),
             KeyInput::Command('o') if k.shift => self.run_command("shell.workspace.open"),
+            KeyInput::Command('n') if k.shift => self.run_command(new_workspace::NEW),
             KeyInput::Command('o') => self.follow_link(),
             KeyInput::Command(c) if c.is_ascii_digit() && *c != '0' => {
                 self.activate(*c as usize - '1' as usize)
@@ -875,10 +907,14 @@ impl Workbench {
                 .palette
                 .move_cursor(-1, self.palette.matches(&cmds).len()),
             KeyInput::Enter => {
-                let id = self.palette.selected(&cmds).map(|c| c.id.clone());
+                let selected = self.palette.selected(&cmds).cloned();
                 self.palette.close();
-                if let Some(id) = id {
-                    self.run_command(&id);
+                if let Some(c) = selected {
+                    if let Some(why) = c.disabled {
+                        self.status = format!("{} is unavailable: {why}", c.title);
+                    } else {
+                        self.run_command(&c.id);
+                    }
                 }
             }
             _ => return false,
