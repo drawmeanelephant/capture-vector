@@ -131,12 +131,12 @@ impl Windows {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cv_core::id::{AccountId, NounId, NounKind, StableId};
+    use cv_core::id::{AccountId, NounId, NounKind, StableId, noun_kind};
 
     fn noun(s: &str) -> NounId {
         NounId {
             account: AccountId("a".into()),
-            kind: NounKind("page".into()),
+            kind: NounKind::register(noun_kind::PAGE),
             stable: StableId(s.into()),
         }
     }

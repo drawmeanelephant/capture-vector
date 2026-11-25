@@ -19,7 +19,6 @@ pub const ID: &str = "activity";
 /// File groups listed in the mailbox pane, busiest first.
 pub const MAX_FILE_GROUPS: usize = 48;
 const DIAGNOSTICS: &str = "diagnostics";
-pub const EVENT_KIND: &str = "event";
 
 pub fn register(r: &mut Registry) {
     r.register(Box::new(ActivityModule::default()))
@@ -526,11 +525,11 @@ impl Module for ActivityModule {
         let e = self.entry(key)?;
         let kind = match e.kind {
             EntryKind::Diagnostic(_) => noun_kind::DIAGNOSTIC,
-            _ => EVENT_KIND,
+            _ => noun_kind::EVENT,
         };
         Some(NounId {
             account: AccountId("local".into()),
-            kind: NounKind(kind.into()),
+            kind: NounKind::register(kind),
             stable: StableId(format!("{ID}/{}", e.key)),
         })
     }

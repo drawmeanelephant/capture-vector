@@ -29,3 +29,5 @@ What can break, who is affected, and how to revert (usually
       changed.
 - [ ] New behavior has a test (unit or integration) that fails without
       the change.
+- [ ] If this implements a claimed issue, the claim was released with
+      reason `pr-opened` (see `docs/agent-claims.md`).

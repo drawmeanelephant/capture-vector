@@ -88,20 +88,25 @@ fn keys_reach_the_model_while_the_panel_holds_focus() {
 fn pointer_and_keys_share_one_highlight() {
     let mut h = open("canary");
     h.script(&["key:text:shell"]);
-    let first = {
+    // Another row than the cursor's, chosen among what `visible` renders —
+    // a hardcoded id can fall outside `Palette::VISIBLE` when the command
+    // count changes.
+    let (first, target) = {
         let hits = h.state().commands();
         let visible = h.state().palette.visible(&hits);
-        format!("cmd-{}", visible[h.state().palette.cursor].id)
+        let first = format!("cmd-{}", visible[h.state().palette.cursor].id);
+        let target = format!("cmd-{}", visible.last().unwrap().id);
+        assert_ne!(first, target, "test needs a second row");
+        (first, target)
     };
-    assert_ne!(first, "cmd-shell.palette");
     let selection = node(&h, &first)["fill"].clone();
     assert!(selection.is_string(), "the cursor row is highlighted");
-    assert!(h.hover("cmd-shell.palette"));
+    assert!(h.hover(&target));
     let hits = h.state().commands();
     let visible = h.state().palette.visible(&hits);
     let at = visible
         .iter()
-        .position(|c| c.id == "shell.palette")
+        .position(|c| format!("cmd-{}", c.id) == target)
         .unwrap();
     assert_eq!(h.state().palette.cursor, at, "hover moves the cursor");
     let lit = |h: &Harness| {
@@ -113,10 +118,10 @@ fn pointer_and_keys_share_one_highlight() {
             .map(|n| n["key"].as_str().unwrap().to_string())
             .collect::<Vec<_>>()
     };
-    assert_eq!(lit(&h), ["cmd-shell.palette"]);
+    assert_eq!(lit(&h), vec![target.clone()]);
     h.script(&["key:down"]);
     assert_eq!(lit(&h).len(), 1, "one highlight after a key moves it");
-    assert_ne!(lit(&h), ["cmd-shell.palette"]);
+    assert_ne!(lit(&h), [target]);
 }
 
 #[test]

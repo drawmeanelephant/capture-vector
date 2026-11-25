@@ -188,7 +188,7 @@ impl LifecycleLog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cv_core::id::{AccountId, NounId, NounKind, StableId};
+    use cv_core::id::{AccountId, NounId, NounKind, StableId, noun_kind};
     use cv_core::sys::Hash;
 
     fn key(code: &str, page: &str) -> DedupKey {
@@ -196,7 +196,7 @@ mod tests {
             code: code.into(),
             subject: NounId {
                 account: AccountId("local".into()),
-                kind: NounKind::new("page".into()),
+                kind: NounKind::register(noun_kind::PAGE),
                 stable: StableId(page.into()),
             },
             target_hash: Hash([7; 32]),

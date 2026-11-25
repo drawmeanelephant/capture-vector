@@ -7,6 +7,7 @@ pub mod build_info;
 pub mod editor;
 pub mod live;
 pub mod logging;
+pub mod publish;
 pub mod snapshot;
 pub mod workspace;
 
@@ -29,8 +30,20 @@ mod research;
 pub const CANARY_CORPUS: &str = "happy";
 
 pub fn init() -> Workbench {
+    init_with(Box::new(publish::DiskPort::ephemeral()))
+}
+
+fn init_with(publish: Box<dyn cv_model::modules::publish::PublishPort>) -> Workbench {
     cv_model::modules::audit::install(Box::new(audit::DiskPort::ephemeral()));
+    cv_model::modules::publish::install(publish);
     Workbench::new(Registry::with_all()).with_store(Box::new(StubStore::new()))
+}
+
+/// The publish ledger is shown read-only; one that cannot be trusted is
+/// disclosed like any other corrupt sidecar store.
+fn publish_warning(port: &publish::DiskPort) -> Option<String> {
+    port.error()
+        .map(|e| format!("publish ledger unreadable: {e}"))
 }
 
 /// Locate the engine, start its watch session into the shell's sink.
@@ -185,11 +198,15 @@ pub fn open_workspace(
             Some(e.to_string())
         }
     };
+    let publish = publish::DiskPort::open(&root);
+    let publish_err = publish_warning(&publish);
+    cv_model::modules::publish::install(Box::new(publish));
     wb.reset_project(Registry::with_all());
     wb.workspace = Some(root.clone());
     show(wb, "pages");
-    let warning =
-        research_err.or_else(|| audit_err.map(|e| format!("finding snoozes not persisted: {e}")));
+    let warning = research_err
+        .or_else(|| audit_err.map(|e| format!("finding snoozes not persisted: {e}")))
+        .or(publish_err);
     if let Some(w) = &warning {
         wb.disclose(DegradedReason::StoreCorrupt);
         wb.status = w.clone();
@@ -496,6 +513,11 @@ pub const SCENES: &[Scene] = &[
     ("audit", audit),
     ("audit-detail", audit_detail),
     ("audit-degraded", audit_degraded),
+    ("publish", publish::scene::runs),
+    ("publish-detail", publish::scene::detail),
+    ("publish-unknown", publish::scene::unknown),
+    ("publish-empty", publish::scene::empty),
+    ("publish-degraded", publish::scene::degraded),
     ("effects", effects),
 ];
 
@@ -505,6 +527,7 @@ pub fn launch() -> Launch {
         init,
         boot: native_boot,
         open: open_native,
+        edit: editor::edit_page,
         scenes: SCENES,
     }
 }

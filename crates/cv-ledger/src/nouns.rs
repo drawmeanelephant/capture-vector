@@ -1,17 +1,17 @@
 //! Evidence nouns. Ids are content-derived digests — never a filesystem
 //! path (an artifact's path is an attribute, not its identity).
 
-use cv_core::id::{AccountId, AttrValue, NounAttrRow, NounId, NounKind, StableId};
+use cv_core::id::{AccountId, AttrValue, NounAttrRow, NounId, NounKind, StableId, noun_kind};
 use cv_core::sys::Hash;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
+/// Evidence noun kinds, re-exported so `nouns::kind::X` callers keep
+/// working. The registry itself lives in `cv_core::id::noun_kind` —
+/// declare new kinds there.
 pub mod kind {
-    pub const ARTIFACT: &str = "artifact";
-    pub const CHECK: &str = "check";
-    pub const CLAIM: &str = "claim";
-    pub const DELIVERY: &str = "delivery";
+    pub use cv_core::id::noun_kind::{ARTIFACT, CHECK, CLAIM, DELIVERY};
 }
 
 /// `prefix-<first 20 hex of sha256(parts joined by NUL)>`.
@@ -81,11 +81,16 @@ pub struct DeliveryNoun {
     pub bytes: u64,
 }
 
-fn row(account: &AccountId, kind: &str, id: &StableId, f: Vec<(&str, AttrValue)>) -> NounAttrRow {
+fn row(
+    account: &AccountId,
+    kind: &'static str,
+    id: &StableId,
+    f: Vec<(&str, AttrValue)>,
+) -> NounAttrRow {
     NounAttrRow {
         noun: NounId {
             account: account.clone(),
-            kind: NounKind(kind.into()),
+            kind: NounKind::register(kind),
             stable: id.clone(),
         },
         fields: f
@@ -103,7 +108,7 @@ impl ArtifactNoun {
     pub fn attr_row(&self, account: &AccountId) -> NounAttrRow {
         row(
             account,
-            kind::ARTIFACT,
+            noun_kind::ARTIFACT,
             &self.id,
             vec![
                 ("run", t(&self.run.0)),
@@ -122,7 +127,7 @@ impl CheckNoun {
     pub fn attr_row(&self, account: &AccountId) -> NounAttrRow {
         row(
             account,
-            kind::CHECK,
+            noun_kind::CHECK,
             &self.id,
             vec![
                 ("run", t(&self.run.0)),
@@ -147,7 +152,7 @@ impl ClaimNoun {
         if let Some(c) = &self.check_id {
             f.push(("check_id", t(c)));
         }
-        row(account, kind::CLAIM, &self.id, f)
+        row(account, noun_kind::CLAIM, &self.id, f)
     }
 }
 
@@ -155,7 +160,7 @@ impl DeliveryNoun {
     pub fn attr_row(&self, account: &AccountId) -> NounAttrRow {
         row(
             account,
-            kind::DELIVERY,
+            noun_kind::DELIVERY,
             &self.id,
             vec![
                 ("run", t(&self.run.0)),

@@ -110,9 +110,9 @@ pub fn take_reopen() -> Vec<WindowId> {
     REOPEN.with(|r| std::mem::take(&mut *r.borrow_mut()))
 }
 
-/// Open a native editor window for companion `id` on buffer `path`.
+/// The editor [`open`] shows for companion `id` on buffer `path`.
 /// `None` when no buffer is open on that path.
-pub fn open(id: WindowId, path: &str, theme: &Theme) -> Option<WindowHandle> {
+pub fn window(id: WindowId, path: &str, theme: &Theme) -> Option<EditorWindow> {
     let ses = session();
     let buffer = ses.borrow().find(path)?;
     let mut w = EditorWindow::new(id, ses, buffer, theme.clone());
@@ -127,12 +127,19 @@ pub fn open(id: WindowId, path: &str, theme: &Theme) -> Option<WindowHandle> {
     }) {
         w.closing = super::Closing::Confirm { stuck: false };
     }
+    Some(w)
+}
+
+/// Open a native editor window for companion `id` on buffer `path`.
+/// `None` when no buffer is open on that path.
+pub fn open(id: WindowId, path: &str, theme: &Theme) -> Option<WindowHandle> {
+    let w = window(id, path, theme)?;
     // A closed window's host may still be going; never reuse its key.
     let n = OPENS.with(|c| {
         c.set(c.get() + 1);
         c.get()
     });
-    bind(id, buffer);
+    bind(id, w.buffer);
     PENDING.with(|p| p.borrow_mut().push_back(w));
     Some(rune::open_window(
         WindowSpec::new(

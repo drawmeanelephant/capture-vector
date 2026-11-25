@@ -503,13 +503,17 @@ impl Module for PagesModule {
         let p = &self.pages[*self.by_path.get(key)?];
         Some(NounId {
             account: AccountId("local".into()),
-            kind: NounKind(noun_kind::PAGE.into()),
+            kind: NounKind::register(noun_kind::PAGE),
             stable: StableId(p.id.clone()),
         })
     }
 
     fn contains(&self, key: &str) -> bool {
         self.by_path.contains_key(key) || key == PROJECT_KEY
+    }
+
+    fn source(&self, key: &str) -> Option<String> {
+        self.by_path.get(key).map(|&i| self.pages[i].path.clone())
     }
 
     fn link(&self, key: &str) -> Option<Link> {

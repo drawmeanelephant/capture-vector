@@ -238,7 +238,7 @@ impl Notebook {
     pub fn noun(&self, note: &StableId) -> NounId {
         NounId {
             account: self.account.clone(),
-            kind: NounKind(cv_core::id::noun_kind::NOTE.into()),
+            kind: NounKind::register(cv_core::id::noun_kind::NOTE),
             stable: note.clone(),
         }
     }

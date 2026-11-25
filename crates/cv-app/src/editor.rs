@@ -14,7 +14,7 @@ use cv_ui_editor::completion::CompletionIndex;
 use cv_ui_editor::save::{FsWriter, fingerprint_file};
 use cv_widgets::editor::{self, Closing, EditorWindow, host};
 use std::cell::RefCell;
-use std::path::Path;
+use std::path::{Component, Path};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
@@ -51,6 +51,29 @@ pub fn open_page(wb: &mut Workbench, root: &Path, rel: &str) -> std::io::Result<
     }
     host::set_writer(Arc::new(FsWriter::new(root)));
     Ok(wb.windows.open_companion(editor::MODULE, rel, rel))
+}
+
+/// Open a Pages row for editing: `page` is relative to the workspace's
+/// content input, as Pages keys are.
+pub fn edit_page(wb: &mut Workbench, page: &str) {
+    let Some(root) = wb.workspace.clone() else {
+        wb.status = format!("open a workspace to edit {page}");
+        return;
+    };
+    let input = crate::snapshot::content_input(&root);
+    open_for_editing(wb, &under_input(&input, page));
+}
+
+/// `input/page` without `.` segments, so a page opened from Pages and
+/// the same page named by `CV_EDIT` share one buffer.
+fn under_input(input: &str, page: &str) -> String {
+    Path::new(input)
+        .join(page)
+        .components()
+        .filter(|c| *c != Component::CurDir)
+        .map(|c| c.as_os_str().to_string_lossy())
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 /// `CV_EDIT=<page>` opens that page for editing at launch, relative to

@@ -2,7 +2,7 @@ use cv_core::id::StableId;
 use cv_core::publish::{RunState, RunStatus};
 use cv_core::sys::{Hash, Timestamp};
 use cv_ledger::ingest;
-use cv_ledger::journal::Entry;
+use cv_ledger::journal::{self, Entry};
 use cv_ledger::nouns::kind;
 use cv_ledger::{Journal, LedgerIndex, RunPhase, runs};
 
@@ -158,6 +158,60 @@ fn multibyte_hash_in_committed_line_is_corrupt_not_a_panic() {
         Journal::open(dir.path()),
         Err(cv_ledger::LedgerError::Corrupt { line: 1, .. })
     ));
+}
+
+#[test]
+fn read_creates_nothing_when_the_project_has_no_ledger() {
+    let dir = tempfile::tempdir().unwrap();
+    assert!(journal::read(dir.path()).unwrap().is_none());
+    assert!(!dir.path().join(".cv").exists(), "a reader writes nothing");
+}
+
+#[test]
+fn read_sees_committed_records_beside_a_live_writer_and_keeps_a_torn_tail() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut j = Journal::open(dir.path()).unwrap();
+    state(&mut j, RunState::Dispatching);
+    let mut f = std::fs::OpenOptions::new()
+        .append(true)
+        .open(j.path())
+        .unwrap();
+    std::io::Write::write_all(&mut f, br#"{"seq":1,"at":2"#).unwrap();
+    let before = std::fs::read(j.path()).unwrap();
+    let c = journal::read(dir.path()).unwrap().unwrap();
+    assert_eq!(c.records, j.records());
+    assert_eq!(c.torn_tail.as_deref(), Some(r#"{"seq":1,"at":2"#));
+    assert_eq!(std::fs::read(j.path()).unwrap(), before, "left as found");
+}
+
+#[test]
+fn read_refuses_corrupt_lines_and_newer_schemas() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = Journal::open(dir.path()).unwrap().path().to_path_buf();
+    std::fs::write(&path, b"{garbage}\n").unwrap();
+    assert!(matches!(
+        journal::read(dir.path()),
+        Err(cv_ledger::LedgerError::Corrupt { line: 1, .. })
+    ));
+    std::fs::write(&path, b"").unwrap();
+    let stamp = dir.path().join(".cv/ledger/schema.json");
+    std::fs::write(
+        &stamp,
+        r#"{"format":"cv-sidecar","namespace":"ledger","schema_version":9}"#,
+    )
+    .unwrap();
+    let err = journal::read(dir.path()).unwrap_err();
+    assert!(err.to_string().contains("newer Capture Vector"), "{err}");
+}
+
+#[cfg(unix)]
+#[test]
+fn read_refuses_a_symlinked_ledger() {
+    let dir = tempfile::tempdir().unwrap();
+    let elsewhere = tempfile::tempdir().unwrap();
+    drop(Journal::open(elsewhere.path()).unwrap());
+    std::os::unix::fs::symlink(elsewhere.path().join(".cv"), dir.path().join(".cv")).unwrap();
+    assert!(journal::read(dir.path()).is_err());
 }
 
 #[test]

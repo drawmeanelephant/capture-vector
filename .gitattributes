@@ -1,3 +1,11 @@
+# Bash parses bytes literally: a CRLF working copy breaks `set -eu` and
+# every multiline script. Git for Windows defaults to core.autocrlf=true,
+# so without these rules every shell entry point (dev.sh, demo.sh, the
+# hooks themselves) fails on a Windows clone. Pin LF for anything bash
+# reads.
+*.sh text eol=lf
+.githooks/* text eol=lf
+
 # Fixture captures are sha256-pinned byte streams (MANIFEST.toml); any
 # line-ending conversion breaks verification on Windows checkouts.
 fixtures/** -text
