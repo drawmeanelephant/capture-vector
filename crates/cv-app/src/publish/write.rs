@@ -271,16 +271,22 @@ impl Writer {
         })
     }
 
-    /// Delivers the plan with the configuration the grant sealed, never
-    /// the current one: the publisher re-derives every seal first.
+    /// Delivers with the app's built-in delivery configuration, never the
+    /// journal's stored copy: a cloned or forged `.cv` carries internally
+    /// consistent evidence, so the journal can vouch for nothing. The
+    /// publisher re-derives every seal — a foreign target configuration
+    /// mismatches this config and breaks the seal before any contact.
     pub fn dispatch(&self, root: &Path, run: &str) -> Result<Done, String> {
         let id = StableId(run.into());
         let mut p = self.open(root)?;
-        let cfg = p
+        let target = p
             .run(&id)
-            .and_then(|v| v.target_cfg)
-            .ok_or_else(|| "the run sealed no target configuration".to_string())?;
-        let cfg: TargetConfig = serde_json::from_value(cfg).map_err(|e| e.to_string())?;
+            .map(|v| v.target.clone())
+            .ok_or_else(|| format!("unknown run {run}"))?;
+        let target =
+            Target::from_id(&target).ok_or_else(|| format!("unknown publish target {target:?}"))?;
+        let cfg =
+            delivery_config(target).ok_or_else(|| format!("{} has no delivery", target.label()))?;
         let state = p.publish(&id, &cfg, &*self.rules).map_err(why)?;
         Ok(Done {
             run: run.into(),

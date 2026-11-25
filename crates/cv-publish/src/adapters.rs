@@ -100,15 +100,24 @@ impl CopyToFolder {
 /// macOS and Windows volumes usually are.
 pub(crate) fn copy_destination(destination: &str) -> std::io::Result<&Path> {
     let path = portable_relative(destination)?;
-    if destination
-        .split('/')
-        .next()
-        .is_some_and(|first| first.eq_ignore_ascii_case(".cv"))
-    {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            "copy destination is inside the .cv sidecar",
-        ));
+    // Version-control and sidecar directories are refused component-wise,
+    // case-insensitively: a copy destination inside `.git` (or `.cv`, `.svn`,
+    // `.hg`) lets delivered bytes overwrite repository metadata or run
+    // evidence. First-component-only checks miss nested spellings like
+    // `out/.git/hooks`, and macOS/Windows volumes are usually
+    // case-insensitive.
+    for component in destination.split('/') {
+        if [".cv", ".git", ".svn", ".hg"]
+            .iter()
+            .any(|reserved| component.eq_ignore_ascii_case(reserved))
+        {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!(
+                    "copy destination contains version-control/sidecar component {component:?}"
+                ),
+            ));
+        }
     }
     Ok(path)
 }

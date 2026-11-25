@@ -3,7 +3,7 @@ mod support;
 use cv_ledger::journal::Entry;
 use cv_publish::plan::SealedPlan;
 use cv_publish::secrets::NoSecrets;
-use cv_publish::{PreflightOutcome, PreflightRequest, Publisher};
+use cv_publish::{PreflightOutcome, PreflightRequest, PublishError, Publisher};
 use support::*;
 
 #[test]
@@ -744,4 +744,42 @@ fn unknown_artifact_semantics_fail_at_the_root_cause() {
         idx["artifacts"][0]["semantics"] = serde_json::json!("bogus-semantics");
     });
     assert_blocked(&eng, dir.path(), "unknown semantics");
+}
+
+/// The probe shape from the durable-evidence audit: a destination inside
+/// version-control metadata must never accept delivered bytes. `.git` as a
+/// bare destination, nested spellings, and case variants all refuse at
+/// preflight — the repository config bytes stay identical.
+#[test]
+fn version_control_destinations_are_refused_component_wise() {
+    for destination in [
+        ".git",
+        ".GIT",
+        "out/.git",
+        "out/.Git/hooks",
+        ".cv/x",
+        "out/.svn",
+        ".hg",
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join(".git")).unwrap();
+        std::fs::write(dir.path().join(".git/config"), b"pristine").unwrap();
+        let eng = CapturedEngine::new(dir.path());
+        let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+        let mut cfg = cfg();
+        cfg.destination = destination.into();
+        let out = p.preflight(
+            &PreflightRequest { config: cfg },
+            &Rules::ok(),
+            &mut ids("run"),
+        );
+        let refused = matches!(&out, Err(PublishError::Refused(_)))
+            || matches!(&out, Ok(PreflightOutcome::Blocked { .. }));
+        assert!(refused, "{destination}: must refuse, got {out:?}");
+        assert_eq!(
+            std::fs::read(dir.path().join(".git/config")).unwrap(),
+            b"pristine",
+            "{destination}: .git/config must be byte-identical"
+        );
+    }
 }
