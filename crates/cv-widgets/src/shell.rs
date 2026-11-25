@@ -45,6 +45,23 @@ pub fn degraded_text(r: &DegradedReason) -> String {
             "Boris build failed — workspace remains browsable; see Activity for build details."
                 .into()
         }
+        DegradedReason::InitialBuildFailed { code, message } => {
+            format!("Initial build failed: {code} — {message}")
+        }
+    }
+}
+
+/// What the author can do about a degraded state the banner cannot fix.
+pub fn degraded_hint(r: &DegradedReason) -> Option<&'static str> {
+    match r {
+        DegradedReason::InitialBuildFailed { code, .. } if code == "ELAYOUT" => Some(
+            "A bare content tree has no theme or boris.json profile; `boris init` scaffolds a \
+             starter site. Fix the folder, then reopen the workspace.",
+        ),
+        DegradedReason::InitialBuildFailed { .. } => Some(
+            "Restarting the watch fails the same way. Fix the folder, then reopen the workspace.",
+        ),
+        _ => None,
     }
 }
 
@@ -56,7 +73,8 @@ pub fn degraded_tone(r: &DegradedReason) -> Tone {
         DegradedReason::EngineAbsent
         | DegradedReason::EngineBuildFailing
         | DegradedReason::StoreCorrupt
-        | DegradedReason::BuildFailed => Tone::Error,
+        | DegradedReason::BuildFailed
+        | DegradedReason::InitialBuildFailed { .. } => Tone::Error,
     }
 }
 
@@ -185,12 +203,7 @@ fn banner(s: &Workbench, lights: f32) -> Option<El> {
             .motion(theme::spring(t.motion.panel))
             .child(icon(&icons::TRIANGLE_ALERT, 14.0).color(color(fg)))
             .child(chip(t, "banner-chip", "DEGRADED", tn))
-            .child(
-                text(degraded_text(r))
-                    .font(font(t.type_.body))
-                    .color(color(t.colors.text)),
-            )
-            .child(spacer())
+            .children(banner_message(t, r))
             .children((*r == DegradedReason::WatchDead).then(|| {
                 controls::button(
                     t,
@@ -200,6 +213,29 @@ fn banner(s: &Workbench, lights: f32) -> Option<El> {
                     |s: &mut Workbench| s.run_command("shell.watch.restart"),
                 )
             }))
+            .children(
+                matches!(r, DegradedReason::InitialBuildFailed { .. })
+                    .then(|| {
+                        [
+                            controls::button(
+                                t,
+                                "banner-reveal",
+                                "Show diagnostic",
+                                controls::Variant::Neutral,
+                                |s: &mut Workbench| s.run_command("shell.degraded.reveal"),
+                            ),
+                            controls::button(
+                                t,
+                                "banner-reopen",
+                                "Reopen workspace",
+                                controls::Variant::Ghost,
+                                |s: &mut Workbench| s.run_command("shell.watch.restart"),
+                            ),
+                        ]
+                    })
+                    .into_iter()
+                    .flatten(),
+            )
             .child(controls::button(
                 t,
                 "banner-dismiss",
@@ -209,6 +245,31 @@ fn banner(s: &Workbench, lights: f32) -> Option<El> {
             )),
     )
 }
+/// The banner's message, then whatever fills the row before its buttons.
+fn banner_message(t: &Theme, r: &DegradedReason) -> Vec<El> {
+    let message = text(degraded_text(r))
+        .font(font(t.type_.body))
+        .color(color(t.colors.text));
+    let Some(hint) = degraded_hint(r) else {
+        return vec![message, spacer()];
+    };
+    vec![
+        col()
+            .key("banner-message")
+            .grow(1.0)
+            .min_w(0.0)
+            .gap(t.spacing.unit * 0.5)
+            .child(message.wrap())
+            .child(
+                text(hint)
+                    .key("banner-hint")
+                    .font(font(t.type_.label))
+                    .color(color(t.colors.text_dim))
+                    .wrap(),
+            ),
+    ]
+}
+
 /// AppKit's titlebar band: the traffic lights sit in its top 28 pt when the
 /// content fills the window (`Chrome::full_size_content`).
 const TITLEBAR_BAND: f32 = 28.0;

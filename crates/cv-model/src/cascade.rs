@@ -7,7 +7,8 @@
 //! (version gate), and degraded-state disclosure.
 
 use crate::app_state::AppState;
-use cv_core::events::engine::{EngineEvent, WatchEndReason};
+use cv_core::diagnostic::{Diagnostic, Severity};
+use cv_core::events::engine::{BuildPhase, EngineEvent, WatchEndReason};
 use cv_core::events::shell::{DegradedReason, ShellEvent};
 use cv_core::events::{AppEvent, Envelope};
 
@@ -25,6 +26,19 @@ fn engine_version(compiler: &str) -> &str {
         .strip_suffix(" (cv one-shot fallback)")
         .unwrap_or(compiler);
     compiler.rsplit('/').next().unwrap_or(compiler)
+}
+
+/// The diagnostic a fatal initial build is disclosed by: the first error,
+/// else the first diagnostic of any severity.
+fn initial_failure(diagnostics: &[Diagnostic]) -> Option<DegradedReason> {
+    let d = diagnostics
+        .iter()
+        .find(|d| d.severity == Severity::Error)
+        .or_else(|| diagnostics.first())?;
+    Some(DegradedReason::InitialBuildFailed {
+        code: d.code.clone(),
+        message: d.message.clone(),
+    })
 }
 
 /// Apply one committed envelope to app state. Ordering and replay rules
@@ -48,19 +62,41 @@ pub fn dispatch(state: &mut AppState, env: &Envelope) -> bool {
                     | Some(DegradedReason::EngineVersionMismatch { .. })
                     | Some(DegradedReason::EngineBuildFailing)
                     | Some(DegradedReason::WatchDead)
+                    | Some(DegradedReason::InitialBuildFailed { .. })
             ) {
                 state.degraded = None;
             }
         }
         AppEvent::Engine(EngineEvent::WatchSessionEnded { reason }) => {
             state.watch_live = false;
-            if *reason != WatchEndReason::CleanExit {
+            // Boris exits after a non-recoverable initial build; the dead
+            // watch is its consequence, and the build failure stays the cause.
+            if *reason != WatchEndReason::CleanExit
+                && !matches!(
+                    state.degraded,
+                    Some(DegradedReason::InitialBuildFailed { .. })
+                )
+            {
                 state.degraded = Some(DegradedReason::WatchDead);
+            }
+        }
+        // Without diagnostics there is no cause to name; the app's
+        // recovery build (`cv-app` live) discloses that case instead.
+        AppEvent::Engine(EngineEvent::BuildFailed {
+            phase: BuildPhase::Initial,
+            diagnostics,
+            recoverable: false,
+        }) => {
+            if let Some(reason) = initial_failure(diagnostics) {
+                state.degraded = Some(reason);
             }
         }
         AppEvent::Engine(EngineEvent::BuildFinished { .. }) => {
             state.builds_finished += 1;
-            if state.degraded == Some(DegradedReason::BuildFailed) {
+            if matches!(
+                state.degraded,
+                Some(DegradedReason::BuildFailed | DegradedReason::InitialBuildFailed { .. })
+            ) {
                 state.degraded = None;
             }
         }
@@ -196,5 +232,104 @@ mod tests {
         ));
         dispatch(&mut state, &started("boris/0.9.0"));
         assert_eq!(state.degraded, None);
+    }
+
+    fn failed_initial(diagnostics: Vec<Diagnostic>) -> Envelope {
+        env(
+            1,
+            AppEvent::Engine(EngineEvent::BuildFailed {
+                phase: BuildPhase::Initial,
+                diagnostics,
+                recoverable: false,
+            }),
+        )
+    }
+
+    fn diagnostic(code: &str, severity: Severity, message: &str) -> Diagnostic {
+        Diagnostic {
+            code: code.into(),
+            severity,
+            span: None,
+            message: message.into(),
+            build_version: None,
+        }
+    }
+
+    fn ended(reason: WatchEndReason) -> Envelope {
+        env(
+            2,
+            AppEvent::Engine(EngineEvent::WatchSessionEnded { reason }),
+        )
+    }
+
+    #[test]
+    fn fatal_initial_build_is_disclosed_by_its_error_not_as_a_dead_watch() {
+        let mut state = AppState::default();
+        dispatch(&mut state, &started("boris/0.9.0"));
+        dispatch(
+            &mut state,
+            &failed_initial(vec![
+                diagnostic("WNOTE", Severity::Warning, "just a warning"),
+                diagnostic("ELAYOUT", Severity::Error, "failed to load layout"),
+            ]),
+        );
+        let want = Some(DegradedReason::InitialBuildFailed {
+            code: "ELAYOUT".into(),
+            message: "failed to load layout".into(),
+        });
+        assert_eq!(state.degraded, want);
+        dispatch(&mut state, &ended(WatchEndReason::Desync));
+        assert!(!state.watch_live);
+        assert_eq!(state.degraded, want);
+    }
+
+    #[test]
+    fn fatal_initial_build_without_diagnostics_still_reads_as_a_dead_watch() {
+        let mut state = AppState::default();
+        dispatch(&mut state, &started("boris/0.9.0"));
+        dispatch(&mut state, &failed_initial(vec![]));
+        assert_eq!(state.degraded, None);
+        dispatch(&mut state, &ended(WatchEndReason::Desync));
+        assert_eq!(state.degraded, Some(DegradedReason::WatchDead));
+    }
+
+    #[test]
+    fn recoverable_or_rebuild_failures_do_not_claim_the_initial_build_failed() {
+        let d = || vec![diagnostic("EPARENTMISSING", Severity::Error, "no parent")];
+        for (phase, recoverable) in [(BuildPhase::Initial, true), (BuildPhase::Rebuild, false)] {
+            let mut state = AppState::default();
+            let failed = env(
+                1,
+                AppEvent::Engine(EngineEvent::BuildFailed {
+                    phase,
+                    diagnostics: d(),
+                    recoverable,
+                }),
+            );
+            dispatch(&mut state, &failed);
+            assert_eq!(state.degraded, None, "{phase:?} recoverable={recoverable}");
+        }
+    }
+
+    #[test]
+    fn initial_build_failure_clears_on_a_green_build_or_a_new_session() {
+        let finished = env(
+            3,
+            AppEvent::Engine(EngineEvent::BuildFinished {
+                phase: BuildPhase::Initial,
+                pages_written: 1,
+                diagnostics: vec![],
+                duration_ms: 1,
+            }),
+        );
+        for next in [finished, started("boris/0.9.0")] {
+            let mut state = AppState::default();
+            dispatch(
+                &mut state,
+                &failed_initial(vec![diagnostic("ELAYOUT", Severity::Error, "x")]),
+            );
+            dispatch(&mut state, &next);
+            assert_eq!(state.degraded, None);
+        }
     }
 }

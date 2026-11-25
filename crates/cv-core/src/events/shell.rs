@@ -27,4 +27,12 @@ pub enum DegradedReason {
     WatchDead,
     StoreCorrupt,
     BuildFailed,
+    /// The watch's initial build failed with a diagnostic Boris marks
+    /// non-recoverable (e.g. `ELAYOUT` for a folder with no theme): the
+    /// folder needs fixing, so a restarted watch would fail the same way.
+    /// `code`/`message` are the first error diagnostic, verbatim.
+    InitialBuildFailed {
+        code: String,
+        message: String,
+    },
 }

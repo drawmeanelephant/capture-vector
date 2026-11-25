@@ -705,6 +705,56 @@ mod tests {
         assert_eq!(wb.app.degraded, Some(DegradedReason::EngineBuildFailing));
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn fatal_initial_build_with_a_diagnostic_is_disclosed_without_a_recovery_build() {
+        use std::os::unix::fs::PermissionsExt;
+        use std::time::{Duration, Instant};
+
+        let root = tempfile::tempdir().unwrap();
+        std::fs::write(
+            root.path().join("watch.ndjson"),
+            cv_fixtures::corpus("content-only").file("watch/session.ndjson"),
+        )
+        .unwrap();
+        let bin = root.path().join("boris");
+        std::fs::write(
+            &bin,
+            "#!/bin/sh\ncase \"$1\" in\n\
+             watch) cat watch.ndjson >&2; exit 3;;\n\
+             *) echo \"$1\" >> attempts; exit 3;;\nesac\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let mut wb = Workbench::new(Registry::with_all());
+        let delivery = test_delivery(root.path(), WatchMode::Native, &wb);
+        let sched = Arc::new(EngineScheduler::new(
+            delivery.engine.clone(),
+            SeatPolicy::StopWatch,
+        ));
+        start_workspace_watch(sched.clone(), delivery, None);
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while sched.engine().watch_live() || wb.app.watch_live || wb.app.committed < 3 {
+            assert!(
+                Instant::now() < deadline,
+                "watch never ended: {}",
+                wb.status
+            );
+            std::thread::sleep(Duration::from_millis(5));
+            wb.drain();
+        }
+        wb.drain();
+        assert_eq!(
+            wb.app.degraded,
+            Some(DegradedReason::InitialBuildFailed {
+                code: "ELAYOUT".into(),
+                message: "failed to load layout themes/boris/layouts/main.html: FileNotFound"
+                    .into(),
+            })
+        );
+        assert!(!root.path().join("attempts").exists(), "no recovery build");
+    }
+
     #[test]
     fn gate_failures_map_to_disclosed_states() {
         let mismatch = EngineError::VersionMismatch {
