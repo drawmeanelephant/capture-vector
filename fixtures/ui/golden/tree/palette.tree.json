@@ -231,7 +231,8 @@
         88.0,
         28.3
       ],
-      "role": "tab"
+      "role": "tab",
+      "selected": true
     },
     {
       "color": "#001018ff",
@@ -283,7 +284,8 @@
         164.0,
         23.0
       ],
-      "role": "treeitem"
+      "role": "treeitem",
+      "selected": true
     },
     {
       "color": "#e6e9efff",
@@ -1045,7 +1047,8 @@
         424.0,
         22.0
       ],
-      "role": "option"
+      "role": "option",
+      "selected": true
     },
     {
       "color": "#001018ff",
