@@ -10,7 +10,7 @@ use cv_core::engine::{
 };
 use cv_core::events::{
     BuildId, Cursor, Envelope, EventId, SessionId, SnapshotEpoch,
-    engine::{BuildPhase, EngineEvent, WatchEndReason},
+    engine::{BuildPhase, EngineEvent, WatchEndReason, WatchExit},
 };
 use cv_core::id::WorkspaceId;
 use cv_core::rules::ArtifactSet;
@@ -106,6 +106,7 @@ impl WatchHandle for StubWatch {
                 Some(&self.session),
                 EngineEvent::WatchSessionEnded {
                     reason: WatchEndReason::Killed,
+                    exit: Some(WatchExit::Killed),
                 },
             );
             self.emitter.live.store(false, Ordering::SeqCst);

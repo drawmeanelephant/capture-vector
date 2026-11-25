@@ -17,7 +17,7 @@ pub const JOURNAL_REL: &str = ".cv/ledger/ledger.jsonl";
 
 /// Single-writer lock beside the journal. Windows file locks are
 /// mandatory, so locking the journal itself would refuse every reader.
-const WRITER_LOCK_REL: &str = ".cv/ledger/ledger.lock";
+pub const WRITER_LOCK_REL: &str = ".cv/ledger/ledger.lock";
 
 /// `.cv/ledger/` sidecar schema. v1 = [`Record`] lines in `ledger.jsonl`
 /// (+ the rebuildable index); v0 is the same shape, unstamped.

@@ -118,6 +118,18 @@ pub fn confirm_confined_file(root: &Path, relative: &Path) -> io::Result<PathBuf
     Ok(target)
 }
 
+/// Install a fully written replacement file in the same directory.
+/// `std::fs::rename` replaces an existing file atomically on Unix and
+/// through the Windows rename facilities on Windows.
+pub fn replace_file(staged: &Path, target: &Path) -> io::Result<()> {
+    fs::rename(staged, target)?;
+    #[cfg(unix)]
+    if let Some(parent) = target.parent() {
+        std::fs::File::open(parent)?.sync_all()?;
+    }
+    Ok(())
+}
+
 /// Base for rebuildable indexes: OS app-data, `CV_APP_DATA` overriding
 /// (tests and hermetic runs point it at a scratch dir). Index files
 /// must never live under `.cv/` — synced folders corrupt their WAL and

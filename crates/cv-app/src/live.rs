@@ -166,6 +166,8 @@ pub struct EngineBoot {
     /// A disclosure the boot outcome must not hide (research storage
     /// failed): kept in the status line and re-disclosed last.
     pub warning: Option<String>,
+    /// A successful/failed maintenance result the boot outcome must not erase.
+    pub notice: Option<String>,
     /// Doctor's facts: the gate and probe outcome land here before the
     /// status send that wakes the UI.
     pub doctor: Feed,
@@ -175,6 +177,7 @@ pub struct EngineBoot {
 fn finish(
     inbox: &Inbox,
     warning: &Option<String>,
+    notice: &Option<String>,
     degraded: Option<DegradedReason>,
     status: String,
 ) {
@@ -188,6 +191,10 @@ fn finish(
     if let Some(r) = degraded {
         inbox.send(Inbound::Degraded(r));
     }
+    let status = match notice {
+        Some(n) => format!("{n} · {status}"),
+        None => status,
+    };
     match warning {
         Some(w) => {
             inbox.send(Inbound::Status(format!("{w} · {status}")));
@@ -233,7 +240,13 @@ fn boot_thread_failed(
         "{}: engine boot thread failed to start: {e}",
         root.display()
     );
-    finish(inbox, warning, Some(DegradedReason::EngineAbsent), status);
+    finish(
+        inbox,
+        warning,
+        &None,
+        Some(DegradedReason::EngineAbsent),
+        status,
+    );
 }
 
 #[derive(Clone)]
@@ -406,6 +419,7 @@ fn recover_build(
     session: SessionId,
     delivery: &LiveDelivery,
     warning: &Option<String>,
+    notice: &Option<String>,
 ) {
     // This runs off the pump thread: stopping the watch joins its pump.
     // Retire the handle and status before the diagnostic build takes the seat.
@@ -445,6 +459,7 @@ fn recover_build(
     finish(
         inbox,
         warning,
+        notice,
         Some(reason),
         format!("{status} · reopen workspace to resume watching · {identity}"),
     );
@@ -456,6 +471,7 @@ fn run(b: EngineBoot) {
         slot,
         inbox,
         warning,
+        notice,
         doctor,
     } = b;
     let root: PathBuf = cfg.root.clone();
@@ -480,7 +496,7 @@ fn run(b: EngineBoot) {
         Err(e) => {
             doctor.update(|f| f.engine = crate::doctor::engine_state(&e));
             let status = format!("{}: {e}", root.display());
-            finish(&inbox, &warning, Some(degraded_reason(&e)), status);
+            finish(&inbox, &warning, &notice, Some(degraded_reason(&e)), status);
             return;
         }
     };
@@ -496,10 +512,16 @@ fn run(b: EngineBoot) {
             epoch,
         },
         warning,
+        notice,
     );
 }
 
-fn start_workspace_watch(sched: Arc<Scheduler>, delivery: LiveDelivery, warning: Option<String>) {
+fn start_workspace_watch(
+    sched: Arc<Scheduler>,
+    delivery: LiveDelivery,
+    warning: Option<String>,
+    notice: Option<String>,
+) {
     let mode = delivery.engine.report().watch_mode;
     let mode_label = match mode {
         WatchMode::Native => "watch",
@@ -510,6 +532,7 @@ fn start_workspace_watch(sched: Arc<Scheduler>, delivery: LiveDelivery, warning:
     let recover_sched = Arc::downgrade(&sched);
     let recover_delivery = delivery.clone();
     let recover_warning = warning.clone();
+    let recover_notice = notice.clone();
     let ir = delivery.ir_projector(Arc::downgrade(&sched));
     let sink = delivery.watch_sink(mode, ir, move |session| {
         std::thread::spawn(move || {
@@ -518,7 +541,13 @@ fn start_workspace_watch(sched: Arc<Scheduler>, delivery: LiveDelivery, warning:
             if *recover_ready.wait()
                 && let Some(sched) = recover_sched.upgrade()
             {
-                recover_build(&sched, session, &recover_delivery, &recover_warning);
+                recover_build(
+                    &sched,
+                    session,
+                    &recover_delivery,
+                    &recover_warning,
+                    &recover_notice,
+                );
             }
         });
     });
@@ -527,12 +556,18 @@ fn start_workspace_watch(sched: Arc<Scheduler>, delivery: LiveDelivery, warning:
         Ok(session) => {
             let published = inbox.send(Inbound::Watch(Box::new(SessionWatch { sched, session })));
             let status = format!("{} · {mode_label}", delivery.workspace_identity());
-            finish(inbox, &warning, None, status);
+            finish(inbox, &warning, &notice, None, status);
             published
         }
         Err(e) => {
             let status = format!("{}: {e}", delivery.engine.root().display());
-            finish(inbox, &warning, Some(DegradedReason::WatchDead), status);
+            finish(
+                inbox,
+                &warning,
+                &notice,
+                Some(DegradedReason::WatchDead),
+                status,
+            );
             false
         }
     };
@@ -743,7 +778,7 @@ mod tests {
             delivery.engine.clone(),
             SeatPolicy::StopWatch,
         ));
-        start_workspace_watch(sched.clone(), delivery, None);
+        start_workspace_watch(sched.clone(), delivery, None, None);
         let deadline = Instant::now() + Duration::from_secs(5);
         loop {
             wb.drain();
@@ -840,7 +875,7 @@ mod tests {
             delivery.engine.clone(),
             SeatPolicy::StopWatch,
         ));
-        start_workspace_watch(sched.clone(), delivery, None);
+        start_workspace_watch(sched.clone(), delivery, None, None);
         let deadline = Instant::now() + Duration::from_secs(5);
         while sched.engine().watch_live() || wb.app.watch_live || wb.app.committed < 3 {
             assert!(

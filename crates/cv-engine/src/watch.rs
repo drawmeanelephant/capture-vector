@@ -11,7 +11,7 @@ use crate::probe::WATCH_SCHEMA;
 use crate::proc::{STOP_GRACE, Spawned, boris_command};
 use cv_contracts::watch::{WatchEvent, decode_line};
 use cv_core::engine::{EventSink, WatchHandle};
-use cv_core::events::engine::{EngineEvent, WatchEndReason};
+use cv_core::events::engine::{EngineEvent, WatchEndReason, WatchExit};
 use cv_core::events::{BuildId, SessionId};
 use std::io::{self, BufRead, BufReader, Read};
 use std::path::Path;
@@ -215,7 +215,7 @@ fn exit_after_stderr(child: &Mutex<Spawned>, stopped: &AtomicBool) -> Option<Exi
             }
             _ => {
                 c.kill_tree(Duration::ZERO);
-                return None;
+                return c.outcome();
             }
         }
     }
@@ -313,7 +313,7 @@ fn start_with_limit(
             // Release any sender blocked behind the bounded handoff.
             drop(rx);
             let reader_failed = reader.join().is_err();
-            let reason = if let Some(fault) = frame_fault {
+            let (reason, exit) = if let Some(fault) = frame_fault {
                 child.lock().unwrap().kill_tree(Duration::ZERO);
                 emitter.emit(
                     &mut sink,
@@ -323,23 +323,28 @@ fn start_with_limit(
                         raw: fault.to_string(),
                     },
                 );
-                WatchEndReason::Desync
+                (WatchEndReason::Desync, child.lock().unwrap().outcome())
             } else {
                 let outcome = exit_after_stderr(&child, &stopped);
                 if stopped.load(Ordering::SeqCst) {
-                    WatchEndReason::Killed
+                    (WatchEndReason::Killed, outcome)
                 } else if !reader_failed && outcome == Some(ExitOutcome::Exited { code: 0 }) {
-                    WatchEndReason::CleanExit
+                    (WatchEndReason::CleanExit, outcome)
                 } else {
-                    WatchEndReason::Desync
+                    (WatchEndReason::Desync, outcome)
                 }
             };
+            let exit = exit.map(|o| match o {
+                ExitOutcome::Exited { code } => WatchExit::Exited { code },
+                ExitOutcome::Signaled { signal } => WatchExit::Signaled { signal },
+                ExitOutcome::Killed => WatchExit::Killed,
+            });
             live.store(false, Ordering::SeqCst);
             emitter.emit(
                 &mut sink,
                 Some(&session),
                 None,
-                EngineEvent::WatchSessionEnded { reason },
+                EngineEvent::WatchSessionEnded { reason, exit },
             );
         })
     };
@@ -515,7 +520,8 @@ mod tests {
         assert!(matches!(
             rx.recv_timeout(timeout).unwrap(),
             AppEvent::Engine(EngineEvent::WatchSessionEnded {
-                reason: WatchEndReason::Desync
+                reason: WatchEndReason::Desync,
+                ..
             })
         ));
         assert!(!live.load(Ordering::SeqCst));

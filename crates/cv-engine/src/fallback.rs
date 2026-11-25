@@ -229,7 +229,7 @@ pub(crate) fn start(
                 &mut sink,
                 Some(&session),
                 None,
-                EngineEvent::WatchSessionEnded { reason },
+                EngineEvent::WatchSessionEnded { reason, exit: None },
             );
         })
     };

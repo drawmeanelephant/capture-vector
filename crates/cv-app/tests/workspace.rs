@@ -535,6 +535,79 @@ fn undecodable_journal_lines_open_as_a_disclosed_degradation() {
 }
 
 #[test]
+fn audit_lock_held_by_another_writer_is_typed_and_shown_in_doctor() {
+    let ws = workspace("happy");
+    let (_holder, _, _) = cv_store::audit::LifecycleLog::open(ws.path()).unwrap();
+    let cfg = tempfile::tempdir().unwrap();
+    let mut wb = init();
+    open(&mut wb, ws.path(), &absent_env(cfg.path()));
+    let row = doctor_row(&wb, "store", "store.lock.audit");
+    assert_eq!(row.detail, "another process", "{row:?}");
+    assert!(
+        wb.status.contains("finding snoozes not persisted"),
+        "{}",
+        wb.status
+    );
+}
+
+#[test]
+fn doctor_shows_the_real_ledger_lock_holder_and_index_path() {
+    let ws = workspace("happy");
+    let _writer = cv_ledger::journal::Journal::open(ws.path()).unwrap();
+    let cfg = tempfile::tempdir().unwrap();
+    let mut wb = init();
+    open(&mut wb, ws.path(), &absent_env(cfg.path()));
+    let lock = doctor_row(&wb, "store", "store.lock.ledger");
+    assert_eq!(lock.detail, "another process", "{lock:?}");
+    let index = doctor_row(&wb, "store", "store.index.ledger");
+    let want = cv_ledger::index::LedgerIndex::path_for(ws.path())
+        .unwrap()
+        .display()
+        .to_string();
+    assert_eq!(index.title, want, "{index:?}");
+}
+
+#[test]
+fn doctor_rebuild_index_reopens_the_workspace_and_reports_success() {
+    let ws = workspace("happy");
+    let cfg = tempfile::tempdir().unwrap();
+    let env = absent_env(cfg.path());
+    let mut wb = init();
+    open(&mut wb, ws.path(), &env);
+
+    wb.run_command("doctor.rebuild-index");
+    assert_eq!(
+        std::mem::take(&mut wb.requests),
+        vec![ShellRequest::OpenWorkspace(wb.workspace.clone().unwrap())]
+    );
+    open(&mut wb, ws.path(), &env);
+    assert!(
+        wb.status.contains("indexes rebuilt from .cv JSONL"),
+        "{}",
+        wb.status
+    );
+}
+
+#[test]
+fn doctor_rebuild_index_reports_a_locked_ledger_failure() {
+    let ws = workspace("happy");
+    let _writer = cv_ledger::journal::Journal::open(ws.path()).unwrap();
+    let cfg = tempfile::tempdir().unwrap();
+    let env = absent_env(cfg.path());
+    let mut wb = init();
+    open(&mut wb, ws.path(), &env);
+
+    wb.run_command("doctor.rebuild-index");
+    assert_eq!(
+        std::mem::take(&mut wb.requests),
+        vec![ShellRequest::OpenWorkspace(wb.workspace.clone().unwrap())]
+    );
+    open(&mut wb, ws.path(), &env);
+    assert!(wb.status.contains("index rebuild failed"), "{}", wb.status);
+    assert!(wb.status.contains("ledger:"), "{}", wb.status);
+}
+
+#[test]
 fn research_storage_failure_survives_the_engine_outcome() {
     let ws = workspace("happy");
     std::fs::create_dir_all(ws.path().join(".cv")).unwrap();

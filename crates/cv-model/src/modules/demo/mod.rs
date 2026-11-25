@@ -114,7 +114,7 @@ fn describe(ev: &EngineEvent) -> (String, String, Tone, Vec<ReadingLine>) {
                 l,
             )
         }
-        EngineEvent::WatchSessionEnded { reason } => (
+        EngineEvent::WatchSessionEnded { reason, .. } => (
             "Watch session ended".into(),
             format!("{reason:?}"),
             Tone::Warn,
