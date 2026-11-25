@@ -7,7 +7,7 @@
 use cv_core::engine::Engine;
 use cv_core::id::StableId;
 use cv_core::publish::{RunState, RunStatus};
-use cv_core::rules::CheckStatus;
+use cv_core::rules::{AuthorityTier, CheckStatus};
 use cv_core::sys::{Clock, Hash, IdGen};
 use cv_model::modules::publish::{Done, Observed};
 use cv_publish::adapters::{COPY_TO_FOLDER, CopyToFolder};
@@ -83,14 +83,24 @@ impl Ruleset for AuditRules {
                     .push(cv_model::modules::audit::key_id(&af.finding.key));
             } else {
                 v.advisory.push(format!(
-                    "{} on {} · {:?}",
-                    af.finding.code, af.finding.subject.stable.0, af.finding.tier
+                    "{} on {} · {}",
+                    af.finding.code,
+                    af.finding.subject.stable.0,
+                    tier(af.finding.tier)
                 ));
             }
         }
         v.advisory
             .extend(unreadable.into_iter().map(|e| format!("not audited: {e}")));
         v
+    }
+}
+
+fn tier(t: AuthorityTier) -> &'static str {
+    match t {
+        AuthorityTier::NormativeSpec => "normative spec",
+        AuthorityTier::EngineDocumented => "engine documented",
+        AuthorityTier::Heuristic => "heuristic",
     }
 }
 
@@ -222,5 +232,72 @@ impl Writer {
             run: run.into(),
             status: format!("discarded the grant of {run}; nothing was delivered"),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cv_model::modules::audit::parse_key_id;
+
+    fn one_failing_rule(tier: &str) -> AuditRules {
+        let pack = cv_rules::RulePack::from_toml(&format!(
+            r#"
+[pack]
+id = "gate"
+version = 1
+description = "t"
+[[rule]]
+id = "GATE-H2"
+severity = "Error"
+tier = "{tier}"
+archetypes = ["Any"]
+remediation = "r"
+check = {{ Exists = {{ artifact = "Html", selector = {{ Html = "h2" }} }} }}
+[rule.citation]
+source = "s"
+url = "https://example.org/"
+frozen_quote = "q"
+captured = "2026-11-23"
+"#
+        ))
+        .unwrap();
+        AuditRules(cv_rules::Ruleset::new(vec![pack]).unwrap())
+    }
+
+    fn verdict(rules: &AuditRules) -> RulesetVerdict {
+        let d = tempfile::tempdir().unwrap();
+        std::fs::write(d.path().join("index.html"), "<h1>t</h1>").unwrap();
+        let files = cv_publish::plan::inventory(d.path()).unwrap();
+        rules.evaluate(d.path(), &files)
+    }
+
+    #[test]
+    fn blocking_findings_are_labelled_with_their_audit_row_key() {
+        let v = verdict(&one_failing_rule("NormativeSpec"));
+        assert_eq!(v.blocking.len(), 1, "{v:?}");
+        let (code, subject) = parse_key_id(&v.blocking[0]).expect("an Audit key");
+        assert_eq!((code, subject), ("GATE-H2", "index.html"));
+        assert!(v.advisory.is_empty());
+    }
+
+    #[test]
+    fn heuristic_findings_are_advisory_only() {
+        let v = verdict(&one_failing_rule("Heuristic"));
+        assert!(v.blocking.is_empty(), "{v:?}");
+        assert_eq!(v.advisory, ["GATE-H2 on index.html · heuristic"]);
+    }
+
+    #[test]
+    fn only_static_dist_has_a_delivery_until_185_decides() {
+        for t in cv_publish::registry() {
+            let c = delivery_config(t);
+            assert_eq!(c.is_some(), t == Target::StaticDist, "{t:?}");
+        }
+        let c = delivery_config(Target::StaticDist).unwrap();
+        assert_eq!(
+            (c.adapter.as_str(), c.destination.as_str()),
+            (COPY_TO_FOLDER, STATIC_DIST_FOLDER)
+        );
     }
 }

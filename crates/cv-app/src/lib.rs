@@ -39,6 +39,11 @@ pub fn init() -> Workbench {
     init_with(Box::new(publish::DiskPort::ephemeral()))
 }
 
+/// [`init`] with `publish` as the Publish module's port.
+pub fn init_with_publish(publish: Box<dyn cv_model::modules::publish::PublishPort>) -> Workbench {
+    init_with(publish)
+}
+
 fn init_with(publish: Box<dyn cv_model::modules::publish::PublishPort>) -> Workbench {
     cv_model::modules::audit::install(Box::new(audit::DiskPort::ephemeral()));
     cv_model::modules::publish::install(publish);
@@ -662,6 +667,10 @@ pub const SCENES: &[Scene] = &[
     ("doctor-engine-absent", doctor::scene::engine_absent),
     ("doctor-version-mismatch", doctor::scene::version_mismatch),
     ("doctor-watch-dead", doctor::scene::watch_dead),
+    ("publish-approve", publish::scene::approve),
+    ("publish-delivered", publish::scene::delivered),
+    ("publish-refused", publish::scene::refused),
+    ("publish-reconciled", publish::scene::reconciled),
 ];
 
 pub fn launch() -> Launch {

@@ -425,7 +425,7 @@ fn scripted(l: Ledger) -> (PublishModule, Rc<Shared<Script>>) {
     (PublishModule::new(Box::new(FakePort(s.clone()))), s)
 }
 
-fn command<'a>(m: &PublishModule, id: &str) -> CommandSpec {
+fn command(m: &PublishModule, id: &str) -> CommandSpec {
     m.commands().into_iter().find(|c| c.id == id).unwrap()
 }
 

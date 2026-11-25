@@ -126,6 +126,9 @@ pub(super) fn next_step(m: &PublishModule, r: &RunRecord) -> Result<String, Stri
         Phase::Granted => deliverable(m, r).map(|_| {
             "approve it (Publish: Approve selected run…) or discard the grant".into()
         }),
+        Phase::Approved if r.refusals.iter().any(|x| x.starts_with("seal broken")) => Err(
+            "sealed bytes changed after preflight: discard this grant and preflight again".into(),
+        ),
         Phase::Approved => deliverable(m, r).map(|_| {
             "dispatch it (Publish: Dispatch selected approved run): the sealed plan is delivered once"
                 .into()

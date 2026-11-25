@@ -60,6 +60,10 @@ const TREE_SCENES: &[&str] = &[
     "doctor-engine-absent",
     "doctor-version-mismatch",
     "doctor-watch-dead",
+    "publish-approve",
+    "publish-delivered",
+    "publish-refused",
+    "publish-reconciled",
 ];
 
 #[test]
