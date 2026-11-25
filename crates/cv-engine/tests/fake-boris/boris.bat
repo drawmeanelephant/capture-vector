@@ -39,19 +39,7 @@ goto verb
 
 :verb
 set "V=%~1"
-if "%V%"=="init" if not "%~2"=="--help" if not "%~2"=="" (
-  rem Materialize only where Boris may write; an occupied target is refused before mutation.
-  set "INIT_EMPTY=1"
-  if exist "%~2" (
-    if not exist "%~2\" (set "INIT_EMPTY=0") else (
-      for /f %%A in ('dir /b "%~2" 2^>NUL') do set "INIT_EMPTY=0"
-    )
-  )
-  if "%INIT_EMPTY%"=="1" (
-    if not exist "%~2" mkdir "%~2"
-    if exist "%D%verbs\init\tree\" xcopy /E /I /Y /Q "%D%verbs\init\tree" "%~2" >NUL
-  )
-)
+if "%V%"=="init" if not "%~2"=="--help" if not "%~2"=="" call :init_tree "%~2"
 rem IR mode (build --out DIR) replays its own capture when one is loaded.
 if "%~2"=="--out" if exist "%D%verbs\%V%-out\" set "V=%V%-out"
 if not exist "%D%verbs\%V%\" goto usage
@@ -65,3 +53,20 @@ exit /b %C%
 :usage
 echo usage: fake-boris has no '%V%' 1>&2
 exit /b 2
+
+:init_tree
+rem Materialize only where Boris may write; an occupied target is refused before mutation.
+rem Keep delayed expansion disabled so `!` in a target path is never reinterpreted.
+setlocal
+set "INIT_EMPTY=1"
+if exist "%~1" (
+  if not exist "%~1\" (set "INIT_EMPTY=0") else (
+    for /f %%A in ('dir /b /a "%~1" 2^>NUL') do set "INIT_EMPTY=0"
+  )
+)
+if "%INIT_EMPTY%"=="1" (
+  if not exist "%~1" mkdir "%~1"
+  if exist "%D%verbs\init\tree\" xcopy /E /I /Y /Q "%D%verbs\init\tree" "%~1" >NUL
+)
+endlocal
+exit /b 0

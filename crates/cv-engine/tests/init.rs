@@ -54,6 +54,10 @@ fn starters_come_from_the_located_boris() {
 #[test]
 fn create_runs_init_from_the_parent_with_the_folder_name() {
     let fake = FakeBoris::new();
+    copy_tree(
+        &cv_fixtures::fixtures_root().join("captures/init/docs/tree"),
+        &fake.path("verbs/init/tree"),
+    );
     fake.set("verbs/init/stderr.txt", &StubEngine::init_report("docs"));
     let target = fake.root().join("site");
     let out = initializer(&fake)
@@ -75,6 +79,10 @@ fn create_runs_init_from_the_parent_with_the_folder_name() {
             .any(|l| l == "init site --type docs"),
         "{}",
         fake.read("argv.log")
+    );
+    assert!(
+        target.join("content/index.md").is_file(),
+        "the platform shim materialized the captured starter"
     );
     let missing = fake.root().join("nowhere").join("site");
     assert!(
