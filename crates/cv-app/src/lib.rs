@@ -124,6 +124,7 @@ pub fn open_workspace(
     root: PathBuf,
     env: &WorkspaceEnv,
 ) -> Option<JoinHandle<()>> {
+    let rebuild_indexes = wb.take_index_rebuild_request();
     let root = match workspace::normalize(&root) {
         Ok(r) if r.is_dir() => {
             logging::info(
@@ -166,16 +167,26 @@ pub fn open_workspace(
     wb.stop_watch();
     wb.registry = Registry::default();
     let slot = live::EngineSlot::default();
-    let research = cv_notes::disk::open(
-        &root,
-        cv_core::id::AccountId("local".into()),
-        Box::new(SystemClock),
-    );
+    let input = snapshot::content_input(&root);
+    let research = if rebuild_indexes {
+        cv_notes::disk::open_rebuilding_index(
+            &root,
+            cv_core::id::AccountId("local".into()),
+            Box::new(SystemClock),
+        )
+    } else {
+        cv_notes::disk::open(
+            &root,
+            cv_core::id::AccountId("local".into()),
+            Box::new(SystemClock),
+        )
+    };
     let mut opened = doctor::StoreOpen::default();
+    let mut research_opened = false;
     let research_err = match research {
         Ok((r, report)) => {
+            research_opened = true;
             opened.research.lock = Some(LockHolder::ThisWindow);
-            let input = snapshot::content_input(&root);
             // Promotion writes under the input; one that resolves outside
             // the workspace (a symlink) gets no writer, so promotion
             // refuses instead of writing elsewhere.
@@ -207,11 +218,29 @@ pub fn open_workspace(
             None
         }
         Err(e) => {
+            if matches!(e, cv_store::audit::Error::Locked(_)) {
+                opened.audit.lock = Some(LockHolder::OtherProcess);
+            }
             cv_model::modules::audit::install(Box::new(audit::DiskPort::ephemeral()));
             opened.audit.error = Some(e.to_string());
             Some(e.to_string())
         }
     };
+    let mut rebuild_errors = Vec::new();
+    if rebuild_indexes {
+        if !research_opened {
+            rebuild_errors.push(format!(
+                "research: {}",
+                opened.research.error.as_deref().unwrap_or("open failed")
+            ));
+        }
+        match cv_ledger::LedgerIndex::rebuild_from_journal(&root) {
+            Ok(_) => {}
+            Err(e) => {
+                rebuild_errors.push(format!("ledger: {e}"));
+            }
+        }
+    }
     let publish = publish::DiskPort::open(&root);
     let publish_err = publish_warning(&publish);
     opened.ledger.error = publish.error().map(str::to_string);
@@ -240,7 +269,15 @@ pub fn open_workspace(
     }
     wb.recent = recent.entries;
 
+    let notice = rebuild_indexes.then(|| {
+        if rebuild_errors.is_empty() {
+            "indexes rebuilt from .cv JSONL (research, ledger)".to_string()
+        } else {
+            format!("index rebuild failed: {}", rebuild_errors.join("; "))
+        }
+    });
     let mut cfg = cv_engine::EngineConfig::new(&root);
+    cfg.content_input = input.clone().into();
     if let Some(l) = &env.locator {
         cfg.locator = l.clone();
     }
@@ -249,7 +286,6 @@ pub fn open_workspace(
         f.candidates = doctor::candidates(&cfg.locator);
     });
     // A bare corpus (no profile) must name its input to boris.
-    let input = snapshot::content_input(&root);
     if !root.join("boris.json").is_file() && input != "." {
         cfg.watch_args = vec!["--input".into(), input];
     }
@@ -258,6 +294,7 @@ pub fn open_workspace(
         slot,
         inbox: wb.inbox(),
         warning,
+        notice,
         doctor: feed,
     })
 }
@@ -339,10 +376,24 @@ pub fn open_corpus(wb: &mut Workbench, corpus: &str) -> StubEngine {
 /// Broken corpora's watch sessions fail before emitting diagnostics; the
 /// one-shot build's stderr carries them (as `ProcessEngine` does).
 pub fn open_broken(wb: &mut Workbench, corpus: &str) {
+    open_broken_inner(wb, corpus, false);
+}
+
+/// The same broken capture with the fatal watch retired before the
+/// diagnostic one-shot, matching native recovery's event order.
+pub fn open_broken_recovered(wb: &mut Workbench, corpus: &str) {
+    open_broken_inner(wb, corpus, true);
+}
+
+fn open_broken_inner(wb: &mut Workbench, corpus: &str, stop_watch: bool) {
     let engine = open_corpus(wb, corpus);
     // Recover stderr diagnostics only when the watch session failed
     // without any: the one-shot build must not replace located ones.
     if !has_watch_diagnostics(wb) {
+        if stop_watch {
+            wb.stop_watch();
+            wb.drain();
+        }
         let _ = engine.run(&Verb::Build, wb.sink());
         wb.drain();
     }

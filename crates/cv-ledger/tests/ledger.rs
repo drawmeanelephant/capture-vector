@@ -104,6 +104,34 @@ fn journal_is_truth_and_sqlite_rebuilds_from_it() {
 }
 
 #[test]
+fn forced_ledger_index_rebuild_restores_rows_a_fresh_header_hides() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut j = Journal::open(dir.path()).unwrap();
+    state(&mut j, RunState::Dispatching);
+    let idx = LedgerIndex::open(dir.path(), &j).unwrap();
+    let path = idx.path().to_path_buf();
+    assert_eq!(idx.runs().unwrap().len(), 1);
+    drop(idx);
+
+    let conn = rusqlite::Connection::open(&path).unwrap();
+    conn.execute("DELETE FROM runs", []).unwrap();
+    drop(conn);
+    let idx = LedgerIndex::open(dir.path(), &j).unwrap();
+    assert!(
+        idx.runs().unwrap().is_empty(),
+        "test setup: fresh header hides loss"
+    );
+    drop(idx);
+    drop(j);
+
+    let records = LedgerIndex::rebuild_from_journal(dir.path()).unwrap();
+    assert_eq!(records, 1);
+    let j = Journal::open(dir.path()).unwrap();
+    let idx = LedgerIndex::open(dir.path(), &j).unwrap();
+    assert_eq!(idx.runs().unwrap().len(), 1);
+}
+
+#[test]
 fn torn_append_is_dropped_not_guessed() {
     let dir = tempfile::tempdir().unwrap();
     let mut j = Journal::open(dir.path()).unwrap();

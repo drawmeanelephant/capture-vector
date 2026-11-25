@@ -1,7 +1,7 @@
 //! Doctor goldens: one per engine story. Facts are fixed strings, not
 //! this machine's, so the trees match on every OS.
 
-use crate::{mid_watch, open_broken, snapshot};
+use crate::{mid_watch, open_broken_recovered, snapshot};
 use cv_core::engine::{EngineCaps, EngineSource};
 use cv_core::events::shell::DegradedReason;
 use cv_model::modules::doctor::{
@@ -150,7 +150,7 @@ pub fn version_mismatch(wb: &mut Workbench) {
 /// The watch failed fatally on a broken page; the one-shot build named
 /// the diagnostics. The Watch section is open on that failure.
 pub fn watch_dead(wb: &mut Workbench) {
-    open_broken(wb, "broken-frontmatter");
+    open_broken_recovered(wb, "broken-frontmatter");
     wb.disclose(DegradedReason::WatchDead);
     show(wb, facts(bundled(), Some(native_probe())));
     wb.set_nav("watch");

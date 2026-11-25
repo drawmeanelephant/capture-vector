@@ -1016,7 +1016,7 @@
       "rect": [
         276.0,
         101.5,
-        282.1,
+        281.8,
         15.0
       ],
       "role": "text",
@@ -1027,19 +1027,19 @@
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-watch.cursor/#1",
       "rect": [
-        566.1,
+        565.8,
         102.1,
-        13.9,
+        14.3,
         13.8
       ],
       "role": "text",
-      "text": "#3"
+      "text": "#4"
     },
     {
       "fill": "#0e1014ff",
-      "key": "row-watch.exit",
+      "key": "row-watch.ended",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-watch.exit",
+      "path": "shell/body/list-pane/list-viewport/list/row-watch.ended",
       "rect": [
         268.0,
         120.0,
@@ -1049,14 +1049,92 @@
       "role": "listitem"
     },
     {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-watch.ended/#0",
+      "rect": [
+        276.0,
+        123.5,
+        266.7,
+        15.0
+      ],
+      "role": "text",
+      "text": "Session end"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-watch.ended/#1",
+      "rect": [
+        550.7,
+        124.1,
+        29.3,
+        13.8
+      ],
+      "role": "text",
+      "text": "Killed"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-watch.process-exit",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-watch.process-exit",
+      "rect": [
+        268.0,
+        142.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-watch.process-exit/#0",
+      "rect": [
+        276.0,
+        145.5,
+        236.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "Watch process exit"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-watch.process-exit/#1",
+      "rect": [
+        520.9,
+        146.1,
+        59.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "killed by us"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-watch.verb-exit",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-watch.verb-exit",
+      "rect": [
+        268.0,
+        164.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
       "fill": "#ffb020ff",
       "key": "rail",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-watch.exit/rail",
+      "path": "shell/body/list-pane/list-viewport/list/row-watch.verb-exit/rail",
       "radius": 1.5,
       "rect": [
         276.0,
-        124.4,
+        168.4,
         3.0,
         13.2
       ],
@@ -1065,23 +1143,23 @@
     {
       "color": "#ffb020ff",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-watch.exit/#1",
+      "path": "shell/body/list-pane/list-viewport/list/row-watch.verb-exit/#1",
       "rect": [
         287.0,
-        123.5,
+        167.5,
         229.4,
         15.0
       ],
       "role": "text",
-      "text": "Last exit"
+      "text": "Last verb exit"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-watch.exit/#2",
+      "path": "shell/body/list-pane/list-viewport/list/row-watch.verb-exit/#2",
       "rect": [
         524.4,
-        124.1,
+        168.1,
         55.6,
         13.8
       ],
@@ -1095,7 +1173,7 @@
       "path": "shell/body/list-pane/list-viewport/list/row-watch.fatal",
       "rect": [
         268.0,
-        142.0,
+        186.0,
         320.0,
         22.0
       ],
@@ -1110,7 +1188,7 @@
       "radius": 1.5,
       "rect": [
         276.0,
-        146.4,
+        190.4,
         3.0,
         13.2
       ],
@@ -1122,7 +1200,7 @@
       "path": "shell/body/list-pane/list-viewport/list/row-watch.fatal/#1",
       "rect": [
         287.0,
-        145.5,
+        189.5,
         179.8,
         15.0
       ],
@@ -1135,7 +1213,7 @@
       "path": "shell/body/list-pane/list-viewport/list/row-watch.fatal/#2",
       "rect": [
         474.8,
-        146.1,
+        190.1,
         62.2,
         13.8
       ],
@@ -1150,7 +1228,7 @@
       "radius": 999.0,
       "rect": [
         545.0,
-        146.1,
+        190.1,
         35.0,
         13.8
       ],
@@ -1764,7 +1842,7 @@
         13.8
       ],
       "role": "text",
-      "text": "build stub-build-2"
+      "text": "build stub-build-3"
     },
     {
       "fill": "#08090cff",
@@ -1823,17 +1901,17 @@
     },
     {
       "key": "status-1",
-      "label": "5 events",
+      "label": "6 events",
       "opacity": 1.0,
       "path": "shell/status/status-1",
       "rect": [
         102.1,
         780.5,
-        51.2,
+        51.5,
         17.0
       ],
       "role": "text",
-      "text": "5 events"
+      "text": "6 events"
     },
     {
       "color": "#8a93a3ff",
@@ -1843,11 +1921,11 @@
       "rect": [
         105.4,
         782.1,
-        6.6,
+        6.9,
         13.8
       ],
       "role": "text",
-      "text": "5"
+      "text": "6"
     },
     {
       "color": "#8a93a3ff",
@@ -1855,7 +1933,7 @@
       "opacity": 1.0,
       "path": "shell/status/status-1/status-1.2",
       "rect": [
-        112.0,
+        112.3,
         782.1,
         2.9,
         13.8
@@ -1869,7 +1947,7 @@
       "opacity": 1.0,
       "path": "shell/status/status-1/status-1.3",
       "rect": [
-        114.9,
+        115.2,
         782.1,
         6.3,
         13.8
@@ -1883,7 +1961,7 @@
       "opacity": 1.0,
       "path": "shell/status/status-1/status-1.4",
       "rect": [
-        121.2,
+        121.5,
         782.1,
         6.1,
         13.8
@@ -1897,7 +1975,7 @@
       "opacity": 1.0,
       "path": "shell/status/status-1/status-1.5",
       "rect": [
-        127.3,
+        127.6,
         782.1,
         6.5,
         13.8
@@ -1911,7 +1989,7 @@
       "opacity": 1.0,
       "path": "shell/status/status-1/status-1.6",
       "rect": [
-        133.8,
+        134.1,
         782.1,
         6.6,
         13.8
@@ -1925,9 +2003,9 @@
       "opacity": 1.0,
       "path": "shell/status/status-1/status-1.7",
       "rect": [
-        140.4,
+        140.7,
         782.1,
-        3.6,
+        3.7,
         13.8
       ],
       "role": "text",
@@ -1939,7 +2017,7 @@
       "opacity": 1.0,
       "path": "shell/status/status-1/status-1.8",
       "rect": [
-        144.0,
+        144.3,
         782.1,
         5.9,
         13.8
@@ -1954,7 +2032,7 @@
       "path": "shell/status/status-2",
       "radius": 2.0,
       "rect": [
-        162.0,
+        162.3,
         782.1,
         52.1,
         13.8
@@ -1966,7 +2044,7 @@
       "opacity": 1.0,
       "path": "shell/status/status-2/#0",
       "rect": [
-        168.0,
+        168.3,
         782.1,
         40.1,
         13.8
@@ -1978,9 +2056,9 @@
       "opacity": 1.0,
       "path": "shell/status/#3",
       "rect": [
-        226.1,
+        226.4,
         789.0,
-        870.8,
+        870.5,
         0.0
       ],
       "role": "group"

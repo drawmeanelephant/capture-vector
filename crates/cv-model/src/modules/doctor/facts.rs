@@ -156,6 +156,10 @@ pub enum LockHolder {
     ThisWindow,
     /// Another Capture Vector (or a stuck one) has the workspace open.
     OtherProcess,
+    /// The lock file exists but no writer holds it.
+    NotHeld,
+    /// The lock exists but its holder could not be determined.
+    Unknown,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

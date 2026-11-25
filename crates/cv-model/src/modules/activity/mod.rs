@@ -381,7 +381,7 @@ impl Module for ActivityModule {
                         compiler: compiler.clone(),
                     },
                 ),
-                EngineEvent::WatchSessionEnded { reason } => {
+                EngineEvent::WatchSessionEnded { reason, .. } => {
                     boundary(self, EntryKind::WatchEnded(reason.clone()))
                 }
                 EngineEvent::VerbFinished { verb, exit } => boundary(

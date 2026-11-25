@@ -86,10 +86,51 @@ fn probe_watch(bin: &Path, scratch: &Path, extra: &[&str], timeout: Duration) ->
     verdict
 }
 
-/// Probe the gated binary. `root` is the workspace (checked for
-/// writability only — the watch/validate probes run in a scratch dir so a
-/// probe can never touch the user's `dist/`).
-pub fn probe(bin: &Path, root: &Path, timeout: Duration) -> CapabilityReport {
+/// Whether the real staged-write parent can create a temporary file.
+/// This uses the same confined-parent resolution as `write_content` and a
+/// temporary file in that directory, then removes both the temporary file
+/// (by drop) and any input directories the probe itself had to create.
+fn probe_write_capability(root: &Path, content_input: &Path) -> (bool, Option<std::io::Error>) {
+    let target = content_input.join(".cv-write-probe");
+    // Deepest first: remove only directories missing before the probe.
+    let mut created = Vec::new();
+    let mut missing = root.join(content_input);
+    while !missing.exists() {
+        created.push(missing.clone());
+        if !missing.pop() {
+            break;
+        }
+    }
+    let run = || -> std::io::Result<()> {
+        let target = cv_store::paths::create_confined_parent(root, &target)?;
+        let parent = target.parent().ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "content input has no parent",
+            )
+        })?;
+        let file = tempfile::Builder::new()
+            .prefix(".cv-write-")
+            .suffix(".tmp")
+            .tempfile_in(parent)?;
+        drop(file);
+        Ok(())
+    };
+    let result = run();
+    for dir in created {
+        let _ = std::fs::remove_dir(dir);
+    }
+    match result {
+        Ok(()) => (true, None),
+        Err(e) => (false, Some(e)),
+    }
+}
+
+/// Probe the gated binary. `root` is the workspace and `content_input`
+/// the same input root live writes use. The watch/validate probes run in a
+/// scratch dir so they can never touch the user's `dist/`; the write probe
+/// creates and removes only a temporary file in the real input parent.
+pub fn probe(bin: &Path, root: &Path, content_input: &Path, timeout: Duration) -> CapabilityReport {
     let mut evidence = Vec::new();
     let scratch = tempfile::Builder::new().prefix("cv-probe-").tempdir();
     let mut caps = EngineCaps::default();
@@ -145,9 +186,10 @@ pub fn probe(bin: &Path, root: &Path, timeout: Duration) -> CapabilityReport {
         Err(e) => evidence.push(format!("scratch dir: {e}")),
     }
 
-    match tempfile::NamedTempFile::new_in(root) {
-        Ok(_) => caps.writes = true,
-        Err(e) => evidence.push(format!("workspace not writable: {e}")),
+    let (writes, write_err) = probe_write_capability(root, content_input);
+    caps.writes = writes;
+    if let Some(e) = write_err {
+        evidence.push(format!("content input not writable: {e}"));
     }
 
     CapabilityReport {
@@ -159,5 +201,36 @@ pub fn probe(bin: &Path, root: &Path, timeout: Duration) -> CapabilityReport {
             WatchMode::OneShotFallback
         },
         evidence,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn content_write_capability_uses_the_input_parent_not_the_workspace_root() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = tempfile::tempdir().unwrap();
+        let content = root.path().join("content");
+        std::fs::create_dir(&content).unwrap();
+        let mut mode = std::fs::metadata(&content).unwrap().permissions();
+        mode.set_mode(0o555);
+        std::fs::set_permissions(&content, mode).unwrap();
+
+        assert!(!probe_write_capability(root.path(), Path::new("content")).0);
+
+        let mut mode = std::fs::metadata(&content).unwrap().permissions();
+        mode.set_mode(0o755);
+        std::fs::set_permissions(&content, mode).unwrap();
+        assert!(probe_write_capability(root.path(), Path::new("content")).0);
+        assert!(
+            root.path()
+                .read_dir()
+                .unwrap()
+                .all(|e| { e.unwrap().file_name() == "content" }),
+            "probe left files in the workspace"
+        );
     }
 }
