@@ -88,7 +88,9 @@ impl Engine for CapturedBuild {
         match name.as_str() {
             "build" if args.iter().any(|a| a == "--html-dir") => {
                 let dist = cv_fixtures::fixtures_root().join("captures/happy/dist/dist");
-                copy_tree(&dist, &self.root.join(flag(args, "--html-dir")?)).map_err(io)?;
+                let out = self.root.join(flag(args, "--html-dir")?);
+                copy_tree(&dist, &out).map_err(io)?;
+                std::fs::write(out.join("robots.txt"), "User-agent: *\n").map_err(io)?;
                 Ok(ExitClass::Ok)
             }
             "build" if args.iter().any(|a| a == "--out") => {

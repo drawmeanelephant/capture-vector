@@ -1332,7 +1332,7 @@
     },
     {
       "color": "#8a93a3ff",
-      "help": "10 files · 52843 B",
+      "help": "11 files · 52857 B",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-run-000002-29/#2",
       "rect": [
@@ -1342,7 +1342,7 @@
         13.8
       ],
       "role": "text",
-      "text": "10 files · 52843 B"
+      "text": "11 files · 52857 B"
     },
     {
       "color": "#ffb020ff",
@@ -1651,7 +1651,7 @@
         13.8
       ],
       "role": "text",
-      "text": "10 files · 52843 B → https://relay.example.test/"
+      "text": "11 files · 52857 B → https://relay.example.test/"
     },
     {
       "key": "line-5",
@@ -2236,7 +2236,7 @@
         13.8
       ],
       "role": "text",
-      "text": "10"
+      "text": "11"
     },
     {
       "key": "field-bytes",
@@ -2274,7 +2274,7 @@
         13.8
       ],
       "role": "text",
-      "text": "52843"
+      "text": "52857"
     },
     {
       "key": "field-artifacts",
@@ -2341,7 +2341,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "d4c884e227f72c2ee86a3b765a03314f25bcfd7b0971e15f3911397645f1bbb4",
+      "help": "2f735cf6b3ceb7d096a40bd13ec0dc77f75a4e83c24d0fb097c0399ab5a3d67e",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-artifact set/#1",
       "rect": [
@@ -2351,7 +2351,7 @@
         13.8
       ],
       "role": "text",
-      "text": "d4c884e227f72c2ee86a3b765a03314f25bcfd7b0971e15f3911397645f1bbb4"
+      "text": "2f735cf6b3ceb7d096a40bd13ec0dc77f75a4e83c24d0fb097c0399ab5a3d67e"
     },
     {
       "key": "field-graph",
@@ -2419,7 +2419,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "5ad110e07b0408e3e94d5bf7fe2dea6ae5b9c177f7fed33901050df15ec898ab",
+      "help": "4cc565ca48979b1129e92bea857bded9e899ae075efa7744826ae5aeef11e0a4",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-plan/#1",
       "rect": [
@@ -2429,7 +2429,7 @@
         13.8
       ],
       "role": "text",
-      "text": "5ad110e07b0408e3e94d5bf7fe2dea6ae5b9c177f7fed33901050df15ec898ab"
+      "text": "4cc565ca48979b1129e92bea857bded9e899ae075efa7744826ae5aeef11e0a4"
     },
     {
       "key": "field-target cfg",

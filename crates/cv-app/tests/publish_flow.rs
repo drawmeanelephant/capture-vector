@@ -81,9 +81,9 @@ fn preflight_approve_dispatch_copies_the_sealed_files_to_the_folder() {
         .body
         .clone();
     let body = body.unwrap();
-    assert!(body.contains("10 files"), "{body}");
+    assert!(body.contains("11 files"), "{body}");
     assert!(body.contains("plan: "), "{body}");
-    assert!(body.contains("Advisory findings (6)"), "{body}");
+    assert!(body.contains("Advisory findings (9)"), "{body}");
     wb.dialog_act("approve");
     assert!(reading(&wb).contains("state: approved"));
     assert!(!d.path().join("publish/static-dist").exists());
@@ -113,7 +113,7 @@ fn heuristic_findings_are_advisory_and_never_block_preflight() {
     let r = reading(&wb);
     assert!(r.contains("state: granted"), "{r}");
     assert!(
-        r.contains("advisory: SEO-META-DESCRIPTION on index.html · heuristic"),
+        r.contains("advisory: SEO-META-DESCRIPTION on index · heuristic"),
         "{r}"
     );
     assert!(!r.contains("block: "), "{r}");
