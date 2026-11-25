@@ -297,3 +297,132 @@ fn a_valid_zero_count_inventory_is_not_a_problem() {
     assert_eq!(r.problem, None);
     assert!(!r.counts.is_empty(), "decoded counts are positive evidence");
 }
+
+/// Mutate the captured jekyll-inventory document the way the reviewer's
+/// tampered-shape probes did, then project.
+fn project_mutated_inventory(mutate: impl Fn(&mut serde_json::Value)) -> ImportRun {
+    let d = tempfile::tempdir().unwrap();
+    let id = seed_run(d.path(), "jekyll-inventory", 1);
+    let doc = d
+        .path()
+        .join(".cv")
+        .join("imports")
+        .join(&id)
+        .join("out")
+        .join("inventory.json");
+    let mut json: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&doc).unwrap()).unwrap();
+    mutate(&mut json);
+    std::fs::write(&doc, serde_json::to_vec(&json).unwrap()).unwrap();
+    load(d.path()).runs.into_iter().next().unwrap()
+}
+
+#[test]
+fn a_row_less_inventory_is_not_count_evidence() {
+    let r = project_mutated_inventory(|json| {
+        json["constructs"] = serde_json::json!([]);
+    });
+    assert_eq!(r.status, RunStatus::Ok);
+    assert_eq!(r.problem, None, "the document still decodes");
+    assert!(
+        !r.count_evidence,
+        "empty constructs carry no count evidence even though the aggregate is pre-seeded"
+    );
+}
+
+#[test]
+fn unknown_class_only_rows_are_not_count_evidence() {
+    let r = project_mutated_inventory(|json| {
+        for row in json["constructs"].as_array_mut().unwrap() {
+            row["class"] = serde_json::json!("bogus-class");
+        }
+    });
+    assert_eq!(r.problem, None, "unknown classes still decode");
+    assert!(
+        !r.count_evidence,
+        "wrong-class rows are a tampered shape, not evidence"
+    );
+}
+
+#[test]
+fn a_valid_inventory_carries_count_evidence() {
+    let r = project_mutated_inventory(|_| {});
+    assert!(
+        r.count_evidence,
+        "the untouched capture is positive evidence"
+    );
+}
+
+/// The reviewer's stale-write race, restaged across real processes: while
+/// another live process holds the workspace lock, opening here must neither
+/// sweep unfinished records nor treat their state as ours.
+#[cfg(unix)]
+#[test]
+fn a_foreign_owned_workspace_is_never_swept() {
+    let d = tempfile::tempdir().unwrap();
+    let root = std::fs::canonicalize(d.path()).unwrap();
+    let id = seed_run(&root, "jekyll", 1);
+    let mut rec = store::scan(&root).unwrap()[0].record.clone().unwrap();
+    rec.finished = None;
+    store::write(&root, &rec).unwrap();
+
+    // A child process holds the flock the way a second Capture Vector would.
+    std::fs::create_dir_all(root.join(".cv")).unwrap();
+    let lock = root.join(".cv").join("workspace.lock");
+    let mut child = std::process::Command::new("python3")
+        .arg("-c")
+        .arg(format!(
+            "import fcntl, time; f = open({:?}, 'w'); fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB); time.sleep(30)",
+            lock.to_str().unwrap()
+        ))
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .unwrap();
+    // Wait until the child actually holds the lock.
+    for _ in 0..50 {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        if lock.exists() && workspace_ownership(&root) == super::Ownership::Foreign {
+            break;
+        }
+    }
+    assert_eq!(
+        workspace_ownership(&root),
+        super::Ownership::Foreign,
+        "the child holds the lock"
+    );
+
+    // Open while foreign: the unfinished record must survive untouched.
+    let i = load(&root);
+    assert!(
+        i.error
+            .as_deref()
+            .unwrap_or("")
+            .contains("another Capture Vector process"),
+        "{:?}",
+        i.error
+    );
+    let rec = store::scan(&root).unwrap()[0].record.clone().unwrap();
+    assert!(
+        rec.finished.is_none(),
+        "a foreign-owned record is never rewritten: {rec:?}"
+    );
+
+    // Once the other process exits, the lock releases and the sweep applies.
+    child.kill().unwrap();
+    child.wait().unwrap();
+    for _ in 0..50 {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        if workspace_ownership(&root) == super::Ownership::Owned {
+            break;
+        }
+    }
+    let _ = load(&root);
+    let rec = store::scan(&root).unwrap()[0].record.clone().unwrap();
+    assert_eq!(
+        rec.finished.as_ref().map(|f| f.exit.as_str()),
+        Some("interrupted"),
+        "ownership regained, the orphaned record is closed: {rec:?}"
+    );
+    let _ = id;
+}

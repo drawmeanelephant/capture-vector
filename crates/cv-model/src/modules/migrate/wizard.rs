@@ -572,14 +572,16 @@ impl MigrateModule {
         }
         match (phase, run.status) {
             (ImportPhase::Inventory, RunStatus::Ok) => {
-                // Emit requires positive decoded-count evidence: a decoded
-                // inventory document carries the count classes even when
-                // every count is zero, so empty counts means nothing
-                // count-bearing was decoded at all — as does a problem in
-                // projection. Both are blocked outright rather than merely
-                // confirmed, and both are distinct from a valid inventory
-                // that simply counted zero.
-                let missing = run.problem.is_none() && run.counts.is_empty();
+                // Emit requires positive decoded-count evidence: projection
+                // records whether the decoded document carries count data in
+                // this family's shape (structural for Hugo, known-class rows
+                // for the tabled families) — never inferred from the
+                // pre-seeded aggregate. A decodable but row-less or
+                // wrong-class inventory is not evidence, exactly like an
+                // unreadable or absent report; all are blocked outright
+                // rather than merely confirmed, and all are distinct from a
+                // valid inventory that simply counted zero.
+                let missing = run.problem.is_none() && !run.count_evidence;
                 if run.problem.is_some() || missing {
                     self.wizard.reset();
                     let why = match run.problem.as_deref() {

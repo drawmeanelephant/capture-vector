@@ -48,9 +48,23 @@ fn family_of(mode: &str) -> Option<String> {
 /// The pinned lab's mode table projected for the wizard. This is metadata
 /// only; `cv-engine` remains the sole validator of flags, path kinds, argv,
 /// overlap and output ownership.
+/// The inventory formats cv-contracts can decode, keyed by the emitting
+/// mode's format string (`boris-<family>-migration-lab`). An inventory-first
+/// mode outside this list is a dead end: its inventory can exit 0 yet never
+/// decode into count evidence, so the wizard must not offer it until the
+/// contract mirrors that family.
+fn inventory_decodable(companion: &str) -> bool {
+    let family = companion.trim_end_matches("-inventory");
+    let format = format!("boris-{family}-migration-lab");
+    cv_contracts::lab::INVENTORIES
+        .iter()
+        .any(|k| k.format == format)
+}
+
 pub fn modes() -> Vec<ImportMode> {
     engine_lab::MODES
         .iter()
+        .filter(|mode| mode.inventory().is_none_or(inventory_decodable))
         .map(|mode| ImportMode {
             name: mode.name.into(),
             family: mode.family.key().into(),
@@ -145,6 +159,7 @@ pub struct DiskPort {
     log: Option<ReviewLog>,
     states: HashMap<(String, String), ReviewState>,
     log_error: Option<String>,
+    ownership: Ownership,
 }
 
 fn to_model(s: store::ReviewState) -> ReviewState {
@@ -163,6 +178,65 @@ fn to_store(s: ReviewState) -> store::ReviewState {
     }
 }
 
+/// Process-lifetime workspace ownership, so the open-time sweep can never
+/// race a live writer in another process. The primitive is `flock` on
+/// `.cv/workspace.lock`: the kernel releases it when the holder dies, so
+/// there is no stale-lock case to break. On non-Unix platforms ownership is
+/// unchecked — Windows behavior is honestly unproven either way.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Ownership {
+    /// This process holds the workspace lock; sweeping is race-free.
+    Owned,
+    /// Another live process holds it: no sweeping, no record writes here.
+    Foreign,
+    /// No locking primitive on this platform.
+    Unchecked,
+}
+
+#[cfg(unix)]
+fn workspace_ownership(root: &Path) -> Ownership {
+    use std::sync::{Mutex, OnceLock};
+    // Held for the process lifetime, keyed by canonical workspace path so
+    // repeated opens in-process don't self-conflict (flock is keyed on the
+    // open file description, not the process).
+    static LOCKS: OnceLock<Mutex<HashMap<PathBuf, std::fs::File>>> = OnceLock::new();
+    let Ok(canon) = std::fs::canonicalize(root) else {
+        return Ownership::Unchecked;
+    };
+    let locks = LOCKS.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut locks = locks.lock().unwrap();
+    if locks.contains_key(&canon) {
+        return Ownership::Owned;
+    }
+    let lock_path = canon.join(".cv").join("workspace.lock");
+    if let Some(parent) = lock_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let Ok(file) = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&lock_path)
+    else {
+        return Ownership::Unchecked;
+    };
+    use std::os::unix::io::AsRawFd;
+    // SAFETY: flock on a valid fd; non-blocking exclusive.
+    let rc = unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) };
+    if rc == 0 {
+        locks.insert(canon, file);
+        Ownership::Owned
+    } else {
+        Ownership::Foreign
+    }
+}
+
+#[cfg(not(unix))]
+fn workspace_ownership(_root: &Path) -> Ownership {
+    Ownership::Unchecked
+}
+
 impl DiskPort {
     /// No workspace: no runs, the lab unchecked.
     pub fn none() -> Self {
@@ -176,6 +250,7 @@ impl DiskPort {
             log: None,
             states: HashMap::new(),
             log_error: None,
+            ownership: Ownership::Unchecked,
         }
     }
 
@@ -189,8 +264,17 @@ impl DiskPort {
     /// closed as interrupted instead of displaying `running` forever.
     /// Multi-process workspace sharing is not yet prevented by a lock.
     pub fn open(root: &Path, lab: LabState) -> Self {
-        sweep_interrupted(root);
+        let ownership = workspace_ownership(root);
+        // The sweep rewrites unfinished records. Only an owning process may
+        // do that: flock guarantees no other live process can have workers
+        // writing here, so the stale-write race is structurally impossible —
+        // not merely narrowed. Unchecked platforms sweep best-effort, which
+        // matches their honestly-unproven status.
+        if ownership != Ownership::Foreign {
+            sweep_interrupted(root);
+        }
         let mut port = Self::detached(lab);
+        port.ownership = ownership;
         port.root = Some(root.to_path_buf());
         match ReviewLog::open(root) {
             Ok((log, states, _)) => {
@@ -220,6 +304,12 @@ impl MigratePort for DiskPort {
         let Some(root) = &self.root else {
             return out;
         };
+        if self.ownership == Ownership::Foreign {
+            out.error = Some(
+                "another Capture Vector process has this workspace open; run state here                  is read-only observation and may belong to that process"
+                    .into(),
+            );
+        }
         match store::scan(root) {
             Ok(dirs) => {
                 out.runs = dirs
@@ -487,10 +577,12 @@ fn report_facts(r: &Report, run: &mut ImportRun) {
     match r {
         Report::Hugo(h) => {
             run.counts = class_counts(&h.summary.by_class);
+            run.count_evidence = true;
             run.totals = vec![("pages emitted".into(), h.summary.pages_emitted)];
         }
         Report::Jekyll(j) => {
             run.counts = class_counts(&j.summary.by_class);
+            run.count_evidence = true;
             run.totals = vec![
                 ("pages".into(), j.summary.pages),
                 ("not emitted".into(), j.summary.not_emitted),
@@ -502,6 +594,12 @@ fn report_facts(r: &Report, run: &mut ImportRun) {
         }
     }
     run.review = items(report_entries(r));
+}
+
+/// One of the disposition classes the pinned lab can emit. Unknown-only
+/// rows are a tampered or unsupported shape, not count evidence.
+fn known_class(d: &Disposition) -> bool {
+    CLASSES.iter().any(|c| *c == d.as_str())
 }
 
 fn inventory_facts(i: &Inventory, run: &mut ImportRun) {
@@ -518,6 +616,16 @@ fn inventory_facts(i: &Inventory, run: &mut ImportRun) {
         Inventory::Jekyll(j) => tally(j.constructs.iter().map(|d| (&d.class, d.count))),
         Inventory::Substack(s) => tally(s.dispositions.iter().map(|d| (&d.class, d.count))),
         Inventory::Enex(e) => tally(e.dispositions.iter().map(|d| (&d.class, d.count))),
+    };
+    // Count-evidence provenance by family shape: Hugo's class_counts is a
+    // structurally required summary object — present even when every count
+    // is zero, so valid-zero is evidence. The tabled families only count as
+    // evidence when at least one row of a known class exists.
+    run.count_evidence = match i {
+        Inventory::Hugo(_) => true,
+        Inventory::Jekyll(j) => j.constructs.iter().any(|d| known_class(&d.class)),
+        Inventory::Substack(s) => s.dispositions.iter().any(|d| known_class(&d.class)),
+        Inventory::Enex(e) => e.dispositions.iter().any(|d| known_class(&d.class)),
     };
     run.review = items(inventory_entries(i));
 }

@@ -172,6 +172,13 @@ pub struct ImportRun {
     pub provenance: Option<String>,
     /// Count per disposition, in the order the lab reports them.
     pub counts: Vec<(String, u64)>,
+    /// Positive evidence that count data exists in the decoded document in
+    /// the shape this family carries it: Hugo's structurally required
+    /// `class_counts` (valid even when every count is zero), or at least one
+    /// count row of a known class in the Jekyll/Substack/ENEX tables. This
+    /// is provenance, not inference from the aggregate — a decodable but
+    /// row-less or wrong-class document is not evidence.
+    pub count_evidence: bool,
     /// Other totals the main document states (pages emitted, …).
     pub totals: Vec<(String, u64)>,
     /// `(file name, body)` of the run's Markdown report.
@@ -204,6 +211,7 @@ impl ImportRun {
             out: String::new(),
             provenance: None,
             counts: Vec::new(),
+            count_evidence: false,
             totals: Vec::new(),
             report: None,
             problem: None,

@@ -542,14 +542,15 @@ fn hugo_starts_its_read_only_inventory_companion_first() {
 fn inventory_lands(appeared: &std::rc::Rc<std::cell::RefCell<Vec<ImportRun>>>, run_id: &str) {
     let mut done = ImportRun::new(run_id, RunStatus::Ok);
     done.mode = "hugo-inventory".into();
-    // A decoded inventory carries the count classes even when every count
-    // is zero; that is the positive evidence the emit gate requires.
+    // A decoded Hugo inventory carries count evidence even when every
+    // count is zero; that is the positive evidence the emit gate requires.
     done.counts = vec![
         ("exact".into(), 0),
         ("transformed".into(), 0),
         ("unsupported".into(), 0),
         ("human_review".into(), 0),
     ];
+    done.count_evidence = true;
     appeared.borrow_mut().push(done);
 }
 
@@ -754,6 +755,7 @@ fn count_extras_are_type_checked_and_passed_through() {
     let mut done = ImportRun::new(&inv.run_id, RunStatus::Ok);
     done.mode = "hugo-inventory".into();
     done.counts = vec![("transformed".into(), 3)];
+    done.count_evidence = true;
     appeared.borrow_mut().push(done);
     m.run(FINISHED);
     let out = m.answer(INVENTORY, &answer(Some("emit"), &[]));

@@ -484,10 +484,14 @@ fn canonical_out(out: &Path) -> Result<(PathBuf, PathBuf), LabError> {
         return Err(refuse("must not contain `..`".into()));
     }
     let abs = std::path::absolute(out).map_err(|e| refuse(e.to_string()))?;
-    // The output spelling is adapter-chosen but its ancestors exist in the
-    // user-shared filesystem: a pre-planted symlinked `.cv` or run directory
-    // must be refused, never silently followed into its target. Check the
-    // spelling before any canonicalization, exactly as for inputs.
+    // The output spelling is adapter-chosen, so the narrow macOS system
+    // alias policy applies here exactly as for inputs: `/var/folders`
+    // tempdirs are the ordinary macOS spelling, not user evidence.
+    let abs = normalize_system_aliases(&abs);
+    // ...but its ancestors exist in the user-shared filesystem: a
+    // pre-planted symlinked `.cv` or run directory must be refused, never
+    // silently followed into its target. Check the spelling before any
+    // canonicalization, exactly as for inputs.
     if let Some(component) = symlink_component(&abs) {
         return Err(refuse(format!(
             "contains symlink component {component:?}; the run was not started"
