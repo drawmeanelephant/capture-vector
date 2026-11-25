@@ -118,11 +118,58 @@ pub fn confirm_confined_file(root: &Path, relative: &Path) -> io::Result<PathBuf
     Ok(target)
 }
 
+/// `db`'s SQLite sidecar artifact for `suffix` (`-journal`, `-wal`,
+/// `-shm`): the sibling file SQLite names by appending to the database
+/// path, never a component of it.
+fn sqlite_sidecar(db: &Path, suffix: &str) -> PathBuf {
+    let mut os = db.as_os_str().to_os_string();
+    os.push(suffix);
+    PathBuf::from(os)
+}
+
+/// Remove a file, tolerating absence and retrying brief sharing
+/// violations: Windows denies unlinking or replacing a file another
+/// process still holds open, and the holder is usually mid-close.
+fn remove_file_retrying(path: &Path) -> io::Result<()> {
+    for attempt in 0..20 {
+        match fs::remove_file(path) {
+            Ok(()) => return Ok(()),
+            Err(e) if e.kind() == ErrorKind::NotFound => return Ok(()),
+            Err(e) if attempt == 19 => return Err(e),
+            Err(_) => std::thread::sleep(std::time::Duration::from_millis(25)),
+        }
+    }
+    unreachable!()
+}
+
+/// Remove `db`'s SQLite sidecar artifacts (`-journal`, `-wal`, `-shm`).
+/// A sidecar outliving its database file is never innocent: SQLite
+/// replays a leftover WAL or hot rollback journal into whatever file
+/// next carries `db`'s name, so replacing `db` without clearing them
+/// hands the replacement the old database's shape.
+///
+/// The caller must have quiesced connections first: deleting the live
+/// journal of an in-flight write corrupts that database. Index rebuilds
+/// qualify because the writer lock excludes other writers and readers
+/// in rollback mode create no sidecars.
+pub fn remove_sqlite_sidecars(db: &Path) -> io::Result<()> {
+    for suffix in ["-journal", "-wal", "-shm"] {
+        remove_file_retrying(&sqlite_sidecar(db, suffix))?;
+    }
+    Ok(())
+}
+
 /// Install a fully written replacement file in the same directory.
 /// `std::fs::rename` replaces an existing file atomically on Unix and
 /// through the Windows rename facilities on Windows.
 pub fn replace_file(staged: &Path, target: &Path) -> io::Result<()> {
-    fs::rename(staged, target)?;
+    for attempt in 0..20 {
+        match fs::rename(staged, target) {
+            Ok(()) => break,
+            Err(e) if attempt == 19 => return Err(e),
+            Err(_) => std::thread::sleep(std::time::Duration::from_millis(25)),
+        }
+    }
     #[cfg(unix)]
     if let Some(parent) = target.parent() {
         std::fs::File::open(parent)?.sync_all()?;
