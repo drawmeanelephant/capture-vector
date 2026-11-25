@@ -31,13 +31,25 @@ pub enum Observation {
     NotDelivered,
 }
 
-fn collect_input_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
+/// Source inputs for the frozen digest. Symlinks contribute their target
+/// path, never their target's content, and are never recursed through —
+/// a symlinked directory cycle must not hang preflight.
+enum SourceInput {
+    File(PathBuf),
+    Link(PathBuf),
+}
+
+fn collect_input_files(dir: &Path, out: &mut Vec<SourceInput>) -> Result<()> {
     for entry in std::fs::read_dir(dir)? {
-        let path = entry?.path();
-        if path.is_dir() {
+        let entry = entry?;
+        let meta = entry.metadata()?;
+        let path = entry.path();
+        if meta.file_type().is_symlink() {
+            out.push(SourceInput::Link(path));
+        } else if meta.is_dir() {
             collect_input_files(&path, out)?;
-        } else if path.is_file() {
-            out.push(path);
+        } else if meta.is_file() {
+            out.push(SourceInput::File(path));
         }
     }
     Ok(())
@@ -419,20 +431,36 @@ impl<'a> Publisher<'a> {
         let mut inputs = Vec::new();
         for name in ["boris.json", "content", "theme", "themes", "static"] {
             let path = self.root.join(name);
-            if path.is_file() {
-                inputs.push(path);
-            } else if path.is_dir() {
+            let Ok(meta) = std::fs::symlink_metadata(&path) else {
+                continue;
+            };
+            if meta.file_type().is_symlink() {
+                inputs.push(SourceInput::Link(path));
+            } else if meta.is_file() {
+                inputs.push(SourceInput::File(path));
+            } else if meta.is_dir() {
                 collect_input_files(&path, &mut inputs)?;
             }
         }
-        inputs.sort();
+        inputs.sort_by(|a, b| {
+            let key = |x: &SourceInput| match x {
+                SourceInput::File(p) | SourceInput::Link(p) => p.clone(),
+            };
+            key(a).cmp(&key(b))
+        });
         let mut material = Vec::new();
-        for path in inputs {
+        for input in inputs {
+            let (path, bytes) = match &input {
+                SourceInput::File(p) => (p, std::fs::read(p)?),
+                SourceInput::Link(p) => (
+                    p,
+                    std::fs::read_link(p)?.to_string_lossy().as_bytes().to_vec(),
+                ),
+            };
             let rel = path
                 .strip_prefix(&self.root)
-                .unwrap_or(&path)
+                .unwrap_or(path)
                 .to_string_lossy();
-            let bytes = std::fs::read(&path)?;
             material.extend_from_slice(rel.as_bytes());
             material.push(0);
             material.extend_from_slice(sha256(&bytes).to_hex().as_bytes());

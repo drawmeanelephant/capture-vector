@@ -125,3 +125,26 @@ fn proof_target_mismatch_blocks_preflight_before_a_grant_is_issued() {
         "a grant must never seal artifacts from another proof target"
     );
 }
+
+/// A symlinked directory cycle inside the source tree must not hang the
+/// frozen-input digest; preflight completes normally.
+#[cfg(unix)]
+#[test]
+fn a_symlink_cycle_in_source_inputs_does_not_hang_preflight() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir(dir.path().join("content")).unwrap();
+    std::fs::write(dir.path().join("content/index.md"), "# home\n").unwrap();
+    std::os::unix::fs::symlink(dir.path().join("content"), dir.path().join("content/loop"))
+        .unwrap();
+    let eng = FakeEngine::new(dir.path());
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+    let out = p.preflight(
+        &PreflightRequest { config: cfg() },
+        &Rules::ok(),
+        &mut ids("run"),
+    );
+    assert!(
+        matches!(out, Ok(PreflightOutcome::Granted { .. })),
+        "symlink cycles must not hang or block preflight: {out:?}"
+    );
+}
