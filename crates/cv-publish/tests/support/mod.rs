@@ -235,6 +235,7 @@ pub struct CapturedEngine {
     pub root: PathBuf,
     pub omit_proof: bool,
     pub malformed_proof: bool,
+    pub proof_payload_entry: bool,
 }
 
 impl CapturedEngine {
@@ -243,6 +244,7 @@ impl CapturedEngine {
             root: root.into(),
             omit_proof: false,
             malformed_proof: false,
+            proof_payload_entry: false,
         }
     }
 }
@@ -285,6 +287,15 @@ impl Engine for CapturedEngine {
                 }
                 if self.malformed_proof {
                     std::fs::write(out.join("_boris/proof/artifacts.json"), b"not json").unwrap();
+                }
+                if self.proof_payload_entry {
+                    let path = out.join("_boris/proof/artifacts.json");
+                    let mut idx: serde_json::Value =
+                        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+                    let mut entry = idx["artifacts"][0].clone();
+                    entry["path"] = serde_json::json!("_boris/proof/index.html");
+                    idx["artifacts"].as_array_mut().unwrap().push(entry);
+                    std::fs::write(&path, serde_json::to_vec_pretty(&idx).unwrap()).unwrap();
                 }
                 Ok(ExitClass::Ok)
             }

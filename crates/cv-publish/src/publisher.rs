@@ -84,6 +84,9 @@ fn deployable_inventory(site: &Path) -> Result<Vec<PlanFile>> {
     }
     let mut files = Vec::new();
     for artifact in &idx.artifacts {
+        if artifact.path.starts_with("_boris/proof/") {
+            return Err(PublishError::SealBroken(vec!["artifact_set"]));
+        }
         if artifact.status != "committed" {
             continue;
         }
@@ -289,6 +292,13 @@ impl<'a> Publisher<'a> {
                 } else {
                     proof_inventory_valid = true;
                     for artifact in &idx.artifacts {
+                        if artifact.path.starts_with("_boris/proof/") {
+                            blocks.push(format!(
+                                "proof artifacts: {} is evidence, never payload",
+                                artifact.path
+                            ));
+                            continue;
+                        }
                         if artifact.status != "committed" {
                             if artifact.required {
                                 blocks.push(format!(

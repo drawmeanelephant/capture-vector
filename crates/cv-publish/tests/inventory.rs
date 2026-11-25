@@ -148,3 +148,30 @@ fn a_symlink_cycle_in_source_inputs_does_not_hang_preflight() {
         "symlink cycles must not hang or block preflight: {out:?}"
     );
 }
+
+/// Boris's packaging contract excludes `_boris/proof` from deployable
+/// output. A well-formed inventory that nevertheless lists proof evidence
+/// as a committed artifact blocks the grant rather than shipping evidence.
+#[test]
+fn a_proof_evidence_entry_in_the_inventory_is_never_payload() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    eng.proof_payload_entry = true;
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+    let out = p
+        .preflight(
+            &PreflightRequest { config: cfg() },
+            &Rules::ok(),
+            &mut ids("run"),
+        )
+        .unwrap();
+    let PreflightOutcome::Blocked { blocks, .. } = out else {
+        panic!("proof evidence in the inventory must block: {out:?}")
+    };
+    assert!(
+        blocks
+            .iter()
+            .any(|b| b.contains("is evidence, never payload")),
+        "{blocks:?}"
+    );
+}
