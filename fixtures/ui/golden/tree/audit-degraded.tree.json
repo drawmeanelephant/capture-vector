@@ -3322,6 +3322,7 @@
     },
     {
       "color": "#e6e9efff",
+      "help": "reason: \"Html input declared missing\"",
       "key": "list-0-2",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0-2",
@@ -3523,7 +3524,7 @@
       "rect": [
         162.2,
         782.1,
-        52.1,
+        59.6,
         13.8
       ],
       "role": "group"
@@ -3535,7 +3536,7 @@
       "rect": [
         168.2,
         782.1,
-        40.1,
+        47.6,
         13.8
       ],
       "role": "text",
@@ -3545,9 +3546,9 @@
       "opacity": 1.0,
       "path": "shell/status/#3",
       "rect": [
-        226.3,
+        233.8,
         789.0,
-        870.5,
+        863.0,
         0.0
       ],
       "role": "group"
