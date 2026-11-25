@@ -6,7 +6,7 @@ use crate::diagnostic;
 use crate::theme::{self, Level, Size, Styled, color, font};
 use crate::{controls, fx, icons};
 use cv_core::events::shell::DegradedReason;
-use cv_model::module::{ReadingModel, RowModel, Slot, Tone};
+use cv_model::module::{Chip, ReadingModel, RowModel, Slot, Tone};
 use cv_model::theme::{Mode, Rgba, Theme, TypeStyle};
 use cv_model::workbench::Workbench;
 use rune::{
@@ -373,6 +373,7 @@ fn list_row(s: &Workbench, i: usize) -> El {
         badge,
         tone: tn,
         rail: rl,
+        path,
     } = s.row(i);
     let sel = s.selected_key() == Some(key.as_str());
     let k = key.clone();
@@ -384,40 +385,76 @@ fn list_row(s: &Workbench, i: usize) -> El {
         .px(t.spacing.unit * 2.0)
         .gap(t.spacing.unit * 2.0)
         .items_center()
-        .fill(color(if sel {
-            t.colors.selection
-        } else {
-            t.colors.pane
-        }))
+        .fill(color(t.colors.pane))
+        .border_sides([0.0, 0.0, 0.5, 0.0], color(t.colors.border))
         .states(t)
         .on_press(move |s: &mut Workbench| s.select_key(&k));
+    if sel {
+        let c = t.colors.selection;
+        r = r.linear_gradient(
+            std::f32::consts::FRAC_PI_2,
+            [
+                (0.0, color(c)),
+                (1.0, theme::tint(c, scale_alpha(c.3, 0.6))),
+            ],
+        );
+    } else if rl == Some(Tone::Error) {
+        r = r.radial_gradient(
+            [0.0, 0.5],
+            [t.spacing.list_w * 0.6, t.spacing.row_h * 1.5],
+            [
+                (0.0, theme::tint(t.colors.error, 0x14)),
+                (1.0, theme::tint(t.colors.error, 0)),
+            ],
+        );
+    }
     if let Some(rt) = rl {
+        let c = tone_token(t, rt);
         r = r.child(
             col()
                 .key("rail")
                 .w(3.0)
                 .h(t.spacing.row_h * 0.6)
-                .fill(tone(t, rt)),
+                .radius(1.5)
+                .fill(color(c))
+                .gradient(color(c), theme::tint(c, 0x66)),
         );
     }
+    let head = text(title.clone())
+        .font(font(t.type_.body))
+        .color(tone(t, tn))
+        .single_line();
+    let head = if path {
+        head.truncate_head()
+    } else {
+        head.truncate_middle()
+    };
     r = r
+        .child(head.help_when_truncated(title).grow(1.0))
+        // The title tells rows apart; the detail gives way first.
         .child(
-            text(title)
-                .font(font(t.type_.body))
-                .color(tone(t, tn))
-                .single_line()
-                .truncate(),
-        )
-        .child(spacer())
-        .child(label(t, detail).truncate());
-    if let Some(b) = badge {
+            label(t, detail.clone())
+                .truncate_fade()
+                .help_when_truncated(detail)
+                .max_w(t.spacing.list_w * 0.25),
+        );
+    if let Some(Chip { text: b, tone: bt }) = badge {
+        let fg = tone_token(t, bt);
         r = r.child(
             text(b)
-                .font(font(t.type_.mono))
-                .color(color(t.colors.accent)),
+                .font(font(t.type_.label))
+                .color(color(fg))
+                .single_line()
+                .px(6.0)
+                .fill(theme::tint(fg, 0x26))
+                .rounded(t, Size::Pill),
         );
     }
     r
+}
+
+fn scale_alpha(a: u8, k: f32) -> u8 {
+    (f32::from(a) * k).round() as u8
 }
 
 fn list(s: &Workbench) -> El {
@@ -443,7 +480,7 @@ fn list(s: &Workbench) -> El {
         .h_full()
         .min_h(0.0)
         .fill(color(t.colors.pane))
-        .border(1.0, color(t.colors.border));
+        .border_sides([0.0, 0.5, 0.0, 0.5], color(t.colors.border));
     if s.list_len() == 0 {
         pane = pane.child(
             label(t, "Empty mailbox")

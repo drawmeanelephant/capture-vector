@@ -71,7 +71,10 @@ fn capture_triage_link_promote_flow() {
     assert_eq!(m.list_len(Some("nb:unsorted")), 1);
     let s = on(&mut m, "research.promote");
     assert!(s.starts_with("promoted → idea-1"), "{s}");
-    assert_eq!(m.row(Some("all"), 0).badge.as_deref(), Some("promoted"));
+    assert_eq!(
+        m.row(Some("all"), 0).badge.map(|c| c.text).as_deref(),
+        Some("promoted")
+    );
     let r = m.reading(&first);
     assert!(
         r.lines

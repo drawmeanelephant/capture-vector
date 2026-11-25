@@ -705,7 +705,7 @@
       "role": "group"
     },
     {
-      "fill": "#00d1ff33",
+      "fill": "#14171dff",
       "key": "row-orphan.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-orphan.md",
@@ -722,6 +722,7 @@
       "key": "rail",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-orphan.md/rail",
+      "radius": 1.5,
       "rect": [
         276.0,
         4.4,
@@ -737,29 +738,18 @@
       "rect": [
         287.0,
         3.5,
-        42.2,
+        177.6,
         15.0
       ],
       "role": "text",
       "text": "Orphan"
     },
     {
+      "color": "#8a93a3ff",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-orphan.md/#2",
       "rect": [
-        337.2,
-        11.0,
-        139.7,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-orphan.md/#3",
-      "rect": [
-        484.9,
+        472.6,
         4.1,
         57.2,
         13.8
@@ -768,13 +758,15 @@
       "text": "orphan.md"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#ff3d71ff",
+      "fill": "#ff3d7126",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-orphan.md/#4",
+      "path": "shell/body/list-pane/list-viewport/list/row-orphan.md/#3",
+      "radius": 999.0,
       "rect": [
-        550.1,
+        537.9,
         4.1,
-        29.9,
+        42.1,
         13.8
       ],
       "role": "text",

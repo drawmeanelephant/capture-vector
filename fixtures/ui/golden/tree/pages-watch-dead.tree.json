@@ -958,7 +958,7 @@
       "role": "group"
     },
     {
-      "fill": "#00d1ff33",
+      "fill": "#14171dff",
       "key": "row-index.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-index.md",
@@ -977,31 +977,21 @@
       "rect": [
         276.0,
         35.5,
-        74.7,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "My Boris Site"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "index.md · 2 satellites",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-index.md/#1",
       "rect": [
-        358.7,
-        43.0,
-        99.3,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-index.md/#2",
-      "rect": [
-        466.0,
+        500.0,
         36.1,
-        114.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -1027,31 +1017,21 @@
       "rect": [
         276.0,
         57.5,
-        92.6,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "  Getting Started"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "guides/getting-started.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fgetting-started.md/#1",
       "rect": [
-        376.6,
-        65.0,
-        56.8,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fgetting-started.md/#2",
-      "rect": [
-        441.3,
+        500.0,
         58.1,
-        138.7,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -1077,31 +1057,21 @@
       "rect": [
         276.0,
         79.5,
-        65.5,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "  Publishing"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "guides/publishing.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fpublishing.md/#1",
       "rect": [
-        349.5,
-        87.0,
-        108.7,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fpublishing.md/#2",
-      "rect": [
-        466.1,
+        500.0,
         80.1,
-        113.9,
+        80.0,
         13.8
       ],
       "role": "text",

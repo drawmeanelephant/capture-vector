@@ -1141,49 +1141,42 @@
     },
     {
       "color": "#e6e9efff",
+      "help": "_boris/proof/artifacts.json",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fartifacts.json/#0",
       "rect": [
         276.0,
         3.5,
-        115.2,
+        111.8,
         15.0
       ],
       "role": "text",
       "text": "_boris/proof/artifacts.json"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "proof-pack · 2014 B",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fartifacts.json/#1",
       "rect": [
-        399.2,
-        11.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fartifacts.json/#2",
-      "rect": [
-        407.2,
+        395.8,
         4.1,
-        81.7,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "proof-pack · 2014 B"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fartifacts.json/#3",
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fartifacts.json/#2",
+      "radius": 999.0,
       "rect": [
-        496.9,
+        483.8,
         4.1,
-        83.1,
+        96.2,
         13.8
       ],
       "role": "text",
@@ -1204,49 +1197,42 @@
     },
     {
       "color": "#e6e9efff",
+      "help": "_boris/proof/checks.json",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fchecks.json/#0",
       "rect": [
         276.0,
         25.5,
-        113.7,
+        111.8,
         15.0
       ],
       "role": "text",
       "text": "_boris/proof/checks.json"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "proof-pack · 2241 B",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fchecks.json/#1",
       "rect": [
-        397.7,
-        33.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fchecks.json/#2",
-      "rect": [
-        405.7,
+        395.8,
         26.1,
-        83.2,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "proof-pack · 2241 B"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fchecks.json/#3",
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fchecks.json/#2",
+      "radius": 999.0,
       "rect": [
-        496.9,
+        483.8,
         26.1,
-        83.1,
+        96.2,
         13.8
       ],
       "role": "text",
@@ -1267,49 +1253,42 @@
     },
     {
       "color": "#e6e9efff",
+      "help": "_boris/proof/claims.json",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fclaims.json/#0",
       "rect": [
         276.0,
         47.5,
-        110.9,
+        111.8,
         15.0
       ],
       "role": "text",
       "text": "_boris/proof/claims.json"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "proof-pack · 6508 B",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fclaims.json/#1",
       "rect": [
-        394.9,
-        55.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fclaims.json/#2",
-      "rect": [
-        402.9,
+        395.8,
         48.1,
-        86.0,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "proof-pack · 6508 B"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fclaims.json/#3",
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fclaims.json/#2",
+      "radius": 999.0,
       "rect": [
-        496.9,
+        483.8,
         48.1,
-        83.1,
+        96.2,
         13.8
       ],
       "role": "text",
@@ -1330,49 +1309,42 @@
     },
     {
       "color": "#e6e9efff",
+      "help": "_boris/proof/proof-pack.json",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fproof-pack.json/#0",
       "rect": [
         276.0,
         69.5,
-        119.2,
+        111.8,
         15.0
       ],
       "role": "text",
       "text": "_boris/proof/proof-pack.json"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "proof-pack · 17771 B",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fproof-pack.json/#1",
       "rect": [
-        403.2,
-        77.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fproof-pack.json/#2",
-      "rect": [
-        411.2,
+        395.8,
         70.1,
-        77.7,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "proof-pack · 17771 B"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fproof-pack.json/#3",
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Fproof-pack.json/#2",
+      "radius": 999.0,
       "rect": [
-        496.9,
+        483.8,
         70.1,
-        83.1,
+        96.2,
         13.8
       ],
       "role": "text",
@@ -1393,49 +1365,42 @@
     },
     {
       "color": "#e6e9efff",
+      "help": "_boris/proof/touches.json",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Ftouches.json/#0",
       "rect": [
         276.0,
         91.5,
-        113.3,
+        111.8,
         15.0
       ],
       "role": "text",
       "text": "_boris/proof/touches.json"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "proof-pack · 11709 B",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Ftouches.json/#1",
       "rect": [
-        397.3,
-        99.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Ftouches.json/#2",
-      "rect": [
-        405.3,
+        395.8,
         92.1,
-        83.6,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "proof-pack · 11709 B"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Ftouches.json/#3",
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fproof%2Ftouches.json/#2",
+      "radius": 999.0,
       "rect": [
-        496.9,
+        483.8,
         92.1,
-        83.1,
+        96.2,
         13.8
       ],
       "role": "text",
@@ -1456,49 +1421,42 @@
     },
     {
       "color": "#e6e9efff",
+      "help": "_boris/search/search-index.json",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fsearch%2Fsearch-index.json/#0",
       "rect": [
         276.0,
         113.5,
-        112.9,
+        111.8,
         15.0
       ],
       "role": "text",
       "text": "_boris/search/search-index.json"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "rendered-search · 3484 B",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fsearch%2Fsearch-index.json/#1",
       "rect": [
-        396.9,
-        121.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fsearch%2Fsearch-index.json/#2",
-      "rect": [
-        404.9,
+        395.8,
         114.1,
-        84.0,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "rendered-search · 3484 B"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fsearch%2Fsearch-index.json/#3",
+      "path": "shell/body/list-pane/list-viewport/list/#!row-_boris%2Fsearch%2Fsearch-index.json/#2",
+      "radius": 999.0,
       "rect": [
-        496.9,
+        483.8,
         114.1,
-        83.1,
+        96.2,
         13.8
       ],
       "role": "text",
@@ -1519,49 +1477,42 @@
     },
     {
       "color": "#e6e9efff",
+      "help": "assets/css/boris.css",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-assets%2Fcss%2Fboris.css/#0",
       "rect": [
         276.0,
         135.5,
-        100.5,
+        111.8,
         15.0
       ],
       "role": "text",
       "text": "assets/css/boris.css"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "theme-asset · 1483 B",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-assets%2Fcss%2Fboris.css/#1",
       "rect": [
-        384.5,
-        143.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/#!row-assets%2Fcss%2Fboris.css/#2",
-      "rect": [
-        392.5,
+        395.8,
         136.1,
-        96.4,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "theme-asset · 1483 B"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/#!row-assets%2Fcss%2Fboris.css/#3",
+      "path": "shell/body/list-pane/list-viewport/list/#!row-assets%2Fcss%2Fboris.css/#2",
+      "radius": 999.0,
       "rect": [
-        496.9,
+        483.8,
         136.1,
-        83.1,
+        96.2,
         13.8
       ],
       "role": "text",
@@ -1582,49 +1533,42 @@
     },
     {
       "color": "#e6e9efff",
+      "help": "guides/getting-started.html",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fgetting-started.html/#0",
       "rect": [
         276.0,
         157.5,
-        119.5,
+        111.8,
         15.0
       ],
       "role": "text",
       "text": "guides/getting-started.html"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "html-page · 2789 B",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fgetting-started.html/#1",
       "rect": [
-        403.5,
-        165.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fgetting-started.html/#2",
-      "rect": [
-        411.5,
+        395.8,
         158.1,
-        77.4,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "html-page · 2789 B"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fgetting-started.html/#3",
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fgetting-started.html/#2",
+      "radius": 999.0,
       "rect": [
-        496.9,
+        483.8,
         158.1,
-        83.1,
+        96.2,
         13.8
       ],
       "role": "text",
@@ -1645,56 +1589,49 @@
     },
     {
       "color": "#e6e9efff",
+      "help": "guides/publishing.html",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fpublishing.html/#0",
       "rect": [
         276.0,
         179.5,
-        110.5,
+        111.8,
         15.0
       ],
       "role": "text",
       "text": "guides/publishing.html"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "html-page · 2552 B",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fpublishing.html/#1",
       "rect": [
-        394.5,
-        187.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fpublishing.html/#2",
-      "rect": [
-        402.5,
+        395.8,
         180.1,
-        86.4,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "html-page · 2552 B"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fpublishing.html/#3",
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fpublishing.html/#2",
+      "radius": 999.0,
       "rect": [
-        496.9,
+        483.8,
         180.1,
-        83.1,
+        96.2,
         13.8
       ],
       "role": "text",
       "text": "never published"
     },
     {
-      "fill": "#00d1ff33",
+      "fill": "#14171dff",
       "key": "row-index.html",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-index.html",
@@ -1713,44 +1650,36 @@
       "rect": [
         276.0,
         201.5,
-        58.5,
+        111.8,
         15.0
       ],
       "role": "text",
       "text": "index.html"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "html-page · 2292 B",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-index.html/#1",
       "rect": [
-        342.5,
-        209.0,
-        37.3,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-index.html/#2",
-      "rect": [
-        387.9,
+        395.8,
         202.1,
-        101.0,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "html-page · 2292 B"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-index.html/#3",
+      "path": "shell/body/list-pane/list-viewport/list/row-index.html/#2",
+      "radius": 999.0,
       "rect": [
-        496.9,
+        483.8,
         202.1,
-        83.1,
+        96.2,
         13.8
       ],
       "role": "text",

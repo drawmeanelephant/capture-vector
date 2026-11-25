@@ -92,7 +92,7 @@ fn build_finished_evaluates_into_the_mailbox() {
         })
     );
     let r = m.row(Some("open"), 0);
-    assert!(r.rail.is_some() && r.badge.as_deref() == Some("open"));
+    assert!(r.rail.is_some() && r.badge.as_ref().is_some_and(|c| c.text == "open"));
     let nav = m.nav();
     for k in ["open", "snoozed", "pack:seo-core", "pack:a11y-content"] {
         assert!(nav.items.iter().any(|i| i.key == k), "{k}");
@@ -139,7 +139,10 @@ fn snooze_survives_the_next_build_and_a_reopen() {
     assert!(matches!(&st[..], [Intent::Status(s)] if s.ends_with("snoozed")));
     assert_eq!(m.badge(), Some(before - 1));
     assert_eq!(m.list_len(Some("snoozed")), 1);
-    assert_eq!(m.row(Some("snoozed"), 0).badge.as_deref(), Some("snoozed"));
+    assert_eq!(
+        m.row(Some("snoozed"), 0).badge.map(|c| c.text).as_deref(),
+        Some("snoozed")
+    );
     m.ingest(&built(2));
     assert_eq!(m.entry(&key).unwrap().state, FindingLifecycle::Ignored);
     assert_eq!(m.badge(), Some(before - 1));

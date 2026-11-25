@@ -634,44 +634,36 @@
       "rect": [
         276.0,
         3.5,
-        102.2,
+        170.8,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0001"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0001.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0001/#1",
       "rect": [
-        386.2,
-        11.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0001/#2",
-      "rect": [
-        394.2,
+        454.8,
         4.1,
-        153.1,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "content/synthetic/page-0001.md"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0001/#3",
+      "path": "shell/body/list-pane/list-viewport/list/row-page-0001/#2",
+      "radius": 999.0,
       "rect": [
-        555.3,
+        542.8,
         4.1,
-        24.7,
+        37.2,
         13.8
       ],
       "role": "text",
@@ -697,38 +689,28 @@
       "rect": [
         276.0,
         25.5,
-        115.8,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0002"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0002.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0002/#1",
       "rect": [
-        399.8,
-        33.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0002/#2",
-      "rect": [
-        407.8,
+        500.0,
         26.1,
-        172.2,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "content/synthetic/page-0002.md"
     },
     {
-      "fill": "#00d1ff33",
+      "fill": "#14171dff",
       "key": "row-page-0003",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0003",
@@ -747,31 +729,21 @@
       "rect": [
         276.0,
         47.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0003"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0003.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0003/#1",
       "rect": [
-        399.9,
-        55.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0003/#2",
-      "rect": [
-        407.9,
+        500.0,
         48.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -797,31 +769,21 @@
       "rect": [
         276.0,
         69.5,
-        116.0,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0004"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0004.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0004/#1",
       "rect": [
-        400.0,
-        77.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0004/#2",
-      "rect": [
-        408.0,
+        500.0,
         70.1,
-        172.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -847,31 +809,21 @@
       "rect": [
         276.0,
         91.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0005"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0005.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0005/#1",
       "rect": [
-        399.9,
-        99.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0005/#2",
-      "rect": [
-        407.9,
+        500.0,
         92.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -897,31 +849,21 @@
       "rect": [
         276.0,
         113.5,
-        116.0,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0006"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0006.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0006/#1",
       "rect": [
-        400.0,
-        121.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0006/#2",
-      "rect": [
-        408.0,
+        500.0,
         114.1,
-        172.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -947,31 +889,21 @@
       "rect": [
         276.0,
         135.5,
-        116.2,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0007"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0007.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0007/#1",
       "rect": [
-        400.2,
-        143.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0007/#2",
-      "rect": [
-        408.2,
+        500.0,
         136.1,
-        171.8,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -997,31 +929,21 @@
       "rect": [
         276.0,
         157.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0008"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0008.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0008/#1",
       "rect": [
-        399.9,
-        165.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0008/#2",
-      "rect": [
-        407.9,
+        500.0,
         158.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -1047,31 +969,21 @@
       "rect": [
         276.0,
         179.5,
-        116.0,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0009"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0009.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0009/#1",
       "rect": [
-        400.0,
-        187.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0009/#2",
-      "rect": [
-        408.0,
+        500.0,
         180.1,
-        172.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -1097,31 +1009,21 @@
       "rect": [
         276.0,
         201.5,
-        115.4,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0010"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0010.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0010/#1",
       "rect": [
-        399.4,
-        209.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0010/#2",
-      "rect": [
-        407.4,
+        500.0,
         202.1,
-        172.6,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -1147,31 +1049,21 @@
       "rect": [
         276.0,
         223.5,
-        113.5,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0011"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0011.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0011/#1",
       "rect": [
-        397.5,
-        231.0,
-        3.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0011/#2",
-      "rect": [
-        408.5,
+        500.0,
         224.1,
-        171.5,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -1197,31 +1089,21 @@
       "rect": [
         276.0,
         245.5,
-        115.2,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0012"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0012.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0012/#1",
       "rect": [
-        399.2,
-        253.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0012/#2",
-      "rect": [
-        407.2,
+        500.0,
         246.1,
-        172.8,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -1247,31 +1129,21 @@
       "rect": [
         276.0,
         267.5,
-        115.3,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0013"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0013.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0013/#1",
       "rect": [
-        399.3,
-        275.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0013/#2",
-      "rect": [
-        407.3,
+        500.0,
         268.1,
-        172.7,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -1297,31 +1169,21 @@
       "rect": [
         276.0,
         289.5,
-        115.5,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0014"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0014.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0014/#1",
       "rect": [
-        399.5,
-        297.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0014/#2",
-      "rect": [
-        407.5,
+        500.0,
         290.1,
-        172.5,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -1347,31 +1209,21 @@
       "rect": [
         276.0,
         311.5,
-        115.3,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0015"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0015.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0015/#1",
       "rect": [
-        399.3,
-        319.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0015/#2",
-      "rect": [
-        407.3,
+        500.0,
         312.1,
-        172.7,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -1397,31 +1249,21 @@
       "rect": [
         276.0,
         333.5,
-        115.4,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0016"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0016.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0016/#1",
       "rect": [
-        399.4,
-        341.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0016/#2",
-      "rect": [
-        407.4,
+        500.0,
         334.1,
-        172.6,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -1447,31 +1289,21 @@
       "rect": [
         276.0,
         355.5,
-        115.4,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0017"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0017.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0017/#1",
       "rect": [
-        399.4,
-        363.0,
-        0.8,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0017/#2",
-      "rect": [
-        408.1,
+        500.0,
         356.1,
-        171.9,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -1497,31 +1329,21 @@
       "rect": [
         276.0,
         377.5,
-        115.3,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0018"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0018.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0018/#1",
       "rect": [
-        399.3,
-        385.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0018/#2",
-      "rect": [
-        407.3,
+        500.0,
         378.1,
-        172.7,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -1547,31 +1369,21 @@
       "rect": [
         276.0,
         399.5,
-        115.4,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0019"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0019.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0019/#1",
       "rect": [
-        399.4,
-        407.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0019/#2",
-      "rect": [
-        407.4,
+        500.0,
         400.1,
-        172.6,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -1597,31 +1409,21 @@
       "rect": [
         276.0,
         421.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0020"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0020.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0020/#1",
       "rect": [
-        399.9,
-        429.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0020/#2",
-      "rect": [
-        407.9,
+        500.0,
         422.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -1647,31 +1449,21 @@
       "rect": [
         276.0,
         443.5,
-        115.2,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0021"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0021.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0021/#1",
       "rect": [
-        399.2,
-        451.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0021/#2",
-      "rect": [
-        407.2,
+        500.0,
         444.1,
-        172.8,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -1697,31 +1489,21 @@
       "rect": [
         276.0,
         465.5,
-        115.8,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0022"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0022.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0022/#1",
       "rect": [
-        399.8,
-        473.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0022/#2",
-      "rect": [
-        407.8,
+        500.0,
         466.1,
-        172.2,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -1747,31 +1529,21 @@
       "rect": [
         276.0,
         487.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0023"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0023.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0023/#1",
       "rect": [
-        399.9,
-        495.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0023/#2",
-      "rect": [
-        407.9,
+        500.0,
         488.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -1797,31 +1569,21 @@
       "rect": [
         276.0,
         509.5,
-        116.0,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0024"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0024.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0024/#1",
       "rect": [
-        400.0,
-        517.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0024/#2",
-      "rect": [
-        408.0,
+        500.0,
         510.1,
-        172.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -1847,31 +1609,21 @@
       "rect": [
         276.0,
         531.5,
-        115.8,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0025"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0025.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0025/#1",
       "rect": [
-        399.8,
-        539.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0025/#2",
-      "rect": [
-        407.8,
+        500.0,
         532.1,
-        172.2,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -1897,31 +1649,21 @@
       "rect": [
         276.0,
         553.5,
-        116.0,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0026"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0026.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0026/#1",
       "rect": [
-        400.0,
-        561.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0026/#2",
-      "rect": [
-        408.0,
+        500.0,
         554.1,
-        172.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -1947,31 +1689,21 @@
       "rect": [
         276.0,
         575.5,
-        116.2,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0027"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0027.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0027/#1",
       "rect": [
-        400.2,
-        583.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0027/#2",
-      "rect": [
-        408.2,
+        500.0,
         576.1,
-        171.8,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -1997,31 +1729,21 @@
       "rect": [
         276.0,
         597.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0028"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0028.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0028/#1",
       "rect": [
-        399.9,
-        605.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0028/#2",
-      "rect": [
-        407.9,
+        500.0,
         598.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -2047,31 +1769,21 @@
       "rect": [
         276.0,
         619.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0029"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0029.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0029/#1",
       "rect": [
-        399.9,
-        627.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0029/#2",
-      "rect": [
-        407.9,
+        500.0,
         620.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -2097,31 +1809,21 @@
       "rect": [
         276.0,
         641.5,
-        116.0,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0030"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0030.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0030/#1",
       "rect": [
-        400.0,
-        649.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0030/#2",
-      "rect": [
-        408.0,
+        500.0,
         642.1,
-        172.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -2147,31 +1849,21 @@
       "rect": [
         276.0,
         663.5,
-        115.3,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0031"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0031.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0031/#1",
       "rect": [
-        399.3,
-        671.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0031/#2",
-      "rect": [
-        407.3,
+        500.0,
         664.1,
-        172.8,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -2197,31 +1889,21 @@
       "rect": [
         276.0,
         685.5,
-        115.8,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0032"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0032.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0032/#1",
       "rect": [
-        399.8,
-        693.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0032/#2",
-      "rect": [
-        407.8,
+        500.0,
         686.1,
-        172.2,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -2247,31 +1929,21 @@
       "rect": [
         276.0,
         707.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0033"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0033.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0033/#1",
       "rect": [
-        399.9,
-        715.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0033/#2",
-      "rect": [
-        407.9,
+        500.0,
         708.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -2297,31 +1969,21 @@
       "rect": [
         276.0,
         729.5,
-        116.0,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0034"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0034.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0034/#1",
       "rect": [
-        400.0,
-        737.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0034/#2",
-      "rect": [
-        408.0,
+        500.0,
         730.1,
-        172.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -2347,31 +2009,21 @@
       "rect": [
         276.0,
         751.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0035"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0035.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0035/#1",
       "rect": [
-        399.9,
-        759.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0035/#2",
-      "rect": [
-        407.9,
+        500.0,
         752.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -2397,31 +2049,21 @@
       "rect": [
         276.0,
         773.5,
-        116.0,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0036"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0036.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0036/#1",
       "rect": [
-        400.0,
-        781.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0036/#2",
-      "rect": [
-        408.0,
+        500.0,
         774.1,
-        172.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -2447,31 +2089,21 @@
       "rect": [
         276.0,
         795.5,
-        116.2,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0037"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0037.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0037/#1",
       "rect": [
-        400.2,
-        803.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0037/#2",
-      "rect": [
-        408.2,
+        500.0,
         796.1,
-        171.8,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -2497,31 +2129,21 @@
       "rect": [
         276.0,
         817.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0038"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0038.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0038/#1",
       "rect": [
-        399.9,
-        825.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0038/#2",
-      "rect": [
-        407.9,
+        500.0,
         818.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -2547,31 +2169,21 @@
       "rect": [
         276.0,
         839.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0039"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0039.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0039/#1",
       "rect": [
-        399.9,
-        847.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0039/#2",
-      "rect": [
-        407.9,
+        500.0,
         840.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -2597,31 +2209,21 @@
       "rect": [
         276.0,
         861.5,
-        116.0,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0040"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0040.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0040/#1",
       "rect": [
-        400.0,
-        869.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0040/#2",
-      "rect": [
-        408.0,
+        500.0,
         862.1,
-        172.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -2647,31 +2249,21 @@
       "rect": [
         276.0,
         883.5,
-        115.3,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0041"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0041.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0041/#1",
       "rect": [
-        399.3,
-        891.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0041/#2",
-      "rect": [
-        407.3,
+        500.0,
         884.1,
-        172.7,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -2697,31 +2289,21 @@
       "rect": [
         276.0,
         905.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0042"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0042.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0042/#1",
       "rect": [
-        399.9,
-        913.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0042/#2",
-      "rect": [
-        407.9,
+        500.0,
         906.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -2747,31 +2329,21 @@
       "rect": [
         276.0,
         927.5,
-        116.0,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0043"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0043.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0043/#1",
       "rect": [
-        400.0,
-        935.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0043/#2",
-      "rect": [
-        408.0,
+        500.0,
         928.1,
-        172.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -2797,31 +2369,21 @@
       "rect": [
         276.0,
         949.5,
-        116.1,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0044"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0044.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0044/#1",
       "rect": [
-        400.1,
-        957.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0044/#2",
-      "rect": [
-        408.1,
+        500.0,
         950.1,
-        171.9,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -2847,31 +2409,21 @@
       "rect": [
         276.0,
         971.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0045"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0045.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0045/#1",
       "rect": [
-        399.9,
-        979.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0045/#2",
-      "rect": [
-        407.9,
+        500.0,
         972.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -2897,31 +2449,21 @@
       "rect": [
         276.0,
         993.5,
-        116.0,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0046"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0046.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0046/#1",
       "rect": [
-        400.0,
-        1001.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0046/#2",
-      "rect": [
-        408.0,
+        500.0,
         994.1,
-        172.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -2947,31 +2489,21 @@
       "rect": [
         276.0,
         1015.5,
-        116.3,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0047"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0047.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0047/#1",
       "rect": [
-        400.3,
-        1023.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0047/#2",
-      "rect": [
-        408.3,
+        500.0,
         1016.1,
-        171.7,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -2997,31 +2529,21 @@
       "rect": [
         276.0,
         1037.5,
-        116.0,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0048"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0048.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0048/#1",
       "rect": [
-        400.0,
-        1045.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0048/#2",
-      "rect": [
-        408.0,
+        500.0,
         1038.1,
-        172.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -3047,31 +2569,21 @@
       "rect": [
         276.0,
         1059.5,
-        116.0,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0049"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0049.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0049/#1",
       "rect": [
-        400.0,
-        1067.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0049/#2",
-      "rect": [
-        408.0,
+        500.0,
         1060.1,
-        172.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -3097,31 +2609,21 @@
       "rect": [
         276.0,
         1081.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0050"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0050.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0050/#1",
       "rect": [
-        399.9,
-        1089.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0050/#2",
-      "rect": [
-        407.9,
+        500.0,
         1082.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -3147,31 +2649,21 @@
       "rect": [
         276.0,
         1103.5,
-        115.2,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0051"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0051.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0051/#1",
       "rect": [
-        399.2,
-        1111.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0051/#2",
-      "rect": [
-        407.2,
+        500.0,
         1104.1,
-        172.8,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -3197,31 +2689,21 @@
       "rect": [
         276.0,
         1125.5,
-        115.7,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0052"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0052.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0052/#1",
       "rect": [
-        399.7,
-        1133.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0052/#2",
-      "rect": [
-        407.7,
+        500.0,
         1126.1,
-        172.3,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -3247,31 +2729,21 @@
       "rect": [
         276.0,
         1147.5,
-        115.8,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0053"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0053.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0053/#1",
       "rect": [
-        399.8,
-        1155.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0053/#2",
-      "rect": [
-        407.8,
+        500.0,
         1148.1,
-        172.2,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -3297,31 +2769,21 @@
       "rect": [
         276.0,
         1169.5,
-        116.0,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0054"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0054.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0054/#1",
       "rect": [
-        400.0,
-        1177.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0054/#2",
-      "rect": [
-        408.0,
+        500.0,
         1170.1,
-        172.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -3347,31 +2809,21 @@
       "rect": [
         276.0,
         1191.5,
-        115.8,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0055"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0055.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0055/#1",
       "rect": [
-        399.8,
-        1199.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0055/#2",
-      "rect": [
-        407.8,
+        500.0,
         1192.1,
-        172.2,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -3397,31 +2849,21 @@
       "rect": [
         276.0,
         1213.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0056"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0056.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0056/#1",
       "rect": [
-        399.9,
-        1221.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0056/#2",
-      "rect": [
-        407.9,
+        500.0,
         1214.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -3447,31 +2889,21 @@
       "rect": [
         276.0,
         1235.5,
-        116.2,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0057"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0057.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0057/#1",
       "rect": [
-        400.2,
-        1243.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0057/#2",
-      "rect": [
-        408.2,
+        500.0,
         1236.1,
-        171.8,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -3497,31 +2929,21 @@
       "rect": [
         276.0,
         1257.5,
-        115.8,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0058"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0058.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0058/#1",
       "rect": [
-        399.8,
-        1265.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0058/#2",
-      "rect": [
-        407.8,
+        500.0,
         1258.1,
-        172.2,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -3547,31 +2969,21 @@
       "rect": [
         276.0,
         1279.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0059"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0059.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0059/#1",
       "rect": [
-        399.9,
-        1287.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0059/#2",
-      "rect": [
-        407.9,
+        500.0,
         1280.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -3597,31 +3009,21 @@
       "rect": [
         276.0,
         1301.5,
-        116.0,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0060"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0060.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0060/#1",
       "rect": [
-        400.0,
-        1309.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0060/#2",
-      "rect": [
-        408.0,
+        500.0,
         1302.1,
-        172.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -3647,31 +3049,21 @@
       "rect": [
         276.0,
         1323.5,
-        115.3,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0061"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0061.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0061/#1",
       "rect": [
-        399.3,
-        1331.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0061/#2",
-      "rect": [
-        407.3,
+        500.0,
         1324.1,
-        172.8,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -3697,31 +3089,21 @@
       "rect": [
         276.0,
         1345.5,
-        115.8,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0062"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0062.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0062/#1",
       "rect": [
-        399.8,
-        1353.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0062/#2",
-      "rect": [
-        407.8,
+        500.0,
         1346.1,
-        172.2,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -3747,31 +3129,21 @@
       "rect": [
         276.0,
         1367.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0063"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0063.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0063/#1",
       "rect": [
-        399.9,
-        1375.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0063/#2",
-      "rect": [
-        407.9,
+        500.0,
         1368.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -3797,31 +3169,21 @@
       "rect": [
         276.0,
         1389.5,
-        116.0,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0064"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0064.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0064/#1",
       "rect": [
-        400.0,
-        1397.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0064/#2",
-      "rect": [
-        408.0,
+        500.0,
         1390.1,
-        172.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -3847,31 +3209,21 @@
       "rect": [
         276.0,
         1411.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0065"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0065.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0065/#1",
       "rect": [
-        399.9,
-        1419.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0065/#2",
-      "rect": [
-        407.9,
+        500.0,
         1412.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -3897,31 +3249,21 @@
       "rect": [
         276.0,
         1433.5,
-        116.0,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0066"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0066.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0066/#1",
       "rect": [
-        400.0,
-        1441.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0066/#2",
-      "rect": [
-        408.0,
+        500.0,
         1434.1,
-        172.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -3947,31 +3289,21 @@
       "rect": [
         276.0,
         1455.5,
-        116.3,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0067"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0067.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0067/#1",
       "rect": [
-        400.3,
-        1463.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0067/#2",
-      "rect": [
-        408.3,
+        500.0,
         1456.1,
-        171.8,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -3997,31 +3329,21 @@
       "rect": [
         276.0,
         1477.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0068"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0068.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0068/#1",
       "rect": [
-        399.9,
-        1485.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0068/#2",
-      "rect": [
-        407.9,
+        500.0,
         1478.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -4047,31 +3369,21 @@
       "rect": [
         276.0,
         1499.5,
-        116.0,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0069"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0069.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0069/#1",
       "rect": [
-        400.0,
-        1507.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0069/#2",
-      "rect": [
-        408.0,
+        500.0,
         1500.1,
-        172.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -4097,31 +3409,21 @@
       "rect": [
         276.0,
         1521.5,
-        115.7,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0070"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0070.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0070/#1",
       "rect": [
-        399.7,
-        1529.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0070/#2",
-      "rect": [
-        407.7,
+        500.0,
         1522.1,
-        172.3,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -4147,31 +3449,21 @@
       "rect": [
         276.0,
         1543.5,
-        115.1,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0071"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0071.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0071/#1",
       "rect": [
-        399.1,
-        1551.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0071/#2",
-      "rect": [
-        407.1,
+        500.0,
         1544.1,
-        172.9,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -4197,31 +3489,21 @@
       "rect": [
         276.0,
         1565.5,
-        115.6,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0072"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0072.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0072/#1",
       "rect": [
-        399.6,
-        1573.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0072/#2",
-      "rect": [
-        407.6,
+        500.0,
         1566.1,
-        172.4,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -4247,31 +3529,21 @@
       "rect": [
         276.0,
         1587.5,
-        115.7,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0073"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0073.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0073/#1",
       "rect": [
-        399.7,
-        1595.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0073/#2",
-      "rect": [
-        407.7,
+        500.0,
         1588.1,
-        172.3,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -4297,31 +3569,21 @@
       "rect": [
         276.0,
         1609.5,
-        115.7,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0074"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0074.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0074/#1",
       "rect": [
-        399.7,
-        1617.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0074/#2",
-      "rect": [
-        407.7,
+        500.0,
         1610.1,
-        172.3,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -4347,31 +3609,21 @@
       "rect": [
         276.0,
         1631.5,
-        115.7,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0075"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0075.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0075/#1",
       "rect": [
-        399.7,
-        1639.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0075/#2",
-      "rect": [
-        407.7,
+        500.0,
         1632.1,
-        172.3,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -4397,31 +3649,21 @@
       "rect": [
         276.0,
         1653.5,
-        115.7,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0076"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0076.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0076/#1",
       "rect": [
-        399.7,
-        1661.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0076/#2",
-      "rect": [
-        407.7,
+        500.0,
         1654.1,
-        172.3,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -4447,31 +3689,21 @@
       "rect": [
         276.0,
         1675.5,
-        116.1,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0077"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0077.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0077/#1",
       "rect": [
-        400.1,
-        1683.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0077/#2",
-      "rect": [
-        408.1,
+        500.0,
         1676.1,
-        171.9,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -4497,31 +3729,21 @@
       "rect": [
         276.0,
         1697.5,
-        115.7,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0078"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0078.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0078/#1",
       "rect": [
-        399.7,
-        1705.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0078/#2",
-      "rect": [
-        407.7,
+        500.0,
         1698.1,
-        172.3,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -4547,31 +3769,21 @@
       "rect": [
         276.0,
         1719.5,
-        115.8,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0079"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0079.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0079/#1",
       "rect": [
-        399.8,
-        1727.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0079/#2",
-      "rect": [
-        407.8,
+        500.0,
         1720.1,
-        172.3,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -4597,31 +3809,21 @@
       "rect": [
         276.0,
         1741.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0080"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0080.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0080/#1",
       "rect": [
-        399.9,
-        1749.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0080/#2",
-      "rect": [
-        407.9,
+        500.0,
         1742.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -4647,31 +3849,21 @@
       "rect": [
         276.0,
         1763.5,
-        115.3,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0081"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0081.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0081/#1",
       "rect": [
-        399.3,
-        1771.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0081/#2",
-      "rect": [
-        407.3,
+        500.0,
         1764.1,
-        172.8,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -4697,31 +3889,21 @@
       "rect": [
         276.0,
         1785.5,
-        115.8,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0082"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0082.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0082/#1",
       "rect": [
-        399.8,
-        1793.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0082/#2",
-      "rect": [
-        407.8,
+        500.0,
         1786.1,
-        172.2,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -4747,31 +3929,21 @@
       "rect": [
         276.0,
         1807.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0083"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0083.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0083/#1",
       "rect": [
-        399.9,
-        1815.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0083/#2",
-      "rect": [
-        407.9,
+        500.0,
         1808.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -4797,31 +3969,21 @@
       "rect": [
         276.0,
         1829.5,
-        116.0,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0084"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0084.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0084/#1",
       "rect": [
-        400.0,
-        1837.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0084/#2",
-      "rect": [
-        408.0,
+        500.0,
         1830.1,
-        172.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -4847,31 +4009,21 @@
       "rect": [
         276.0,
         1851.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0085"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0085.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0085/#1",
       "rect": [
-        399.9,
-        1859.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0085/#2",
-      "rect": [
-        407.9,
+        500.0,
         1852.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -4897,31 +4049,21 @@
       "rect": [
         276.0,
         1873.5,
-        116.0,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0086"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0086.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0086/#1",
       "rect": [
-        400.0,
-        1881.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0086/#2",
-      "rect": [
-        408.0,
+        500.0,
         1874.1,
-        172.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -4947,31 +4089,21 @@
       "rect": [
         276.0,
         1895.5,
-        116.2,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0087"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0087.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0087/#1",
       "rect": [
-        400.2,
-        1903.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0087/#2",
-      "rect": [
-        408.2,
+        500.0,
         1896.1,
-        171.8,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -4997,31 +4129,21 @@
       "rect": [
         276.0,
         1917.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0088"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0088.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0088/#1",
       "rect": [
-        399.9,
-        1925.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0088/#2",
-      "rect": [
-        407.9,
+        500.0,
         1918.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -5047,31 +4169,21 @@
       "rect": [
         276.0,
         1939.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0089"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0089.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0089/#1",
       "rect": [
-        399.9,
-        1947.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0089/#2",
-      "rect": [
-        407.9,
+        500.0,
         1940.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -5097,31 +4209,21 @@
       "rect": [
         276.0,
         1961.5,
-        116.0,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0090"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0090.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0090/#1",
       "rect": [
-        400.0,
-        1969.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0090/#2",
-      "rect": [
-        408.0,
+        500.0,
         1962.1,
-        172.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -5147,31 +4249,21 @@
       "rect": [
         276.0,
         1983.5,
-        115.3,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0091"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0091.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0091/#1",
       "rect": [
-        399.3,
-        1991.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0091/#2",
-      "rect": [
-        407.3,
+        500.0,
         1984.1,
-        172.8,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -5197,31 +4289,21 @@
       "rect": [
         276.0,
         2005.5,
-        115.8,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0092"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0092.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0092/#1",
       "rect": [
-        399.8,
-        2013.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0092/#2",
-      "rect": [
-        407.8,
+        500.0,
         2006.1,
-        172.2,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -5247,31 +4329,21 @@
       "rect": [
         276.0,
         2027.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0093"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0093.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0093/#1",
       "rect": [
-        399.9,
-        2035.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0093/#2",
-      "rect": [
-        407.9,
+        500.0,
         2028.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -5297,31 +4369,21 @@
       "rect": [
         276.0,
         2049.5,
-        116.0,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0094"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0094.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0094/#1",
       "rect": [
-        400.0,
-        2057.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0094/#2",
-      "rect": [
-        408.0,
+        500.0,
         2050.1,
-        172.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -5347,31 +4409,21 @@
       "rect": [
         276.0,
         2071.5,
-        115.9,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0095"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0095.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0095/#1",
       "rect": [
-        399.9,
-        2079.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0095/#2",
-      "rect": [
-        407.9,
+        500.0,
         2072.1,
-        172.1,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -5397,31 +4449,21 @@
       "rect": [
         276.0,
         2093.5,
-        116.0,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0096"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0096.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0096/#1",
       "rect": [
-        400.0,
-        2101.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0096/#2",
-      "rect": [
-        408.0,
+        500.0,
         2094.1,
-        172.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -5447,31 +4489,21 @@
       "rect": [
         276.0,
         2115.5,
-        116.2,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0097"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0097.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0097/#1",
       "rect": [
-        400.2,
-        2123.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0097/#2",
-      "rect": [
-        408.2,
+        500.0,
         2116.1,
-        171.8,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -5497,44 +4529,36 @@
       "rect": [
         276.0,
         2137.5,
-        102.8,
+        170.8,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0098"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0098.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0098/#1",
       "rect": [
-        386.8,
-        2145.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0098/#2",
-      "rect": [
-        394.8,
+        454.8,
         2138.1,
-        152.5,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "content/synthetic/page-0098.md"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0098/#3",
+      "path": "shell/body/list-pane/list-viewport/list/row-page-0098/#2",
+      "radius": 999.0,
       "rect": [
-        555.3,
+        542.8,
         2138.1,
-        24.7,
+        37.2,
         13.8
       ],
       "role": "text",
@@ -5560,31 +4584,21 @@
       "rect": [
         276.0,
         2159.5,
-        116.0,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0099"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0099.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0099/#1",
       "rect": [
-        400.0,
-        2167.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0099/#2",
-      "rect": [
-        408.0,
+        500.0,
         2160.1,
-        172.0,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -5610,31 +4624,21 @@
       "rect": [
         276.0,
         2181.5,
-        115.4,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0100"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0100.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0100/#1",
       "rect": [
-        399.4,
-        2189.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0100/#2",
-      "rect": [
-        407.4,
+        500.0,
         2182.1,
-        172.6,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -5660,31 +4664,21 @@
       "rect": [
         276.0,
         2203.5,
-        113.5,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0101"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0101.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0101/#1",
       "rect": [
-        397.5,
-        2211.0,
-        3.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0101/#2",
-      "rect": [
-        408.5,
+        500.0,
         2204.1,
-        171.5,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -5710,31 +4704,21 @@
       "rect": [
         276.0,
         2225.5,
-        115.2,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0102"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0102.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0102/#1",
       "rect": [
-        399.2,
-        2233.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0102/#2",
-      "rect": [
-        407.2,
+        500.0,
         2226.1,
-        172.8,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -5760,31 +4744,21 @@
       "rect": [
         276.0,
         2247.5,
-        115.3,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0103"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0103.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0103/#1",
       "rect": [
-        399.3,
-        2255.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0103/#2",
-      "rect": [
-        407.3,
+        500.0,
         2248.1,
-        172.7,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -5810,31 +4784,21 @@
       "rect": [
         276.0,
         2269.5,
-        115.5,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0104"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0104.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0104/#1",
       "rect": [
-        399.5,
-        2277.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0104/#2",
-      "rect": [
-        407.5,
+        500.0,
         2270.1,
-        172.5,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -5860,31 +4824,21 @@
       "rect": [
         276.0,
         2291.5,
-        115.3,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0105"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0105.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0105/#1",
       "rect": [
-        399.3,
-        2299.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0105/#2",
-      "rect": [
-        407.3,
+        500.0,
         2292.1,
-        172.7,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -5910,31 +4864,21 @@
       "rect": [
         276.0,
         2313.5,
-        115.4,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0106"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0106.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0106/#1",
       "rect": [
-        399.4,
-        2321.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0106/#2",
-      "rect": [
-        407.4,
+        500.0,
         2314.1,
-        172.6,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -5960,31 +4904,21 @@
       "rect": [
         276.0,
         2335.5,
-        115.1,
+        216.0,
         15.0
       ],
       "role": "text",
       "text": "Synthetic page 0107"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "content/synthetic/page-0107.md",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-page-0107/#1",
       "rect": [
-        399.1,
-        2343.0,
-        1.2,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-page-0107/#2",
-      "rect": [
-        408.3,
+        500.0,
         2336.1,
-        171.7,
+        80.0,
         13.8
       ],
       "role": "text",

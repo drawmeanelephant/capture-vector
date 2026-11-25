@@ -705,7 +705,7 @@
       "role": "group"
     },
     {
-      "fill": "#00d1ff33",
+      "fill": "#14171dff",
       "key": "row-(project)",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-(project)",
@@ -722,6 +722,7 @@
       "key": "rail",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-(project)/rail",
+      "radius": 1.5,
       "rect": [
         276.0,
         4.4,
@@ -737,44 +738,36 @@
       "rect": [
         287.0,
         3.5,
-        101.0,
+        152.3,
         15.0
       ],
       "role": "text",
       "text": "Project-level diagnostics"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "build failed — no located diagnostic",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-(project)/#2",
       "rect": [
-        396.0,
-        11.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-(project)/#3",
-      "rect": [
-        404.0,
+        447.3,
         4.1,
-        135.6,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "build failed — no located diagnostic"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#ff3d71ff",
+      "fill": "#ff3d7126",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-(project)/#4",
+      "path": "shell/body/list-pane/list-viewport/list/row-(project)/#3",
+      "radius": 999.0,
       "rect": [
-        547.6,
+        535.3,
         4.1,
-        32.4,
+        44.7,
         13.8
       ],
       "role": "text",

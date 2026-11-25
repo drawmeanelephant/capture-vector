@@ -769,7 +769,7 @@
       "role": "group"
     },
     {
-      "fill": "#00d1ff33",
+      "fill": "#14171dff",
       "key": "row-act-00003",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-act-00003",
@@ -786,6 +786,7 @@
       "key": "rail",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-act-00003/rail",
+      "radius": 1.5,
       "rect": [
         276.0,
         4.4,
@@ -796,36 +797,26 @@
     },
     {
       "color": "#ff3d71ff",
+      "help": "EPARENTMISSING: parent \"does-not-exist\" does not exist [Create the parent document or fix the parent id]",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-act-00003/#1",
       "rect": [
         287.0,
         3.5,
-        246.4,
+        209.6,
         15.0
       ],
       "role": "text",
       "text": "EPARENTMISSING: parent \"does-not-exist\" does not exist [Create the parent document or fix the parent id]"
     },
     {
+      "color": "#8a93a3ff",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-act-00003/#2",
       "rect": [
-        541.4,
-        11.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-act-00003/#3",
-      "rect": [
-        549.4,
+        504.6,
         4.1,
-        30.6,
+        75.4,
         13.8
       ],
       "role": "text",

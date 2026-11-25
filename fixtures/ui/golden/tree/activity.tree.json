@@ -743,7 +743,7 @@
       "role": "group"
     },
     {
-      "fill": "#00d1ff33",
+      "fill": "#14171dff",
       "key": "row-act-00002",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-act-00002",
@@ -760,6 +760,7 @@
       "key": "rail",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-act-00002/rail",
+      "radius": 1.5,
       "rect": [
         276.0,
         4.4,
@@ -775,31 +776,21 @@
       "rect": [
         287.0,
         3.5,
-        133.3,
+        205.0,
         15.0
       ],
       "role": "text",
       "text": "Build succeeded (rebuild)"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "3 pages · 2 ms · 0 diagnostics",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-act-00002/#2",
       "rect": [
-        428.3,
-        11.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-act-00002/#3",
-      "rect": [
-        436.3,
+        500.0,
         4.1,
-        143.7,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -823,6 +814,7 @@
       "key": "rail",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-act-00001/rail",
+      "radius": 1.5,
       "rect": [
         276.0,
         26.4,
@@ -838,31 +830,21 @@
       "rect": [
         287.0,
         25.5,
-        128.5,
+        205.0,
         15.0
       ],
       "role": "text",
       "text": "Build succeeded (initial)"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "3 pages · 4 ms · 0 diagnostics",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-act-00001/#2",
       "rect": [
-        423.5,
-        33.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-act-00001/#3",
-      "rect": [
-        431.5,
+        500.0,
         26.1,
-        148.5,
+        80.0,
         13.8
       ],
       "role": "text",
@@ -886,6 +868,7 @@
       "key": "rail",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-act-00000/rail",
+      "radius": 1.5,
       "rect": [
         276.0,
         48.4,
@@ -901,31 +884,21 @@
       "rect": [
         287.0,
         47.5,
-        125.6,
+        205.0,
         15.0
       ],
       "role": "text",
       "text": "Watch session started"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "boris/0.9.0 · schema 1",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-act-00000/#2",
       "rect": [
-        420.6,
-        55.0,
-        36.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-act-00000/#3",
-      "rect": [
-        464.6,
+        500.0,
         48.1,
-        115.4,
+        80.0,
         13.8
       ],
       "role": "text",

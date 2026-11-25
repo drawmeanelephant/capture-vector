@@ -1447,7 +1447,7 @@
       "role": "group"
     },
     {
-      "fill": "#00d1ff33",
+      "fill": "#14171dff",
       "key": "row-A11Y-HTML-LANG|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-A11Y-HTML-LANG|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad",
@@ -1464,6 +1464,7 @@
       "key": "rail",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-A11Y-HTML-LANG|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/rail",
+      "radius": 1.5,
       "rect": [
         276.0,
         4.4,
@@ -1474,49 +1475,42 @@
     },
     {
       "color": "#8a93a3ff",
+      "help": "A11Y-HTML-LANG · artifact-set",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-A11Y-HTML-LANG|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#1",
       "rect": [
         287.0,
         3.5,
-        91.3,
+        120.1,
         15.0
       ],
       "role": "text",
       "text": "A11Y-HTML-LANG · artifact-set"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "not checked: Html input declared missing",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-A11Y-HTML-LANG|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#2",
       "rect": [
-        386.3,
-        11.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-A11Y-HTML-LANG|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#3",
-      "rect": [
-        394.3,
+        415.1,
         4.1,
-        113.5,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "not checked: Html input declared missing"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-A11Y-HTML-LANG|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#4",
+      "path": "shell/body/list-pane/list-viewport/list/row-A11Y-HTML-LANG|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#3",
+      "radius": 999.0,
       "rect": [
-        515.8,
+        503.1,
         4.1,
-        64.2,
+        76.9,
         13.8
       ],
       "role": "text",
@@ -1540,6 +1534,7 @@
       "key": "rail",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-A11Y-IMG-ALT|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/rail",
+      "radius": 1.5,
       "rect": [
         276.0,
         26.4,
@@ -1550,49 +1545,42 @@
     },
     {
       "color": "#8a93a3ff",
+      "help": "A11Y-IMG-ALT · artifact-set",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-A11Y-IMG-ALT|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#1",
       "rect": [
         287.0,
         25.5,
-        84.5,
+        120.1,
         15.0
       ],
       "role": "text",
       "text": "A11Y-IMG-ALT · artifact-set"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "not checked: Html input declared missing",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-A11Y-IMG-ALT|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#2",
       "rect": [
-        379.5,
-        33.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-A11Y-IMG-ALT|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#3",
-      "rect": [
-        387.5,
+        415.1,
         26.1,
-        120.3,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "not checked: Html input declared missing"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-A11Y-IMG-ALT|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#4",
+      "path": "shell/body/list-pane/list-viewport/list/row-A11Y-IMG-ALT|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#3",
+      "radius": 999.0,
       "rect": [
-        515.8,
+        503.1,
         26.1,
-        64.2,
+        76.9,
         13.8
       ],
       "role": "text",
@@ -1616,6 +1604,7 @@
       "key": "rail",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-A11Y-PAGE-TITLE|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/rail",
+      "radius": 1.5,
       "rect": [
         276.0,
         48.4,
@@ -1626,49 +1615,42 @@
     },
     {
       "color": "#8a93a3ff",
+      "help": "A11Y-PAGE-TITLE · artifact-set",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-A11Y-PAGE-TITLE|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#1",
       "rect": [
         287.0,
         47.5,
-        90.2,
+        120.1,
         15.0
       ],
       "role": "text",
       "text": "A11Y-PAGE-TITLE · artifact-set"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "not checked: Html input declared missing",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-A11Y-PAGE-TITLE|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#2",
       "rect": [
-        385.2,
-        55.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-A11Y-PAGE-TITLE|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#3",
-      "rect": [
-        393.2,
+        415.1,
         48.1,
-        114.6,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "not checked: Html input declared missing"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-A11Y-PAGE-TITLE|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#4",
+      "path": "shell/body/list-pane/list-viewport/list/row-A11Y-PAGE-TITLE|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#3",
+      "radius": 999.0,
       "rect": [
-        515.8,
+        503.1,
         48.1,
-        64.2,
+        76.9,
         13.8
       ],
       "role": "text",
@@ -1692,6 +1674,7 @@
       "key": "rail",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-AEO-ANSWER-FIRST|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/rail",
+      "radius": 1.5,
       "rect": [
         276.0,
         70.4,
@@ -1702,49 +1685,42 @@
     },
     {
       "color": "#8a93a3ff",
+      "help": "AEO-ANSWER-FIRST · artifact-set",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-AEO-ANSWER-FIRST|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#1",
       "rect": [
         287.0,
         69.5,
-        96.3,
+        120.1,
         15.0
       ],
       "role": "text",
       "text": "AEO-ANSWER-FIRST · artifact-set"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "not checked: Html input declared missing",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-AEO-ANSWER-FIRST|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#2",
       "rect": [
-        391.3,
-        77.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-AEO-ANSWER-FIRST|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#3",
-      "rect": [
-        399.3,
+        415.1,
         70.1,
-        108.5,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "not checked: Html input declared missing"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-AEO-ANSWER-FIRST|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#4",
+      "path": "shell/body/list-pane/list-viewport/list/row-AEO-ANSWER-FIRST|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#3",
+      "radius": 999.0,
       "rect": [
-        515.8,
+        503.1,
         70.1,
-        64.2,
+        76.9,
         13.8
       ],
       "role": "text",
@@ -1768,6 +1744,7 @@
       "key": "rail",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-AEO-JSONLD-TYPED|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/rail",
+      "radius": 1.5,
       "rect": [
         276.0,
         92.4,
@@ -1778,49 +1755,42 @@
     },
     {
       "color": "#8a93a3ff",
+      "help": "AEO-JSONLD-TYPED · artifact-set",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-AEO-JSONLD-TYPED|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#1",
       "rect": [
         287.0,
         91.5,
-        96.8,
+        120.1,
         15.0
       ],
       "role": "text",
       "text": "AEO-JSONLD-TYPED · artifact-set"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "not checked: Html input declared missing",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-AEO-JSONLD-TYPED|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#2",
       "rect": [
-        391.8,
-        99.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-AEO-JSONLD-TYPED|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#3",
-      "rect": [
-        399.8,
+        415.1,
         92.1,
-        108.0,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "not checked: Html input declared missing"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-AEO-JSONLD-TYPED|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#4",
+      "path": "shell/body/list-pane/list-viewport/list/row-AEO-JSONLD-TYPED|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#3",
+      "radius": 999.0,
       "rect": [
-        515.8,
+        503.1,
         92.1,
-        64.2,
+        76.9,
         13.8
       ],
       "role": "text",
@@ -1844,6 +1814,7 @@
       "key": "rail",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-AEO-JSONLD-VALID|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/rail",
+      "radius": 1.5,
       "rect": [
         276.0,
         114.4,
@@ -1854,49 +1825,42 @@
     },
     {
       "color": "#8a93a3ff",
+      "help": "AEO-JSONLD-VALID · artifact-set",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-AEO-JSONLD-VALID|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#1",
       "rect": [
         287.0,
         113.5,
-        95.4,
+        120.1,
         15.0
       ],
       "role": "text",
       "text": "AEO-JSONLD-VALID · artifact-set"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "not checked: Html input declared missing",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-AEO-JSONLD-VALID|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#2",
       "rect": [
-        390.4,
-        121.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-AEO-JSONLD-VALID|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#3",
-      "rect": [
-        398.4,
+        415.1,
         114.1,
-        109.3,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "not checked: Html input declared missing"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-AEO-JSONLD-VALID|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#4",
+      "path": "shell/body/list-pane/list-viewport/list/row-AEO-JSONLD-VALID|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#3",
+      "radius": 999.0,
       "rect": [
-        515.8,
+        503.1,
         114.1,
-        64.2,
+        76.9,
         13.8
       ],
       "role": "text",
@@ -1920,6 +1884,7 @@
       "key": "rail",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-SEO-CANONICAL-PRESENT|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/rail",
+      "radius": 1.5,
       "rect": [
         276.0,
         136.4,
@@ -1930,49 +1895,42 @@
     },
     {
       "color": "#8a93a3ff",
+      "help": "SEO-CANONICAL-PRESENT · artifact-set",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-SEO-CANONICAL-PRESENT|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#1",
       "rect": [
         287.0,
         135.5,
-        105.7,
+        120.1,
         15.0
       ],
       "role": "text",
       "text": "SEO-CANONICAL-PRESENT · artifact-set"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "not checked: Html input declared missing",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-SEO-CANONICAL-PRESENT|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#2",
       "rect": [
-        400.7,
-        143.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-SEO-CANONICAL-PRESENT|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#3",
-      "rect": [
-        408.7,
+        415.1,
         136.1,
-        99.1,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "not checked: Html input declared missing"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-SEO-CANONICAL-PRESENT|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#4",
+      "path": "shell/body/list-pane/list-viewport/list/row-SEO-CANONICAL-PRESENT|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#3",
+      "radius": 999.0,
       "rect": [
-        515.8,
+        503.1,
         136.1,
-        64.2,
+        76.9,
         13.8
       ],
       "role": "text",
@@ -1996,6 +1954,7 @@
       "key": "rail",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-SEO-CANONICAL-SINGLE|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/rail",
+      "radius": 1.5,
       "rect": [
         276.0,
         158.4,
@@ -2006,49 +1965,42 @@
     },
     {
       "color": "#8a93a3ff",
+      "help": "SEO-CANONICAL-SINGLE · artifact-set",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-SEO-CANONICAL-SINGLE|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#1",
       "rect": [
         287.0,
         157.5,
-        103.1,
+        120.1,
         15.0
       ],
       "role": "text",
       "text": "SEO-CANONICAL-SINGLE · artifact-set"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "not checked: Html input declared missing",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-SEO-CANONICAL-SINGLE|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#2",
       "rect": [
-        398.1,
-        165.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-SEO-CANONICAL-SINGLE|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#3",
-      "rect": [
-        406.1,
+        415.1,
         158.1,
-        101.7,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "not checked: Html input declared missing"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-SEO-CANONICAL-SINGLE|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#4",
+      "path": "shell/body/list-pane/list-viewport/list/row-SEO-CANONICAL-SINGLE|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#3",
+      "radius": 999.0,
       "rect": [
-        515.8,
+        503.1,
         158.1,
-        64.2,
+        76.9,
         13.8
       ],
       "role": "text",
@@ -2072,6 +2024,7 @@
       "key": "rail",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-SEO-LIVE-X-ROBOTS-TAG|output:live-http|9536ddd65d5cd8e6f1fd83dd8b2aa181f78d1ed21ff883665de2ad02c20f7496/rail",
+      "radius": 1.5,
       "rect": [
         276.0,
         180.4,
@@ -2082,49 +2035,42 @@
     },
     {
       "color": "#8a93a3ff",
+      "help": "SEO-LIVE-X-ROBOTS-TAG · live-http",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-SEO-LIVE-X-ROBOTS-TAG|output:live-http|9536ddd65d5cd8e6f1fd83dd8b2aa181f78d1ed21ff883665de2ad02c20f7496/#1",
       "rect": [
         287.0,
         179.5,
-        57.9,
+        120.1,
         15.0
       ],
       "role": "text",
       "text": "SEO-LIVE-X-ROBOTS-TAG · live-http"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "not checked: `$http.headers.x-robots-tag` needs a live HTTP fetch; cv-rules performs no network IO",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-SEO-LIVE-X-ROBOTS-TAG|output:live-http|9536ddd65d5cd8e6f1fd83dd8b2aa181f78d1ed21ff883665de2ad02c20f7496/#2",
       "rect": [
-        352.9,
-        187.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-SEO-LIVE-X-ROBOTS-TAG|output:live-http|9536ddd65d5cd8e6f1fd83dd8b2aa181f78d1ed21ff883665de2ad02c20f7496/#3",
-      "rect": [
-        360.9,
+        415.1,
         180.1,
-        146.9,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "not checked: `$http.headers.x-robots-tag` needs a live HTTP fetch; cv-rules performs no network IO"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-SEO-LIVE-X-ROBOTS-TAG|output:live-http|9536ddd65d5cd8e6f1fd83dd8b2aa181f78d1ed21ff883665de2ad02c20f7496/#4",
+      "path": "shell/body/list-pane/list-viewport/list/row-SEO-LIVE-X-ROBOTS-TAG|output:live-http|9536ddd65d5cd8e6f1fd83dd8b2aa181f78d1ed21ff883665de2ad02c20f7496/#3",
+      "radius": 999.0,
       "rect": [
-        515.8,
+        503.1,
         180.1,
-        64.2,
+        76.9,
         13.8
       ],
       "role": "text",
@@ -2148,6 +2094,7 @@
       "key": "rail",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-SEO-META-DESCRIPTION|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/rail",
+      "radius": 1.5,
       "rect": [
         276.0,
         202.4,
@@ -2158,49 +2105,42 @@
     },
     {
       "color": "#8a93a3ff",
+      "help": "SEO-META-DESCRIPTION · artifact-set",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-SEO-META-DESCRIPTION|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#1",
       "rect": [
         287.0,
         201.5,
-        103.1,
+        120.1,
         15.0
       ],
       "role": "text",
       "text": "SEO-META-DESCRIPTION · artifact-set"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "not checked: Html input declared missing",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-SEO-META-DESCRIPTION|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#2",
       "rect": [
-        398.1,
-        209.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-SEO-META-DESCRIPTION|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#3",
-      "rect": [
-        406.1,
+        415.1,
         202.1,
-        101.7,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "not checked: Html input declared missing"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-SEO-META-DESCRIPTION|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#4",
+      "path": "shell/body/list-pane/list-viewport/list/row-SEO-META-DESCRIPTION|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#3",
+      "radius": 999.0,
       "rect": [
-        515.8,
+        503.1,
         202.1,
-        64.2,
+        76.9,
         13.8
       ],
       "role": "text",
@@ -2224,6 +2164,7 @@
       "key": "rail",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-SEO-TITLE-SINGLE|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/rail",
+      "radius": 1.5,
       "rect": [
         276.0,
         224.4,
@@ -2234,49 +2175,42 @@
     },
     {
       "color": "#8a93a3ff",
+      "help": "SEO-TITLE-SINGLE · artifact-set",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-SEO-TITLE-SINGLE|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#1",
       "rect": [
         287.0,
         223.5,
-        93.4,
+        120.1,
         15.0
       ],
       "role": "text",
       "text": "SEO-TITLE-SINGLE · artifact-set"
     },
     {
+      "color": "#8a93a3ff",
+      "help": "not checked: Html input declared missing",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-SEO-TITLE-SINGLE|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#2",
       "rect": [
-        388.4,
-        231.0,
-        0.0,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-SEO-TITLE-SINGLE|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#3",
-      "rect": [
-        396.4,
+        415.1,
         224.1,
-        111.3,
+        80.0,
         13.8
       ],
       "role": "text",
       "text": "not checked: Html input declared missing"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-SEO-TITLE-SINGLE|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#4",
+      "path": "shell/body/list-pane/list-viewport/list/row-SEO-TITLE-SINGLE|output:artifact-set|24db9b71c0dcef2c92f53055d2c08b6c850d116c598385d7c8662ad4d5a3d5ad/#3",
+      "radius": 999.0,
       "rect": [
-        515.8,
+        503.1,
         224.1,
-        64.2,
+        76.9,
         13.8
       ],
       "role": "text",

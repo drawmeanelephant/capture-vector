@@ -4,8 +4,8 @@
 //! (compiler, profile target, snapshot, freshness vs the last publish).
 
 use crate::module::{
-    InspectorModel, Link, Module, ModuleSpec, NavItem, NavModel, OutputRecord, ProjectSnapshot,
-    PublishMark, ReadingLine, ReadingModel, Registry, RowModel, Slot, Tone,
+    Chip, InspectorModel, Link, Module, ModuleSpec, NavItem, NavModel, OutputRecord,
+    ProjectSnapshot, PublishMark, ReadingLine, ReadingModel, Registry, RowModel, Slot, Tone,
 };
 use cv_core::events::engine::EngineEvent;
 use cv_core::events::{AppEvent, Envelope};
@@ -188,7 +188,14 @@ impl Module for OutputsModule {
             key: o.path.clone(),
             title: o.path.clone(),
             detail: format!("{} · {} B", o.kind, o.bytes),
-            badge: Some(f.label().into()),
+            badge: Some(Chip::new(
+                f.label(),
+                match f {
+                    Freshness::Changed | Freshness::New => Tone::Warn,
+                    Freshness::Published => Tone::Ok,
+                    Freshness::NeverPublished => Tone::Dim,
+                },
+            )),
             tone: match f {
                 _ if stale => Tone::Warn,
                 Freshness::Changed | Freshness::New => Tone::Warn,
@@ -196,6 +203,7 @@ impl Module for OutputsModule {
                 Freshness::NeverPublished => Tone::Normal,
             },
             rail: None,
+            path: true,
         }
     }
 

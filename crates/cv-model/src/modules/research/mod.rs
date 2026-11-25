@@ -6,8 +6,8 @@ mod filter;
 
 use crate::command::{CommandSpec, Intent};
 use crate::module::{
-    InspectorModel, Module, ModuleSpec, NavItem, NavModel, ReadingLine, ReadingModel, Registry,
-    RowModel, Slot, Tone,
+    Chip, InspectorModel, Module, ModuleSpec, NavItem, NavModel, ReadingLine, ReadingModel,
+    Registry, RowModel, Slot, Tone,
 };
 use cv_core::engine::WriteOutcome;
 use cv_core::events::engine::EngineEvent;
@@ -236,6 +236,7 @@ impl Module for ResearchModule {
                 badge: None,
                 tone: Tone::Dim,
                 rail: None,
+                path: false,
             };
         };
         let promoted = self.nb().provenance(&n.id).is_some();
@@ -258,9 +259,13 @@ impl Module for ResearchModule {
                     .find(|l| !l.trim().is_empty())
                     .unwrap_or("")
             ),
-            badge: Some(badge),
+            badge: Some(Chip::new(
+                badge,
+                if promoted { Tone::Ok } else { Tone::Normal },
+            )),
             tone: if promoted { Tone::Ok } else { Tone::Normal },
             rail: None,
+            path: false,
         }
     }
 

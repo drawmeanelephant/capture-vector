@@ -5,7 +5,7 @@
 //! `Diagnostic` value — the Pages inspector shows the very same value.
 
 use crate::module::{
-    InspectorModel, Link, Module, ModuleSpec, NavCache, NavItem, NavModel, ReadingLine,
+    Chip, InspectorModel, Link, Module, ModuleSpec, NavCache, NavItem, NavModel, ReadingLine,
     ReadingModel, Registry, RowModel, Slot, Tone,
 };
 use cv_core::diagnostic::{Diagnostic, Severity};
@@ -430,9 +430,10 @@ impl Module for ActivityModule {
             key: e.key.clone(),
             title: e.title(),
             detail: e.detail(),
-            badge: (n > 1).then(|| format!("×{n}")),
+            badge: (n > 1).then(|| Chip::new(format!("×{n}"), Tone::Normal)),
             tone: sev.map_or(Tone::Normal, severity_tone),
             rail: Some(sev.map_or(Tone::Ok, severity_tone)),
+            path: false,
         }
     }
 
