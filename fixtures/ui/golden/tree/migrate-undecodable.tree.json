@@ -1,0 +1,6216 @@
+{
+  "nodes": [
+    {
+      "fill": "#0e1014ff",
+      "key": "shell",
+      "opacity": 1.0,
+      "path": "shell",
+      "rect": [
+        0.0,
+        0.0,
+        1280.0,
+        800.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "body",
+      "opacity": 1.0,
+      "path": "shell/body",
+      "rect": [
+        0.0,
+        0.0,
+        1280.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/rail",
+      "rect": [
+        0.0,
+        0.0,
+        88.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-pages",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        28.0,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages/#0",
+      "rect": [
+        12.0,
+        34.0,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-pages-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages/#0/rail-pages-icon",
+      "rect": [
+        12.0,
+        34.0,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages/#1",
+      "rect": [
+        12.0,
+        54.0,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Pages"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-research",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        80.3,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research/#0",
+      "rect": [
+        12.0,
+        86.3,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-research-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research/#0/rail-research-icon",
+      "rect": [
+        12.0,
+        86.3,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research/#1",
+      "rect": [
+        12.0,
+        106.3,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Research"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-audit",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        132.5,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#0",
+      "rect": [
+        12.0,
+        138.5,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-audit-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#0/rail-audit-icon",
+      "rect": [
+        12.0,
+        138.5,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#0/#1",
+      "rect": [
+        28.0,
+        146.5,
+        29.1,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#00d1ffff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#0/#2",
+      "radius": 999.0,
+      "rect": [
+        57.1,
+        139.6,
+        18.9,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#001018ff",
+      "key": "rail-audit-badge",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#0/#2/rail-audit-badge",
+      "rect": [
+        63.1,
+        139.6,
+        6.9,
+        13.8
+      ],
+      "role": "text",
+      "text": "8"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#1",
+      "rect": [
+        12.0,
+        158.5,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Audit"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-publish",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        184.8,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish/#0",
+      "rect": [
+        12.0,
+        190.8,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-publish-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish/#0/rail-publish-icon",
+      "rect": [
+        12.0,
+        190.8,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish/#1",
+      "rect": [
+        12.0,
+        210.8,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Publish"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-outputs",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        237.0,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs/#0",
+      "rect": [
+        12.0,
+        243.0,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-outputs-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs/#0/rail-outputs-icon",
+      "rect": [
+        12.0,
+        243.0,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs/#1",
+      "rect": [
+        12.0,
+        263.0,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Outputs"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-activity",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        289.3,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity/#0",
+      "rect": [
+        12.0,
+        295.3,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-activity-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity/#0/rail-activity-icon",
+      "rect": [
+        12.0,
+        295.3,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity/#1",
+      "rect": [
+        12.0,
+        315.3,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Activity"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-demo",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        341.5,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo/#0",
+      "rect": [
+        12.0,
+        347.5,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-demo-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo/#0/rail-demo-icon",
+      "rect": [
+        12.0,
+        347.5,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo/#1",
+      "rect": [
+        12.0,
+        367.5,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Demo"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/#7",
+      "rect": [
+        4.0,
+        393.8,
+        80.0,
+        302.3
+      ],
+      "role": "group"
+    },
+    {
+      "key": "rail-group-utilities",
+      "label": "Utilities",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-group-utilities",
+      "rect": [
+        4.0,
+        700.0,
+        80.0,
+        17.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-group-utilities/#0",
+      "rect": [
+        12.0,
+        704.0,
+        64.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Utilities"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-migrate",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        721.8,
+        80.0,
+        48.3
+      ],
+      "role": "tab",
+      "selected": true
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#0",
+      "rect": [
+        12.0,
+        727.8,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#00d1ffff",
+      "key": "rail-migrate-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#0/rail-migrate-icon",
+      "rect": [
+        12.0,
+        727.8,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#0/#1",
+      "rect": [
+        28.0,
+        735.8,
+        22.2,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#00d1ffff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#0/#2",
+      "radius": 999.0,
+      "rect": [
+        50.2,
+        728.9,
+        25.8,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#001018ff",
+      "key": "rail-migrate-badge",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#0/#2/rail-migrate-badge",
+      "rect": [
+        56.2,
+        728.9,
+        13.8,
+        13.8
+      ],
+      "role": "text",
+      "text": "39"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#1",
+      "rect": [
+        12.0,
+        747.8,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Migrate"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav",
+      "opacity": 1.0,
+      "path": "shell/body/nav",
+      "rect": [
+        88.0,
+        0.0,
+        180.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "nav-scroll",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll",
+      "rect": [
+        88.0,
+        0.0,
+        180.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-head",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/nav-head",
+      "rect": [
+        88.0,
+        0.0,
+        180.0,
+        28.3
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/nav-head/#0",
+      "rect": [
+        96.0,
+        8.0,
+        164.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Migrate"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1",
+      "rect": [
+        88.0,
+        28.3,
+        180.0,
+        220.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "key": "nav-runs",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-runs",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        28.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem",
+      "selected": true
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-runs/#0",
+      "rect": [
+        104.0,
+        32.3,
+        29.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "Runs"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-runs/#1",
+      "rect": [
+        137.1,
+        39.8,
+        92.0,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-runs/#2",
+      "radius": 999.0,
+      "rect": [
+        233.1,
+        32.9,
+        18.9,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-runs/#2/#0",
+      "rect": [
+        239.1,
+        32.9,
+        6.9,
+        13.8
+      ],
+      "role": "text",
+      "text": "6"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-new",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-new",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        55.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-new/#0",
+      "rect": [
+        104.0,
+        59.3,
+        65.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "New import"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-new/#1",
+      "rect": [
+        173.6,
+        66.8,
+        78.4,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-review",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-review",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        82.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-review/#0",
+      "rect": [
+        104.0,
+        86.3,
+        77.4,
+        15.0
+      ],
+      "role": "text",
+      "text": "Needs review"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-review/#1",
+      "rect": [
+        185.4,
+        93.8,
+        36.8,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-review/#2",
+      "radius": 999.0,
+      "rect": [
+        226.2,
+        86.9,
+        25.8,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-review/#2/#0",
+      "rect": [
+        232.2,
+        86.9,
+        13.8,
+        13.8
+      ],
+      "role": "text",
+      "text": "39"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-family:static-site",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:static-site",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        109.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:static-site/#0",
+      "rect": [
+        104.0,
+        113.3,
+        120.8,
+        15.0
+      ],
+      "role": "text",
+      "text": "Static-site generators"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:static-site/#1",
+      "rect": [
+        228.8,
+        120.8,
+        0.0,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:static-site/#2",
+      "radius": 999.0,
+      "rect": [
+        232.8,
+        113.9,
+        19.2,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:static-site/#2/#0",
+      "rect": [
+        238.8,
+        113.9,
+        7.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "4"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-family:blog-cms",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:blog-cms",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        136.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:blog-cms/#0",
+      "rect": [
+        104.0,
+        140.3,
+        103.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "Blog/CMS exports"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:blog-cms/#1",
+      "rect": [
+        211.0,
+        147.8,
+        18.2,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:blog-cms/#2",
+      "radius": 999.0,
+      "rect": [
+        233.2,
+        140.9,
+        18.8,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:blog-cms/#2/#0",
+      "rect": [
+        239.2,
+        140.9,
+        6.8,
+        13.8
+      ],
+      "role": "text",
+      "text": "2"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-family:notes",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:notes",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        163.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:notes/#0",
+      "rect": [
+        104.0,
+        167.3,
+        86.7,
+        15.0
+      ],
+      "role": "text",
+      "text": "Notes/outliners"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:notes/#1",
+      "rect": [
+        194.7,
+        174.8,
+        57.3,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-family:social",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:social",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        190.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:social/#0",
+      "rect": [
+        104.0,
+        194.3,
+        128.7,
+        15.0
+      ],
+      "role": "text",
+      "text": "Social/data downloads"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:social/#1",
+      "rect": [
+        236.7,
+        201.8,
+        15.3,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-family:cross-cutting",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:cross-cutting",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        217.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:cross-cutting/#0",
+      "rect": [
+        104.0,
+        221.3,
+        77.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "Cross-cutting"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-family:cross-cutting/#1",
+      "rect": [
+        185.6,
+        228.8,
+        66.4,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "list-pane",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane",
+      "rect": [
+        268.0,
+        0.0,
+        320.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "list-viewport",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport",
+      "rect": [
+        268.0,
+        0.0,
+        320.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-run:1764003600000-hugo",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764003600000-hugo",
+      "rect": [
+        268.0,
+        0.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem",
+      "selected": true
+    },
+    {
+      "fill": "#ffb020ff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764003600000-hugo/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        4.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764003600000-hugo/#1",
+      "rect": [
+        287.0,
+        3.5,
+        125.8,
+        15.0
+      ],
+      "role": "text",
+      "text": "mini-hugo"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "hugo · report.json boris-hugo-migration-lab schema_version 9 is not supported (known: [1])",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764003600000-hugo/#2",
+      "rect": [
+        420.8,
+        4.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "hugo · report.json boris-hugo-migration-lab schema_version 9 is not supported (known: [1])"
+    },
+    {
+      "color": "#ffb020ff",
+      "fill": "#ffb02026",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764003600000-hugo/#3",
+      "radius": 999.0,
+      "rect": [
+        508.8,
+        4.1,
+        71.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "unreadable"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-run:1764000240000-hugo",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764000240000-hugo",
+      "rect": [
+        268.0,
+        22.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764000240000-hugo/#0",
+      "rect": [
+        276.0,
+        25.5,
+        183.2,
+        15.0
+      ],
+      "role": "text",
+      "text": "mini-hugo"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "hugo · 5 transformed · 3 unsupported · 4 human_review · 7 to review",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764000240000-hugo/#1",
+      "rect": [
+        467.2,
+        26.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "hugo · 5 transformed · 3 unsupported · 4 human_review · 7 to review"
+    },
+    {
+      "color": "#3dff9aff",
+      "fill": "#3dff9a26",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764000240000-hugo/#2",
+      "radius": 999.0,
+      "rect": [
+        555.2,
+        26.1,
+        24.8,
+        13.8
+      ],
+      "role": "text",
+      "text": "ok"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-run:1764000180000-wordpress",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764000180000-wordpress",
+      "rect": [
+        268.0,
+        44.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764000180000-wordpress/#0",
+      "rect": [
+        276.0,
+        47.5,
+        183.2,
+        15.0
+      ],
+      "role": "text",
+      "text": "export.xml"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "wordpress · 2 exact · 2 transformed · 5 human_review · 5 to review",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764000180000-wordpress/#1",
+      "rect": [
+        467.2,
+        48.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "wordpress · 2 exact · 2 transformed · 5 human_review · 5 to review"
+    },
+    {
+      "color": "#3dff9aff",
+      "fill": "#3dff9a26",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764000180000-wordpress/#2",
+      "radius": 999.0,
+      "rect": [
+        555.2,
+        48.1,
+        24.8,
+        13.8
+      ],
+      "role": "text",
+      "text": "ok"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-run:1764000120000-substack",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764000120000-substack",
+      "rect": [
+        268.0,
+        66.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764000120000-substack/#0",
+      "rect": [
+        276.0,
+        69.5,
+        183.2,
+        15.0
+      ],
+      "role": "text",
+      "text": "mini-substack"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "substack · 1 transformed · 8 human_review · 13 to review",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764000120000-substack/#1",
+      "rect": [
+        467.2,
+        70.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "substack · 1 transformed · 8 human_review · 13 to review"
+    },
+    {
+      "color": "#3dff9aff",
+      "fill": "#3dff9a26",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764000120000-substack/#2",
+      "radius": 999.0,
+      "rect": [
+        555.2,
+        70.1,
+        24.8,
+        13.8
+      ],
+      "role": "text",
+      "text": "ok"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-run:1764000060000-jekyll",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764000060000-jekyll",
+      "rect": [
+        268.0,
+        88.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764000060000-jekyll/#0",
+      "rect": [
+        276.0,
+        91.5,
+        183.2,
+        15.0
+      ],
+      "role": "text",
+      "text": "mini-jekyll"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "jekyll · 8 transformed · 1 unsupported · 1 human_review · 8 to review",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764000060000-jekyll/#1",
+      "rect": [
+        467.2,
+        92.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "jekyll · 8 transformed · 1 unsupported · 1 human_review · 8 to review"
+    },
+    {
+      "color": "#3dff9aff",
+      "fill": "#3dff9a26",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764000060000-jekyll/#2",
+      "radius": 999.0,
+      "rect": [
+        555.2,
+        92.1,
+        24.8,
+        13.8
+      ],
+      "role": "text",
+      "text": "ok"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-run:1764000000000-hugo-inventory",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764000000000-hugo-inventory",
+      "rect": [
+        268.0,
+        110.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764000000000-hugo-inventory/#0",
+      "rect": [
+        276.0,
+        113.5,
+        183.2,
+        15.0
+      ],
+      "role": "text",
+      "text": "mini-hugo"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "hugo-inventory · 6 transformed · 3 unsupported · 3 human_review · 6 to review",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764000000000-hugo-inventory/#1",
+      "rect": [
+        467.2,
+        114.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "hugo-inventory · 6 transformed · 3 unsupported · 3 human_review · 6 to review"
+    },
+    {
+      "color": "#3dff9aff",
+      "fill": "#3dff9a26",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-run:1764000000000-hugo-inventory/#2",
+      "radius": 999.0,
+      "rect": [
+        555.2,
+        114.1,
+        24.8,
+        13.8
+      ],
+      "role": "text",
+      "text": "ok"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "reading",
+      "opacity": 1.0,
+      "path": "shell/body/reading",
+      "rect": [
+        588.0,
+        0.0,
+        452.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "reading-scroll",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll",
+      "rect": [
+        588.0,
+        0.0,
+        452.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "reading-head",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head",
+      "rect": [
+        588.0,
+        0.0,
+        452.0,
+        63.8
+      ],
+      "role": "group"
+    },
+    {
+      "key": "breadcrumbs",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs",
+      "rect": [
+        604.0,
+        16.0,
+        420.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "crumb-0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs/crumb-0",
+      "rect": [
+        604.0,
+        16.0,
+        40.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "Migrate"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs/#1",
+      "rect": [
+        648.2,
+        16.0,
+        4.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "›"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "crumb-1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs/crumb-1",
+      "rect": [
+        656.6,
+        16.0,
+        26.3,
+        13.8
+      ],
+      "role": "text",
+      "text": "Runs"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "reading-title",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head/reading-title",
+      "rect": [
+        604.0,
+        35.8,
+        420.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "hugo: mini-hugo"
+    },
+    {
+      "key": "reading-body",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body",
+      "rect": [
+        588.0,
+        63.8,
+        452.0,
+        1798.8
+      ],
+      "role": "group"
+    },
+    {
+      "key": "line-0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-0",
+      "rect": [
+        604.0,
+        63.8,
+        420.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-0/#0",
+      "rect": [
+        604.0,
+        63.8,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "status"
+    },
+    {
+      "color": "#3dff9aff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-0/#1",
+      "rect": [
+        708.0,
+        63.8,
+        316.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "ok"
+    },
+    {
+      "key": "line-1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-1",
+      "rect": [
+        604.0,
+        84.8,
+        420.0,
+        30.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-1/#0",
+      "rect": [
+        604.0,
+        84.8,
+        96.0,
+        30.0
+      ],
+      "role": "text",
+      "text": "unreadable"
+    },
+    {
+      "color": "#ffb020ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-1/#1",
+      "rect": [
+        708.0,
+        84.8,
+        316.0,
+        30.0
+      ],
+      "role": "text",
+      "text": "report.json boris-hugo-migration-lab schema_version 9 is not supported (known: [1])"
+    },
+    {
+      "key": "line-2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-2",
+      "rect": [
+        604.0,
+        120.8,
+        420.0,
+        30.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-2/#0",
+      "rect": [
+        604.0,
+        120.8,
+        420.0,
+        30.0
+      ],
+      "role": "text",
+      "text": "The lab's output is left as it is; the report could not be decoded by this build's mirrors."
+    },
+    {
+      "key": "line-3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-3",
+      "rect": [
+        604.0,
+        156.8,
+        420.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-3/#0",
+      "rect": [
+        604.0,
+        156.8,
+        420.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "REPORT.md below is the lab's report, drawn as a draft sketch."
+    },
+    {
+      "fill": "#14171dff",
+      "key": "sketch",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch",
+      "radius": 6.0,
+      "rect": [
+        604.0,
+        185.8,
+        420.0,
+        1660.8
+      ],
+      "role": "group"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#0",
+      "rect": [
+        616.0,
+        197.8,
+        396.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffb0202e",
+      "key": "sketch-label",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#0/sketch-label",
+      "radius": 999.0,
+      "rect": [
+        616.0,
+        197.8,
+        130.5,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#ffb020ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#0/sketch-label/#0",
+      "rect": [
+        622.0,
+        197.8,
+        118.5,
+        13.8
+      ],
+      "role": "text",
+      "text": "Draft sketch · advisory"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1",
+      "rect": [
+        616.0,
+        219.5,
+        396.0,
+        1615.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "b0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b0",
+      "rect": [
+        616.0,
+        219.5,
+        396.0,
+        24.0
+      ],
+      "role": "heading",
+      "text": "Hugo → Boris conversion report"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "b1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b1",
+      "rect": [
+        616.0,
+        255.5,
+        396.0,
+        40.0
+      ],
+      "role": "text",
+      "text": "Source root: ⁦  ⁦/CAPTURE_ROOT/src/mini-hugo⁩  ⁩ · config: ⁦  ⁦config.toml⁩  ⁩ · format ⁦  ⁦boris-hugo-migration-lab⁩  ⁩ v1"
+    },
+    {
+      "key": "b2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2",
+      "radius": 6.0,
+      "rect": [
+        616.0,
+        307.5,
+        396.0,
+        345.5
+      ],
+      "role": "table"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "th",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/th",
+      "rect": [
+        616.5,
+        308.0,
+        395.0,
+        32.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/th/c0",
+      "rect": [
+        616.5,
+        308.0,
+        310.7,
+        32.0
+      ],
+      "role": "columnheader"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/th/c0/#0",
+      "rect": [
+        626.5,
+        314.0,
+        290.7,
+        20.0
+      ],
+      "role": "text",
+      "text": "Metric"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/th/c1",
+      "rect": [
+        927.2,
+        308.0,
+        84.3,
+        32.0
+      ],
+      "role": "columnheader"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/th/c1/#0",
+      "rect": [
+        937.2,
+        314.0,
+        64.3,
+        20.0
+      ],
+      "role": "text",
+      "text": "Count"
+    },
+    {
+      "fill": "#262b35ff",
+      "key": "s0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/s0",
+      "rect": [
+        616.5,
+        340.0,
+        395.0,
+        0.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "r0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r0",
+      "rect": [
+        616.5,
+        340.5,
+        395.0,
+        32.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r0/c0",
+      "rect": [
+        616.5,
+        340.5,
+        310.7,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r0/c0/#0",
+      "rect": [
+        626.5,
+        346.5,
+        290.7,
+        20.0
+      ],
+      "role": "text",
+      "text": "Pages emitted"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r0/c1",
+      "rect": [
+        927.2,
+        340.5,
+        84.3,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r0/c1/#0",
+      "rect": [
+        937.2,
+        346.5,
+        64.3,
+        20.0
+      ],
+      "role": "text",
+      "text": "12"
+    },
+    {
+      "fill": "#262b35ff",
+      "key": "s1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/s1",
+      "rect": [
+        616.5,
+        372.5,
+        395.0,
+        0.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "r1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r1",
+      "rect": [
+        616.5,
+        373.0,
+        395.0,
+        32.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r1/c0",
+      "rect": [
+        616.5,
+        373.0,
+        310.7,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r1/c0/#0",
+      "rect": [
+        626.5,
+        379.0,
+        290.7,
+        20.0
+      ],
+      "role": "text",
+      "text": "Trunks"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r1/c1",
+      "rect": [
+        927.2,
+        373.0,
+        84.3,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r1/c1/#0",
+      "rect": [
+        937.2,
+        379.0,
+        64.3,
+        20.0
+      ],
+      "role": "text",
+      "text": "6"
+    },
+    {
+      "fill": "#262b35ff",
+      "key": "s2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/s2",
+      "rect": [
+        616.5,
+        405.0,
+        395.0,
+        0.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "r2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r2",
+      "rect": [
+        616.5,
+        405.5,
+        395.0,
+        32.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r2/c0",
+      "rect": [
+        616.5,
+        405.5,
+        310.7,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r2/c0/#0",
+      "rect": [
+        626.5,
+        411.5,
+        290.7,
+        20.0
+      ],
+      "role": "text",
+      "text": "Satellites"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r2/c1",
+      "rect": [
+        927.2,
+        405.5,
+        84.3,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r2/c1/#0",
+      "rect": [
+        937.2,
+        411.5,
+        64.3,
+        20.0
+      ],
+      "role": "text",
+      "text": "6"
+    },
+    {
+      "fill": "#262b35ff",
+      "key": "s3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/s3",
+      "rect": [
+        616.5,
+        437.5,
+        395.0,
+        0.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "r3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r3",
+      "rect": [
+        616.5,
+        438.0,
+        395.0,
+        32.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r3/c0",
+      "rect": [
+        616.5,
+        438.0,
+        310.7,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r3/c0/#0",
+      "rect": [
+        626.5,
+        444.0,
+        290.7,
+        20.0
+      ],
+      "role": "text",
+      "text": "Synthesized section landings"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r3/c1",
+      "rect": [
+        927.2,
+        438.0,
+        84.3,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r3/c1/#0",
+      "rect": [
+        937.2,
+        444.0,
+        64.3,
+        20.0
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "fill": "#262b35ff",
+      "key": "s4",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/s4",
+      "rect": [
+        616.5,
+        470.0,
+        395.0,
+        0.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "r4",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r4",
+      "rect": [
+        616.5,
+        470.5,
+        395.0,
+        52.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r4/c0",
+      "rect": [
+        616.5,
+        470.5,
+        310.7,
+        52.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r4/c0/#0",
+      "rect": [
+        626.5,
+        476.5,
+        290.7,
+        40.0
+      ],
+      "role": "text",
+      "text": "exact / transformed / unsupported / ⁦human_review⁩"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r4/c1",
+      "rect": [
+        927.2,
+        470.5,
+        84.3,
+        52.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r4/c1/#0",
+      "rect": [
+        937.2,
+        476.5,
+        64.3,
+        40.0
+      ],
+      "role": "text",
+      "text": "0 / 5 / 3 / 4"
+    },
+    {
+      "fill": "#262b35ff",
+      "key": "s5",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/s5",
+      "rect": [
+        616.5,
+        522.5,
+        395.0,
+        0.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "r5",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r5",
+      "rect": [
+        616.5,
+        523.0,
+        395.0,
+        32.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r5/c0",
+      "rect": [
+        616.5,
+        523.0,
+        310.7,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r5/c0/#0",
+      "rect": [
+        626.5,
+        529.0,
+        290.7,
+        20.0
+      ],
+      "role": "text",
+      "text": "Shortcodes transformed / preserved"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r5/c1",
+      "rect": [
+        927.2,
+        523.0,
+        84.3,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r5/c1/#0",
+      "rect": [
+        937.2,
+        529.0,
+        64.3,
+        20.0
+      ],
+      "role": "text",
+      "text": "3 / 2"
+    },
+    {
+      "fill": "#262b35ff",
+      "key": "s6",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/s6",
+      "rect": [
+        616.5,
+        555.0,
+        395.0,
+        0.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "r6",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r6",
+      "rect": [
+        616.5,
+        555.5,
+        395.0,
+        32.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r6/c0",
+      "rect": [
+        616.5,
+        555.5,
+        310.7,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r6/c0/#0",
+      "rect": [
+        626.5,
+        561.5,
+        290.7,
+        20.0
+      ],
+      "role": "text",
+      "text": "Page assets"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r6/c1",
+      "rect": [
+        927.2,
+        555.5,
+        84.3,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r6/c1/#0",
+      "rect": [
+        937.2,
+        561.5,
+        64.3,
+        20.0
+      ],
+      "role": "text",
+      "text": "2"
+    },
+    {
+      "fill": "#262b35ff",
+      "key": "s7",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/s7",
+      "rect": [
+        616.5,
+        587.5,
+        395.0,
+        0.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "r7",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r7",
+      "rect": [
+        616.5,
+        588.0,
+        395.0,
+        32.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r7/c0",
+      "rect": [
+        616.5,
+        588.0,
+        310.7,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r7/c0/#0",
+      "rect": [
+        626.5,
+        594.0,
+        290.7,
+        20.0
+      ],
+      "role": "text",
+      "text": "Static assets"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r7/c1",
+      "rect": [
+        927.2,
+        588.0,
+        84.3,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r7/c1/#0",
+      "rect": [
+        937.2,
+        594.0,
+        64.3,
+        20.0
+      ],
+      "role": "text",
+      "text": "2"
+    },
+    {
+      "fill": "#262b35ff",
+      "key": "s8",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/s8",
+      "rect": [
+        616.5,
+        620.0,
+        395.0,
+        0.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "r8",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r8",
+      "rect": [
+        616.5,
+        620.5,
+        395.0,
+        32.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r8/c0",
+      "rect": [
+        616.5,
+        620.5,
+        310.7,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r8/c0/#0",
+      "rect": [
+        626.5,
+        626.5,
+        290.7,
+        20.0
+      ],
+      "role": "text",
+      "text": "Redirect entries"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r8/c1",
+      "rect": [
+        927.2,
+        620.5,
+        84.3,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b2/r8/c1/#0",
+      "rect": [
+        937.2,
+        626.5,
+        64.3,
+        20.0
+      ],
+      "role": "text",
+      "text": "3"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "b3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b3",
+      "rect": [
+        616.0,
+        677.0,
+        396.0,
+        21.0
+      ],
+      "role": "heading",
+      "text": "Pages"
+    },
+    {
+      "key": "b4",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4",
+      "radius": 6.0,
+      "rect": [
+        616.0,
+        708.0,
+        396.0,
+        503.0
+      ],
+      "role": "table"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "th",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/th",
+      "rect": [
+        616.5,
+        708.5,
+        395.0,
+        32.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/th/c0",
+      "rect": [
+        616.5,
+        708.5,
+        140.0,
+        32.0
+      ],
+      "role": "columnheader"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/th/c0/#0",
+      "rect": [
+        626.5,
+        714.5,
+        120.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "Entity id"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/th/c1",
+      "rect": [
+        756.5,
+        708.5,
+        140.0,
+        32.0
+      ],
+      "role": "columnheader"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/th/c1/#0",
+      "rect": [
+        766.5,
+        714.5,
+        120.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "Source"
+    },
+    {
+      "key": "c2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/th/c2",
+      "rect": [
+        896.5,
+        708.5,
+        67.0,
+        32.0
+      ],
+      "role": "columnheader"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/th/c2/#0",
+      "rect": [
+        906.5,
+        714.5,
+        47.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "Role"
+    },
+    {
+      "key": "c3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/th/c3",
+      "rect": [
+        963.5,
+        708.5,
+        81.2,
+        32.0
+      ],
+      "role": "columnheader"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/th/c3/#0",
+      "rect": [
+        973.5,
+        714.5,
+        61.2,
+        20.0
+      ],
+      "role": "text",
+      "text": "Parent"
+    },
+    {
+      "key": "c4",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/th/c4",
+      "rect": [
+        1044.7,
+        708.5,
+        108.6,
+        32.0
+      ],
+      "role": "columnheader"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/th/c4/#0",
+      "rect": [
+        1054.7,
+        714.5,
+        88.6,
+        20.0
+      ],
+      "role": "text",
+      "text": "Class"
+    },
+    {
+      "fill": "#262b35ff",
+      "key": "s0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/s0",
+      "rect": [
+        616.5,
+        740.5,
+        395.0,
+        0.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "r0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r0",
+      "rect": [
+        616.5,
+        741.0,
+        395.0,
+        32.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r0/c0",
+      "rect": [
+        616.5,
+        741.0,
+        140.0,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r0/c0/#0",
+      "rect": [
+        626.5,
+        747.0,
+        120.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦  ⁦en⁩"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r0/c1",
+      "rect": [
+        756.5,
+        741.0,
+        140.0,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r0/c1/#0",
+      "rect": [
+        766.5,
+        747.0,
+        120.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦content/en/_index.md⁩"
+    },
+    {
+      "key": "c2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r0/c2",
+      "rect": [
+        896.5,
+        741.0,
+        67.0,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r0/c2/#0",
+      "rect": [
+        906.5,
+        747.0,
+        47.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "trunk"
+    },
+    {
+      "key": "c3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r0/c3",
+      "rect": [
+        963.5,
+        741.0,
+        81.2,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r0/c3/#0",
+      "rect": [
+        973.5,
+        747.0,
+        61.2,
+        20.0
+      ],
+      "role": "text",
+      "text": "—"
+    },
+    {
+      "key": "c4",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r0/c4",
+      "rect": [
+        1044.7,
+        741.0,
+        108.6,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r0/c4/#0",
+      "rect": [
+        1054.7,
+        747.0,
+        88.6,
+        20.0
+      ],
+      "role": "text",
+      "text": "transformed"
+    },
+    {
+      "fill": "#262b35ff",
+      "key": "s1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/s1",
+      "rect": [
+        616.5,
+        773.0,
+        395.0,
+        0.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "r1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r1",
+      "rect": [
+        616.5,
+        773.5,
+        395.0,
+        32.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r1/c0",
+      "rect": [
+        616.5,
+        773.5,
+        140.0,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r1/c0/#0",
+      "rect": [
+        626.5,
+        779.5,
+        120.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦  ⁦en/about⁩"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r1/c1",
+      "rect": [
+        756.5,
+        773.5,
+        140.0,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r1/c1/#0",
+      "rect": [
+        766.5,
+        779.5,
+        120.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦content/en/about.md⁩"
+    },
+    {
+      "key": "c2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r1/c2",
+      "rect": [
+        896.5,
+        773.5,
+        67.0,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r1/c2/#0",
+      "rect": [
+        906.5,
+        779.5,
+        47.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "trunk"
+    },
+    {
+      "key": "c3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r1/c3",
+      "rect": [
+        963.5,
+        773.5,
+        81.2,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r1/c3/#0",
+      "rect": [
+        973.5,
+        779.5,
+        61.2,
+        20.0
+      ],
+      "role": "text",
+      "text": "—"
+    },
+    {
+      "key": "c4",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r1/c4",
+      "rect": [
+        1044.7,
+        773.5,
+        108.6,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r1/c4/#0",
+      "rect": [
+        1054.7,
+        779.5,
+        88.6,
+        20.0
+      ],
+      "role": "text",
+      "text": "transformed"
+    },
+    {
+      "fill": "#262b35ff",
+      "key": "s2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/s2",
+      "rect": [
+        616.5,
+        805.5,
+        395.0,
+        0.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "r2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r2",
+      "rect": [
+        616.5,
+        806.0,
+        395.0,
+        32.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r2/c0",
+      "rect": [
+        616.5,
+        806.0,
+        140.0,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r2/c0/#0",
+      "rect": [
+        626.5,
+        812.0,
+        120.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦  ⁦en/guides⁩"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r2/c1",
+      "rect": [
+        756.5,
+        806.0,
+        140.0,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r2/c1/#0",
+      "rect": [
+        766.5,
+        812.0,
+        120.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦content/en/guides/_index.md⁩"
+    },
+    {
+      "key": "c2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r2/c2",
+      "rect": [
+        896.5,
+        806.0,
+        67.0,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r2/c2/#0",
+      "rect": [
+        906.5,
+        812.0,
+        47.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "trunk"
+    },
+    {
+      "key": "c3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r2/c3",
+      "rect": [
+        963.5,
+        806.0,
+        81.2,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r2/c3/#0",
+      "rect": [
+        973.5,
+        812.0,
+        61.2,
+        20.0
+      ],
+      "role": "text",
+      "text": "—"
+    },
+    {
+      "key": "c4",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r2/c4",
+      "rect": [
+        1044.7,
+        806.0,
+        108.6,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r2/c4/#0",
+      "rect": [
+        1054.7,
+        812.0,
+        88.6,
+        20.0
+      ],
+      "role": "text",
+      "text": "unsupported"
+    },
+    {
+      "fill": "#262b35ff",
+      "key": "s3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/s3",
+      "rect": [
+        616.5,
+        838.0,
+        395.0,
+        0.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "r3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r3",
+      "rect": [
+        616.5,
+        838.5,
+        395.0,
+        32.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r3/c0",
+      "rect": [
+        616.5,
+        838.5,
+        140.0,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r3/c0/#0",
+      "rect": [
+        626.5,
+        844.5,
+        120.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦  ⁦en/guides/inner⁩"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r3/c1",
+      "rect": [
+        756.5,
+        838.5,
+        140.0,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r3/c1/#0",
+      "rect": [
+        766.5,
+        844.5,
+        120.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦content/en/guides/inner/_index.md⁩"
+    },
+    {
+      "key": "c2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r3/c2",
+      "rect": [
+        896.5,
+        838.5,
+        67.0,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r3/c2/#0",
+      "rect": [
+        906.5,
+        844.5,
+        47.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "satellite"
+    },
+    {
+      "key": "c3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r3/c3",
+      "rect": [
+        963.5,
+        838.5,
+        81.2,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r3/c3/#0",
+      "rect": [
+        973.5,
+        844.5,
+        61.2,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦en/guides⁩"
+    },
+    {
+      "key": "c4",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r3/c4",
+      "rect": [
+        1044.7,
+        838.5,
+        108.6,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r3/c4/#0",
+      "rect": [
+        1054.7,
+        844.5,
+        88.6,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦human_review⁩"
+    },
+    {
+      "fill": "#262b35ff",
+      "key": "s4",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/s4",
+      "rect": [
+        616.5,
+        870.5,
+        395.0,
+        0.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "r4",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r4",
+      "rect": [
+        616.5,
+        871.0,
+        395.0,
+        52.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r4/c0",
+      "rect": [
+        616.5,
+        871.0,
+        140.0,
+        52.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r4/c0/#0",
+      "rect": [
+        626.5,
+        877.0,
+        120.0,
+        40.0
+      ],
+      "role": "text",
+      "text": "⁦  ⁦en/guides/inner/deep-page⁩"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r4/c1",
+      "rect": [
+        756.5,
+        871.0,
+        140.0,
+        52.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r4/c1/#0",
+      "rect": [
+        766.5,
+        877.0,
+        120.0,
+        40.0
+      ],
+      "role": "text",
+      "text": "⁦content/en/guides/inner/deep-page.md⁩"
+    },
+    {
+      "key": "c2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r4/c2",
+      "rect": [
+        896.5,
+        871.0,
+        67.0,
+        52.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r4/c2/#0",
+      "rect": [
+        906.5,
+        877.0,
+        47.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "satellite"
+    },
+    {
+      "key": "c3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r4/c3",
+      "rect": [
+        963.5,
+        871.0,
+        81.2,
+        52.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r4/c3/#0",
+      "rect": [
+        973.5,
+        877.0,
+        61.2,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦en/guides⁩"
+    },
+    {
+      "key": "c4",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r4/c4",
+      "rect": [
+        1044.7,
+        871.0,
+        108.6,
+        52.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r4/c4/#0",
+      "rect": [
+        1054.7,
+        877.0,
+        88.6,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦human_review⁩"
+    },
+    {
+      "fill": "#262b35ff",
+      "key": "s5",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/s5",
+      "rect": [
+        616.5,
+        923.0,
+        395.0,
+        0.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "r5",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r5",
+      "rect": [
+        616.5,
+        923.5,
+        395.0,
+        32.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r5/c0",
+      "rect": [
+        616.5,
+        923.5,
+        140.0,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r5/c0/#0",
+      "rect": [
+        626.5,
+        929.5,
+        120.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦  ⁦en/posts⁩"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r5/c1",
+      "rect": [
+        756.5,
+        923.5,
+        140.0,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r5/c1/#0",
+      "rect": [
+        766.5,
+        929.5,
+        120.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦content/en/posts/_index.md⁩"
+    },
+    {
+      "key": "c2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r5/c2",
+      "rect": [
+        896.5,
+        923.5,
+        67.0,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r5/c2/#0",
+      "rect": [
+        906.5,
+        929.5,
+        47.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "trunk"
+    },
+    {
+      "key": "c3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r5/c3",
+      "rect": [
+        963.5,
+        923.5,
+        81.2,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r5/c3/#0",
+      "rect": [
+        973.5,
+        929.5,
+        61.2,
+        20.0
+      ],
+      "role": "text",
+      "text": "—"
+    },
+    {
+      "key": "c4",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r5/c4",
+      "rect": [
+        1044.7,
+        923.5,
+        108.6,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r5/c4/#0",
+      "rect": [
+        1054.7,
+        929.5,
+        88.6,
+        20.0
+      ],
+      "role": "text",
+      "text": "unsupported"
+    },
+    {
+      "fill": "#262b35ff",
+      "key": "s6",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/s6",
+      "rect": [
+        616.5,
+        955.5,
+        395.0,
+        0.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "r6",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r6",
+      "rect": [
+        616.5,
+        956.0,
+        395.0,
+        52.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r6/c0",
+      "rect": [
+        616.5,
+        956.0,
+        140.0,
+        52.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r6/c0/#0",
+      "rect": [
+        626.5,
+        962.0,
+        120.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦  ⁦en/posts/draft-note⁩"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r6/c1",
+      "rect": [
+        756.5,
+        956.0,
+        140.0,
+        52.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r6/c1/#0",
+      "rect": [
+        766.5,
+        962.0,
+        120.0,
+        40.0
+      ],
+      "role": "text",
+      "text": "⁦content/en/posts/draft-note.md⁩"
+    },
+    {
+      "key": "c2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r6/c2",
+      "rect": [
+        896.5,
+        956.0,
+        67.0,
+        52.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r6/c2/#0",
+      "rect": [
+        906.5,
+        962.0,
+        47.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "satellite"
+    },
+    {
+      "key": "c3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r6/c3",
+      "rect": [
+        963.5,
+        956.0,
+        81.2,
+        52.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r6/c3/#0",
+      "rect": [
+        973.5,
+        962.0,
+        61.2,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦en/posts⁩"
+    },
+    {
+      "key": "c4",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r6/c4",
+      "rect": [
+        1044.7,
+        956.0,
+        108.6,
+        52.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r6/c4/#0",
+      "rect": [
+        1054.7,
+        962.0,
+        88.6,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦human_review⁩"
+    },
+    {
+      "fill": "#262b35ff",
+      "key": "s7",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/s7",
+      "rect": [
+        616.5,
+        1008.0,
+        395.0,
+        0.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "r7",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r7",
+      "rect": [
+        616.5,
+        1008.5,
+        395.0,
+        52.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r7/c0",
+      "rect": [
+        616.5,
+        1008.5,
+        140.0,
+        52.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r7/c0/#0",
+      "rect": [
+        626.5,
+        1014.5,
+        120.0,
+        40.0
+      ],
+      "role": "text",
+      "text": "⁦  ⁦en/posts/hello-bundle⁩"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r7/c1",
+      "rect": [
+        756.5,
+        1008.5,
+        140.0,
+        52.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r7/c1/#0",
+      "rect": [
+        766.5,
+        1014.5,
+        120.0,
+        40.0
+      ],
+      "role": "text",
+      "text": "⁦content/en/posts/hello-bundle/index.md⁩"
+    },
+    {
+      "key": "c2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r7/c2",
+      "rect": [
+        896.5,
+        1008.5,
+        67.0,
+        52.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r7/c2/#0",
+      "rect": [
+        906.5,
+        1014.5,
+        47.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "satellite"
+    },
+    {
+      "key": "c3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r7/c3",
+      "rect": [
+        963.5,
+        1008.5,
+        81.2,
+        52.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r7/c3/#0",
+      "rect": [
+        973.5,
+        1014.5,
+        61.2,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦en/posts⁩"
+    },
+    {
+      "key": "c4",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r7/c4",
+      "rect": [
+        1044.7,
+        1008.5,
+        108.6,
+        52.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r7/c4/#0",
+      "rect": [
+        1054.7,
+        1014.5,
+        88.6,
+        20.0
+      ],
+      "role": "text",
+      "text": "unsupported"
+    },
+    {
+      "fill": "#262b35ff",
+      "key": "s8",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/s8",
+      "rect": [
+        616.5,
+        1060.5,
+        395.0,
+        0.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "r8",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r8",
+      "rect": [
+        616.5,
+        1061.0,
+        395.0,
+        52.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r8/c0",
+      "rect": [
+        616.5,
+        1061.0,
+        140.0,
+        52.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r8/c0/#0",
+      "rect": [
+        626.5,
+        1067.0,
+        120.0,
+        40.0
+      ],
+      "role": "text",
+      "text": "⁦  ⁦en/posts/markup-shortcode⁩"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r8/c1",
+      "rect": [
+        756.5,
+        1061.0,
+        140.0,
+        52.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r8/c1/#0",
+      "rect": [
+        766.5,
+        1067.0,
+        120.0,
+        40.0
+      ],
+      "role": "text",
+      "text": "⁦content/en/posts/markup-shortcode.md⁩"
+    },
+    {
+      "key": "c2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r8/c2",
+      "rect": [
+        896.5,
+        1061.0,
+        67.0,
+        52.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r8/c2/#0",
+      "rect": [
+        906.5,
+        1067.0,
+        47.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "satellite"
+    },
+    {
+      "key": "c3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r8/c3",
+      "rect": [
+        963.5,
+        1061.0,
+        81.2,
+        52.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r8/c3/#0",
+      "rect": [
+        973.5,
+        1067.0,
+        61.2,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦en/posts⁩"
+    },
+    {
+      "key": "c4",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r8/c4",
+      "rect": [
+        1044.7,
+        1061.0,
+        108.6,
+        52.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r8/c4/#0",
+      "rect": [
+        1054.7,
+        1067.0,
+        88.6,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦human_review⁩"
+    },
+    {
+      "fill": "#262b35ff",
+      "key": "s9",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/s9",
+      "rect": [
+        616.5,
+        1113.0,
+        395.0,
+        0.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "r9",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r9",
+      "rect": [
+        616.5,
+        1113.5,
+        395.0,
+        32.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r9/c0",
+      "rect": [
+        616.5,
+        1113.5,
+        140.0,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r9/c0/#0",
+      "rect": [
+        626.5,
+        1119.5,
+        120.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦  ⁦fr⁩"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r9/c1",
+      "rect": [
+        756.5,
+        1113.5,
+        140.0,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r9/c1/#0",
+      "rect": [
+        766.5,
+        1119.5,
+        120.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦content/fr/_index.md⁩"
+    },
+    {
+      "key": "c2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r9/c2",
+      "rect": [
+        896.5,
+        1113.5,
+        67.0,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r9/c2/#0",
+      "rect": [
+        906.5,
+        1119.5,
+        47.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "trunk"
+    },
+    {
+      "key": "c3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r9/c3",
+      "rect": [
+        963.5,
+        1113.5,
+        81.2,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r9/c3/#0",
+      "rect": [
+        973.5,
+        1119.5,
+        61.2,
+        20.0
+      ],
+      "role": "text",
+      "text": "—"
+    },
+    {
+      "key": "c4",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r9/c4",
+      "rect": [
+        1044.7,
+        1113.5,
+        108.6,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r9/c4/#0",
+      "rect": [
+        1054.7,
+        1119.5,
+        88.6,
+        20.0
+      ],
+      "role": "text",
+      "text": "transformed"
+    },
+    {
+      "fill": "#262b35ff",
+      "key": "s10",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/s10",
+      "rect": [
+        616.5,
+        1145.5,
+        395.0,
+        0.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "r10",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r10",
+      "rect": [
+        616.5,
+        1146.0,
+        395.0,
+        32.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r10/c0",
+      "rect": [
+        616.5,
+        1146.0,
+        140.0,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r10/c0/#0",
+      "rect": [
+        626.5,
+        1152.0,
+        120.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦  ⁦fr/posts⁩"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r10/c1",
+      "rect": [
+        756.5,
+        1146.0,
+        140.0,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r10/c1/#0",
+      "rect": [
+        766.5,
+        1152.0,
+        120.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦content/fr/posts/_index.md⁩"
+    },
+    {
+      "key": "c2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r10/c2",
+      "rect": [
+        896.5,
+        1146.0,
+        67.0,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r10/c2/#0",
+      "rect": [
+        906.5,
+        1152.0,
+        47.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "trunk"
+    },
+    {
+      "key": "c3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r10/c3",
+      "rect": [
+        963.5,
+        1146.0,
+        81.2,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r10/c3/#0",
+      "rect": [
+        973.5,
+        1152.0,
+        61.2,
+        20.0
+      ],
+      "role": "text",
+      "text": "—"
+    },
+    {
+      "key": "c4",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r10/c4",
+      "rect": [
+        1044.7,
+        1146.0,
+        108.6,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r10/c4/#0",
+      "rect": [
+        1054.7,
+        1152.0,
+        88.6,
+        20.0
+      ],
+      "role": "text",
+      "text": "transformed"
+    },
+    {
+      "fill": "#262b35ff",
+      "key": "s11",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/s11",
+      "rect": [
+        616.5,
+        1178.0,
+        395.0,
+        0.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "r11",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r11",
+      "rect": [
+        616.5,
+        1178.5,
+        395.0,
+        32.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r11/c0",
+      "rect": [
+        616.5,
+        1178.5,
+        140.0,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r11/c0/#0",
+      "rect": [
+        626.5,
+        1184.5,
+        120.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦  ⁦fr/posts/bonjour⁩"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r11/c1",
+      "rect": [
+        756.5,
+        1178.5,
+        140.0,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r11/c1/#0",
+      "rect": [
+        766.5,
+        1184.5,
+        120.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦content/fr/posts/bonjour/index.md⁩"
+    },
+    {
+      "key": "c2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r11/c2",
+      "rect": [
+        896.5,
+        1178.5,
+        67.0,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r11/c2/#0",
+      "rect": [
+        906.5,
+        1184.5,
+        47.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "satellite"
+    },
+    {
+      "key": "c3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r11/c3",
+      "rect": [
+        963.5,
+        1178.5,
+        81.2,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r11/c3/#0",
+      "rect": [
+        973.5,
+        1184.5,
+        61.2,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦fr/posts⁩"
+    },
+    {
+      "key": "c4",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r11/c4",
+      "rect": [
+        1044.7,
+        1178.5,
+        108.6,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b4/r11/c4/#0",
+      "rect": [
+        1054.7,
+        1184.5,
+        88.6,
+        20.0
+      ],
+      "role": "text",
+      "text": "transformed"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "b5",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b5",
+      "rect": [
+        616.0,
+        1235.0,
+        396.0,
+        21.0
+      ],
+      "role": "heading",
+      "text": "Review items"
+    },
+    {
+      "key": "b6",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b6",
+      "rect": [
+        616.0,
+        1266.0,
+        396.0,
+        192.0
+      ],
+      "role": "list"
+    },
+    {
+      "key": "i0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b6/i0",
+      "rect": [
+        616.0,
+        1266.0,
+        396.0,
+        40.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b6/i0/#0",
+      "rect": [
+        616.0,
+        1266.0,
+        32.0,
+        40.0
+      ],
+      "role": "text",
+      "text": "•"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b6/i0/#1",
+      "rect": [
+        648.0,
+        1266.0,
+        364.0,
+        40.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "b0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b6/i0/#1/b0",
+      "rect": [
+        648.0,
+        1266.0,
+        364.0,
+        40.0
+      ],
+      "role": "text",
+      "text": "⁦  ⁦en/guides/inner⁩  ⁩: nested section ⁦guides/inner⁩ flattened: Satellite of ⁦en/guides⁩ (Boris graph is ⁦two-level⁩)"
+    },
+    {
+      "key": "i1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b6/i1",
+      "rect": [
+        616.0,
+        1310.0,
+        396.0,
+        60.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b6/i1/#0",
+      "rect": [
+        616.0,
+        1310.0,
+        32.0,
+        60.0
+      ],
+      "role": "text",
+      "text": "•"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b6/i1/#1",
+      "rect": [
+        648.0,
+        1310.0,
+        364.0,
+        60.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "b0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b6/i1/#1/b0",
+      "rect": [
+        648.0,
+        1310.0,
+        364.0,
+        60.0
+      ],
+      "role": "text",
+      "text": "⁦  ⁦en/guides/inner/deep-page⁩  ⁩: page in nested section ⁦guides/inner⁩ flattened: Satellite of ⁦en/guides⁩ (Boris graph is ⁦two-level⁩)"
+    },
+    {
+      "key": "i2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b6/i2",
+      "rect": [
+        616.0,
+        1374.0,
+        396.0,
+        40.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b6/i2/#0",
+      "rect": [
+        616.0,
+        1374.0,
+        32.0,
+        40.0
+      ],
+      "role": "text",
+      "text": "•"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b6/i2/#1",
+      "rect": [
+        648.0,
+        1374.0,
+        364.0,
+        40.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "b0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b6/i2/#1/b0",
+      "rect": [
+        648.0,
+        1374.0,
+        364.0,
+        40.0
+      ],
+      "role": "text",
+      "text": "⁦  ⁦en/posts/draft-note⁩  ⁩: custom {{< callout >}} shortcode preserved (no Boris target)"
+    },
+    {
+      "key": "i3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b6/i3",
+      "rect": [
+        616.0,
+        1418.0,
+        396.0,
+        40.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b6/i3/#0",
+      "rect": [
+        616.0,
+        1418.0,
+        32.0,
+        40.0
+      ],
+      "role": "text",
+      "text": "•"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b6/i3/#1",
+      "rect": [
+        648.0,
+        1418.0,
+        364.0,
+        40.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "b0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b6/i3/#1/b0",
+      "rect": [
+        648.0,
+        1418.0,
+        364.0,
+        40.0
+      ],
+      "role": "text",
+      "text": "⁦  ⁦en/posts/markup-shortcode⁩  ⁩: custom {{% callout %}} shortcode preserved (no Boris target)"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "b7",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b7",
+      "rect": [
+        616.0,
+        1482.0,
+        396.0,
+        21.0
+      ],
+      "role": "heading",
+      "text": "Redirects (aliases, slug, url)"
+    },
+    {
+      "key": "b8",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8",
+      "radius": 6.0,
+      "rect": [
+        616.0,
+        1513.0,
+        333.5,
+        130.5
+      ],
+      "role": "table"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "th",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/th",
+      "rect": [
+        616.5,
+        1513.5,
+        332.5,
+        32.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/th/c0",
+      "rect": [
+        616.5,
+        1513.5,
+        48.8,
+        32.0
+      ],
+      "role": "columnheader"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/th/c0/#0",
+      "rect": [
+        626.5,
+        1519.5,
+        28.8,
+        20.0
+      ],
+      "role": "text",
+      "text": "Kind"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/th/c1",
+      "rect": [
+        665.3,
+        1513.5,
+        132.5,
+        32.0
+      ],
+      "role": "columnheader"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/th/c1/#0",
+      "rect": [
+        675.3,
+        1519.5,
+        112.5,
+        20.0
+      ],
+      "role": "text",
+      "text": "From"
+    },
+    {
+      "key": "c2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/th/c2",
+      "rect": [
+        797.7,
+        1513.5,
+        151.3,
+        32.0
+      ],
+      "role": "columnheader"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/th/c2/#0",
+      "rect": [
+        807.7,
+        1519.5,
+        131.3,
+        20.0
+      ],
+      "role": "text",
+      "text": "To entity id"
+    },
+    {
+      "fill": "#262b35ff",
+      "key": "s0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/s0",
+      "rect": [
+        616.5,
+        1545.5,
+        332.5,
+        0.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "r0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/r0",
+      "rect": [
+        616.5,
+        1546.0,
+        332.5,
+        32.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/r0/c0",
+      "rect": [
+        616.5,
+        1546.0,
+        48.8,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/r0/c0/#0",
+      "rect": [
+        626.5,
+        1552.0,
+        28.8,
+        20.0
+      ],
+      "role": "text",
+      "text": "alias"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/r0/c1",
+      "rect": [
+        665.3,
+        1546.0,
+        132.5,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/r0/c1/#0",
+      "rect": [
+        675.3,
+        1552.0,
+        112.5,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦  ⁦/legacy/hb⁩"
+    },
+    {
+      "key": "c2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/r0/c2",
+      "rect": [
+        797.7,
+        1546.0,
+        151.3,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/r0/c2/#0",
+      "rect": [
+        807.7,
+        1552.0,
+        131.3,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦  ⁦en/posts/hello-bundle⁩"
+    },
+    {
+      "fill": "#262b35ff",
+      "key": "s1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/s1",
+      "rect": [
+        616.5,
+        1578.0,
+        332.5,
+        0.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "r1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/r1",
+      "rect": [
+        616.5,
+        1578.5,
+        332.5,
+        32.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/r1/c0",
+      "rect": [
+        616.5,
+        1578.5,
+        48.8,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/r1/c0/#0",
+      "rect": [
+        626.5,
+        1584.5,
+        28.8,
+        20.0
+      ],
+      "role": "text",
+      "text": "alias"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/r1/c1",
+      "rect": [
+        665.3,
+        1578.5,
+        132.5,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/r1/c1/#0",
+      "rect": [
+        675.3,
+        1584.5,
+        112.5,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦  ⁦/old/hello-bundle/⁩"
+    },
+    {
+      "key": "c2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/r1/c2",
+      "rect": [
+        797.7,
+        1578.5,
+        151.3,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/r1/c2/#0",
+      "rect": [
+        807.7,
+        1584.5,
+        131.3,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦  ⁦en/posts/hello-bundle⁩"
+    },
+    {
+      "fill": "#262b35ff",
+      "key": "s2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/s2",
+      "rect": [
+        616.5,
+        1610.5,
+        332.5,
+        0.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "r2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/r2",
+      "rect": [
+        616.5,
+        1611.0,
+        332.5,
+        32.0
+      ],
+      "role": "row"
+    },
+    {
+      "key": "c0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/r2/c0",
+      "rect": [
+        616.5,
+        1611.0,
+        48.8,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/r2/c0/#0",
+      "rect": [
+        626.5,
+        1617.0,
+        28.8,
+        20.0
+      ],
+      "role": "text",
+      "text": "slug"
+    },
+    {
+      "key": "c1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/r2/c1",
+      "rect": [
+        665.3,
+        1611.0,
+        132.5,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/r2/c1/#0",
+      "rect": [
+        675.3,
+        1617.0,
+        112.5,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦  ⁦hello-custom-slug⁩"
+    },
+    {
+      "key": "c2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/r2/c2",
+      "rect": [
+        797.7,
+        1611.0,
+        151.3,
+        32.0
+      ],
+      "role": "cell"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b8/r2/c2/#0",
+      "rect": [
+        807.7,
+        1617.0,
+        131.3,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦  ⁦en/posts/hello-bundle⁩"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "b9",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b9",
+      "rect": [
+        616.0,
+        1667.5,
+        396.0,
+        21.0
+      ],
+      "role": "heading",
+      "text": "Not emitted"
+    },
+    {
+      "key": "b10",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b10",
+      "rect": [
+        616.0,
+        1698.5,
+        396.0,
+        64.0
+      ],
+      "role": "list"
+    },
+    {
+      "key": "i0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b10/i0",
+      "rect": [
+        616.0,
+        1698.5,
+        396.0,
+        40.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b10/i0/#0",
+      "rect": [
+        616.0,
+        1698.5,
+        32.0,
+        40.0
+      ],
+      "role": "text",
+      "text": "•"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b10/i0/#1",
+      "rect": [
+        648.0,
+        1698.5,
+        364.0,
+        40.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "b0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b10/i0/#1/b0",
+      "rect": [
+        648.0,
+        1698.5,
+        364.0,
+        40.0
+      ],
+      "role": "text",
+      "text": "⁦  ⁦static/⁩  ⁩ copied to ⁦  ⁦assets/⁩  ⁩ (2 files) for the theme ⁦  ⁦assets/⁩  ⁩ tree; not ⁦page-owned⁩."
+    },
+    {
+      "key": "i1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b10/i1",
+      "rect": [
+        616.0,
+        1742.5,
+        396.0,
+        20.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b10/i1/#0",
+      "rect": [
+        616.0,
+        1742.5,
+        32.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "•"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b10/i1/#1",
+      "rect": [
+        648.0,
+        1742.5,
+        364.0,
+        20.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "b0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b10/i1/#1/b0",
+      "rect": [
+        648.0,
+        1742.5,
+        364.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "⁦  ⁦layouts/shortcodes/⁩  ⁩: callout (never executed)"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "b11",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/sketch/#1/b11",
+      "rect": [
+        616.0,
+        1774.5,
+        396.0,
+        60.0
+      ],
+      "role": "text",
+      "text": "⁦Machine-readable⁩ twins: ⁦  ⁦report.json⁩  ⁩, ⁦  ⁦redirects.json⁩  ⁩, ⁦  ⁦provenance/<entity-id>.json⁩  ⁩. Disposition contract: ⁦  ⁦docs/contracts/hugo.md⁩  ⁩."
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "inspector",
+      "opacity": 1.0,
+      "path": "shell/body/inspector",
+      "rect": [
+        1040.0,
+        0.0,
+        240.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "inspector-scroll",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll",
+      "rect": [
+        1040.0,
+        0.0,
+        240.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "inspector-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-head",
+      "rect": [
+        1040.0,
+        0.0,
+        240.0,
+        28.3
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-head/#0",
+      "rect": [
+        1048.0,
+        8.0,
+        224.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Inspector"
+    },
+    {
+      "key": "inspector-body",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body",
+      "rect": [
+        1040.0,
+        28.3,
+        240.0,
+        279.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "inspector-badges",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/inspector-badges",
+      "rect": [
+        1048.0,
+        28.3,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#3dff9a2e",
+      "key": "badge-0",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/inspector-badges/badge-0",
+      "radius": 999.0,
+      "rect": [
+        1048.0,
+        28.3,
+        24.8,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#3dff9aff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/inspector-badges/badge-0/#0",
+      "rect": [
+        1054.0,
+        28.3,
+        12.8,
+        13.8
+      ],
+      "role": "text",
+      "text": "ok"
+    },
+    {
+      "fill": "#ffb0202e",
+      "key": "badge-1",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/inspector-badges/badge-1",
+      "radius": 999.0,
+      "rect": [
+        1076.8,
+        28.3,
+        106.3,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#ffb020ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/inspector-badges/badge-1/#0",
+      "rect": [
+        1082.8,
+        28.3,
+        94.3,
+        13.8
+      ],
+      "role": "text",
+      "text": "report unreadable"
+    },
+    {
+      "key": "field-run",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run",
+      "rect": [
+        1048.0,
+        46.0,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/#0",
+      "rect": [
+        1048.0,
+        46.0,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "run"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/#1",
+      "rect": [
+        1128.0,
+        46.0,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "1764003600000-hugo"
+    },
+    {
+      "key": "field-mode",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-mode",
+      "rect": [
+        1048.0,
+        63.8,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-mode/#0",
+      "rect": [
+        1048.0,
+        63.8,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "mode"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-mode/#1",
+      "rect": [
+        1128.0,
+        63.8,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "hugo"
+    },
+    {
+      "key": "field-format",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-format",
+      "rect": [
+        1048.0,
+        81.5,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-format/#0",
+      "rect": [
+        1048.0,
+        81.5,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "format"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-format/#1",
+      "rect": [
+        1128.0,
+        81.5,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "—"
+    },
+    {
+      "key": "field-schema",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-schema",
+      "rect": [
+        1048.0,
+        99.3,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-schema/#0",
+      "rect": [
+        1048.0,
+        99.3,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "schema"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-schema/#1",
+      "rect": [
+        1128.0,
+        99.3,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "—"
+    },
+    {
+      "key": "field-lab version",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-lab version",
+      "rect": [
+        1048.0,
+        117.0,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-lab version/#0",
+      "rect": [
+        1048.0,
+        117.0,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "lab version"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-lab version/#1",
+      "rect": [
+        1128.0,
+        117.0,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "—"
+    },
+    {
+      "key": "field-lab binary",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-lab binary",
+      "rect": [
+        1048.0,
+        134.8,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-lab binary/#0",
+      "rect": [
+        1048.0,
+        134.8,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "lab binary"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-lab binary/#1",
+      "rect": [
+        1128.0,
+        134.8,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "boris-migration-lab/0.8.1"
+    },
+    {
+      "key": "field-Boris pin",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-Boris pin",
+      "rect": [
+        1048.0,
+        152.5,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-Boris pin/#0",
+      "rect": [
+        1048.0,
+        152.5,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Boris pin"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-Boris pin/#1",
+      "rect": [
+        1128.0,
+        152.5,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "boris/0.9.0 @ 66efcfb"
+    },
+    {
+      "key": "field-argv",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-argv",
+      "rect": [
+        1048.0,
+        170.3,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-argv/#0",
+      "rect": [
+        1048.0,
+        170.3,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "argv"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "--mode=hugo --root=/CAPTURE_ROOT/src/mini-hugo --out=/CAPTURE_ROOT/out/hugo",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-argv/#1",
+      "rect": [
+        1128.0,
+        170.3,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "--mode=hugo --root=/CAPTURE_ROOT/src/mini-hugo --out=/CAPTURE_ROOT/out/hugo"
+    },
+    {
+      "key": "field-exit code",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-exit code",
+      "rect": [
+        1048.0,
+        188.0,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-exit code/#0",
+      "rect": [
+        1048.0,
+        188.0,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "exit code"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-exit code/#1",
+      "rect": [
+        1128.0,
+        188.0,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "key": "field-ended",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ended",
+      "rect": [
+        1048.0,
+        205.8,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ended/#0",
+      "rect": [
+        1048.0,
+        205.8,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "ended"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ended/#1",
+      "rect": [
+        1128.0,
+        205.8,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "exited 0"
+    },
+    {
+      "key": "field-duration",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-duration",
+      "rect": [
+        1048.0,
+        223.5,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-duration/#0",
+      "rect": [
+        1048.0,
+        223.5,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "duration"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-duration/#1",
+      "rect": [
+        1128.0,
+        223.5,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "0 ms"
+    },
+    {
+      "key": "field-output",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-output",
+      "rect": [
+        1048.0,
+        241.3,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-output/#0",
+      "rect": [
+        1048.0,
+        241.3,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "output"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": ".cv/imports/1764003600000-hugo/out",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-output/#1",
+      "rect": [
+        1128.0,
+        241.3,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": ".cv/imports/1764003600000-hugo/out"
+    },
+    {
+      "key": "field-provenance",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-provenance",
+      "rect": [
+        1048.0,
+        259.0,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-provenance/#0",
+      "rect": [
+        1048.0,
+        259.0,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "provenance"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": ".cv/imports/1764003600000-hugo/out/provenance/",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-provenance/#1",
+      "rect": [
+        1128.0,
+        259.0,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": ".cv/imports/1764003600000-hugo/out/provenance/"
+    },
+    {
+      "key": "list-0",
+      "label": "Counts",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0",
+      "rect": [
+        1048.0,
+        284.8,
+        224.0,
+        15.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/#0",
+      "rect": [
+        1048.0,
+        286.3,
+        12.0,
+        12.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/#1",
+      "rect": [
+        1064.0,
+        284.8,
+        41.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "Counts"
+    },
+    {
+      "fill": "#8a93a32e",
+      "key": "list-0-count",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/list-0-count",
+      "radius": 999.0,
+      "rect": [
+        1109.6,
+        285.4,
+        19.1,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/list-0-count/#0",
+      "rect": [
+        1115.6,
+        285.4,
+        7.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "status",
+      "opacity": 1.0,
+      "path": "shell/status",
+      "rect": [
+        0.0,
+        778.0,
+        1280.0,
+        22.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "help": "Open Doctor: engine, watch and .cv/ health",
+      "key": "status-0",
+      "opacity": 1.0,
+      "path": "shell/status/status-0",
+      "radius": 999.0,
+      "rect": [
+        8.0,
+        780.0,
+        85.4,
+        18.0
+      ],
+      "role": "button"
+    },
+    {
+      "fill": "#3dff9aff",
+      "key": "status-dot",
+      "opacity": 1.0,
+      "path": "shell/status/status-0/status-dot",
+      "radius": 999.0,
+      "rect": [
+        16.0,
+        786.0,
+        6.0,
+        6.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/status/status-0/#1",
+      "rect": [
+        28.0,
+        782.1,
+        57.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "boris/0.9.0"
+    },
+    {
+      "key": "status-1",
+      "label": "3 events",
+      "opacity": 1.0,
+      "path": "shell/status/status-1",
+      "rect": [
+        102.1,
+        780.5,
+        51.4,
+        17.0
+      ],
+      "role": "text",
+      "text": "3 events"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.24",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.24",
+      "rect": [
+        105.4,
+        782.1,
+        6.9,
+        13.8
+      ],
+      "role": "text",
+      "text": "3"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.2",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.2",
+      "rect": [
+        112.3,
+        782.1,
+        2.9,
+        13.8
+      ],
+      "role": "text",
+      "text": " "
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.3",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.3",
+      "rect": [
+        115.2,
+        782.1,
+        6.3,
+        13.8
+      ],
+      "role": "text",
+      "text": "e"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.4",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.4",
+      "rect": [
+        121.5,
+        782.1,
+        6.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "v"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.5",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.5",
+      "rect": [
+        127.6,
+        782.1,
+        6.5,
+        13.8
+      ],
+      "role": "text",
+      "text": "e"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.6",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.6",
+      "rect": [
+        134.0,
+        782.1,
+        6.6,
+        13.8
+      ],
+      "role": "text",
+      "text": "n"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.7",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.7",
+      "rect": [
+        140.6,
+        782.1,
+        3.7,
+        13.8
+      ],
+      "role": "text",
+      "text": "t"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.8",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.8",
+      "rect": [
+        144.3,
+        782.1,
+        5.9,
+        13.8
+      ],
+      "role": "text",
+      "text": "s"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "status-2",
+      "opacity": 1.0,
+      "path": "shell/status/status-2",
+      "radius": 2.0,
+      "rect": [
+        162.2,
+        782.1,
+        52.1,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/status/status-2/#0",
+      "rect": [
+        168.2,
+        782.1,
+        40.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "epoch 1"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/status/#3",
+      "rect": [
+        226.3,
+        789.0,
+        870.5,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/status/#4",
+      "rect": [
+        1108.8,
+        782.1,
+        99.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "mod+K commands"
+    },
+    {
+      "help": "Switch to light theme",
+      "key": "status-3",
+      "label": "Switch to light theme",
+      "opacity": 1.0,
+      "path": "shell/status/status-3",
+      "radius": 4.0,
+      "rect": [
+        1220.0,
+        779.0,
+        20.0,
+        20.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "icon",
+      "opacity": 1.0,
+      "path": "shell/status/status-3/icon",
+      "rect": [
+        1222.0,
+        781.0,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "help": "Motion on — reduce motion",
+      "key": "status-4",
+      "label": "Motion on — reduce motion",
+      "opacity": 1.0,
+      "path": "shell/status/status-4",
+      "radius": 4.0,
+      "rect": [
+        1252.0,
+        779.0,
+        20.0,
+        20.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "icon",
+      "opacity": 1.0,
+      "path": "shell/status/status-4/icon",
+      "rect": [
+        1254.0,
+        781.0,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    }
+  ],
+  "schema": 2
+}

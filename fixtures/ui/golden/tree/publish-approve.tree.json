@@ -435,6 +435,94 @@
       "text": "Demo"
     },
     {
+      "opacity": 1.0,
+      "path": "shell/body/rail/#7",
+      "rect": [
+        4.0,
+        393.8,
+        80.0,
+        302.3
+      ],
+      "role": "group"
+    },
+    {
+      "key": "rail-group-utilities",
+      "label": "Utilities",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-group-utilities",
+      "rect": [
+        4.0,
+        700.0,
+        80.0,
+        17.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-group-utilities/#0",
+      "rect": [
+        12.0,
+        704.0,
+        64.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Utilities"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-migrate",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        721.8,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#0",
+      "rect": [
+        12.0,
+        727.8,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-migrate-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#0/rail-migrate-icon",
+      "rect": [
+        12.0,
+        727.8,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#1",
+      "rect": [
+        12.0,
+        747.8,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Migrate"
+    },
+    {
       "fill": "#0e1014ff",
       "key": "nav",
       "opacity": 1.0,
@@ -985,7 +1073,7 @@
       "selected": true
     },
     {
-      "fill": "#e6e9efff",
+      "fill": "#ff3d71ff",
       "key": "rail",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-run-000000-0/rail",
@@ -1006,7 +1094,7 @@
       "rect": [
         287.0,
         3.5,
-        144.2,
+        94.2,
         15.0
       ],
       "role": "text",
@@ -1014,32 +1102,32 @@
     },
     {
       "color": "#8a93a3ff",
-      "help": "10 files · 52843 B",
+      "help": "ruleset: TGT-ROBOTS-TXT|output:RobotsTxt|373f41f8e5d85ac289b778b077a842e8f102d1de6cd581420217c1dd9d3b7ad3",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-run-000000-0/#2",
       "rect": [
-        439.2,
+        389.2,
         4.1,
         80.0,
         13.8
       ],
       "role": "text",
-      "text": "10 files · 52843 B"
+      "text": "ruleset: TGT-ROBOTS-TXT|output:RobotsTxt|373f41f8e5d85ac289b778b077a842e8f102d1de6cd581420217c1dd9d3b7ad3"
     },
     {
-      "color": "#e6e9efff",
-      "fill": "#e6e9ef26",
+      "color": "#ff3d71ff",
+      "fill": "#ff3d7126",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-run-000000-0/#3",
       "radius": 999.0,
       "rect": [
-        527.2,
+        477.2,
         4.1,
-        52.8,
+        102.8,
         13.8
       ],
       "role": "text",
-      "text": "granted"
+      "text": "preflight-blocked"
     },
     {
       "fill": "#14171dff",
@@ -1144,7 +1232,7 @@
         20.0
       ],
       "role": "text",
-      "text": "Static dist · granted"
+      "text": "Static dist · preflight-blocked"
     },
     {
       "key": "reading-body",
@@ -1154,7 +1242,7 @@
         588.0,
         63.8,
         452.0,
-        314.8
+        391.5
       ],
       "role": "group"
     },
@@ -1222,7 +1310,7 @@
       "text": "state"
     },
     {
-      "color": "#e6e9efff",
+      "color": "#ff3d71ff",
       "opacity": 1.0,
       "path": "shell/body/reading/reading-scroll/reading-body/line-1/#1",
       "rect": [
@@ -1232,7 +1320,7 @@
         15.0
       ],
       "role": "text",
-      "text": "granted"
+      "text": "preflight-blocked"
     },
     {
       "key": "line-2",
@@ -1247,7 +1335,7 @@
       "role": "group"
     },
     {
-      "color": "#e6e9efff",
+      "color": "#ff3d71ff",
       "opacity": 1.0,
       "path": "shell/body/reading/reading-scroll/reading-body/line-2/#0",
       "rect": [
@@ -1257,7 +1345,7 @@
         15.0
       ],
       "role": "text",
-      "text": "sealed by preflight; awaiting approval"
+      "text": "preflight blocked: nothing was sealed or delivered"
     },
     {
       "key": "line-3",
@@ -1267,7 +1355,7 @@
         604.0,
         126.8,
         420.0,
-        30.0
+        27.5
       ],
       "role": "group"
     },
@@ -1279,23 +1367,23 @@
         604.0,
         126.8,
         96.0,
-        30.0
+        27.5
       ],
       "role": "text",
-      "text": "advisory"
+      "text": "block"
     },
     {
-      "color": "#8a93a3ff",
+      "color": "#ff3d71ff",
       "opacity": 1.0,
       "path": "shell/body/reading/reading-scroll/reading-body/line-3/#1",
       "rect": [
         708.0,
         126.8,
         316.0,
-        30.0
+        27.5
       ],
       "role": "text",
-      "text": "SEO-CANONICAL-PRESENT on guides/getting-started.html · heuristic"
+      "text": "TGT-ROBOTS-TXT on RobotsTxt · blocking ruleset finding, reveal it in Audit"
     },
     {
       "key": "line-4",
@@ -1303,9 +1391,9 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-4",
       "rect": [
         604.0,
-        162.8,
+        160.3,
         420.0,
-        30.0
+        15.0
       ],
       "role": "group"
     },
@@ -1315,9 +1403,9 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-4/#0",
       "rect": [
         604.0,
-        162.8,
+        160.3,
         96.0,
-        30.0
+        15.0
       ],
       "role": "text",
       "text": "advisory"
@@ -1328,12 +1416,12 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-4/#1",
       "rect": [
         708.0,
-        162.8,
+        160.3,
         316.0,
-        30.0
+        15.0
       ],
       "role": "text",
-      "text": "SEO-CANONICAL-PRESENT on guides/publishing.html · heuristic"
+      "text": "AEO-LLMS-TXT-H1 on Llms · heuristic"
     },
     {
       "key": "line-5",
@@ -1341,7 +1429,7 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-5",
       "rect": [
         604.0,
-        198.8,
+        181.3,
         420.0,
         15.0
       ],
@@ -1353,7 +1441,7 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-5/#0",
       "rect": [
         604.0,
-        198.8,
+        181.3,
         96.0,
         15.0
       ],
@@ -1366,12 +1454,12 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-5/#1",
       "rect": [
         708.0,
-        198.8,
+        181.3,
         316.0,
         15.0
       ],
       "role": "text",
-      "text": "SEO-CANONICAL-PRESENT on index.html · heuristic"
+      "text": "AEO-LLMS-TXT-SUMMARY on Llms · heuristic"
     },
     {
       "key": "line-6",
@@ -1379,7 +1467,7 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-6",
       "rect": [
         604.0,
-        219.8,
+        202.3,
         420.0,
         30.0
       ],
@@ -1391,7 +1479,7 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-6/#0",
       "rect": [
         604.0,
-        219.8,
+        202.3,
         96.0,
         30.0
       ],
@@ -1404,12 +1492,12 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-6/#1",
       "rect": [
         708.0,
-        219.8,
+        202.3,
         316.0,
         30.0
       ],
       "role": "text",
-      "text": "SEO-META-DESCRIPTION on guides/getting-started.html · heuristic"
+      "text": "SEO-CANONICAL-PRESENT on guides/getting-started · heuristic"
     },
     {
       "key": "line-7",
@@ -1417,7 +1505,7 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-7",
       "rect": [
         604.0,
-        255.8,
+        238.3,
         420.0,
         30.0
       ],
@@ -1429,7 +1517,7 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-7/#0",
       "rect": [
         604.0,
-        255.8,
+        238.3,
         96.0,
         30.0
       ],
@@ -1442,12 +1530,12 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-7/#1",
       "rect": [
         708.0,
-        255.8,
+        238.3,
         316.0,
         30.0
       ],
       "role": "text",
-      "text": "SEO-META-DESCRIPTION on guides/publishing.html · heuristic"
+      "text": "SEO-CANONICAL-PRESENT on guides/publishing · heuristic"
     },
     {
       "key": "line-8",
@@ -1455,7 +1543,7 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-8",
       "rect": [
         604.0,
-        291.8,
+        274.3,
         420.0,
         15.0
       ],
@@ -1467,7 +1555,7 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-8/#0",
       "rect": [
         604.0,
-        291.8,
+        274.3,
         96.0,
         15.0
       ],
@@ -1480,12 +1568,12 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-8/#1",
       "rect": [
         708.0,
-        291.8,
+        274.3,
         316.0,
         15.0
       ],
       "role": "text",
-      "text": "SEO-META-DESCRIPTION on index.html · heuristic"
+      "text": "SEO-CANONICAL-PRESENT on index · heuristic"
     },
     {
       "key": "line-9",
@@ -1493,9 +1581,9 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-9",
       "rect": [
         604.0,
-        312.8,
+        295.3,
         420.0,
-        13.8
+        30.0
       ],
       "role": "group"
     },
@@ -1505,25 +1593,25 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-9/#0",
       "rect": [
         604.0,
-        312.8,
+        295.3,
         96.0,
-        13.8
+        30.0
       ],
       "role": "text",
-      "text": "plan"
+      "text": "advisory"
     },
     {
-      "color": "#e6e9efff",
+      "color": "#8a93a3ff",
       "opacity": 1.0,
       "path": "shell/body/reading/reading-scroll/reading-body/line-9/#1",
       "rect": [
         708.0,
-        312.8,
+        295.3,
         316.0,
-        13.8
+        30.0
       ],
       "role": "text",
-      "text": "10 files · 52843 B → publish/static-dist"
+      "text": "SEO-META-DESCRIPTION on guides/getting-started · heuristic"
     },
     {
       "key": "line-10",
@@ -1531,7 +1619,7 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-10",
       "rect": [
         604.0,
-        332.5,
+        331.3,
         420.0,
         30.0
       ],
@@ -1543,7 +1631,121 @@
       "path": "shell/body/reading/reading-scroll/reading-body/line-10/#0",
       "rect": [
         604.0,
-        332.5,
+        331.3,
+        96.0,
+        30.0
+      ],
+      "role": "text",
+      "text": "advisory"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-10/#1",
+      "rect": [
+        708.0,
+        331.3,
+        316.0,
+        30.0
+      ],
+      "role": "text",
+      "text": "SEO-META-DESCRIPTION on guides/publishing · heuristic"
+    },
+    {
+      "key": "line-11",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-11",
+      "rect": [
+        604.0,
+        367.3,
+        420.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-11/#0",
+      "rect": [
+        604.0,
+        367.3,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "advisory"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-11/#1",
+      "rect": [
+        708.0,
+        367.3,
+        316.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "SEO-META-DESCRIPTION on index · heuristic"
+    },
+    {
+      "key": "line-12",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-12",
+      "rect": [
+        604.0,
+        388.3,
+        420.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-12/#0",
+      "rect": [
+        604.0,
+        388.3,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "advisory"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-12/#1",
+      "rect": [
+        708.0,
+        388.3,
+        316.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "TGT-ROBOTS-SITEMAP on RobotsTxt · heuristic"
+    },
+    {
+      "key": "line-13",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-13",
+      "rect": [
+        604.0,
+        409.3,
+        420.0,
+        30.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-13/#0",
+      "rect": [
+        604.0,
+        409.3,
         96.0,
         30.0
       ],
@@ -1551,17 +1753,17 @@
       "text": "next"
     },
     {
-      "color": "#e6e9efff",
+      "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-10/#1",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-13/#1",
       "rect": [
         708.0,
-        332.5,
+        409.3,
         316.0,
         30.0
       ],
       "role": "text",
-      "text": "approve it (Publish: Approve selected run…) or discard the grant"
+      "text": "fix the blocking findings (reveal them in Audit), then preflight again"
     },
     {
       "fill": "#0e1014ff",
@@ -1639,7 +1841,7 @@
       "role": "group"
     },
     {
-      "fill": "#e6e9ef2e",
+      "fill": "#ff3d712e",
       "key": "badge-0",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/inspector-badges/badge-0",
@@ -1647,50 +1849,50 @@
       "rect": [
         1048.0,
         28.3,
-        52.8,
+        102.8,
         13.8
       ],
       "role": "group"
     },
     {
-      "color": "#e6e9efff",
+      "color": "#ff3d71ff",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/inspector-badges/badge-0/#0",
       "rect": [
         1054.0,
         28.3,
-        40.8,
+        90.8,
         13.8
       ],
       "role": "text",
-      "text": "granted"
+      "text": "preflight-blocked"
     },
     {
-      "fill": "#e6e9ef2e",
+      "fill": "#8a93a32e",
       "key": "badge-1",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/inspector-badges/badge-1",
       "radius": 999.0,
       "rect": [
-        1104.8,
+        1154.8,
         28.3,
-        65.0,
+        82.6,
         13.8
       ],
       "role": "group"
     },
     {
-      "color": "#e6e9efff",
+      "color": "#8a93a3ff",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/inspector-badges/badge-1/#0",
       "rect": [
-        1110.8,
+        1160.8,
         28.3,
-        53.0,
+        70.6,
         13.8
       ],
       "role": "text",
-      "text": "unverified"
+      "text": "unconfigured"
     },
     {
       "key": "field-run",
@@ -1804,7 +2006,7 @@
         13.8
       ],
       "role": "text",
-      "text": "unverified"
+      "text": "—"
     },
     {
       "key": "field-state",
@@ -1842,7 +2044,7 @@
         13.8
       ],
       "role": "text",
-      "text": "granted"
+      "text": "preflight-blocked"
     },
     {
       "key": "field-profile",
@@ -1880,7 +2082,7 @@
         13.8
       ],
       "role": "text",
-      "text": "boris.json"
+      "text": "—"
     },
     {
       "key": "field-base url",
@@ -1908,7 +2110,7 @@
       "text": "base url"
     },
     {
-      "color": "#00d1ffff",
+      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-base url/#1",
       "rect": [
@@ -1917,8 +2119,8 @@
         144.0,
         13.8
       ],
-      "role": "link",
-      "text": "http://localhost/"
+      "role": "text",
+      "text": "—"
     },
     {
       "key": "field-adapter",
@@ -1956,7 +2158,7 @@
         13.8
       ],
       "role": "text",
-      "text": "copy-to-folder"
+      "text": "—"
     },
     {
       "key": "field-destination",
@@ -1994,7 +2196,7 @@
         13.8
       ],
       "role": "text",
-      "text": "publish/static-dist"
+      "text": "—"
     },
     {
       "key": "field-files",
@@ -2032,7 +2234,7 @@
         13.8
       ],
       "role": "text",
-      "text": "10"
+      "text": "—"
     },
     {
       "key": "field-bytes",
@@ -2070,7 +2272,7 @@
         13.8
       ],
       "role": "text",
-      "text": "52843"
+      "text": "—"
     },
     {
       "key": "field-artifacts",
@@ -2137,7 +2339,6 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "d4c884e227f72c2ee86a3b765a03314f25bcfd7b0971e15f3911397645f1bbb4",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-artifact set/#1",
       "rect": [
@@ -2147,7 +2348,7 @@
         13.8
       ],
       "role": "text",
-      "text": "d4c884e227f72c2ee86a3b765a03314f25bcfd7b0971e15f3911397645f1bbb4"
+      "text": "—"
     },
     {
       "key": "field-graph",
@@ -2176,7 +2377,6 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "c51c43a95664f4572573277f82182fb215e7a5472516c2bb525ffe0287774835",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-graph/#1",
       "rect": [
@@ -2186,7 +2386,7 @@
         13.8
       ],
       "role": "text",
-      "text": "c51c43a95664f4572573277f82182fb215e7a5472516c2bb525ffe0287774835"
+      "text": "—"
     },
     {
       "key": "field-plan",
@@ -2215,7 +2415,6 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "4738bdd0c7edfa12556d6eb77eb8ccc63dda8a37834dfd5febadc5898504a620",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-plan/#1",
       "rect": [
@@ -2225,7 +2424,7 @@
         13.8
       ],
       "role": "text",
-      "text": "4738bdd0c7edfa12556d6eb77eb8ccc63dda8a37834dfd5febadc5898504a620"
+      "text": "—"
     },
     {
       "key": "field-target cfg",
@@ -2254,7 +2453,6 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "48c2988ea76a267108ff6260ea9e16bc2da0a873262c930c047ab7194664bfcc",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-target cfg/#1",
       "rect": [
@@ -2264,7 +2462,7 @@
         13.8
       ],
       "role": "text",
-      "text": "48c2988ea76a267108ff6260ea9e16bc2da0a873262c930c047ab7194664bfcc"
+      "text": "—"
     },
     {
       "key": "field-ruleset",
@@ -2293,7 +2491,6 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "a8105e30998561e7db41ecb682ff2fefe930958c4e2f7673248cd3ffda01b915",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ruleset/#1",
       "rect": [
@@ -2303,7 +2500,7 @@
         13.8
       ],
       "role": "text",
-      "text": "a8105e30998561e7db41ecb682ff2fefe930958c4e2f7673248cd3ffda01b915"
+      "text": "—"
     },
     {
       "key": "field-boris",
@@ -2341,7 +2538,7 @@
         13.8
       ],
       "role": "text",
-      "text": "boris/0.9.0"
+      "text": "—"
     },
     {
       "key": "field-approved",
@@ -3150,7 +3347,7 @@
         40.0
       ],
       "role": "text",
-      "text": "preflight sealed run-000000-0: approve it to publish"
+      "text": "run-000000-0: only a granted run can be approved"
     },
     {
       "key": "close",
@@ -3177,271 +3374,6 @@
         16.0
       ],
       "role": "icon"
-    },
-    {
-      "fill": "#00000099",
-      "key": "dialog-scrim",
-      "opacity": 1.0,
-      "path": "shell/dialog-scrim",
-      "rect": [
-        0.0,
-        0.0,
-        1280.0,
-        800.0
-      ],
-      "role": "group"
-    },
-    {
-      "key": "dialog-layer",
-      "opacity": 1.0,
-      "path": "shell/dialog-layer",
-      "rect": [
-        0.0,
-        0.0,
-        1280.0,
-        800.0
-      ],
-      "role": "group"
-    },
-    {
-      "fill": "#1a1e26ff",
-      "key": "dialog-dialog",
-      "label": "Approve publish run?",
-      "opacity": 1.0,
-      "path": "shell/dialog-layer/dialog-dialog",
-      "radius": 6.0,
-      "rect": [
-        420.0,
-        84.0,
-        440.0,
-        632.0
-      ],
-      "role": "dialog",
-      "shadows": [
-        [
-          0.0,
-          0.0,
-          0.0,
-          1.0,
-          "#262b35ff",
-          false
-        ],
-        [
-          0.0,
-          12.0,
-          32.0,
-          0.0,
-          "#000000a6",
-          false
-        ]
-      ]
-    },
-    {
-      "key": "header",
-      "opacity": 1.0,
-      "path": "shell/dialog-layer/dialog-dialog/header",
-      "rect": [
-        420.0,
-        84.0,
-        440.0,
-        596.0
-      ],
-      "role": "group"
-    },
-    {
-      "opacity": 1.0,
-      "path": "shell/dialog-layer/dialog-dialog/header/#0",
-      "rect": [
-        436.0,
-        100.0,
-        390.0,
-        564.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#e6e9efff",
-      "opacity": 1.0,
-      "path": "shell/dialog-layer/dialog-dialog/header/#0/#0",
-      "rect": [
-        436.0,
-        100.0,
-        390.0,
-        20.0
-      ],
-      "role": "text",
-      "text": "Approve publish run?"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/dialog-layer/dialog-dialog/header/#0/#1",
-      "rect": [
-        436.0,
-        124.0,
-        390.0,
-        540.0
-      ],
-      "role": "text",
-      "text": "Static dist · 10 files · 52843 B by copy-to-folder to publish/static-dist\nApproval is recorded in the ledger before anything is dispatched. Dispatch delivers exactly these sealed bytes, once; a hash that no longer matches refuses.\n\nSealed hashes\n  artifact set: d4c884e227f72c2e…\n  graph: c51c43a95664f457…\n  plan: 4738bdd0c7edfa12…\n  target cfg: 48c2988ea76a2671…\n  ruleset: a8105e30998561e7…\n  boris: boris/0.9.0\n\nAdvisory findings (6): heuristic or below error, these never block\n  advisory · SEO-CANONICAL-PRESENT on guides/getting-started.html · heuristic\n  advisory · SEO-CANONICAL-PRESENT on guides/publishing.html · heuristic\n  advisory · SEO-CANONICAL-PRESENT on index.html · heuristic\n  advisory · SEO-META-DESCRIPTION on guides/getting-started.html · heuristic\n  advisory · SEO-META-DESCRIPTION on guides/publishing.html · heuristic\n  advisory · SEO-META-DESCRIPTION on index.html · heuristic"
-    },
-    {
-      "key": "close",
-      "label": "Close",
-      "opacity": 1.0,
-      "path": "shell/dialog-layer/dialog-dialog/header/close",
-      "radius": 6.0,
-      "rect": [
-        826.0,
-        98.0,
-        20.0,
-        20.0
-      ],
-      "role": "button"
-    },
-    {
-      "color": "#e6e9efff",
-      "key": "icon",
-      "opacity": 1.0,
-      "path": "shell/dialog-layer/dialog-dialog/header/close/icon",
-      "rect": [
-        828.0,
-        100.0,
-        16.0,
-        16.0
-      ],
-      "role": "icon"
-    },
-    {
-      "key": "body",
-      "opacity": 1.0,
-      "path": "shell/dialog-layer/dialog-dialog/body",
-      "rect": [
-        420.0,
-        680.0,
-        440.0,
-        36.0
-      ],
-      "role": "group"
-    },
-    {
-      "key": "dialog-prompt",
-      "opacity": 1.0,
-      "path": "shell/dialog-layer/dialog-dialog/body/dialog-prompt",
-      "rect": [
-        420.0,
-        680.0,
-        440.0,
-        36.0
-      ],
-      "role": "group"
-    },
-    {
-      "opacity": 1.0,
-      "path": "shell/dialog-layer/dialog-dialog/body/dialog-prompt/#0",
-      "rect": [
-        436.0,
-        690.0,
-        127.8,
-        0.0
-      ],
-      "role": "group"
-    },
-    {
-      "key": "dialog-cancel",
-      "label": "Cancel",
-      "opacity": 1.0,
-      "path": "shell/dialog-layer/dialog-dialog/body/dialog-prompt/dialog-cancel",
-      "radius": 4.0,
-      "rect": [
-        571.8,
-        680.0,
-        56.5,
-        20.0
-      ],
-      "role": "button"
-    },
-    {
-      "color": "#e6e9efff",
-      "key": "label",
-      "opacity": 1.0,
-      "path": "shell/dialog-layer/dialog-dialog/body/dialog-prompt/dialog-cancel/label",
-      "rect": [
-        581.8,
-        684.0,
-        36.5,
-        12.0
-      ],
-      "role": "text",
-      "text": "Cancel"
-    },
-    {
-      "fill": "#00d1ffff",
-      "focused": true,
-      "key": "dialog-approve",
-      "label": "Approve",
-      "opacity": 1.0,
-      "path": "shell/dialog-layer/dialog-dialog/body/dialog-prompt/dialog-approve",
-      "radius": 4.0,
-      "rect": [
-        636.3,
-        680.0,
-        64.5,
-        20.0
-      ],
-      "role": "button",
-      "shadows": [
-        [
-          0.0,
-          1.0,
-          1.5,
-          0.0,
-          "#0000004d",
-          false
-        ]
-      ]
-    },
-    {
-      "color": "#001018ff",
-      "key": "label",
-      "opacity": 1.0,
-      "path": "shell/dialog-layer/dialog-dialog/body/dialog-prompt/dialog-approve/label",
-      "rect": [
-        646.3,
-        684.0,
-        44.5,
-        12.0
-      ],
-      "role": "text",
-      "text": "Approve"
-    },
-    {
-      "key": "dialog-approve-dispatch",
-      "label": "Approve and dispatch",
-      "opacity": 1.0,
-      "path": "shell/dialog-layer/dialog-dialog/body/dialog-prompt/dialog-approve-dispatch",
-      "radius": 4.0,
-      "rect": [
-        708.8,
-        680.0,
-        135.2,
-        20.0
-      ],
-      "role": "button"
-    },
-    {
-      "color": "#e6e9efff",
-      "key": "label",
-      "opacity": 1.0,
-      "path": "shell/dialog-layer/dialog-dialog/body/dialog-prompt/dialog-approve-dispatch/label",
-      "rect": [
-        718.8,
-        684.0,
-        115.2,
-        12.0
-      ],
-      "role": "text",
-      "text": "Approve and dispatch"
     }
   ],
   "schema": 2

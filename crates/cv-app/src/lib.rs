@@ -10,6 +10,7 @@ pub mod editor;
 mod file_identity;
 pub mod live;
 pub mod logging;
+pub mod migrate;
 pub mod new_workspace;
 pub mod pages;
 pub mod publish;
@@ -45,8 +46,16 @@ pub fn init_with_publish(publish: Box<dyn cv_model::modules::publish::PublishPor
 }
 
 fn init_with(publish: Box<dyn cv_model::modules::publish::PublishPort>) -> Workbench {
+    init_ports(publish, Box::new(migrate::DiskPort::none()))
+}
+
+fn init_ports(
+    publish: Box<dyn cv_model::modules::publish::PublishPort>,
+    migrate: Box<dyn cv_model::modules::migrate::MigratePort>,
+) -> Workbench {
     cv_model::modules::audit::install(Box::new(audit::DiskPort::ephemeral()));
     cv_model::modules::publish::install(publish);
+    cv_model::modules::migrate::install(migrate);
     doctor::install(None);
     Workbench::new(Registry::with_all()).with_store(Box::new(StubStore::new()))
 }
@@ -265,6 +274,10 @@ pub fn open_workspace(
     let publish_err = publish_warning(&publish);
     opened.ledger.error = publish.error().map(str::to_string);
     cv_model::modules::publish::install(Box::new(publish));
+    cv_model::modules::migrate::install(Box::new(migrate::DiskPort::open(
+        &root,
+        migrate::locate(&root),
+    )));
     let feed = doctor::install(Some(&root));
     feed.update(|f| f.store = doctor::store(&root, &opened));
     wb.reset_project(workspace_registry());
@@ -671,6 +684,11 @@ pub const SCENES: &[Scene] = &[
     ("publish-delivered", publish::scene::delivered),
     ("publish-refused", publish::scene::refused),
     ("publish-reconciled", publish::scene::reconciled),
+    ("migrate-empty", migrate::scene::empty),
+    ("migrate", migrate::scene::runs),
+    ("migrate-review", migrate::scene::review),
+    ("migrate-lab-absent", migrate::scene::lab_absent),
+    ("migrate-undecodable", migrate::scene::undecodable),
 ];
 
 pub fn launch() -> Launch {

@@ -124,7 +124,20 @@ impl Jsonl {
     }
 }
 
-/// Rebuildable FTS5 projection of the notes journal.
+/// Whitespace/case-normalized DDL for contract comparison: producers
+/// cannot hide foreign options in formatting differences.
+fn normalize_ddl(sql: &str) -> String {
+    sql.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_ascii_lowercase()
+}
+
+/// Rebuildable FTS5 projection of the notes journal. A rebuild installs
+/// a brand-new file by rename, so the writer lock owner must close its
+/// handle before rebuilding and re-open it after — exactly what
+/// `open_inner` sequences. No long-lived second owner may exist: the
+/// writer lock is exclusive to one process and one open session.
 pub struct FtsIndex {
     conn: Connection,
 }
@@ -141,15 +154,90 @@ impl FtsIndex {
         Ok(Self { conn })
     }
 
-    /// Open, or delete and recreate when the file is not a usable index.
-    fn open_or_reset(path: &Path) -> Result<Self, DiskError> {
-        match Self::open(path).and_then(|i| i.journal_lines().map(|_| i)) {
-            Ok(i) => Ok(i),
-            Err(_) => {
-                let _ = std::fs::remove_file(path);
-                Self::open(path)
-            }
+    /// Column names of `table` in order; empty when the table is absent.
+    fn table_columns(conn: &Connection, table: &str) -> Result<Vec<String>, DiskError> {
+        let mut st = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+        let cols = st
+            .query_map([], |r| r.get::<_, String>(1))?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(cols)
+    }
+
+    /// Whether the opened database is exactly the owned projection shape:
+    /// the meta and FTS5 virtual tables with their expected columns, the
+    /// FTS5 shadow tables, and nothing else. Foreign debris or a wrong
+    /// shape (an ordinary table shadowing the FTS name, wrong columns)
+    /// means the file cannot be trusted however fresh its metadata
+    /// counters look.
+    fn owned_schema_valid(conn: &Connection) -> Result<bool, DiskError> {
+        const OWNED: &[&str] = &[
+            "cv_index_meta",
+            "research_notes_fts",
+            "research_notes_fts_config",
+            "research_notes_fts_content",
+            "research_notes_fts_data",
+            "research_notes_fts_docsize",
+            "research_notes_fts_idx",
+        ];
+        // Every object must be an owned table: foreign views, triggers
+        // or indexes are debris however valid the tables look.
+        let mut st = conn.prepare(
+            "SELECT name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' AND type != 'table'",
+        )?;
+        if st.exists([])? {
+            return Ok(false);
         }
+        let mut st = conn.prepare(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+        )?;
+        let mut tables: Vec<String> = st
+            .query_map([], |r| r.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        tables.sort();
+        let mut owned: Vec<&str> = OWNED.to_vec();
+        owned.sort();
+        if tables != owned {
+            return Ok(false);
+        }
+        let fts_sql: String = conn.query_row(
+            "SELECT sql FROM sqlite_master WHERE name = 'research_notes_fts'",
+            [],
+            |r| r.get(0),
+        )?;
+        // The full DDL contract, not just the shape: a foreign tokenizer
+        // or content option (`tokenize='porter …'`, external content)
+        // changes what search matches while columns and metadata look
+        // correct. Compare whitespace/case-normalized text so producers
+        // cannot hide options in formatting.
+        const EXPECTED_FTS_DDL: &str = "CREATE VIRTUAL TABLE research_notes_fts
+             USING fts5(note UNINDEXED, title, body, tags)";
+        if normalize_ddl(&fts_sql) != normalize_ddl(EXPECTED_FTS_DDL) {
+            return Ok(false);
+        }
+        Ok(
+            Self::table_columns(conn, "cv_index_meta")? == ["namespace", "schema", "journal_lines"]
+                && Self::table_columns(conn, "research_notes_fts")?
+                    == ["note", "title", "body", "tags"],
+        )
+    }
+
+    /// Whether the index at `path` cannot stand in for a replay of
+    /// `lines` journal lines: missing, unreadable, foreign, wrong-shaped
+    /// or stale. The probe connection is always closed before returning,
+    /// so the caller may replace the file immediately afterwards (a
+    /// rename over it would otherwise trip Windows sharing discipline).
+    fn needs_rebuild(path: &Path, lines: u64) -> bool {
+        if !path.is_file() {
+            return true;
+        }
+        (|| -> Result<bool, DiskError> {
+            let idx = Self::open(path)?;
+            let stale =
+                idx.journal_lines()? != Some(lines) || !Self::owned_schema_valid(&idx.conn)?;
+            idx.close()?;
+            Ok(stale)
+        })()
+        .unwrap_or(true)
     }
 
     fn journal_lines(&self) -> Result<Option<u64>, DiskError> {
@@ -401,19 +489,20 @@ fn open_inner(
     }
     let index_dir = cv_store::paths::create_project_index_dir(root, "research")?;
     let index_path = index_dir.join(INDEX);
-    if force_index_rebuild {
+    // Stale, foreign and corrupt indexes all rebuild through the same
+    // complete-replacement protocol as a forced rebuild: replaying into
+    // the existing file would keep a foreign shape (an ordinary table
+    // shadowing the FTS5 virtual table, debris tables) and any stale
+    // sidecar artifacts.
+    if force_index_rebuild || FtsIndex::needs_rebuild(&index_path, notes.lines()) {
         FtsIndex::rebuild_atomic(&index_path, &nb, notes.lines())?;
         report.index_rebuilt = true;
     }
-    let mut index = FtsIndex::open_or_reset(&index_path)?;
+    let index = FtsIndex::open(&index_path)?;
     // Drop a pre-app-data index (and its journal artifacts); it
     // rebuilds from the journals.
     for suffix in ["", "-journal", "-wal", "-shm"] {
         let _ = std::fs::remove_file(dir.join(format!("{INDEX}{suffix}")));
-    }
-    if !force_index_rebuild && index.journal_lines()? != Some(notes.lines()) {
-        index.rebuild(&nb, notes.lines())?;
-        report.index_rebuilt = true;
     }
     let port = DiskPort {
         root: root.to_path_buf(),

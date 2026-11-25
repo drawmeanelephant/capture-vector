@@ -435,6 +435,94 @@
       "text": "Demo"
     },
     {
+      "opacity": 1.0,
+      "path": "shell/body/rail/#7",
+      "rect": [
+        4.0,
+        393.8,
+        80.0,
+        302.3
+      ],
+      "role": "group"
+    },
+    {
+      "key": "rail-group-utilities",
+      "label": "Utilities",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-group-utilities",
+      "rect": [
+        4.0,
+        700.0,
+        80.0,
+        17.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-group-utilities/#0",
+      "rect": [
+        12.0,
+        704.0,
+        64.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Utilities"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-migrate",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        721.8,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#0",
+      "rect": [
+        12.0,
+        727.8,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-migrate-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#0/rail-migrate-icon",
+      "rect": [
+        12.0,
+        727.8,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#1",
+      "rect": [
+        12.0,
+        747.8,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Migrate"
+    },
+    {
       "fill": "#0e1014ff",
       "key": "nav",
       "opacity": 1.0,
@@ -1841,7 +1929,7 @@
         13.8
       ],
       "role": "text",
-      "text": "boris.json"
+      "text": "default HTML target"
     },
     {
       "key": "field-base url",
@@ -2137,7 +2225,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "c51c43a95664f4572573277f82182fb215e7a5472516c2bb525ffe0287774835",
+      "help": "d1020957f0580499d98c5ed096777c2c3cd1c4e92569288cc60f81dcfba580f5",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-graph/#1",
       "rect": [
@@ -2147,7 +2235,7 @@
         13.8
       ],
       "role": "text",
-      "text": "c51c43a95664f4572573277f82182fb215e7a5472516c2bb525ffe0287774835"
+      "text": "d1020957f0580499d98c5ed096777c2c3cd1c4e92569288cc60f81dcfba580f5"
     },
     {
       "key": "field-plan",
@@ -2215,7 +2303,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "48c2988ea76a267108ff6260ea9e16bc2da0a873262c930c047ab7194664bfcc",
+      "help": "e729951f195f6d60db73a39da7eca3bca5f7f1cd73a45c524f5528fc49c0851d",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-target cfg/#1",
       "rect": [
@@ -2225,7 +2313,7 @@
         13.8
       ],
       "role": "text",
-      "text": "48c2988ea76a267108ff6260ea9e16bc2da0a873262c930c047ab7194664bfcc"
+      "text": "e729951f195f6d60db73a39da7eca3bca5f7f1cd73a45c524f5528fc49c0851d"
     },
     {
       "key": "field-ruleset",

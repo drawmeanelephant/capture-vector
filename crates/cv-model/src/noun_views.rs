@@ -73,6 +73,14 @@ const VIEWS: &[(&str, NounView)] = &[
         cv_core::id::noun_kind::DELIVERY,
         NounView::Lane(crate::modules::publish::ID),
     ),
+    (
+        cv_core::id::noun_kind::IMPORT_RUN,
+        NounView::Lane(crate::modules::migrate::ID),
+    ),
+    (
+        cv_core::id::noun_kind::REVIEW_ITEM,
+        NounView::Lane(crate::modules::migrate::ID),
+    ),
 ];
 
 /// The view for `kind`; unregistered kinds — only reachable from stored

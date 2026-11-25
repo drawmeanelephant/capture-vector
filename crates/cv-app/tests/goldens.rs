@@ -64,6 +64,11 @@ const TREE_SCENES: &[&str] = &[
     "publish-delivered",
     "publish-refused",
     "publish-reconciled",
+    "migrate-empty",
+    "migrate",
+    "migrate-review",
+    "migrate-lab-absent",
+    "migrate-undecodable",
 ];
 
 #[test]
