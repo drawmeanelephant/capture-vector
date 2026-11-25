@@ -728,11 +728,6 @@ pub const SCENES: &[Scene] = &[
     ("verb-usage-error", verbs::scene::usage_error),
     ("verb-impact", verbs::scene::impact),
     ("verb-check-audit", verbs::scene::check),
-    ("migrate-empty", migrate::scene::empty),
-    ("migrate", migrate::scene::runs),
-    ("migrate-review", migrate::scene::review),
-    ("migrate-lab-absent", migrate::scene::lab_absent),
-    ("migrate-undecodable", migrate::scene::undecodable),
 ];
 
 pub fn launch() -> Launch {
