@@ -66,6 +66,9 @@ impl RunPhase {
 
 impl RunView {
     pub fn phase(&self) -> RunPhase {
+        if self.delivery_contact_uncertain() {
+            return RunPhase::Unknown;
+        }
         match &self.state {
             Some(RunState::Dispatching) => RunPhase::Dispatching,
             Some(RunState::Submitted) => RunPhase::Submitted,
