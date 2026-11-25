@@ -6,7 +6,9 @@
 use cv_app::{WorkspaceEnv, init, open_workspace};
 use cv_core::events::shell::DegradedReason;
 use cv_engine::locate::Locator;
+use cv_model::dialog::PickPurpose;
 use cv_model::module::RowModel;
+use cv_model::new_workspace;
 use cv_model::windows::Companion;
 use cv_model::workbench::{KeyInput, KeyPress, ShellRequest, Workbench};
 use cv_widgets::editor::{self, host};
@@ -17,6 +19,172 @@ use std::time::{Duration, Instant};
 
 const SHIM_SH: &str = include_str!("../../cv-engine/tests/fake-boris/boris");
 const SHIM_BAT: &str = include_str!("../../cv-engine/tests/fake-boris/boris.bat");
+
+#[test]
+fn new_workspace_from_an_archetype_creates_and_opens_the_workspace() {
+    let parent = tempfile::tempdir().unwrap();
+    let recent = tempfile::tempdir().unwrap();
+    let fake = Fake::new("happy", None);
+    fake.set(
+        "verbs/init/stderr.txt",
+        cv_fixtures::StubEngine::init_help().as_bytes(),
+    );
+    copy_tree(
+        &cv_fixtures::fixtures_root().join("captures/init/docs/tree"),
+        &fake.dir.path().join("verbs/init/tree"),
+    );
+    let env = fake.env(recent.path());
+    let mut wb = init();
+
+    cv_app::new_workspace::probe_archetypes(&mut wb, &env)
+        .expect("inventory worker")
+        .join()
+        .unwrap();
+    wb.drain();
+    let archetypes = wb.archetypes.as_ref().expect("archetypes located");
+    assert_eq!(archetypes.names.len(), 15);
+    assert_eq!(archetypes.names[archetypes.default], "docs");
+
+    wb.key(&KeyPress {
+        key: KeyInput::Command('n'),
+        shift: true,
+    });
+    assert_eq!(
+        wb.dialogs.open().map(|d| d.spec.id.as_str()),
+        Some(new_workspace::NEW)
+    );
+    wb.picked(
+        PickPurpose::DialogField {
+            dialog: new_workspace::NEW.into(),
+            field: 1,
+        },
+        Some(parent.path().to_path_buf()),
+    );
+    wb.dialog_field(2, None);
+    for c in "created-site".chars() {
+        wb.key(&KeyPress::new(KeyInput::Char(c)));
+    }
+    wb.dialog_act("create");
+    assert_eq!(
+        wb.dialogs.open().map(|d| d.spec.id.as_str()),
+        Some(new_workspace::CREATING),
+        "creation discloses progress"
+    );
+    let creation = match wb.requests.pop() {
+        Some(ShellRequest::CreateWorkspace(creation)) => creation,
+        other => panic!("unexpected request {other:?}"),
+    };
+    assert_eq!(creation.draft.archetype, "docs");
+    assert_eq!(creation.draft.parent, parent.path());
+    assert_eq!(creation.draft.name, "created-site");
+
+    fake.set(
+        "verbs/init/stderr.txt",
+        cv_fixtures::StubEngine::init_report("docs").as_bytes(),
+    );
+    fake.set("verbs/init/exit-code.txt", b"0");
+    cv_app::new_workspace::create_workspace(&mut wb, creation, &env)
+        .expect("create worker")
+        .join()
+        .unwrap();
+    wb.drain();
+    let root = match wb.requests.pop() {
+        Some(ShellRequest::OpenWorkspace(root)) => root,
+        other => panic!("unexpected request {other:?}"),
+    };
+    assert_eq!(
+        root.file_name().and_then(|n| n.to_str()),
+        Some("created-site")
+    );
+    assert!(
+        root.join("content/index.md").is_file(),
+        "the docs starter materialized"
+    );
+
+    open(&mut wb, &root, &env);
+    #[cfg(windows)]
+    assert!(
+        !root.to_string_lossy().starts_with(r"\\?\"),
+        "workspace creation exposes a display path, not a verbatim path: {}",
+        root.display()
+    );
+    assert_eq!(wb.workspace.as_deref(), Some(root.as_path()));
+    assert!(wb.dialogs.open().is_none(), "creation progress closed");
+    assert!(
+        module_len(&wb, "pages", None) >= 3,
+        "the opened starter has pages"
+    );
+}
+
+#[test]
+fn cancelling_creation_kills_the_init_worker_and_never_opens_the_workspace() {
+    let parent = tempfile::tempdir().unwrap();
+    let recent = tempfile::tempdir().unwrap();
+    let fake = Fake::new("happy", None);
+    let env = fake.env(recent.path());
+    let mut wb = init();
+    let creation =
+        cv_model::new_workspace::WorkspaceCreation::new(cv_model::new_workspace::NewWorkspace {
+            parent: parent.path().to_path_buf(),
+            name: "cancelled-site".into(),
+            archetype: "docs".into(),
+        });
+    fake.set("verbs/init/hold", b"");
+    fake.set(
+        "verbs/init/stderr.txt",
+        cv_fixtures::StubEngine::init_report("docs").as_bytes(),
+    );
+    fake.set("verbs/init/exit-code.txt", b"0");
+    let cancel = creation.cancel.clone();
+    let worker =
+        cv_app::new_workspace::create_workspace(&mut wb, creation, &env).expect("create worker");
+    for _ in 0..100 {
+        if fake
+            .log()
+            .lines()
+            .any(|l| l.contains("init cancelled-site --type docs"))
+        {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(
+        fake.log()
+            .lines()
+            .any(|l| l.contains("init cancelled-site --type docs")),
+        "init did not start: {}",
+        fake.log()
+    );
+    cancel.cancel();
+    worker.join().unwrap();
+    wb.drain();
+    assert!(
+        !wb.requests
+            .iter()
+            .any(|r| matches!(r, ShellRequest::OpenWorkspace(_))),
+        "cancelled init must never open: {:?}",
+        wb.requests
+    );
+}
+
+#[test]
+fn a_failed_archetype_probe_is_the_engine_story_doctor_opens() {
+    let recent = tempfile::tempdir().unwrap();
+    let env = absent_env(recent.path());
+    let mut wb = init();
+    cv_app::new_workspace::probe_archetypes(&mut wb, &env)
+        .expect("inventory worker")
+        .join()
+        .unwrap();
+    wb.drain();
+    assert!(wb.archetypes.is_err());
+    let facts = cv_model::modules::doctor::installed().get();
+    assert_eq!(
+        facts.engine,
+        cv_model::modules::doctor::EngineState::NotFound,
+        "Open Doctor must explain the failed probe, not NotStarted"
+    );
+}
 
 #[test]
 fn reopening_workspace_releases_and_reloads_the_findings_journal() {
@@ -136,6 +304,10 @@ impl Fake {
         let p = self.dir.path().join(rel);
         std::fs::create_dir_all(p.parent().unwrap()).unwrap();
         std::fs::write(p, bytes).unwrap();
+    }
+
+    fn log(&self) -> String {
+        std::fs::read_to_string(self.dir.path().join("argv.log")).unwrap_or_default()
     }
 
     fn env(&self, recent: &Path) -> WorkspaceEnv {

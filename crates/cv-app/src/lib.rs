@@ -10,6 +10,7 @@ pub mod editor;
 mod file_identity;
 pub mod live;
 pub mod logging;
+pub mod new_workspace;
 pub mod pages;
 pub mod publish;
 pub mod snapshot;
@@ -25,7 +26,7 @@ use cv_model::modules::doctor::{EngineState, LockHolder};
 use cv_model::theme::Mode;
 use cv_model::workbench::Workbench;
 use cv_widgets::app::{Launch, Scene};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::thread::JoinHandle;
 use workspace::RecentList;
 
@@ -310,8 +311,14 @@ pub fn open_workspace(
 pub fn native_boot(wb: &mut Workbench) {
     if wb.app.snapshot_epoch == 0 {
         let env = WorkspaceEnv::native();
+        let _inventory = new_workspace::probe_archetypes(wb, &env);
         let recent = env.recent();
         wb.recent = recent.entries.clone();
+        wb.new_parent = recent
+            .entries
+            .iter()
+            .find_map(|p| p.parent().map(Path::to_path_buf))
+            .or_else(workspace::home_dir);
         let pick = workspace::resolve(
             workspace::project_arg(std::env::args().skip(1)),
             workspace::project_env(),
@@ -655,6 +662,7 @@ pub fn launch() -> Launch {
         init,
         boot: native_boot,
         open: open_native,
+        create: new_workspace::create_native,
         edit: editor::edit_page,
         scenes: SCENES,
     }

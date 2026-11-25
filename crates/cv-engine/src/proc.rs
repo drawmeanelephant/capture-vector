@@ -8,8 +8,6 @@ use crate::exit::ExitOutcome;
 use std::io::{self, Read, Write};
 use std::path::Path;
 use std::process::{Child, ChildStderr, ChildStdout, Command, ExitStatus, Stdio};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
@@ -33,21 +31,7 @@ const PIPE_EXIT_GRACE: Duration = Duration::from_secs(5);
 /// Retain complete one-shot output up to this many bytes per stream.
 const CAPTURE_LIMIT: usize = 8 * 1024 * 1024;
 
-/// Cooperative cancellation for a running verb.
-#[derive(Clone, Default, Debug)]
-pub struct CancelToken(Arc<AtomicBool>);
-
-impl CancelToken {
-    pub fn new() -> Self {
-        Self::default()
-    }
-    pub fn cancel(&self) {
-        self.0.store(true, Ordering::SeqCst);
-    }
-    pub fn is_cancelled(&self) -> bool {
-        self.0.load(Ordering::SeqCst)
-    }
-}
+pub use cv_core::engine::CancelToken;
 
 /// Builds a Boris invocation with the crate-wide hygiene applied.
 pub(crate) fn boris_command(bin: &Path, cwd: &Path) -> Command {
@@ -357,6 +341,8 @@ pub(crate) fn shell_command(script: &str) -> Command {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
+    use std::sync::atomic::Ordering;
 
     #[test]
     fn captures_pipes_and_code() {

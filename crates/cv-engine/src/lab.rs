@@ -205,7 +205,8 @@ pub struct PreparedRun {
     pub inputs: Vec<(&'static str, PathBuf)>,
     pub out: PathBuf,
     pub argv: Vec<OsString>,
-    /// The deepest existing ancestor of `out` (canonical).
+    /// The deepest existing ancestor of an absent `out` (canonical); the
+    /// parent of an existing `out`, which the lab may rename or replace.
     pub cwd: PathBuf,
 }
 
@@ -291,7 +292,9 @@ fn flag_value(flag: &str, path: &Path) -> OsString {
 }
 
 /// Canonicalize the deepest existing ancestor and re-append the rest.
-/// Returns `(out, that ancestor)`.
+/// Returns `(out, cwd)`: that ancestor for an absent output, or the
+/// existing output's parent so the child never starts inside the tree the
+/// lab may rename or replace.
 fn canonical_out(out: &Path) -> Result<(PathBuf, PathBuf), LabError> {
     let refuse = |reason: String| LabError::OutPath {
         path: out.to_path_buf(),
@@ -314,8 +317,15 @@ fn canonical_out(out: &Path) -> Result<(PathBuf, PathBuf), LabError> {
     if !base.is_dir() {
         return Err(refuse(format!("{base:?} is not a directory")));
     }
-    let canonical = missing.iter().rev().fold(base.clone(), |p, c| p.join(c));
-    Ok((canonical, base))
+    let cwd = if missing.is_empty() {
+        base.parent()
+            .ok_or_else(|| refuse("is a filesystem root".into()))?
+            .to_path_buf()
+    } else {
+        base.clone()
+    };
+    let canonical = missing.iter().rev().fold(base, |p, c| p.join(c));
+    Ok((canonical, cwd))
 }
 
 /// The lab's exit codes. It has no content-failure code (`1`): refusals
@@ -576,6 +586,26 @@ mod tests {
                 .prepare()
                 .is_ok()
         );
+    }
+
+    #[test]
+    fn an_existing_output_is_never_the_child_cwd() {
+        let (_t, root) = scratch();
+        let src = root.join("src");
+        std::fs::create_dir(&src).unwrap();
+        let out = root.join("out");
+        std::fs::create_dir(&out).unwrap();
+
+        let existing = jekyll(vec![("--root", src.clone())], out.clone())
+            .prepare()
+            .unwrap();
+        assert_eq!(existing.out, out);
+        assert_eq!(existing.cwd, root);
+
+        let absent = jekyll(vec![("--root", src)], existing.out.join("missing"))
+            .prepare()
+            .unwrap();
+        assert_eq!(absent.cwd, existing.out);
     }
 
     #[test]

@@ -626,19 +626,62 @@ fn list(s: &Workbench) -> El {
             (None, Some(caps)) => format!("Open a workspace with {}", caps.concat()),
             _ => "Items appear here as Boris reports them".into(),
         };
-        pane = empty_glow(t, pane, t.spacing.list_w).child(empty_state(
-            t,
-            "list-empty",
-            &icons::INBOX,
-            "Nothing here yet",
-            hint,
-        ));
+        let mut state = empty_state(t, "list-empty", &icons::INBOX, "Nothing here yet", hint);
+        if s.workspace.is_none() {
+            state = state.child(workspace_actions(s));
+        }
+        pane = empty_glow(t, pane, t.spacing.list_w).child(state);
     }
     pane.child(
         pane_scroll("list-viewport")
             .grow(if empty { 0.0 } else { 1.0 })
             .child(rows),
     )
+}
+
+/// No workspace open: open one, or create one from a Boris starter.
+fn workspace_actions(s: &Workbench) -> El {
+    let t = &s.theme;
+    let why = s.archetypes.as_ref().err();
+    let mut actions = col()
+        .key("list-empty-actions")
+        .items_center()
+        .gap(t.spacing.unit * 1.5)
+        .pt(t.spacing.unit)
+        .child(controls::command_button(
+            t,
+            "list-empty-open",
+            "Open workspace…",
+            controls::Variant::Neutral,
+            "mod+shift+o",
+            true,
+            |s: &mut Workbench, _| s.run_command("shell.workspace.open"),
+        ))
+        .child(controls::command_button(
+            t,
+            "list-empty-new",
+            "New workspace…",
+            controls::Variant::Neutral,
+            "mod+shift+n",
+            why.is_none(),
+            |s: &mut Workbench, _| s.run_command(cv_model::new_workspace::NEW),
+        ));
+    if let Some(why) = why {
+        actions = actions
+            .child(
+                label(t, format!("New workspace needs Boris: {why}"))
+                    .key("list-empty-new-why")
+                    .truncate(),
+            )
+            .child(controls::button(
+                t,
+                "list-empty-doctor",
+                "Open Doctor",
+                controls::Variant::Neutral,
+                |s: &mut Workbench| s.run_command("shell.doctor"),
+            ));
+    }
+    actions
 }
 
 /// Engine health for the status chip.

@@ -13,6 +13,9 @@ pub struct CommandSpec {
     pub title: String,
     /// Display hint only (e.g. "mod+k"); binding lives in the shell keymap.
     pub chord: Option<String>,
+    /// Why the command can't run now; the palette shows it dimmed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub disabled: Option<String>,
 }
 
 impl CommandSpec {
@@ -21,10 +24,15 @@ impl CommandSpec {
             id: id.into(),
             title: title.into(),
             chord: None,
+            disabled: None,
         }
     }
     pub fn chord(mut self, c: &str) -> Self {
         self.chord = Some(c.into());
+        self
+    }
+    pub fn disabled(mut self, why: Option<String>) -> Self {
+        self.disabled = why;
         self
     }
 }
