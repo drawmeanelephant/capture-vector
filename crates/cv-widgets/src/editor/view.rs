@@ -3,13 +3,21 @@
 use super::Closing;
 use super::EditorWindow;
 use crate::controls::{self, Variant};
-use crate::theme::{self, color, font};
+use crate::diagnostic;
+use crate::icons;
+use crate::shell::chip;
+use crate::theme::{self, Level, Size, Styled, color, font};
+use cv_model::module::Tone;
+use cv_model::modules::activity::severity_tone;
 use cv_model::theme::Theme;
 use cv_ui_editor::frontmatter::{self, Note, SCHEMA};
 use cv_ui_editor::problems::Freshness;
 use cv_ui_editor::save::SaveStatus;
 use cv_ui_editor::sketch;
-use rune::{Cx, El, ScrollSpec, Span, Tx, col, row, text, text_input};
+use rune::{
+    Align, Cx, El, ScrollSpec, Side, Span, Transition, col, el, row, spacer, text, text_input,
+};
+use rune_kit::{Dialog, Keybind, RollingText, Toolbar};
 
 fn label(t: &Theme, s: impl Into<String>) -> El {
     text(s.into())
@@ -17,24 +25,13 @@ fn label(t: &Theme, s: impl Into<String>) -> El {
         .color(color(t.colors.text_dim))
 }
 
-fn button(
-    t: &Theme,
-    key: &str,
-    s: &str,
-    v: Variant,
-    enabled: bool,
-    f: fn(&mut EditorWindow, &mut Tx),
-) -> El {
-    controls::button_tx(t, key, s, v, enabled, f)
-}
-
-fn save_text(st: &SaveStatus) -> String {
-    match st {
-        SaveStatus::Idle => String::new(),
-        SaveStatus::Saving { .. } => "Saving…".into(),
-        SaveStatus::Saved { .. } => "Saved".into(),
-        SaveStatus::Conflict { .. } => "Not saved: the file changed on disk".into(),
-        SaveStatus::Failed { message } => format!("Not saved: {message}"),
+/// Reduced motion shows and hides at once instead of stretching an
+/// entrance into a fade.
+fn enter(t: &Theme, tr: Transition) -> Transition {
+    if t.motion.reduced {
+        Transition::none()
+    } else {
+        tr
     }
 }
 
@@ -60,7 +57,37 @@ fn wikilink_spans(body: &str, t: &Theme) -> Vec<Span> {
     out
 }
 
-fn header(s: &EditorWindow) -> El {
+/// "Saving…" rolls into "Saved"; a failed save says why, in the error tone.
+fn save_status(s: &EditorWindow) -> Option<El> {
+    let t = &s.theme;
+    let (msg, tone) = match s.save_status() {
+        SaveStatus::Idle => return None,
+        SaveStatus::Saving { .. } => ("Saving…".to_string(), t.colors.text_dim),
+        SaveStatus::Saved { .. } => ("Saved".to_string(), t.colors.text_dim),
+        SaveStatus::Conflict { .. } => (
+            "Not saved: the file changed on disk".to_string(),
+            t.colors.error,
+        ),
+        SaveStatus::Failed { message } => (format!("Not saved: {message}"), t.colors.error),
+    };
+    let shown = if tone == t.colors.error {
+        label(t, msg.clone())
+            .color(color(tone))
+            .single_line()
+            .truncate()
+            .max_w(360.0)
+            .help_when_truncated(msg)
+    } else {
+        // One roll memory per window: windows share the UI thread.
+        RollingText::new(format!("editor-{}-save", s.id.0), msg)
+            .font(font(t.type_.label))
+            .color(color(tone))
+            .build(&theme::kit(t))
+    };
+    Some(row().key("editor-save-status").items_center().child(shown))
+}
+
+fn header(s: &EditorWindow, lights: f32) -> El {
     let t = &s.theme;
     let path = s
         .session
@@ -68,99 +95,196 @@ fn header(s: &EditorWindow) -> El {
         .get(s.buffer)
         .map(|e| e.buffer.path().to_string())
         .unwrap_or_default();
-    let mut r = row().key("editor-header").gap(t.spacing.unit * 2.0).child(
-        text(path)
+    let mut bar = Toolbar::new();
+    if lights > 0.0 {
+        bar = bar.leading(el().key("editor-lights").w(lights).a11y_hidden());
+    }
+    bar = bar.leading(
+        text(path.clone())
+            .key("editor-path")
             .font(font(t.type_.title))
-            .color(color(t.colors.text)),
+            .color(color(t.colors.text))
+            .single_line()
+            .truncate_middle()
+            .help_when_truncated(path)
+            .shrink()
+            .min_w(0.0),
     );
-    if let Some(e) = s.error() {
-        r = r.child(label(t, e.to_string()).key("editor-error"));
-    }
     if s.is_dirty() {
-        r = r.child(label(t, "● unsaved").key("editor-dirty"));
+        bar = bar.leading(
+            chip(t, "editor-dirty", "Unsaved", Tone::Warn)
+                .label("Unsaved edits")
+                .transition(enter(t, Transition::scale(0.8)))
+                .motion(theme::spring(t.motion.snap)),
+        );
     }
-    let st = save_text(&s.save_status());
-    if !st.is_empty() {
-        r = r.child(label(t, st).key("editor-save-status"));
+    if let Some(st) = save_status(s) {
+        bar = bar.trailing(st);
     }
-    r.child(button(
+    bar.trailing(controls::icon_command(
+        t,
+        "editor-undo",
+        &icons::UNDO_2,
+        "Undo",
+        "mod+z",
+        s.can_undo(),
+        |s: &mut EditorWindow| {
+            s.undo();
+        },
+    ))
+    .trailing(controls::icon_command(
+        t,
+        "editor-redo",
+        &icons::REDO_2,
+        "Redo",
+        "mod+shift+z",
+        s.can_redo(),
+        |s: &mut EditorWindow| {
+            s.redo();
+        },
+    ))
+    .trailing(controls::command_button(
         t,
         "editor-save",
         "Save",
         Variant::Primary,
+        "mod+s",
         s.is_dirty(),
-        |s, _| s.save(),
+        |s: &mut EditorWindow, _| s.save(),
     ))
-    .child(button(
-        t,
-        "editor-undo",
-        "Undo",
-        Variant::Ghost,
-        s.can_undo(),
-        |s, _| {
-            s.undo();
-        },
-    ))
-    .child(button(
-        t,
-        "editor-redo",
-        "Redo",
-        Variant::Ghost,
-        s.can_redo(),
-        |s, _| {
-            s.redo();
-        },
-    ))
+    .build(&theme::kit(t))
+    .key("editor-header")
+    .border_sides([0.0, 0.0, 0.5, 0.0], color(t.colors.border))
 }
 
-fn close_prompt(s: &EditorWindow) -> Option<El> {
+/// Why the window has no page, under the toolbar where it is read in full.
+fn error_banner(s: &EditorWindow) -> Option<El> {
     let t = &s.theme;
-    let msg = match s.closing {
-        Closing::Open => return None,
-        Closing::Confirm { stuck: false } => "This page has unsaved edits. Close it?",
-        Closing::Confirm { stuck: true } => {
-            "Cannot discard: the saved text is no longer in undo history. Save or keep editing."
-        }
-        Closing::SaveThenClose => "Saving, then closing…",
+    let e = s.error()?;
+    Some(
+        row()
+            .key("editor-error-banner")
+            .role("alert")
+            .w_full()
+            .px(t.spacing.unit * 3.0)
+            .py(t.spacing.unit * 1.5)
+            .fill(theme::tint(t.colors.error, 0x1a))
+            .border_sides([0.0, 0.0, 0.5, 0.0], theme::tint(t.colors.error, 0x4d))
+            .child(
+                text(e.to_string())
+                    .key("editor-error")
+                    .font(font(t.type_.body))
+                    .color(color(t.colors.text))
+                    .wrap(),
+            ),
+    )
+}
+
+/// The unsaved-edits question as a modal dialog. Escape, the close button
+/// and a press outside all keep editing.
+fn close_dialog(s: &EditorWindow, layer: &mut Vec<El>) {
+    let t = &s.theme;
+    let (title, msg) = match s.closing {
+        Closing::Open => return,
+        Closing::Confirm { stuck: false } => (
+            "Close with unsaved edits?",
+            "This page has unsaved edits. Save them, discard them, or keep editing.",
+        ),
+        Closing::Confirm { stuck: true } => (
+            "These edits cannot be discarded",
+            "The saved text is no longer in undo history. Save or keep editing.",
+        ),
+        Closing::SaveThenClose => ("Saving…", "Saving, then closing…"),
     };
-    let mut r = row()
+    let mut actions = row()
         .key("editor-close-prompt")
+        .w_full()
+        .px(16.0)
+        .pb(16.0)
         .gap(t.spacing.unit * 2.0)
-        .padding(t.spacing.unit)
-        .fill(color(t.colors.pane_alt))
-        .child(
-            text(msg)
-                .font(font(t.type_.body))
-                .color(color(t.colors.text)),
-        );
-    if matches!(s.closing, Closing::Confirm { .. }) {
-        r = r
-            .child(button(
-                t,
-                "editor-close-save",
-                "Save and close",
-                Variant::Primary,
-                true,
-                |s, tx| s.save_and_close(tx),
-            ))
-            .child(button(
+        .items_center();
+    if let Closing::Confirm { stuck } = s.closing {
+        if !stuck {
+            actions = actions.child(controls::button_tx(
                 t,
                 "editor-close-discard",
                 "Discard and close",
                 Variant::Danger,
                 true,
-                |s, tx| s.discard_and_close(tx),
-            ))
-            .child(button(
+                |s: &mut EditorWindow, tx| s.discard_and_close(tx),
+            ));
+        }
+        actions = actions
+            .child(spacer())
+            .child(controls::button_tx(
                 t,
                 "editor-close-cancel",
                 "Keep editing",
-                Variant::Neutral,
+                Variant::Ghost,
                 true,
-                |s, _| s.closing = Closing::Open,
-            ));
+                |s: &mut EditorWindow, _| s.closing = Closing::Open,
+            ))
+            .child(
+                controls::button_tx(
+                    t,
+                    "editor-close-save",
+                    "Save and close",
+                    Variant::Primary,
+                    true,
+                    |s: &mut EditorWindow, tx| s.save_and_close(tx),
+                )
+                .default_button(),
+            );
     }
-    Some(r)
+    Dialog::new("editor-close", title)
+        .description(msg)
+        .width(440.0)
+        .fit()
+        .open(true)
+        .on_close(|s: &mut EditorWindow| s.closing = Closing::Open)
+        .child(actions)
+        .build(&theme::kit(t), layer);
+}
+
+/// A text field's box: inset fill, hairline border, rounded, with a ring
+/// while focus is inside it.
+fn field_box(t: &Theme, key: String, field: El) -> El {
+    row()
+        .key(key)
+        .grow(1.0)
+        .min_w(0.0)
+        .min_h(t.spacing.row_h + t.spacing.unit)
+        .px(t.spacing.unit * 1.5)
+        .items_center()
+        .fill(color(t.colors.rail))
+        .border(0.5, color(t.colors.border))
+        .rounded(t, Size::Sm)
+        .focus_within_ring(2.0, 0.0, color(t.colors.accent))
+        .child(field)
+}
+
+fn note(t: &Theme, n: usize, note: &Note) -> El {
+    let (what, detail) = match note {
+        Note::UnknownKey { key, line } => (
+            format!("unknown key `{key}`"),
+            format!("line {line}: not a Boris frontmatter key — the next build judges"),
+        ),
+        Note::Unparsed { line, text } => (
+            "not a field".to_string(),
+            format!("line {line}: not a `key: value` field: {text}"),
+        ),
+        Note::Unclosed => (
+            "unclosed".to_string(),
+            "frontmatter has no closing `---`".to_string(),
+        ),
+    };
+    row()
+        .key(format!("fm-note-{n}"))
+        .role("note")
+        .gap(t.spacing.unit * 1.5)
+        .items_center()
+        .child(chip(t, "fm-note-chip", what, Tone::Warn))
+        .child(label(t, detail).shrink().min_w(0.0))
 }
 
 fn form(s: &EditorWindow) -> El {
@@ -179,9 +303,16 @@ fn form(s: &EditorWindow) -> El {
         f = f.child(
             row()
                 .gap(t.spacing.unit * 2.0)
+                .items_center()
                 .child(label(t, spec.key).key(caption_key).w(96.0))
-                .child(field)
-                .child(label(t, spec.hint)),
+                .child(field_box(t, format!("fm-box-{}", spec.key), field))
+                .child(
+                    label(t, spec.hint)
+                        .single_line()
+                        .truncate()
+                        .help_when_truncated(spec.hint)
+                        .w(200.0),
+                ),
         );
     }
     let form = frontmatter::read(
@@ -191,28 +322,21 @@ fn form(s: &EditorWindow) -> El {
             .map(|e| e.buffer.text())
             .unwrap_or_default(),
     );
-    for (n, note) in form.notes.iter().enumerate() {
-        let msg = match note {
-            Note::UnknownKey { key, line } => format!(
-                "line {line}: `{key}` is not a Boris frontmatter key — the next build judges"
-            ),
-            Note::Unparsed { line, text } => {
-                format!("line {line}: not a `key: value` field: {text}")
-            }
-            Note::Unclosed => "frontmatter has no closing `---`".into(),
-        };
-        f = f.child(
-            label(t, msg)
-                .key(format!("fm-note-{n}"))
-                .color(color(t.colors.warn)),
-        );
+    for (n, nt) in form.notes.iter().enumerate() {
+        f = f.child(note(t, n, nt));
     }
     f
 }
 
-fn body(s: &EditorWindow) -> El {
+/// Problem lines as small dots: filled for the last build, outlined once
+/// edits have made it stale.
+fn gutter(s: &EditorWindow) -> El {
     let t = &s.theme;
-    let mut gutter = col().key("editor-gutter").w(56.0).gap(t.spacing.unit * 0.5);
+    let mut g = col()
+        .key("editor-gutter")
+        .w(56.0)
+        .pt(t.spacing.unit)
+        .gap(t.spacing.unit);
     let marks = {
         let ses = s.session.borrow();
         ses.get(s.buffer)
@@ -220,19 +344,39 @@ fn body(s: &EditorWindow) -> El {
             .unwrap_or_default()
     };
     for m in marks {
-        let c = if m.stale {
-            t.colors.text_dim
+        let line = m.line + 1;
+        let dot = el().key("dot").size(8.0, 8.0).rounded(t, Size::Pill);
+        let dot = if m.stale {
+            dot.border(1.0, color(t.colors.text_dim))
         } else {
-            t.colors.error
+            dot.fill(color(t.colors.error))
         };
-        gutter = gutter.child(
-            text(format!("● {}", m.line + 1))
-                .key(format!("gutter-{}", m.line + 1))
-                .font(font(t.type_.mono))
-                .color(color(c))
-                .opacity(if m.stale { 0.5 } else { 1.0 }),
+        let what = if m.stale {
+            "Problem from before your edits"
+        } else {
+            "Problem"
+        };
+        g = g.child(
+            row()
+                .key(format!("gutter-{line}"))
+                .role("note")
+                .label(format!("{what} on line {line}"))
+                .gap(t.spacing.unit)
+                .items_center()
+                .child(dot)
+                .child(
+                    text(line.to_string())
+                        .font(font(t.type_.mono))
+                        .color(color(t.colors.text_dim))
+                        .a11y_hidden(),
+                ),
         );
     }
+    g
+}
+
+fn body(s: &EditorWindow) -> El {
+    let t = &s.theme;
     let mut field = text_input(&s.body, font(t.type_.mono))
         .key("editor-body")
         .label_static("Markdown body")
@@ -255,41 +399,97 @@ fn body(s: &EditorWindow) -> El {
     if s.decorations {
         field = field.decorations(wikilink_spans(&s.body.text, t));
     }
-    let mut c = col()
+    row()
         .grow(1.0)
         .gap(t.spacing.unit)
-        .child(row().gap(t.spacing.unit).child(gutter).child(field));
-    let items = s.completions();
-    if !items.is_empty() {
-        let mut list = col()
-            .key("completion")
-            .gap(t.spacing.unit * 0.5)
-            .fill(color(t.colors.pane_alt));
-        for (n, (id, title)) in items.into_iter().enumerate() {
-            list = list.child(
-                row()
-                    .key(format!("complete-{n}"))
-                    .gap(t.spacing.unit * 2.0)
-                    .child(
-                        text(id)
-                            .font(font(t.type_.mono))
-                            .color(color(t.colors.text)),
-                    )
-                    .child(label(t, title))
-                    .on_press(move |s: &mut EditorWindow| {
-                        s.accept_completion(n);
-                    }),
-            );
-        }
-        c = c.child(list);
-    }
-    c
+        .child(gutter(s))
+        .child(field)
 }
 
+/// Wikilink candidates in a floating list under the caret. The first row
+/// is what Tab accepts, so it carries the highlight and a Tab keycap.
+fn completion(s: &EditorWindow, caret: Option<[f32; 4]>, layer: &mut Vec<El>) {
+    let t = &s.theme;
+    let items = s.completions();
+    if items.is_empty() {
+        return;
+    }
+    let anchor = match caret {
+        Some([x, y, w, h]) => {
+            layer.push(
+                el().key("completion-anchor")
+                    .absolute(x, y)
+                    .size(w.max(1.0), h)
+                    .a11y_hidden(),
+            );
+            "completion-anchor"
+        }
+        None => "editor-body",
+    };
+    let k = theme::kit(t);
+    let mut list = col()
+        .key("completion")
+        .role("listbox")
+        .label("Wikilink completions")
+        .w(320.0)
+        .padding(t.spacing.unit * 0.5)
+        .gap(1.0)
+        .fill(color(t.colors.pane_alt))
+        .border(0.5, color(t.colors.border))
+        .rounded(t, Size::Md)
+        .elevated(t, Level::Floating)
+        .preserve_focus_on_press(true)
+        .anchored_fit(anchor, Side::Bottom, Align::Start, 4.0)
+        .transition(enter(t, Transition::opacity()))
+        .motion(theme::spring(t.motion.snap));
+    for (n, (id, title)) in items.into_iter().enumerate() {
+        let mut r = row()
+            .key(format!("complete-{n}"))
+            .role("option")
+            .label(id.clone())
+            .w_full()
+            .h(t.spacing.row_h + t.spacing.unit)
+            .px(t.spacing.unit * 1.5)
+            .gap(t.spacing.unit * 2.0)
+            .items_center()
+            .rounded(t, Size::Sm)
+            .states(t)
+            .on_press(move |s: &mut EditorWindow| {
+                s.accept_completion(n);
+            })
+            .child(
+                text(id)
+                    .font(font(t.type_.mono))
+                    .color(color(t.colors.text))
+                    .single_line()
+                    .a11y_hidden(),
+            )
+            .child(
+                label(t, title)
+                    .single_line()
+                    .truncate()
+                    .shrink()
+                    .min_w(0.0)
+                    .a11y_hidden(),
+            )
+            .child(spacer());
+        if n == 0 {
+            r = r
+                .fill(color(t.colors.selection))
+                .focus_selected(true)
+                .child(Keybind::new(&["Tab"]).build(&k).key("complete-tab"));
+        }
+        list = list.child(r);
+    }
+    layer.push(list);
+}
+
+/// Problems as the shared diagnostic cards. A fresh one jumps to its line
+/// when pressed; a stale one is dimmed and inert, since its span moved.
 fn problems(s: &EditorWindow) -> El {
     let t = &s.theme;
     let rail = s.problems();
-    let mut p = col().key("problems").gap(t.spacing.unit).child(
+    let mut p = col().key("problems").gap(t.spacing.unit * 1.5).child(
         text("Problems")
             .font(font(t.type_.label))
             .color(color(t.colors.text)),
@@ -308,32 +508,23 @@ fn problems(s: &EditorWindow) -> El {
             );
         }
         let d = &pr.diagnostic;
-        let at = pr.line.map(|l| format!(":{}", l + 1)).unwrap_or_default();
-        let c = if stale {
-            t.colors.text_dim
+        let tone = if stale {
+            Tone::Dim
         } else {
-            t.colors.error
+            severity_tone(d.severity)
         };
-        p = p.child(
-            col()
-                .key(format!("problem-{n}"))
-                .padding(t.spacing.unit)
-                .fill(color(t.colors.pane))
-                .opacity(if stale { 0.5 } else { 1.0 })
-                .child(
-                    text(format!("{}{at}", d.code))
-                        .font(font(t.type_.mono))
-                        .color(color(c)),
-                )
-                .child(
-                    text(d.message.clone())
-                        .font(font(t.type_.caption))
-                        .color(color(t.colors.text_dim)),
-                )
+        let mut card = diagnostic::card_in(t, d, n, tone).key(format!("problem-{n}"));
+        if let (Some(line), Some(_)) = (pr.line, &pr.target) {
+            card = card
+                .role("button")
+                .label(format!("{}: go to line {}", d.code, line + 1))
+                .states(t)
+                .press_scale(controls::PRESS_SCALE)
                 .on_press(move |s: &mut EditorWindow| {
                     s.jump(n);
-                }),
-        );
+                });
+        }
+        p = p.child(card);
     }
     p
 }
@@ -351,7 +542,7 @@ fn draft_sketch(s: &EditorWindow) -> El {
                 .font(font(t.type_.label))
                 .color(color(t.colors.warn)),
         )
-        .child(label(t, sketch::DISCLAIMER).key("sketch-disclaimer"))
+        .child(label(t, sketch::DISCLAIMER).key("sketch-disclaimer").wrap())
         .child(
             col()
                 .key("sketch-body")
@@ -370,11 +561,12 @@ fn draft_sketch(s: &EditorWindow) -> El {
 pub fn view(s: &EditorWindow, cx: &mut Cx<EditorWindow>) -> El {
     let t = &s.theme;
     theme::motion_preference(cx, t);
-    row()
-        .key("editor")
+    let lights = cx.titlebar_inset();
+    let panes = row()
+        .key("editor-panes")
         .w_full()
-        .h_full()
-        .fill(color(t.colors.bg))
+        .grow(1.0)
+        .min_h(0.0)
         .padding(t.spacing.unit * 3.0)
         .gap(t.spacing.unit * 3.0)
         .child(
@@ -383,8 +575,6 @@ pub fn view(s: &EditorWindow, cx: &mut Cx<EditorWindow>) -> El {
                 .grow(1.0)
                 .min_h(0.0)
                 .gap(t.spacing.unit * 2.0)
-                .child(header(s))
-                .children(close_prompt(s))
                 .child(form(s))
                 .child(body(s)),
         )
@@ -396,5 +586,17 @@ pub fn view(s: &EditorWindow, cx: &mut Cx<EditorWindow>) -> El {
                 .gap(t.spacing.unit * 3.0)
                 .child(problems(s))
                 .child(draft_sketch(s)),
-        )
+        );
+    let base = col()
+        .key("editor")
+        .w_full()
+        .h_full()
+        .fill(color(t.colors.bg))
+        .child(header(s, lights))
+        .children(error_banner(s))
+        .child(panes);
+    let mut layer = Vec::new();
+    completion(s, cx.caret("editor-body"), &mut layer);
+    close_dialog(s, &mut layer);
+    rune_kit::root(base, layer)
 }

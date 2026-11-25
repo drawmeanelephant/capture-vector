@@ -471,12 +471,38 @@ pub fn poll(s: &mut EditorWindow, _t: f64, tx: &mut Tx) -> bool {
 
 pub const SIZE: (f32, f32) = (1100.0, 760.0);
 
+/// A named editor state for headless runs; it replaces the blank window.
+pub type Scene = (&'static str, fn(&mut EditorWindow));
+
+/// One headless editor window staged by `scenes` (rune's `--scene`,
+/// `--tree` and `--snap` flags), so the PNG gate covers this window too.
+pub fn run_scenes(scenes: &'static [Scene]) {
+    crate::keys::pin_keycaps(rune::KeyPlatform::Mac);
+    rune::App::new(rune::AppSpec {
+        scenes,
+        poll: Some(poll),
+        on_key: Some(on_key),
+        ..rune::AppSpec::new("Capture Vector — editor", SIZE, scene_init, view)
+    })
+    .run();
+}
+
+fn scene_init() -> EditorWindow {
+    EditorWindow::new(
+        WindowId(1),
+        Rc::new(RefCell::new(EditorSession::new())),
+        BufferId(0),
+        Theme::dark(),
+    )
+}
+
 /// Headless runtime over one editor window (goldens, scripted sessions).
 pub fn runtime(w: EditorWindow) -> Runtime<EditorWindow> {
     let env = Env {
         system_dark: w.theme.mode == cv_model::theme::Mode::Dark,
         scale: 1.0,
     };
+    crate::keys::pin_keycaps(rune::KeyPlatform::Mac);
     let mut rt = Runtime::new(w, view, SIZE, env);
     rt.poll = Some(poll);
     rt.on_key = Some(on_key);

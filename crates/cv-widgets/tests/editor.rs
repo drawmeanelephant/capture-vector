@@ -115,7 +115,9 @@ fn broken_wikilink_reports_line_goes_stale_on_typing_and_clears() {
     assert_eq!(rail[0].line, Some(5), "page.md:6 is 0-based line 5");
     assert_eq!(rail[0].freshness, Freshness::Fresh);
     assert!(rt.find("gutter-6").is_some());
-    assert!(texts(&rt).iter().any(|t| t == "EREFERENCEMISSING:6"));
+    let shown = texts(&rt);
+    assert!(shown.iter().any(|t| t == "EREFERENCEMISSING"), "code chip");
+    assert!(shown.iter().any(|t| t == "page.md:6:20"), "location");
 
     // Click-to-span: the caret lands on line 6 of the file.
     click(&mut rt, "problem-0");
@@ -389,15 +391,19 @@ fn editor_goldens() {
     let (build, diags) = stub_build("broken-wikilink");
     ses.borrow_mut().ingest_build(build, &diags);
     settle(&mut rt);
+    let (_ses, _buf, close, _dir) = dirty_closed_window();
     let dir = repo().join("fixtures/ui/golden/editor");
-    let els = rt.elements();
     let mut errs = vec![];
-    for (name, v) in [
-        ("broken-wikilink.tree", cv_widgets::tree::element_tree(&rt)),
-        ("broken-wikilink.layout", cv_widgets::tree::layout(&els)),
-    ] {
-        if let Err(e) = cv_widgets::harness::check_golden(&dir, name, &v) {
-            errs.push(e);
+    for (scene, rt) in [("broken-wikilink", &rt), ("close-prompt", &close)] {
+        let els = rt.elements();
+        for (kind, v) in [
+            ("tree", cv_widgets::tree::element_tree(rt)),
+            ("layout", cv_widgets::tree::layout(&els)),
+        ] {
+            let name = format!("{scene}.{kind}");
+            if let Err(e) = cv_widgets::harness::check_golden(&dir, &name, &v) {
+                errs.push(e);
+            }
         }
     }
     assert!(errs.is_empty(), "{}", errs.join("\n"));
@@ -673,4 +679,92 @@ fn discard_and_close_wears_the_danger_tone() {
     assert_eq!(discard["color"], danger.as_str(), "{discard}");
     let keep = tree_node(&rt, "/editor-close-cancel/label");
     assert_ne!(keep["color"], danger.as_str(), "{keep}");
+}
+
+#[test]
+fn the_close_prompt_is_a_modal_dialog_that_escape_dismisses_into_editing() {
+    let (ses, buf, mut rt, _dir) = dirty_closed_window();
+    assert_eq!(tree_node(&rt, "/editor-close-dialog")["role"], "dialog");
+    assert!(
+        rt.find("editor-close-scrim").is_some(),
+        "a scrim covers the editor"
+    );
+    rt.key(cv_widgets::keys::parse("esc").remove(0));
+    settle(&mut rt);
+    assert_eq!(rt.state.closing, editor::Closing::Open);
+    assert!(rt.find("editor-close-prompt").is_none());
+    assert_eq!(rt.shell_request, None);
+    assert!(
+        ses.borrow().is_dirty(buf),
+        "keeping on editing loses nothing"
+    );
+}
+
+#[test]
+fn completion_floats_under_the_caret_and_marks_what_tab_accepts() {
+    let json =
+        std::fs::read_to_string(repo().join("fixtures/editor/captures/parity/completion.json"))
+            .unwrap();
+    let ses = session();
+    ses.borrow_mut().completion = Some(CompletionIndex::parse(&json).unwrap());
+    let buf = ses
+        .borrow_mut()
+        .open("content/new.md", "---\ntitle: New\n---\nSee ", None);
+    let mut rt = window(&ses, 1, buf);
+    let end = rt.state.body.text.len();
+    caret(&mut rt, end);
+    type_str(&mut rt, "[[gu");
+    let (at, _) = rt
+        .presented("completion-anchor")
+        .expect("anchored to the caret");
+    let (list, _) = rt.presented("completion").expect("completion list");
+    let (field, _) = rt.presented("editor-body").unwrap();
+    assert!(
+        list[1] >= at[1] + at[3],
+        "below the caret line: {list:?} {at:?}"
+    );
+    assert!(
+        (list[0] - at[0]).abs() < 1.0 && list[0] > field[0],
+        "starts at the caret, not the field's edge: {list:?} {at:?} {field:?}"
+    );
+    let selection = cv_widgets::theme::color(Theme::dark().colors.selection).hex();
+    assert_eq!(tree_node(&rt, "/complete-0")["fill"], selection.as_str());
+    assert!(rt.find("complete-tab").is_some(), "the Tab target says so");
+    rt.key(cv_widgets::keys::parse("tab").remove(0));
+    settle(&mut rt);
+    assert_eq!(rt.state.body.text, "See [[guide]]");
+}
+
+#[test]
+fn a_stale_problem_card_is_dimmed_and_no_longer_jumps() {
+    let ses = session();
+    let buf = ses.borrow_mut().open("page.md", &broken_page(), None);
+    let mut rt = window(&ses, 1, buf);
+    let (build, diags) = stub_build("broken-wikilink");
+    ses.borrow_mut().ingest_build(build, &diags);
+    settle(&mut rt);
+    let error = cv_widgets::theme::color(Theme::dark().colors.error).hex();
+    assert_eq!(tree_node(&rt, "/problem-0")["role"], "button");
+    assert_eq!(
+        tree_node(&rt, "/problem-0/diag-rail")["fill"],
+        error.as_str()
+    );
+    assert_eq!(tree_node(&rt, "/gutter-6/dot")["fill"], error.as_str());
+
+    caret(&mut rt, 0);
+    type_str(&mut rt, "x");
+    let dim = cv_widgets::theme::color(Theme::dark().colors.text_dim).hex();
+    assert_ne!(tree_node(&rt, "/problem-0")["role"], "button");
+    assert_eq!(tree_node(&rt, "/problem-0/diag-rail")["fill"], dim.as_str());
+    assert!(
+        tree_node(&rt, "/gutter-6/dot").get("fill").is_none(),
+        "a stale mark is an outline"
+    );
+    let before = rt.state.body.range();
+    click(&mut rt, "problem-0");
+    assert_eq!(
+        rt.state.body.range(),
+        before,
+        "stale spans are not jumped to"
+    );
 }

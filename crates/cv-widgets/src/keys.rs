@@ -42,8 +42,16 @@ pub fn pin_keycaps(platform: KeyPlatform) {
 /// A display chord such as `"mod+shift+o"` as keycaps ("⇧", "⌘", "O" on
 /// macOS); `None` when Rune cannot read it.
 pub fn keycaps(chord: &str) -> Option<Vec<String>> {
-    let platform = KEYCAPS.get().copied().unwrap_or_else(KeyPlatform::current);
-    Chord::parse(chord).ok().map(|c| c.keycaps_on(platform))
+    Chord::parse(chord).ok().map(|c| c.keycaps_on(platform()))
+}
+
+/// The same chord as one label: "⇧⌘Z" on macOS, "Ctrl+Shift+Z" elsewhere.
+pub fn chord_label(chord: &str) -> Option<String> {
+    Chord::parse(chord).ok().map(|c| c.label_on(platform()))
+}
+
+fn platform() -> KeyPlatform {
+    KEYCAPS.get().copied().unwrap_or_else(KeyPlatform::current)
 }
 /// Parse a script token: `"mod+k"`, `"down"`, `"enter"`, `"esc"`, `"tab"`,
 /// `"shift+tab"`, `"bksp"`, or literal text (`"text:replay"`).

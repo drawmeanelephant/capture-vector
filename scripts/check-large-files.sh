@@ -37,7 +37,7 @@ for f in "${files[@]}"; do
   # they still have to stay under the byte limit.
   line_check=1
   case "$f" in
-    Cargo.lock|*/Cargo.lock|*.lock|fixtures/ui/golden/tree/*|fixtures/captures/*)
+    Cargo.lock|*/Cargo.lock|*.lock|fixtures/ui/golden/tree/*|fixtures/ui/golden/editor/*|fixtures/captures/*)
       line_check=0
       ;;
   esac
