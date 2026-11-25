@@ -11,7 +11,7 @@ use crate::write;
 use cv_contracts::lab::Report;
 use cv_core::engine::WriteOutcome;
 use cv_store::imports::{self as store, AdoptedPage, AdoptionRecord, RunRecord};
-use cv_store::paths::{confined, confined_file, portable_relative};
+use cv_store::paths::{confined_file, portable_relative};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
@@ -26,6 +26,10 @@ pub enum AdoptError {
     Subfolder(String),
     Collisions(Vec<Collision>),
     Stale(String),
+    /// Files inside the workspace that are neither byte-proven starter
+    /// debris nor the adoption's own partial output. They are never
+    /// deleted — the operation refuses until the user moves them aside.
+    Foreign(Vec<String>),
 }
 
 impl std::fmt::Display for AdoptError {
@@ -38,6 +42,14 @@ impl std::fmt::Display for AdoptError {
                 write!(f, "{e}")
             }
             Self::Stale(e) => write!(f, "{e}"),
+            Self::Foreign(files) => write!(
+                f,
+                "the workspace holds {} file(s) that are neither starter content nor this \
+                 adoption's output; they were left untouched — move them aside or remove \
+                 them and retry: {}",
+                files.len(),
+                files.join(", ")
+            ),
             Self::Collisions(cs) => {
                 write!(f, "adoption refused: ")?;
                 for (i, c) in cs.iter().enumerate() {
@@ -516,36 +528,147 @@ pub fn copy_content(
     Ok((written, skipped))
 }
 
-/// Replace the freshly initialized starter's content directory. This is
-/// only for a target `boris init` has just written in the same adoption
-/// operation; merges never call it.
-pub fn clear_new_workspace_content(
+/// Byte evidence of every file currently inside the content input,
+/// keyed by workspace-relative target — the starter manifest recorded
+/// into the journal before anything is touched.
+fn starter_manifest(
     target_root: &Path,
     content_input: &str,
+) -> Result<Vec<store::PendingFile>, AdoptError> {
+    let input = content_input.trim().trim_matches('/');
+    let dir = target_root.join(input);
+    let mut files = Vec::new();
+    if dir.is_dir() {
+        scan_files(&dir, "", &mut files)?;
+    }
+    let mut out = Vec::new();
+    for f in files {
+        let target = join_rel(&[input, &f.relative]);
+        let bytes = std::fs::read(&f.source)?;
+        out.push(store::PendingFile {
+            target,
+            sha256: store::sha256_hex(&bytes),
+            bytes: bytes.len() as u64,
+        });
+    }
+    Ok(out)
+}
+
+/// Replace the starter tree selectively. Never a total clear: a file is
+/// deleted only when it is byte-proven starter debris — identical to its
+/// entry in the journal's starter manifest, so nothing a user or tool
+/// wrote after the crash can ever be removed. Files at planned target
+/// paths already byte-identical to the incoming source are the
+/// adoption's own partial output and are left for the copy phase to skip.
+/// Everything else is foreign: classification completes before the first
+/// deletion, so a foreign file is a pre-write refusal that leaves the
+/// whole tree — and especially the foreign file — untouched.
+///
+/// Returns the workspace-relative targets still present at planned paths
+/// (byte-identical partial output), so the copy phase skips them in fresh
+/// attempts too.
+fn sweep_starter(
+    target_root: &Path,
+    content_input: &str,
+    journal: &store::PendingAdoption,
+    planned: &[PlannedFile],
 ) -> Result<(), AdoptError> {
     let input = content_input.trim().trim_matches('/');
     if input.is_empty() || input == "." {
+        // A whole-workspace input would make the workspace root itself
+        // the sweep domain — `.cv/`, the journal, the Boris config.
+        // Replacement is only ever meaningful for a content subtree.
         return Err(AdoptError::Content(
             "refusing to replace a whole-workspace content input".into(),
         ));
     }
-    let path = confined(target_root, Path::new(input)).map_err(|e| {
-        AdoptError::Content(format!("content input {input:?} is not confined: {e}"))
-    })?;
-    let meta = match std::fs::symlink_metadata(&path) {
-        Ok(m) => m,
-        // Already gone — a previous interrupted attempt cleared it, or
-        // the starter never had one. Either way the end state holds.
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-        Err(e) => return Err(e.into()),
-    };
-    if cv_store::paths::is_link(&meta) || !meta.is_dir() {
-        return Err(AdoptError::Content(format!(
-            "{} is not an ordinary starter content directory",
-            path.display()
-        )));
+    let dir = target_root.join(input);
+    let manifest: BTreeMap<&str, &store::PendingFile> = journal
+        .starter
+        .iter()
+        .map(|f| (f.target.as_str(), f))
+        .collect();
+    let mut present = Vec::new();
+    if dir.is_dir() {
+        scan_files(&dir, "", &mut present)?;
     }
-    std::fs::remove_dir_all(&path)?;
+
+    let mut delete = Vec::new();
+    let mut foreign = Vec::new();
+    for f in &present {
+        let target = join_rel(&[input, &f.relative]);
+        let bytes = std::fs::read(&f.source)?;
+        if let Some(entry) = manifest.get(target.as_str())
+            && store::sha256_hex(&bytes) == entry.sha256
+            && bytes.len() as u64 == entry.bytes
+        {
+            delete.push((target, f.source.clone()));
+            continue;
+        }
+        // Not byte-proven starter. The only other legitimate occupants
+        // are the adoption's own partial output — at a planned target
+        // path, byte-identical to the incoming source — and debris of
+        // the atomic staged write itself, which a crash mid-rename can
+        // strand. Staged writes are temp+rename, so a `.cv-write-*.tmp`
+        // file is never user data and never complete: deleting it is
+        // the only correct outcome, and without it a crash in exactly
+        // that window would make every later resume refuse.
+        let name = f.relative.rsplit('/').next().unwrap_or(&f.relative);
+        if name.starts_with(".cv-write-") && name.ends_with(".tmp") {
+            delete.push((target, f.source.clone()));
+            continue;
+        }
+        let partial_output = planned
+            .iter()
+            .find(|p| p.target == target)
+            .is_some_and(|p| bytes_identical(&f.source, &p.source));
+        if !partial_output {
+            foreign.push(target);
+        }
+    }
+    if !foreign.is_empty() {
+        foreign.sort();
+        return Err(AdoptError::Foreign(foreign));
+    }
+    for (_, path) in delete {
+        std::fs::remove_file(&path)?;
+    }
+    // Prune directories left empty, deepest first. An empty directory is
+    // structure, not data — pruning one can never lose a byte.
+    prune_empty_dirs(&dir)?;
+    Ok(())
+}
+
+/// Remove directories that hold no files, bottom-up, stopping at the
+/// content input itself (its absence or presence are both fine).
+fn prune_empty_dirs(dir: &Path) -> Result<(), AdoptError> {
+    if !dir.is_dir() {
+        return Ok(());
+    }
+    let mut dirs = Vec::new();
+    collect_dirs(dir, &mut dirs)?;
+    // Deepest first so parents empty out after their children vanish.
+    dirs.sort_by_key(|d| std::cmp::Reverse(d.components().count()));
+    for d in dirs {
+        // Only remove when empty; a foreign empty directory contains no
+        // data, and removing it loses nothing either.
+        if std::fs::read_dir(&d).is_ok_and(|mut r| r.next().is_none()) {
+            let _ = std::fs::remove_dir(&d);
+        }
+    }
+    Ok(())
+}
+
+fn collect_dirs(dir: &Path, out: &mut Vec<std::path::PathBuf>) -> Result<(), AdoptError> {
+    for e in std::fs::read_dir(dir)
+        .map_err(|e| AdoptError::Content(format!("cannot read {}: {e}", dir.display())))?
+    {
+        let path = e?.path();
+        if path.is_dir() && !path.symlink_metadata()?.file_type().is_symlink() {
+            out.push(path.clone());
+            collect_dirs(&path, out)?;
+        }
+    }
     Ok(())
 }
 
@@ -708,11 +831,20 @@ pub struct TxReport {
 ///   per file, so identical bytes can only be the interrupted attempt's
 ///   own work), refuses targets whose bytes differ, and re-checks the
 ///   journal itself against the live operation before trusting it;
-/// - for a `new` workspace the starter deletion is inside the recovery
-///   unit: the journal lands first, then the clear. Because the adoption
-///   owns the workspace until it is first opened, resume completes the
-///   clear wholesale and the copy restarts — byte-resume is a merge
-///   affordance, and this is the convergent replacement semantic.
+/// - for a `new` workspace the starter replacement is inside the
+///   recovery unit and is never a total clear: the journal records byte
+///   evidence of the whole starter tree, and only files byte-identical
+///   to that evidence are deleted. Anything else — a user note written
+///   into the never-yet-opened directory after a crash, an edited
+///   starter page, a foreign squatter at a planned path — is foreign
+///   data, refuses the resume, and is never deleted or overwritten.
+///   Byte-identical files at planned paths are the interrupted attempt's
+///   own output (staged writes are atomic) and are skipped, so resume
+///   converges without restarting the copy. The one bounded window: a
+///   file written into the tree between `boris init` completing and the
+///   journal landing is indistinguishable from starter — but the
+///   workspace is never opened or disclosed before the adoption
+///   finishes, so no user can legitimately write there.
 ///
 /// What this does not serialize: filesystem reactions of an already
 /// running watch are the caller's concern (the composition root stops
@@ -768,6 +900,19 @@ pub fn transact(
             }
             journal_targets.insert(f.target.clone());
         }
+        // 1b. Starter-manifest entries are evidence of what may be
+        //     deleted; unauthenticated entries would license deleting
+        //     foreign data, so they are refused exactly like file entries.
+        for f in &journal.starter {
+            if portable_relative(&f.target).is_err() {
+                return Err(AdoptError::Run(format!(
+                    "{} records starter {:?}, which is not a portable confined target;                      remove {} or repair it before retrying",
+                    store::PENDING,
+                    f.target,
+                    store::PENDING
+                )));
+            }
+        }
         // 2. The recorded file set must be exactly this operation's plan:
         //    a subset or superset is a different operation's journal.
         let planned_targets: BTreeSet<String> = planned.iter().map(|p| p.target.clone()).collect();
@@ -811,8 +956,11 @@ pub fn transact(
     // journal-less mutation window. For an existing-workspace merge
     // nothing is deleted, so preflight can — and must — refuse before
     // the journal and the first write.
-    let new_workspace = target_kind == "new";
-    let needs_copy = if new_workspace {
+    // The recovery unit lands before the first mutation. For a new
+    // workspace it also carries byte evidence of the starter tree, so
+    // the replacement can never delete anything it cannot prove was
+    // generated starter content.
+    let write_journal = |with_starter: bool| -> Result<store::PendingAdoption, AdoptError> {
         let mut journal = store::PendingAdoption::new(&src.run_id, target_kind, input_norm);
         journal.content_subfolder = subfolder_name.clone();
         for p in &planned {
@@ -823,26 +971,44 @@ pub fn transact(
                 bytes: bytes.len() as u64,
             });
         }
+        if with_starter {
+            journal.starter = starter_manifest(target_root, input_norm)?;
+        }
         store::write_pending(target_root, &journal)?;
-        clear_new_workspace_content(target_root, input_norm)?;
-        collisions(target_root, src, &planned, existing_ids, resume)?
+        Ok(journal)
+    };
+
+    let new_workspace = target_kind == "new";
+    if new_workspace {
+        let input = input_norm.trim().trim_matches('/');
+        if input.is_empty() || input == "." {
+            // Refuse before the journal lands: replacement is only ever
+            // meaningful for a content subtree, never the workspace root
+            // with `.cv/` and the Boris config in it.
+            return Err(AdoptError::Content(
+                "refusing to replace a whole-workspace content input".into(),
+            ));
+        }
+    }
+    let needs_copy = if new_workspace {
+        // The journal is written only on a fresh attempt; on resume the
+        // original is evidence and must never be re-recorded over the
+        // mutated tree. The sweep then deletes only byte-proven starter
+        // debris — a total clear on resume can destroy foreign files a
+        // user wrote into the never-yet-opened directory after the crash,
+        // and is exactly the data loss the manifest exists to prevent.
+        let journal = match &pending {
+            Some(j) => j.clone(),
+            None => write_journal(true)?,
+        };
+        sweep_starter(target_root, input_norm, &journal, &planned)?;
+        // Survivors at planned paths are byte-identical partial output by
+        // the sweep's own classification, so identical bytes are a skip in
+        // fresh attempts too — nothing else can be present to collide.
+        collisions(target_root, src, &planned, existing_ids, true)?
     } else {
         let needs_copy = collisions(target_root, src, &planned, existing_ids, resume)?;
-
-        // The recovery unit lands before the first content byte. Hashes are
-        // of the candidate source bytes: the journal is evidence of what the
-        // operation meant to write, and resume compares live bytes anyway.
-        let mut journal = store::PendingAdoption::new(&src.run_id, target_kind, input_norm);
-        journal.content_subfolder = subfolder_name.clone();
-        for p in &planned {
-            let bytes = std::fs::read(&p.source)?;
-            journal.files.push(store::PendingFile {
-                target: p.target.clone(),
-                sha256: store::sha256_hex(&bytes),
-                bytes: bytes.len() as u64,
-            });
-        }
-        store::write_pending(target_root, &journal)?;
+        write_journal(false)?;
         needs_copy
     };
 

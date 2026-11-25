@@ -559,6 +559,15 @@ pub struct PendingAdoption {
     pub content_input: String,
     pub content_subfolder: Option<String>,
     pub files: Vec<PendingFile>,
+    /// Byte evidence of every file the starter tree held when the journal
+    /// landed, workspace-relative like [`PendingFile::target`]. Only files
+    /// proven byte-identical to this manifest may ever be deleted by the
+    /// starter replacement; anything else is foreign and refuses the
+    /// resume. Empty for existing-workspace merges (nothing is replaced)
+    /// and for journals written before the manifest existed — in which
+    /// case nothing may be deleted either, because there is no proof.
+    #[serde(default)]
+    pub starter: Vec<PendingFile>,
 }
 
 impl PendingAdoption {
@@ -575,6 +584,7 @@ impl PendingAdoption {
             content_input: content_input.into(),
             content_subfolder: None,
             files: Vec::new(),
+            starter: Vec::new(),
         }
     }
 

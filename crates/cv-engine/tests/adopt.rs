@@ -535,35 +535,22 @@ fn adopt_to_new_crash_after_clearing_resumes_to_convergence() {
     std::fs::write(root.join("content/index.md"), "starter\n").unwrap();
     let src = adopt::source(source_ws.path(), &run_id).unwrap();
 
-    // First attempt crashes after the clear but mid-copy: emulate by
-    // running the transaction against a source whose copy we interrupt
-    // manually — journal + clear + one file, then stop.
-    let mut journal = store::PendingAdoption::new(&run_id, "new", "content");
-    let planned = adopt::plan(&src, "content", None).unwrap();
-    for p in &planned {
-        let bytes = std::fs::read(&p.source).unwrap();
-        journal.files.push(store::PendingFile {
-            target: p.target.clone(),
-            sha256: store::sha256_hex(&bytes),
-            bytes: bytes.len() as u64,
-        });
-    }
+    // First attempt crashes after the clear but mid-copy: faithful
+    // journal (starter manifest included), starter already deleted,
+    // one incoming file written — then silence.
+    let journal = new_workspace_journal(&root, &run_id, &src);
     store::write_pending(&root, &journal).unwrap();
-    adopt::clear_new_workspace_content(&root, "content").unwrap();
-    assert!(
-        !root.join("content").exists(),
-        "the starter is already gone"
-    );
+    std::fs::remove_dir_all(root.join("content")).unwrap();
+    let planned = adopt::plan(&src, "content", None).unwrap();
     adopt::copy_content(&root, &planned[..1], &[true]).unwrap();
 
-    // The retry must converge. For a new workspace the recovery semantic
-    // is deliberately total: the adoption owns the workspace until it is
-    // first opened, so the re-clear completes wholesale and the copy
-    // restarts — byte-resume is a merge affordance, not a replacement
-    // one. Convergence never needs user intervention.
+    // The retry must converge with no total re-clear: the one byte-
+    // identical partial output is skipped, not rewritten, and the rest
+    // of the plan lands.
     let tx = adopt::transact(&root, &src, "content", None, "new", &BTreeMap::new(), 42)
         .expect("crash after clearing is exactly what resume converges");
-    assert_eq!(tx.written, planned.len(), "the copy restarts completely");
+    assert_eq!(tx.resumed, 1, "byte-identical partial output is skipped");
+    assert_eq!(tx.written, planned.len() - 1);
     for f in &src.files {
         let landed = root.join("content").join(&f.relative);
         assert_eq!(
@@ -574,6 +561,187 @@ fn adopt_to_new_crash_after_clearing_resumes_to_convergence() {
         );
     }
     assert!(store::read_pending(&root, &run_id).unwrap().is_none());
+}
+
+/// A faithful adopt-to-new journal: planned files plus the byte evidence
+/// of whatever the starter tree currently holds.
+fn new_workspace_journal(
+    root: &std::path::Path,
+    run_id: &str,
+    src: &adopt::AdoptionSource,
+) -> store::PendingAdoption {
+    let mut journal = store::PendingAdoption::new(run_id, "new", "content");
+    let planned = adopt::plan(src, "content", None).unwrap();
+    for p in &planned {
+        let bytes = std::fs::read(&p.source).unwrap();
+        journal.files.push(store::PendingFile {
+            target: p.target.clone(),
+            sha256: store::sha256_hex(&bytes),
+            bytes: bytes.len() as u64,
+        });
+    }
+    if root.join("content").is_dir() {
+        for f in walk_files(&root.join("content")) {
+            let bytes = std::fs::read(root.join("content").join(&f)).unwrap();
+            journal.starter.push(store::PendingFile {
+                target: format!("content/{}", f.display()),
+                sha256: store::sha256_hex(&bytes),
+                bytes: bytes.len() as u64,
+            });
+        }
+    }
+    journal
+}
+
+/// Crash-interrupted state, then a foreign user file appears before the
+/// retry. The resume must REFUSE and the file must survive untouched —
+/// the exact data-loss probe from review.
+#[test]
+fn a_foreign_file_written_after_the_crash_survives_and_refuses_the_resume() {
+    let (source_ws, run_id) = hugo_source();
+    let target = tempfile::tempdir().unwrap();
+    let root = target.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    std::fs::write(root.join("content/index.md"), "starter\n").unwrap();
+    let src = adopt::source(source_ws.path(), &run_id).unwrap();
+
+    let journal = new_workspace_journal(&root, &run_id, &src);
+    store::write_pending(&root, &journal).unwrap();
+    std::fs::remove_dir_all(root.join("content")).unwrap();
+    let planned = adopt::plan(&src, "content", None).unwrap();
+    adopt::copy_content(&root, &planned[..1], &[true]).unwrap();
+
+    // The user inspects the half-created workspace and writes a note.
+    std::fs::write(root.join("content/user-note.md"), "mine\n").unwrap();
+
+    let err =
+        adopt::transact(&root, &src, "content", None, "new", &BTreeMap::new(), 42).unwrap_err();
+    assert!(
+        matches!(err, AdoptError::Foreign(_)),
+        "foreign file refuses: {err}"
+    );
+    assert!(
+        err.to_string().contains("user-note.md"),
+        "the refusal names the foreign file: {err}"
+    );
+    assert_eq!(
+        std::fs::read_to_string(root.join("content/user-note.md")).unwrap(),
+        "mine\n",
+        "the foreign file survives byte-for-byte"
+    );
+    // And starter debris is untouched too: the refusal happened in
+    // classification, before any deletion.
+    assert!(
+        root.join(&planned[0].target).exists(),
+        "partial output is left in place for the eventual retry"
+    );
+
+    // Once the user moves their file aside, the retry converges.
+    std::fs::remove_file(root.join("content/user-note.md")).unwrap();
+    adopt::transact(&root, &src, "content", None, "new", &BTreeMap::new(), 42)
+        .expect("after the user reclaims their file the retry converges");
+}
+
+/// A crash mid-rename strands the atomic write's tempfile. That debris
+/// is not foreign data — the resume must clean it up and converge,
+/// never refuse on it.
+#[test]
+fn staged_write_debris_from_a_crash_does_not_block_the_resume() {
+    let (source_ws, run_id) = hugo_source();
+    let target = tempfile::tempdir().unwrap();
+    let root = target.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    std::fs::write(root.join("content/index.md"), "starter\n").unwrap();
+    let src = adopt::source(source_ws.path(), &run_id).unwrap();
+
+    let journal = new_workspace_journal(&root, &run_id, &src);
+    store::write_pending(&root, &journal).unwrap();
+    std::fs::remove_dir_all(root.join("content")).unwrap();
+    // The stranded tempfile exactly as a mid-rename crash leaves it.
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    std::fs::write(root.join("content/.cv-write-x7f2.tmp"), "partial bytes").unwrap();
+
+    let tx = adopt::transact(&root, &src, "content", None, "new", &BTreeMap::new(), 42)
+        .expect("write debris is adoption-own litter, not foreign data");
+    assert!(tx.written > 0);
+    assert!(
+        !root.join("content/.cv-write-x7f2.tmp").exists(),
+        "the debris is cleaned up"
+    );
+}
+
+/// A foreign EDIT to a starter path: the bytes no longer match the
+/// manifest, so the file is user data and must survive as a refusal.
+#[test]
+fn a_starter_file_edited_after_the_crash_is_foreign_and_survives() {
+    let (source_ws, run_id) = hugo_source();
+    let target = tempfile::tempdir().unwrap();
+    let root = target.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    std::fs::write(root.join("content/index.md"), "starter\n").unwrap();
+    let src = adopt::source(source_ws.path(), &run_id).unwrap();
+
+    let journal = new_workspace_journal(&root, &run_id, &src);
+    store::write_pending(&root, &journal).unwrap();
+    // Crash BEFORE the clear even ran: the starter tree is intact.
+    // The user then edits the starter page.
+    std::fs::write(
+        root.join("content/index.md"),
+        "starter, but edited by hand\n",
+    )
+    .unwrap();
+
+    let err =
+        adopt::transact(&root, &src, "content", None, "new", &BTreeMap::new(), 42).unwrap_err();
+    assert!(
+        matches!(err, AdoptError::Foreign(_)),
+        "edited starter is foreign: {err}"
+    );
+    assert_eq!(
+        std::fs::read_to_string(root.join("content/index.md")).unwrap(),
+        "starter, but edited by hand\n",
+        "the edited file survives byte-for-byte"
+    );
+}
+
+/// A foreign file squatting at a planned target path with different
+/// bytes refuses; the byte-identical case is partial output and skips.
+#[test]
+fn foreign_bytes_at_a_planned_path_refuse_but_identical_output_skips() {
+    let (source_ws, run_id) = hugo_source();
+    let target = tempfile::tempdir().unwrap();
+    let root = target.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    std::fs::write(root.join("content/index.md"), "starter\n").unwrap();
+    let src = adopt::source(source_ws.path(), &run_id).unwrap();
+    let planned = adopt::plan(&src, "content", None).unwrap();
+
+    let journal = new_workspace_journal(&root, &run_id, &src);
+    store::write_pending(&root, &journal).unwrap();
+    std::fs::remove_dir_all(root.join("content")).unwrap();
+
+    // Foreign squat at planned[0]: bytes differ from the incoming source.
+    let victim = root.join(&planned[0].target);
+    std::fs::create_dir_all(victim.parent().unwrap()).unwrap();
+    std::fs::write(&victim, b"not the migration bytes").unwrap();
+    let err =
+        adopt::transact(&root, &src, "content", None, "new", &BTreeMap::new(), 42).unwrap_err();
+    assert!(
+        matches!(err, AdoptError::Foreign(_)),
+        "foreign bytes at a planned path refuse: {err}"
+    );
+    assert_eq!(
+        std::fs::read(&victim).unwrap(),
+        b"not the migration bytes",
+        "the squatter is never overwritten or deleted"
+    );
+
+    // Byte-identical partial output at planned[1] skips instead.
+    std::fs::remove_file(&victim).unwrap();
+    adopt::copy_content(&root, &planned[..2], &[true, true]).unwrap();
+    let tx = adopt::transact(&root, &src, "content", None, "new", &BTreeMap::new(), 42)
+        .expect("identical partial output is fine");
+    assert_eq!(tx.resumed, 2);
 }
 
 /// The reviewer probe: `content/imported/en` exists as a regular FILE
@@ -683,22 +851,23 @@ fn a_symlink_blocking_a_parent_directory_refuses_before_any_write() {
     assert!(store::read_pending(&root, &run_id).unwrap().is_none());
 }
 
+/// Every file below `dir`, as paths relative to `dir` itself.
 fn walk_files(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
-    let mut out = Vec::new();
-    if let Ok(entries) = std::fs::read_dir(dir) {
-        for e in entries.flatten() {
-            let path = e.path();
-            if path.is_dir() {
-                out.extend(walk_files(&path));
-            } else {
-                out.push(
-                    path.strip_prefix(dir.parent().unwrap())
-                        .unwrap_or(&path)
-                        .to_path_buf(),
-                );
+    fn go(base: &std::path::Path, rel: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+        let abs = base.join(rel);
+        if let Ok(entries) = std::fs::read_dir(&abs) {
+            for e in entries.flatten() {
+                let next = rel.join(e.file_name());
+                if e.path().is_dir() {
+                    go(base, &next, out);
+                } else {
+                    out.push(next);
+                }
             }
         }
     }
+    let mut out = Vec::new();
+    go(dir, std::path::Path::new(""), &mut out);
     out
 }
 
