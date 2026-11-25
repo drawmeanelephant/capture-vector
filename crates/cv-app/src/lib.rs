@@ -201,7 +201,7 @@ pub fn open_workspace(
     let publish = publish::DiskPort::open(&root);
     let publish_err = publish_warning(&publish);
     cv_model::modules::publish::install(Box::new(publish));
-    wb.reset_project(Registry::with_all());
+    wb.reset_project(workspace_registry());
     wb.workspace = Some(root.clone());
     show(wb, "pages");
     let warning = research_err
@@ -279,8 +279,26 @@ pub fn boot_without_workspace(wb: &mut Workbench, demo: bool) {
         let _ = open_corpus(wb, CANARY_CORPUS);
         format!("No workspace open — showing the fixture demo. {how}")
     } else {
+        wb.reset_project(workspace_registry());
         format!("No workspace open. {how}")
     };
+}
+
+/// `CV_DEBUG=1` keeps the demo module in every workspace.
+pub fn debug_enabled() -> bool {
+    std::env::var_os("CV_DEBUG").is_some_and(|v| v == "1")
+}
+
+/// Modules for anything but the fixture demo. The demo's "Simulate: …"
+/// verbs raise real-looking banners for fake failures, so a real
+/// workspace only gets them under [`debug_enabled`]. Demo sorts last
+/// (`Slot::Extra`), so core `mod+1…9` numbering is the same either way.
+pub fn workspace_registry() -> Registry {
+    let mut r = Registry::with_all();
+    if !debug_enabled() {
+        r.remove(cv_model::modules::demo::ID);
+    }
+    r
 }
 
 fn open_native(wb: &mut Workbench, root: PathBuf) {
@@ -428,6 +446,17 @@ fn pages_degraded(reason: DegradedReason, wb: &mut Workbench) {
     wb.select_key("index.md");
 }
 
+/// Engine absent on a real machine: the boot status names how many
+/// places were searched, and the toast stays compact and closable.
+fn engine_absent_toast(wb: &mut Workbench) {
+    pages_degraded(DegradedReason::EngineAbsent, wb);
+    let searched = (0..24)
+        .map(|i| PathBuf::from(format!("/opt/tool-{i}/bin/boris")))
+        .collect();
+    let e = cv_engine::error::EngineError::NotFound { searched };
+    wb.status = format!("/workspace/happy: {e}");
+}
+
 fn audit(wb: &mut Workbench) {
     boot(wb);
     show(wb, "audit");
@@ -491,6 +520,7 @@ pub const SCENES: &[Scene] = &[
     ("pages-engine-absent", |wb| {
         pages_degraded(DegradedReason::EngineAbsent, wb)
     }),
+    ("engine-absent-toast", engine_absent_toast),
     ("pages-version-mismatch", |wb| {
         pages_degraded(
             DegradedReason::EngineVersionMismatch {

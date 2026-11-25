@@ -312,6 +312,12 @@ impl Registry {
         crate::modules::register_all(&mut r);
         r
     }
+    /// Unregister `id`; returns whether it was registered.
+    pub fn remove(&mut self, id: &str) -> bool {
+        let before = self.modules.len();
+        self.modules.retain(|m| m.spec().id != id);
+        self.modules.len() != before
+    }
     pub fn len(&self) -> usize {
         self.modules.len()
     }

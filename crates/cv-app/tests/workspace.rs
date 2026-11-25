@@ -568,6 +568,55 @@ fn installed_package_without_fixtures_boots_empty() {
     assert_ne!(wb.app.snapshot_epoch, 0, "checkout fixtures load the demo");
 }
 
+fn ids(wb: &Workbench) -> Vec<&'static str> {
+    wb.registry.iter().map(|m| m.spec().id).collect()
+}
+
+fn demo_commands(wb: &Workbench) -> Vec<String> {
+    wb.registry
+        .iter()
+        .flat_map(|m| m.commands())
+        .map(|c| c.id)
+        .filter(|id| id.starts_with("demo."))
+        .collect()
+}
+
+#[test]
+fn only_the_fixture_demo_registers_the_demo_module() {
+    let (_ws, _cfg, real) = happy_workspace();
+    assert!(!ids(&real).contains(&"demo"), "{:?}", ids(&real));
+    assert_eq!(demo_commands(&real), Vec::<String>::new());
+
+    let mut demo = init();
+    cv_app::boot_without_workspace(&mut demo, true);
+    assert!(ids(&demo).contains(&"demo"));
+    assert!(!demo_commands(&demo).is_empty());
+    let core: Vec<_> = ids(&demo).into_iter().filter(|i| *i != "demo").collect();
+    assert_eq!(ids(&real), core, "core rail order (mod+1…9) is unchanged");
+
+    let mut empty = init();
+    cv_app::boot_without_workspace(&mut empty, false);
+    assert!(!ids(&empty).contains(&"demo"), "{:?}", ids(&empty));
+}
+
+/// A real workspace launch: the rail has no Demo. Engine-absent keeps the
+/// boot synchronous, so the tree is deterministic; the status line names
+/// the temp workspace, so it is cleared.
+#[test]
+fn real_workspace_launch_golden() {
+    let (_ws, _cfg, mut wb) = happy_workspace();
+    wb.status.clear();
+    let h = Harness::new(wb);
+    assert!(h.has("rail-pages") && !h.has("rail-demo"));
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/ui/golden/tree");
+    for (name, v) in [
+        ("workspace.tree", h.tree()),
+        ("workspace.layout", h.layout()),
+    ] {
+        cv_widgets::harness::check_golden(&dir, name, &v).unwrap();
+    }
+}
+
 #[test]
 fn restart_watch_reopens_the_workspace_and_a_new_watch_comes_up() {
     let ws = workspace("happy");
