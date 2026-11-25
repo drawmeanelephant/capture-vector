@@ -148,6 +148,9 @@ impl Compositor<Workbench> for Gfx {
         f.ui.prepare(device, queue, &mut f.rt.text.atlas, &f.rt.instances, size);
         f.ui.draw_with(f.encoder, f.target, clear, &mut |pass, site| {
             if let Some(k) = at.iter().position(|n| *n == site.index) {
+                // A slot inside an isolated layer (one fading out, say) draws
+                // into that layer's target, whose format differs from the frame's.
+                fx.add_format(device, site.format);
                 fx.draw_layer_in(pass, site.format, site.origin, k);
             }
         });
