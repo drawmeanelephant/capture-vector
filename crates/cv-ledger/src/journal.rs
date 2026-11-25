@@ -15,6 +15,10 @@ use std::path::{Path, PathBuf};
 /// Project-relative journal location.
 pub const JOURNAL_REL: &str = ".cv/ledger/ledger.jsonl";
 
+/// Single-writer lock beside the journal. Windows file locks are
+/// mandatory, so locking the journal itself would refuse every reader.
+const WRITER_LOCK_REL: &str = ".cv/ledger/ledger.lock";
+
 /// `.cv/ledger/` sidecar schema. v1 = [`Record`] lines in `ledger.jsonl`
 /// (+ the rebuildable index); v0 is the same shape, unstamped.
 pub const SIDECAR: Namespace = Namespace {
@@ -181,6 +185,7 @@ fn sync_dirs(project_root: &Path, path: &Path) -> Result<()> {
 pub struct Journal {
     path: PathBuf,
     file: File,
+    _writer: File,
     records: Vec<Record>,
     torn_tail: Option<String>,
 }
@@ -202,6 +207,17 @@ impl Journal {
         if let Some(dir) = path.parent() {
             std::fs::create_dir_all(dir)?;
         }
+        // Single writer per project: a second writer would reuse `seq`.
+        // Locked before the journal is read.
+        let writer_path = cv_store::paths::confined_file(project_root, Path::new(WRITER_LOCK_REL))?;
+        let writer = OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(false)
+            .open(&writer_path)?;
+        cv_store::lock::try_lock_settled(&writer)
+            .map_err(|e| LedgerError::Locked(format!("{writer_path:?}: {e}")))?;
         let created = !path.exists();
         let mut file = OpenOptions::new()
             .create(true)
@@ -209,10 +225,6 @@ impl Journal {
             .write(true)
             .truncate(false)
             .open(&path)?;
-        // Single writer per project: a second writer would reuse `seq`.
-        // Locked before reading; all I/O goes through this one handle.
-        cv_store::lock::try_lock_settled(&file)
-            .map_err(|e| LedgerError::Locked(format!("{path:?}: {e}")))?;
         if created {
             file.sync_all()?;
             sync_dirs(project_root, &path)?;
@@ -229,6 +241,7 @@ impl Journal {
         Ok(Self {
             path,
             file,
+            _writer: writer,
             records,
             torn_tail,
         })
