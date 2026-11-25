@@ -235,6 +235,22 @@ fn validate_artifact_contract(idx: &ArtifactIndex) -> Result<()> {
                 a.path
             )));
         }
+        // Boris's artifact path byte rules: no backslashes, empty/dot/dotdot
+        // segments, control characters or DEL, and no leading slash. Host
+        // grammar handles the rest at the delivery layer.
+        let bytes = a.path.as_bytes();
+        if a.path.is_empty()
+            || a.path.starts_with('/')
+            || bytes.iter().any(|b| *b < 0x20 || *b == 0x7f || *b == b'\\')
+            || a.path
+                .split('/')
+                .any(|seg| seg.is_empty() || seg == "." || seg == "..")
+        {
+            return Err(LedgerError::Proof(format!(
+                "artifacts.json: {} is not a valid artifact path",
+                a.path
+            )));
+        }
         if let Some(semantics) = &a.semantics
             && !matches!(semantics.as_str(), "static" | "content-reference")
         {

@@ -2263,7 +2263,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "c3495ee207c9cf9cbf5a3e5df2adf0cb0dd6e76dd9bc97f55854a0fcf29734df",
+      "help": "60be5bf00f07b0e4214275803ac6bc69098fabce93d67bc688edc95afa4de25e",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-artifact set/#1",
       "rect": [
@@ -2273,7 +2273,7 @@
         13.8
       ],
       "role": "text",
-      "text": "c3495ee207c9cf9cbf5a3e5df2adf0cb0dd6e76dd9bc97f55854a0fcf29734df"
+      "text": "60be5bf00f07b0e4214275803ac6bc69098fabce93d67bc688edc95afa4de25e"
     },
     {
       "key": "field-graph",
@@ -3409,7 +3409,7 @@
         520.0
       ],
       "role": "text",
-      "text": "Static dist · 5 files · 12600 B by copy-to-folder to publish/static-dist\nApproval is recorded in the ledger before anything is dispatched. Dispatch delivers exactly these sealed bytes, once; a hash that no longer matches refuses.\n\nSealed hashes\n  artifact set: c3495ee207c9cf9c…\n  graph: d1020957f0580499…\n  plan: 28555575bbd43f55…\n  target cfg: 2a1253c01b262a39…\n  ruleset: 3424026284a0d80c…\n  boris: boris/0.9.0\n\nAdvisory findings (6): heuristic or below error, these never block\n  advisory · SEO-CANONICAL-PRESENT on guides/getting-started · heuristic\n  advisory · SEO-CANONICAL-PRESENT on guides/publishing · heuristic\n  advisory · SEO-CANONICAL-PRESENT on index · heuristic\n  advisory · SEO-META-DESCRIPTION on guides/getting-started · heuristic\n  advisory · SEO-META-DESCRIPTION on guides/publishing · heuristic\n  advisory · SEO-META-DESCRIPTION on index · heuristic"
+      "text": "Static dist · 5 files · 12600 B by copy-to-folder to publish/static-dist\nApproval is recorded in the ledger before anything is dispatched. Dispatch delivers exactly these sealed bytes, once; a hash that no longer matches refuses.\n\nSealed hashes\n  artifact set: 60be5bf00f07b0e4…\n  graph: d1020957f0580499…\n  plan: 28555575bbd43f55…\n  target cfg: 2a1253c01b262a39…\n  ruleset: 3424026284a0d80c…\n  boris: boris/0.9.0\n\nAdvisory findings (6): heuristic or below error, these never block\n  advisory · SEO-CANONICAL-PRESENT on guides/getting-started · heuristic\n  advisory · SEO-CANONICAL-PRESENT on guides/publishing · heuristic\n  advisory · SEO-CANONICAL-PRESENT on index · heuristic\n  advisory · SEO-META-DESCRIPTION on guides/getting-started · heuristic\n  advisory · SEO-META-DESCRIPTION on guides/publishing · heuristic\n  advisory · SEO-META-DESCRIPTION on index · heuristic"
     },
     {
       "key": "close",

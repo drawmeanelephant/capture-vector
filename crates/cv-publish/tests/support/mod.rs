@@ -176,8 +176,19 @@ impl Engine for FakeEngine {
                             "format": "boris-publication-artifacts",
                             "schema_version": 1,
                             "target": "default",
+                            "artifact_count": artifacts.len(),
                         },
-                        "checks": [],
+                        "checks": [
+                            {"id": "artifact-integrity", "eligible": true, "ran": true, "status": "passed",
+                             "coverage": "complete", "finding_offset": 0,
+                             "counts": {"eligible": artifacts.len(), "checked": artifacts.len(), "findings": 0}},
+                            {"id": "rendered-html", "eligible": true, "ran": true, "status": "passed",
+                             "coverage": "complete", "finding_offset": 0,
+                             "counts": {"eligible": 1, "checked": 1, "findings": 0}},
+                            {"id": "rendered-search", "eligible": true, "ran": true, "status": "passed",
+                             "coverage": "complete", "finding_offset": 0,
+                             "counts": {"eligible": 0, "checked": 0, "findings": 0}},
+                        ],
                         "findings": [],
                     });
                     std::fs::write(

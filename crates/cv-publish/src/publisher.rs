@@ -321,7 +321,11 @@ fn deployable_inventory(site: &Path) -> Result<Vec<PlanFile>> {
 
 fn artifact_seal_hash(site: &Path, files: &[PlanFile]) -> Result<Hash> {
     let inventory_bytes = std::fs::read(site.join("_boris/proof/artifacts.json"))?;
-    hash_json(&(files, sha256(&inventory_bytes)))
+    // G6: the checks evidence bytes seal with the payload. The hash is
+    // re-derived at dispatch, so swapping or editing checks.json after the
+    // grant breaks the seal and the run refuses before contact.
+    let checks_bytes = std::fs::read(site.join("_boris/proof/checks.json"))?;
+    hash_json(&(files, sha256(&inventory_bytes), sha256(&checks_bytes)))
 }
 
 pub struct Publisher<'a> {
@@ -515,8 +519,25 @@ impl<'a> Publisher<'a> {
         if blocks.is_empty() && output_files.is_empty() {
             blocks.push("build: output dir is empty".into());
         }
+        let inv_bytes = std::fs::read(site.join("_boris/proof/artifacts.json")).ok();
         let (files, kinds, proof_inventory_valid) = match ingest::artifact_inventory(&site) {
-            Ok(Some(idx)) => evaluate_proof_inventory(&idx, &output_files, &site, &mut blocks),
+            Ok(Some(idx)) => {
+                let count = idx.artifacts.len();
+                let (files, kinds, valid) =
+                    evaluate_proof_inventory(&idx, &output_files, &site, &mut blocks);
+                // G5: one byte buffer feeds parse, binding and seal — the
+                // descriptor is checked against the same bytes just parsed.
+                if valid && let Some(bytes) = &inv_bytes {
+                    evaluate_proof_checks(
+                        &site,
+                        bytes,
+                        count,
+                        &sha256(bytes).to_hex(),
+                        &mut blocks,
+                    );
+                }
+                (files, kinds, valid)
+            }
             Ok(None) => {
                 blocks.push("proof artifacts: artifacts.json missing".into());
                 Default::default()
@@ -526,11 +547,6 @@ impl<'a> Publisher<'a> {
                 Default::default()
             }
         };
-        if proof_inventory_valid
-            && let Ok(inv_bytes) = std::fs::read(site.join("_boris/proof/artifacts.json"))
-        {
-            evaluate_proof_checks(&site, &sha256(&inv_bytes).to_hex(), &mut blocks);
-        }
         let graph = self.read_graph(&run)?;
         if blocks.is_empty() && graph.is_none() {
             blocks.push("graph: not produced".into());

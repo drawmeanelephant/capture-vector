@@ -55,6 +55,7 @@ pub struct Artifact {
 
 /// `boris-publication-checks` (checks.json).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ChecksFile {
     pub format: String,
     pub schema_version: u32,

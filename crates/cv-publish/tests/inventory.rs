@@ -811,3 +811,115 @@ fn version_control_destinations_are_refused_component_wise() {
         );
     }
 }
+
+/// G4 binding: every descriptor field must match the exact sealed bytes.
+#[test]
+fn binding_mismatches_block_the_grant() {
+    for (field, value, needle) in [
+        ("path", serde_json::json!("other.json"), "path"),
+        ("bytes", serde_json::json!(1), "bytes"),
+        ("sha256", serde_json::json!("0".repeat(64)), "digest"),
+        ("format", serde_json::json!("wrong"), "format"),
+        ("schema_version", serde_json::json!(2), "schema_version"),
+        ("target", serde_json::json!("github-pages"), "target"),
+        ("artifact_count", serde_json::json!(99), "count"),
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let mut eng = CapturedEngine::new(dir.path());
+        let value = value.clone();
+        mutate_checks(&mut eng, move |idx| {
+            idx["artifact_inventory"][field] = value.clone();
+        });
+        assert_blocked(&eng, dir.path(), needle);
+    }
+}
+
+#[test]
+fn a_wrong_check_id_shape_blocks() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    mutate_checks(&mut eng, |idx| {
+        idx["checks"].as_array_mut().unwrap().truncate(2);
+    });
+    assert_blocked(&eng, dir.path(), "not the three ordered Boris checks");
+}
+
+#[test]
+fn an_unknown_checks_root_key_blocks() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    mutate_checks(&mut eng, |idx| {
+        idx["surprise_root"] = serde_json::json!(true);
+    });
+    assert_blocked(&eng, dir.path(), "checks.json");
+}
+
+#[test]
+fn noncontiguous_finding_offsets_block() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    mutate_checks(&mut eng, |idx| {
+        idx["checks"][1]["finding_offset"] = serde_json::json!(7);
+    });
+    assert_blocked(&eng, dir.path(), "not contiguous");
+}
+
+#[test]
+fn unknown_finding_severity_blocks() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    mutate_checks(&mut eng, |idx| {
+        idx["findings"]
+            .as_array_mut()
+            .unwrap()
+            .push(serde_json::json!({
+                "code": "X", "severity": "catastrophic",
+                "subject": {"id": "index"}, "output_location": {"path": "index.html"}
+            }));
+        idx["checks"][2]["counts"]["findings"] = serde_json::json!(1);
+    });
+    assert_blocked(&eng, dir.path(), "unknown severity");
+}
+
+#[test]
+fn forbidden_artifact_path_bytes_block_at_the_root_cause() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    mutate_artifacts(&mut eng, |idx| {
+        idx["artifacts"][0]["path"] = serde_json::json!("bad\\backslash.html");
+    });
+    assert_blocked(&eng, dir.path(), "not a valid artifact path");
+}
+
+/// G2/G7: warnings-only output must never false-block. Boris exits verify
+/// ok over warnings-only output; rows carrying warning severity are
+/// advisory detail, and the grant proceeds.
+#[test]
+fn warnings_only_output_grants_when_verify_exits_ok() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    mutate_checks(&mut eng, |idx| {
+        idx["checks"][1]["status"] = serde_json::json!("failed");
+        idx["checks"][1]["counts"]["findings"] = serde_json::json!(1);
+        idx["checks"][2]["finding_offset"] = serde_json::json!(1);
+        idx["findings"]
+            .as_array_mut()
+            .unwrap()
+            .push(serde_json::json!({
+                "code": "SOME_WARNING", "severity": "warning",
+                "subject": {"id": "index"}, "output_location": {"path": "index.html"}
+            }));
+    });
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+    let out = p
+        .preflight(
+            &PreflightRequest { config: cfg() },
+            &Rules::ok(),
+            &mut ids("run"),
+        )
+        .unwrap();
+    assert!(
+        matches!(out, PreflightOutcome::Granted { .. }),
+        "warnings-only must grant when verify exits ok: {out:?}"
+    );
+}
