@@ -50,6 +50,8 @@ pub enum Intent {
         module: String,
         key: String,
     },
+    /// Put `text` on the system clipboard.
+    Copy(String),
     /// Show a modal dialog (queued behind an open one); its answer comes
     /// back as the spec's `<module>.<verb>` through `Module::answer`.
     Dialog(Box<DialogSpec>),

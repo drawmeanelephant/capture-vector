@@ -1447,6 +1447,7 @@
     },
     {
       "fill": "#1a1e26ff",
+      "help": "Open Doctor: engine, watch and .cv/ health",
       "key": "status-0",
       "opacity": 1.0,
       "path": "shell/status/status-0",
@@ -1457,7 +1458,7 @@
         79.9,
         18.0
       ],
-      "role": "group"
+      "role": "button"
     },
     {
       "fill": "#8a93a3ff",

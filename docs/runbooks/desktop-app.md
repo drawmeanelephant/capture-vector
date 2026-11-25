@@ -6,6 +6,29 @@ agent or maintainer can hit on a workstation.
 
 ## First checks
 
+Open the Doctor first: click the engine chip at the left of the status
+bar, or run **Open Doctor** (`shell.doctor`) from the command palette
+(`mod+K`). It answers most of the questions below without a terminal:
+
+- **Engine**: which Boris binary this window runs, how it was found
+  (`CV_BORIS_BIN`, bundled, `PATH`, sibling checkout), its `--version`
+  and `--build-info` against the pin, and every path the search tried.
+- **Capabilities**: what the probe saw on this OS (watch, serve,
+  validate, content writes) and whether the watch is native or one-shot.
+- **Watch session**: live or dead, the last cursor and exit, and the last
+  non-recoverable failure with its diagnostics.
+- **.cv/ store**: each namespace's schema stamp against what this build
+  reads, who holds the writer locks, and where the rebuildable research
+  index lives.
+- **App build**: version, commit, target, toolchain, and logging state.
+
+**Copy Doctor support bundle** (palette) puts a JSON report of every
+section on the clipboard for an issue. It leaves out page bodies, the
+engine's absolute paths, environment values, and secret-looking fields;
+the workspace root and home directory become `<workspace>` and `~`.
+
+If the app does not start at all, or you need a clean baseline:
+
 ```sh
 rustc --version                 # expect 1.99.1
 git status --short              # do not debug on top of unknown edits
@@ -34,6 +57,8 @@ the folder picker; the recent list lives under the platform config dir
 
 ## Symptom: "engine absent" / "version mismatch"
 
+- Doctor → Engine names the refused binary (or lists every searched path
+  when none was found) and what the pin wants.
 - The app browses the workspace without Boris; publishing and rebuilds
   need it.
 - Put a real `boris/0.9.0` (vcs `66efcfb`) on `PATH`, or set
@@ -45,8 +70,10 @@ the folder picker; the recent list lives under the platform config dir
 
 ## Symptom: watch dead / rebuilds never land
 
-1. Confirm the engine version gate passes: `boris --version` and
-   `boris --build-info`.
+1. Doctor → Watch session shows whether the session is live, the last
+   exit, and the last non-recoverable failure with its diagnostics.
+   Doctor → Engine confirms the version gate passed (`--version` and
+   `--build-info` against the pin).
 2. Reproduce with the captured sessions:
    `cargo test -p cv-engine --test watch_resync`.
 3. Run the opt-in live smoke locally only if a pinned binary exists:
@@ -56,6 +83,8 @@ the folder picker; the recent list lives under the platform config dir
 
 ## Symptom: corrupt research store
 
+- Doctor → .cv/ store shows each namespace's schema stamp, the writer
+  locks, and the research index path.
 - JSONL under `<workspace>/.cv/research/` is the source of truth; the
   SQLite index is rebuildable.
 - Close the app, move the index aside (not the JSONL), and reopen:
@@ -109,6 +138,7 @@ Fixtures are byte-pinned. If a fixture change is suspect, restore
 
 Open an issue with:
 
+- the Doctor support bundle (palette: **Copy Doctor support bundle**);
 - OS and version, `rustc --version`;
 - the launch command (never include secrets);
 - `CV_LOG=debug` JSONL;

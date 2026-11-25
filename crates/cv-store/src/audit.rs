@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 pub const DIR: &str = ".cv/audit";
 pub const LIFECYCLE: &str = "lifecycle.jsonl";
 pub const SCHEMA_VERSION: u32 = 1;
-const SCHEMA: Namespace = Namespace {
+pub const SCHEMA: Namespace = Namespace {
     name: "audit",
     dir: DIR,
     current: SCHEMA_VERSION,

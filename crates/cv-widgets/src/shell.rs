@@ -662,12 +662,16 @@ fn engine_chip(s: &Workbench) -> El {
     let side = 6.0;
     let chip = row()
         .key("status-0")
+        .role("button")
+        .help("Open Doctor: engine, watch and .cv/ health")
         .h(t.spacing.row_h - t.spacing.unit)
         .px(t.spacing.unit * 2.0)
         .gap(t.spacing.unit * 1.5)
         .items_center()
         .fill(color(t.colors.pane_alt))
-        .rounded(t, Size::Pill);
+        .rounded(t, Size::Pill)
+        .states(t)
+        .on_press(|s: &mut Workbench| s.run_command("shell.doctor"));
     let dot = col()
         .key("status-dot")
         .w(side)
