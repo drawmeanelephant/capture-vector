@@ -2,6 +2,7 @@
 # lint.sh — full local quality gate. CI runs the same checks.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+./scripts/check-toolchain.sh
 
 # Check tracked workspace Rust only. `cargo fmt --all` would walk the
 # vendored rune tree and spike/, and would pick up local scratch files that

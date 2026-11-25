@@ -7,6 +7,7 @@
 # Extra arguments are forwarded to cv-app unchanged.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+./scripts/check-toolchain.sh
 
 if [ ! -d vendor/rune/.git ]; then
   echo "dev: vendor/rune missing; fetching the pinned rune rev" >&2

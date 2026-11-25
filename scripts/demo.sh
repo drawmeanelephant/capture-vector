@@ -5,6 +5,7 @@
 # fixtures/ in place. Set CV_DEMO_DIR to reuse a directory.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+./scripts/check-toolchain.sh
 
 if [ -n "${CV_DEMO_DIR:-}" ]; then
   tmp="$CV_DEMO_DIR"

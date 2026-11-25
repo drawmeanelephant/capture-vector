@@ -28,7 +28,10 @@ module. The user-facing guide is [`docs/user-guide.md`](docs/user-guide.md).
 ## Prerequisites
 
 - Rust 1.99.1 — [`rust-toolchain.toml`](rust-toolchain.toml) pins it;
-  rustup selects it automatically.
+  rustup selects it automatically. Homebrew's `rust` formula puts its own
+  `cargo`/`rustc` first on PATH and ignores the pin; put rustup's proxies
+  first (`$(brew --prefix rustup)/bin` or `~/.cargo/bin`). The scripts
+  refuse to run on drift (`scripts/check-toolchain.sh`).
 - `git` (the pinned rune checkout is vendored by script).
 - A Boris `0.9.0` binary is optional at launch. Without one the app still
   browses a workspace and discloses `engine absent` in the status line.
