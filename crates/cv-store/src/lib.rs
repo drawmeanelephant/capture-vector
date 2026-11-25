@@ -1,7 +1,9 @@
 //! cv-store — JSONL evidence trail in `.cv/`. JSONL is the source of
-//! truth; the rebuildable SQLite index lives in `cv-ledger`. Store lands
-//! with the lanes that need it; the `Store` port lives in
-//! `cv-core::store`.
+//! truth. This crate has no SQLite dependency: the rebuildable indexes
+//! live in `cv-ledger` (ledger) and `cv-notes` (research FTS5), and
+//! [`paths::project_index_dir`] picks their OS app-data location. The
+//! `Store` port lives in `cv-core::store`; no on-disk implementation of
+//! it exists yet (the app wires `cv_fixtures::stub_store::StubStore`).
 //!
 //! [`sidecar`] owns the per-namespace `.cv/<ns>/schema.json` stamps and
 //! their forward migrations; every namespace writer calls
