@@ -34,10 +34,53 @@ pub struct InputSpec {
     pub required: bool,
 }
 
+/// Where a mode's source comes from, for grouping runs in the UI. Until
+/// the lab reports this itself (`--list-modes`), it is transcribed here
+/// from the mode table in the lab's README at the pinned commit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Family {
+    StaticSite,
+    BlogCms,
+    Notes,
+    Social,
+    CrossCutting,
+}
+
+impl Family {
+    pub const ALL: [Family; 5] = [
+        Family::StaticSite,
+        Family::BlogCms,
+        Family::Notes,
+        Family::Social,
+        Family::CrossCutting,
+    ];
+
+    pub fn key(self) -> &'static str {
+        match self {
+            Self::StaticSite => "static-site",
+            Self::BlogCms => "blog-cms",
+            Self::Notes => "notes",
+            Self::Social => "social",
+            Self::CrossCutting => "cross-cutting",
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::StaticSite => "Static-site generators",
+            Self::BlogCms => "Blog/CMS exports",
+            Self::Notes => "Notes/outliners",
+            Self::Social => "Social/data downloads",
+            Self::CrossCutting => "Cross-cutting",
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct ModeSpec {
     /// The `--mode=` value.
     pub name: &'static str,
+    pub family: Family,
     pub inputs: &'static [InputSpec],
 }
 
@@ -67,72 +110,66 @@ const fn optional_dir(flag: &'static str) -> InputSpec {
 
 const ROOT: &[InputSpec] = &[dir("--root")];
 
-const fn root(name: &'static str) -> ModeSpec {
-    ModeSpec { name, inputs: ROOT }
+const fn root(name: &'static str, family: Family) -> ModeSpec {
+    ModeSpec {
+        name,
+        family,
+        inputs: ROOT,
+    }
 }
 
-pub const MODES: &[ModeSpec] = &[
-    root("astro"),
+const fn with(name: &'static str, family: Family, inputs: &'static [InputSpec]) -> ModeSpec {
     ModeSpec {
-        name: "wordpress",
-        inputs: &[file("--wxr"), optional_dir("--media")],
-    },
-    root("wordpress-theme"),
-    ModeSpec {
-        name: "instagram",
-        inputs: &[dir("--dump")],
-    },
-    ModeSpec {
-        name: "obsidian",
-        inputs: &[dir("--vault")],
-    },
-    ModeSpec {
-        name: "tinderbox-inventory",
-        inputs: &[file("--tbx")],
-    },
-    ModeSpec {
-        name: "tinderbox",
-        inputs: &[file("--tbx")],
-    },
-    ModeSpec {
-        name: "notion",
-        inputs: &[dir("--export")],
-    },
-    ModeSpec {
-        name: "filed",
-        inputs: &[dir("--filed-root")],
-    },
-    root("filed-scan"),
-    root("starlight"),
-    root("asset-filename"),
-    root("theme-archaeology"),
-    ModeSpec {
-        name: "theme-materialize",
-        inputs: &[dir("--root"), file("--ledger")],
-    },
-    root("link-audit"),
-    ModeSpec {
-        name: "frontmatter-review",
-        inputs: &[dir("--content")],
-    },
-    root("hugo-inventory"),
-    root("hugo"),
-    root("jekyll-inventory"),
-    root("jekyll"),
-    root("ghost-inventory"),
-    root("ghost"),
-    root("mkdocs-inventory"),
-    root("mkdocs"),
-    root("mastodon-inventory"),
-    root("mastodon"),
-    root("atproto"),
-    root("atproto-inventory"),
-    root("enex-inventory"),
-    root("enex"),
-    root("substack-inventory"),
-    root("substack"),
-];
+        name,
+        family,
+        inputs,
+    }
+}
 
+use Family::{BlogCms, CrossCutting, Notes, Social, StaticSite};
+
+pub const MODES: &[ModeSpec] = &[
+    root("astro", StaticSite),
+    with(
+        "wordpress",
+        BlogCms,
+        &[file("--wxr"), optional_dir("--media")],
+    ),
+    root("wordpress-theme", CrossCutting),
+    with("instagram", Social, &[dir("--dump")]),
+    with("obsidian", Notes, &[dir("--vault")]),
+    with("tinderbox-inventory", Notes, &[file("--tbx")]),
+    with("tinderbox", Notes, &[file("--tbx")]),
+    with("notion", Notes, &[dir("--export")]),
+    with("filed", StaticSite, &[dir("--filed-root")]),
+    root("filed-scan", StaticSite),
+    root("starlight", StaticSite),
+    root("asset-filename", CrossCutting),
+    root("theme-archaeology", CrossCutting),
+    with(
+        "theme-materialize",
+        CrossCutting,
+        &[dir("--root"), file("--ledger")],
+    ),
+    root("link-audit", CrossCutting),
+    with("frontmatter-review", CrossCutting, &[dir("--content")]),
+    root("hugo-inventory", StaticSite),
+    root("hugo", StaticSite),
+    root("jekyll-inventory", StaticSite),
+    root("jekyll", StaticSite),
+    root("ghost-inventory", BlogCms),
+    root("ghost", BlogCms),
+    root("mkdocs-inventory", StaticSite),
+    root("mkdocs", StaticSite),
+    root("mastodon-inventory", Social),
+    root("mastodon", Social),
+    root("atproto", Social),
+    root("atproto-inventory", Social),
+    root("enex-inventory", Notes),
+    root("enex", Notes),
+    root("substack-inventory", BlogCms),
+    root("substack", BlogCms),
+];
 /// The allowlisted mode named `name` (canonical names only).
 pub fn mode(name: &str) -> Option<&'static ModeSpec> {
     MODES.iter().find(|m| m.name == name)

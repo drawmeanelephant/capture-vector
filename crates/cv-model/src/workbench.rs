@@ -690,7 +690,9 @@ impl Workbench {
             }
             let mut c =
                 CommandSpec::new(format!("shell.goto.{}", s.id), format!("Go to {}", s.title));
-            if i < 9 {
+            // Utilities stay off the number row so a workspace and the
+            // fixture demo (which adds Demo) number the same modules.
+            if i < 9 && s.slot != crate::module::Slot::Utilities {
                 c = c.chord(&format!("mod+{}", i + 1));
             }
             out.push(c);

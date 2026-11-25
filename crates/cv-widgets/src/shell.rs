@@ -320,6 +320,29 @@ fn rail(s: &Workbench, lights: bool) -> El {
     for (key, title, idx) in entries {
         rail = rail.child(rail_item(s, &key, title, idx, rest));
     }
+    let utilities: Vec<_> = s
+        .registry
+        .iter()
+        .enumerate()
+        .filter(|(_, m)| m.spec().slot == Slot::Utilities)
+        .collect();
+    if !utilities.is_empty() {
+        rail = rail.child(spacer()).child(
+            col()
+                .key("rail-group-utilities")
+                .role("group")
+                .label(Slot::Utilities.title())
+                .w_full()
+                .pt(t.spacing.unit)
+                .px(t.spacing.unit * 2.0)
+                .border_sides([1.0, 0.0, 0.0, 0.0], color(t.colors.border))
+                .child(label(t, Slot::Utilities.title())),
+        );
+        for (i, m) in utilities {
+            let spec = m.spec();
+            rail = rail.child(rail_item(s, spec.id, spec.title.to_string(), Some(i), rest));
+        }
+    }
     rail
 }
 
@@ -410,6 +433,7 @@ fn rail_icon(key: &str) -> &'static Icon {
         "outputs" => &icons::PACKAGE,
         "activity" => &icons::ACTIVITY,
         cv_model::modules::demo::ID => &icons::PLAY,
+        cv_model::modules::migrate::ID => &icons::IMPORT,
         _ => &icons::CIRCLE,
     }
 }
