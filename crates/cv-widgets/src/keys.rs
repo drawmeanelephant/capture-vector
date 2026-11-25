@@ -45,6 +45,21 @@ pub fn keycaps(chord: &str) -> Option<Vec<String>> {
     let platform = KEYCAPS.get().copied().unwrap_or_else(KeyPlatform::current);
     Chord::parse(chord).ok().map(|c| c.keycaps_on(platform))
 }
+
+/// A chord as a tooltip writes it on the pinned platform: `"⌘S"` on
+/// macOS, `"Ctrl+S"` elsewhere. Kit buttons' own `shortcut()` follows the
+/// host OS instead, which would make tree goldens differ per OS.
+pub fn shortcut_text(chord: &str) -> Option<String> {
+    let platform = KEYCAPS.get().copied().unwrap_or_else(KeyPlatform::current);
+    let sep = if matches!(platform, KeyPlatform::Mac) {
+        ""
+    } else {
+        "+"
+    };
+    Chord::parse(chord)
+        .ok()
+        .map(|c| c.keycaps_on(platform).join(sep))
+}
 /// Parse a script token: `"mod+k"`, `"down"`, `"enter"`, `"esc"`, `"tab"`,
 /// `"shift+tab"`, `"bksp"`, or literal text (`"text:replay"`).
 pub fn parse(token: &str) -> Vec<KeyEvent> {

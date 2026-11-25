@@ -101,7 +101,7 @@
       "role": "group"
     },
     {
-      "help": "Undo  Ctrl+Z",
+      "help": "Undo  ⌘Z",
       "key": "editor-undo",
       "label": "Undo",
       "opacity": 1.0,
@@ -129,7 +129,7 @@
       "role": "icon"
     },
     {
-      "help": "Redo  Ctrl+Shift+Z",
+      "help": "Redo  ⇧⌘Z",
       "key": "editor-redo",
       "label": "Redo",
       "opacity": 1.0,
@@ -169,7 +169,7 @@
     },
     {
       "fill": "#00d1ffff",
-      "help": "Save  Ctrl+S",
+      "help": "Save  ⌘S",
       "key": "editor-save",
       "label": "Save",
       "opacity": 1.0,

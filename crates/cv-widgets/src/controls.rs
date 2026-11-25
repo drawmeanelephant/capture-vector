@@ -102,19 +102,24 @@ pub fn icon_button_tx<S: 'static>(
         .control_size(ControlSize::Small)
         .label(label)
         .help(label);
-    if let Some(c) = chord {
-        b = b.shortcut(c);
-    }
-    let b = if enabled {
+    b = if enabled {
         b.on_press_tx(on_press)
     } else {
         b.disabled(true)
     };
-    let e = b.build(&kit(t)).key(key.to_string());
+    let e = with_shortcut(b.build(&kit(t)), label, chord).key(key.to_string());
     if enabled {
         e.press_scale(PRESS_SCALE)
     } else {
         e
+    }
+}
+
+/// `label  ⌘S` as the tooltip, and the chord for assistive tech.
+fn with_shortcut(e: El, label: &str, chord: Option<&str>) -> El {
+    match chord.and_then(crate::keys::shortcut_text) {
+        Some(keys) => e.help(format!("{label}  {keys}")).shortcut_hint(keys),
+        None => e,
     }
 }
 
@@ -129,21 +134,19 @@ pub fn button_keys_tx<S: 'static>(
     enabled: bool,
     on_press: impl Fn(&mut S, &mut Tx) + 'static,
 ) -> El {
-    let caps = crate::keys::keycaps(chord).unwrap_or_default().join("");
+    let caps = crate::keys::shortcut_text(chord).unwrap_or_default();
     let words = label.to_string();
-    let b = kit_button(label, v)
-        .shortcut(chord)
-        .label_with(move |font, ink| {
-            row()
-                .gap(6.0)
-                .center_y()
-                .child(text(words).key("label").font(font).color(ink))
-                .child(text(caps).key("keys").font(font).color(ink.alpha(0.7)))
-        });
+    let b = kit_button(label, v).label_with(move |font, ink| {
+        row()
+            .gap(6.0)
+            .center_y()
+            .child(text(words).key("label").font(font).color(ink))
+            .child(text(caps).key("keys").font(font).color(ink.alpha(0.7)))
+    });
     let b = if enabled {
         b.on_press_tx(on_press)
     } else {
         b.disabled(true)
     };
-    finish(t, key, b, enabled)
+    with_shortcut(finish(t, key, b, enabled), label, Some(chord))
 }
