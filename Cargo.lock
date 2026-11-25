@@ -721,6 +721,7 @@ dependencies = [
  "cv-model",
  "cv-notes",
  "cv-publish",
+ "cv-rules",
  "cv-store",
  "cv-ui-editor",
  "cv-widgets",

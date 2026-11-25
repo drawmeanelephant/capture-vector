@@ -69,7 +69,10 @@ pub fn graph_file(run: &StableId) -> Result<String> {
 }
 
 /// The engine verbs preflight issues, in order. Argv is mapped by
-/// cv-engine; nothing here carries a secret.
+/// cv-engine; nothing here carries a secret. Boris 0.9.0 refuses
+/// `--profile` beside an output override and `check` beside
+/// `--html-dir`, so the build names only its output dir and `check`
+/// reads the source graph; `validate` alone checks the profile.
 pub fn verbs(cfg: &TargetConfig, run: &StableId) -> Result<Vec<(&'static str, Verb)>> {
     let c = |name: &str, args: &[&str]| Verb::Custom {
         name: name.into(),
@@ -78,12 +81,9 @@ pub fn verbs(cfg: &TargetConfig, run: &StableId) -> Result<Vec<(&'static str, Ve
     let site = site_dir(run)?;
     let graph = graph_file(run)?;
     Ok(vec![
-        (
-            "build",
-            c("build", &["--profile", &cfg.profile, "--html-dir", &site]),
-        ),
+        ("build", c("build", &["--html-dir", &site])),
         ("validate", c("validate", &["--profile", &cfg.profile])),
-        ("check", c("check", &["--html-dir", &site])),
+        ("check", c("check", &[])),
         ("graph", c("graph", &["--out", &graph])),
     ])
 }

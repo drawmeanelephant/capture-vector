@@ -91,6 +91,18 @@ pub enum Entry {
         run: StableId,
         exports: Vec<ExportEvidence>,
     },
+    /// Non-blocking ruleset findings preflight saw on the sealed bytes,
+    /// kept so approval can show them.
+    Advisory {
+        run: StableId,
+        findings: Vec<String>,
+    },
+    /// The grant was withdrawn before any dispatch; the run can no longer
+    /// be approved or published.
+    GrantDiscarded {
+        run: StableId,
+        by: String,
+    },
 }
 
 /// Committed records of a journal read without opening it for writing

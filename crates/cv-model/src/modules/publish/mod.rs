@@ -1,15 +1,18 @@
-//! Publish — the publish ledger as mailboxes (L5, read-only slice).
-//! Runs, their sealed grants and the evidence they left are folded from
-//! the `.cv/ledger/` journal by an injected [`PublishPort`]; this module
-//! never touches disk and offers no verbs. Preflight, approve, publish
-//! and reconcile stay in `cv-publish` until they are wired as intents.
+//! Publish — the publish ledger as mailboxes (L5). Runs, their sealed
+//! grants and the evidence they left are folded from the `.cv/ledger/`
+//! journal by an injected [`PublishPort`]; this module never touches
+//! disk. Its verbs (preflight, approve, dispatch, reconcile, discard)
+//! ask the port, which owns every ledger write, and then re-read the
+//! ledger: nothing is shown that the journal did not record.
 //!
 //! Run state is the ledger's durable state, never optimism: a run whose
 //! last record is `dispatching` has no recorded outcome and is shown as
 //! unconfirmed, and an `unknown` run blocks its target until reconciled.
 
+use crate::command::{CommandSpec, Intent};
+use crate::dialog::DialogAnswer;
 use crate::module::{
-    Chip, InspectorModel, Module, ModuleSpec, NavCache, NavItem, NavModel, ReadingLine,
+    Chip, InspectorModel, Link, Module, ModuleSpec, NavCache, NavItem, NavModel, ReadingLine,
     ReadingModel, Registry, RowModel, Slot, Tone,
 };
 use cv_core::events::Envelope;
@@ -29,6 +32,10 @@ pub struct TargetInfo {
     /// Keychain name of the secret its transport needs — never the value.
     pub secret: Option<String>,
     pub hosts_html: bool,
+    /// How a new preflight for this target would deliver
+    /// (`copy-to-folder → publish/static-dist`); `None` while the
+    /// target has no delivery configured.
+    pub delivery: Option<String>,
 }
 
 /// `cv_ledger::RunPhase`, mirrored so this crate stays free of the
@@ -45,6 +52,7 @@ pub enum Phase {
     Partial,
     Failed,
     Incomplete,
+    Discarded,
 }
 
 impl Phase {
@@ -60,6 +68,7 @@ impl Phase {
             Self::Partial => "partial",
             Self::Failed => "failed",
             Self::Incomplete => "incomplete",
+            Self::Discarded => "discarded",
         }
     }
 
@@ -67,7 +76,9 @@ impl Phase {
         match self {
             Self::PreflightBlocked | Self::Granted | Self::Approved => PREFLIGHT,
             Self::Dispatching | Self::Submitted | Self::Unknown => UNRESOLVED,
-            Self::Complete | Self::Partial | Self::Failed | Self::Incomplete => COMPLETED,
+            Self::Complete | Self::Partial | Self::Failed | Self::Incomplete | Self::Discarded => {
+                COMPLETED
+            }
         }
     }
 
@@ -77,6 +88,7 @@ impl Phase {
             Self::PreflightBlocked | Self::Failed => Tone::Error,
             Self::Dispatching | Self::Unknown | Self::Partial | Self::Incomplete => Tone::Warn,
             Self::Granted | Self::Approved | Self::Submitted => Tone::Normal,
+            Self::Discarded => Tone::Dim,
         }
     }
 
@@ -99,6 +111,7 @@ impl Phase {
             Self::Partial => "partly delivered",
             Self::Failed => "not delivered",
             Self::Incomplete => "delivery incomplete",
+            Self::Discarded => "grant discarded before dispatch: nothing was delivered",
         }
     }
 }
@@ -131,6 +144,9 @@ pub struct RunRecord {
     pub settings: Option<TargetSettings>,
     pub blocks: Vec<String>,
     pub approved_by: Option<String>,
+    pub discarded_by: Option<String>,
+    /// Non-blocking ruleset findings preflight saw on the sealed bytes.
+    pub advisory: Vec<String>,
     /// Run states in record order (`dispatching`, `unknown`, …).
     pub history: Vec<String>,
     /// Notes recorded with those states and anything the fold could not
@@ -154,6 +170,8 @@ impl RunRecord {
             settings: None,
             blocks: Vec::new(),
             approved_by: None,
+            discarded_by: None,
+            advisory: Vec::new(),
             history: Vec::new(),
             notes: Vec::new(),
             refusals: Vec::new(),
@@ -229,13 +247,56 @@ pub enum LedgerRead {
     Unreadable(String),
 }
 
-/// IO boundary: the target registry and the ledger as read from disk.
+/// What a publish verb did, as the port reports it. The module re-reads
+/// the ledger afterwards; this is only the status line and the run to
+/// select.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Done {
+    pub run: String,
+    pub status: String,
+}
+
+/// What reconciling an unresolved run records.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Observed {
+    /// Ask the delivery adapter's read-only probe to look.
+    Probe,
+    Complete,
+    Partial,
+    NotDelivered,
+}
+
+/// IO boundary: the target registry, the ledger as read from disk, and
+/// the publish verbs that write it. Verbs default to refusing, so a
+/// read-only port stays read-only.
 pub trait PublishPort {
     fn targets(&self) -> Vec<TargetInfo>;
-    /// Taken once, when the module is built.
+    /// The ledger now. Read when the module is built and again after
+    /// every verb.
     fn ledger(&mut self) -> LedgerRead;
     fn describe(&self) -> String;
+    /// Delivery adapters a dispatch can go through.
+    fn adapters(&self) -> Vec<String> {
+        Vec::new()
+    }
+    fn preflight(&mut self, _target: &str) -> Result<Done, String> {
+        Err(READ_ONLY.into())
+    }
+    fn approve(&mut self, _run: &str) -> Result<Done, String> {
+        Err(READ_ONLY.into())
+    }
+    fn dispatch(&mut self, _run: &str) -> Result<Done, String> {
+        Err(READ_ONLY.into())
+    }
+    fn reconcile(&mut self, _run: &str, _how: Observed) -> Result<Done, String> {
+        Err(READ_ONLY.into())
+    }
+    fn discard(&mut self, _run: &str) -> Result<Done, String> {
+        Err(READ_ONLY.into())
+    }
 }
+
+const READ_ONLY: &str = "this publish ledger is read-only";
 
 #[derive(Default)]
 pub struct MemoryPort {
@@ -248,7 +309,7 @@ impl PublishPort for MemoryPort {
         self.targets.clone()
     }
     fn ledger(&mut self) -> LedgerRead {
-        std::mem::take(&mut self.read)
+        self.read.clone()
     }
     fn describe(&self) -> String {
         "in memory".into()
@@ -307,6 +368,9 @@ enum Source {
 }
 
 pub struct PublishModule {
+    port: Box<dyn PublishPort>,
+    adapters: Vec<String>,
+    selected: Option<String>,
     targets: Vec<TargetInfo>,
     runs: Vec<RunRecord>,
     evidence: Vec<EvidenceRecord>,
@@ -320,28 +384,38 @@ pub struct PublishModule {
 }
 
 impl PublishModule {
-    pub fn new(mut port: Box<dyn PublishPort>) -> Self {
-        let targets = port.targets();
-        let describe = port.describe();
-        let (source, ledger) = match port.ledger() {
+    pub fn new(port: Box<dyn PublishPort>) -> Self {
+        let mut m = Self {
+            targets: port.targets(),
+            describe: port.describe(),
+            adapters: port.adapters(),
+            port,
+            selected: None,
+            runs: Vec::new(),
+            evidence: Vec::new(),
+            notes: Vec::new(),
+            source: Source::NoWorkspace,
+            views: BTreeMap::new(),
+            by_key: BTreeMap::new(),
+            nav_cache: NavCache::default(),
+        };
+        m.reload();
+        m
+    }
+
+    /// Re-read the ledger through the port and rebuild every view.
+    fn reload(&mut self) {
+        let (source, ledger) = match self.port.ledger() {
             LedgerRead::NoWorkspace => (Source::NoWorkspace, Ledger::default()),
             LedgerRead::Absent => (Source::Absent, Ledger::default()),
             LedgerRead::Read(l) => (Source::Read, l),
             LedgerRead::Unreadable(e) => (Source::Unreadable(e), Ledger::default()),
         };
-        let mut m = Self {
-            targets,
-            runs: ledger.runs,
-            evidence: ledger.evidence,
-            notes: ledger.notes,
-            source,
-            describe,
-            views: BTreeMap::new(),
-            by_key: BTreeMap::new(),
-            nav_cache: NavCache::default(),
-        };
-        m.index();
-        m
+        self.source = source;
+        self.runs = ledger.runs;
+        self.evidence = ledger.evidence;
+        self.notes = ledger.notes;
+        self.index();
     }
 
     /// Runs that block a new dispatch to their target until reconciled.
@@ -481,10 +555,22 @@ impl PublishModule {
             line("", r.phase.summary().to_string(), r.phase.tone(), false),
         ];
         for b in &r.blocks {
-            lines.push(line("block", b.clone(), Tone::Error, true));
+            let text = match actions::audit_finding(b) {
+                Some((code, subject)) => {
+                    format!("{code} on {subject} · blocking ruleset finding, reveal it in Audit")
+                }
+                None => b.clone(),
+            };
+            lines.push(line("block", text, Tone::Error, true));
+        }
+        for a in &r.advisory {
+            lines.push(line("advisory", a.clone(), Tone::Dim, false));
         }
         if let Some(by) = &r.approved_by {
             lines.push(line("approved", format!("by {by}"), Tone::Normal, false));
+        }
+        if let Some(by) = &r.discarded_by {
+            lines.push(line("discarded", format!("by {by}"), Tone::Dim, false));
         }
         if let Some(p) = &r.plan {
             lines.push(line(
@@ -506,6 +592,11 @@ impl PublishModule {
         for x in &r.reconciliations {
             lines.push(line("reconciled", x.clone(), Tone::Normal, false));
         }
+        let (next, tone) = match actions::next_step(self, r) {
+            Ok(s) => (s, Tone::Normal),
+            Err(s) => (s, Tone::Dim),
+        };
+        lines.push(line("next", next, tone, false));
         let receipts: Vec<&EvidenceRecord> = self
             .evidence
             .iter()
@@ -552,6 +643,10 @@ impl PublishModule {
                 true,
             ),
             line("runs", runs.len().to_string(), Tone::Normal, false),
+            match &t.delivery {
+                Some(d) => line("delivery", d.clone(), Tone::Normal, true),
+                None => line("delivery", actions::PENDING_ADAPTERS, Tone::Dim, false),
+            },
         ];
         if let Some(Item::Run(i)) = runs.first() {
             let r = &self.runs[*i];
@@ -842,6 +937,38 @@ impl Module for PublishModule {
         matches!(self.source, Source::Read).then(|| self.unresolved_count() as u64)
     }
 
+    fn select(&mut self, key: Option<&str>) {
+        self.selected = key.map(str::to_string);
+    }
+
+    fn commands(&self) -> Vec<CommandSpec> {
+        actions::commands(self)
+    }
+
+    fn run(&mut self, command: &str) -> Vec<Intent> {
+        actions::run(self, command)
+    }
+
+    fn answer(&mut self, command: &str, answer: &DialogAnswer) -> Vec<Intent> {
+        actions::answer(self, command, answer)
+    }
+
+    fn link(&self, key: &str) -> Option<Link> {
+        let Some(Item::Run(i)) = self.by_key.get(key) else {
+            return None;
+        };
+        let key = self.runs[*i]
+            .blocks
+            .iter()
+            .find(|b| actions::audit_finding(b).is_some())?
+            .strip_prefix(actions::RULESET_BLOCK)?;
+        Some(Link {
+            module: crate::modules::audit::ID,
+            key: key.to_string(),
+            label: "Reveal blocking finding in Audit".into(),
+        })
+    }
+
     fn attr_rows(&self) -> Vec<NounAttrRow> {
         let t = |s: &str| AttrValue::Text(s.into());
         let runs = self.runs.iter().map(|r| {
@@ -867,6 +994,10 @@ impl Module for PublishModule {
             .collect()
     }
 }
+
+mod actions;
+
+pub use actions::{APPROVE, DISCARD, DISPATCH, PREFLIGHT_PREFIX, RECONCILE};
 
 #[cfg(test)]
 mod tests;

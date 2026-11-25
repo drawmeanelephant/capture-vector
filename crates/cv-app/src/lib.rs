@@ -46,8 +46,8 @@ fn init_with(publish: Box<dyn cv_model::modules::publish::PublishPort>) -> Workb
     Workbench::new(Registry::with_all()).with_store(Box::new(StubStore::new()))
 }
 
-/// The publish ledger is shown read-only; one that cannot be trusted is
-/// disclosed like any other corrupt sidecar store.
+/// A publish ledger that cannot be trusted is disclosed like any other
+/// corrupt sidecar store.
 fn publish_warning(port: &publish::DiskPort) -> Option<String> {
     port.error()
         .map(|e| format!("publish ledger unreadable: {e}"))
@@ -248,7 +248,15 @@ pub fn open_workspace(
             }
         }
     }
-    let publish = publish::DiskPort::open(&root);
+    let publish = publish::DiskPort::writable(
+        &root,
+        publish::write::Writer {
+            engine: Box::new(live::SlotEngine(slot.clone())),
+            rules: Box::new(publish::write::AuditRules::shipped()),
+            clock: Box::new(SystemClock),
+            ids: Box::new(cv_core::sys::SeqIdGen::new("run")),
+        },
+    );
     let publish_err = publish_warning(&publish);
     opened.ledger.error = publish.error().map(str::to_string);
     cv_model::modules::publish::install(Box::new(publish));

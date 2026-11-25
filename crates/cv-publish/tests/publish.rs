@@ -915,3 +915,89 @@ fn heuristic_only_ruleset_cannot_block_preflight_or_publish() {
         assert!(p.approve(&run, "tester").is_err());
     }
 }
+
+// ── advisory findings + discarded grants ─────────────────────────────
+
+#[test]
+fn advisory_findings_are_recorded_with_the_grant_and_never_block() {
+    let dir = tempfile::tempdir().unwrap();
+    let eng = FakeEngine::new(dir.path());
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+    let run = granted(
+        p.preflight(
+            &PreflightRequest { config: cfg() },
+            &Rules::ok(),
+            &mut ids("run"),
+        )
+        .unwrap(),
+    );
+    let v = p.run(&run).unwrap();
+    assert_eq!(v.advisory, ["heuristic: meta description short"]);
+    assert_eq!(v.phase().as_str(), "granted");
+}
+
+#[test]
+fn a_discarded_grant_can_be_neither_approved_nor_published() {
+    let dir = tempfile::tempdir().unwrap();
+    let eng = FakeEngine::new(dir.path());
+    let rules = Rules::ok();
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets)
+        .unwrap()
+        .with_adapter(CopyToFolder::new(dir.path()));
+    let run = granted(
+        p.preflight(&PreflightRequest { config: cfg() }, &rules, &mut ids("run"))
+            .unwrap(),
+    );
+    p.approve(&run, "tester").unwrap();
+    p.discard(&run, "tester").unwrap();
+    assert_eq!(p.run(&run).unwrap().phase().as_str(), "discarded");
+    assert!(matches!(
+        p.publish(&run, &cfg(), &rules),
+        Err(PublishError::Refused(r)) if r == "grant discarded"
+    ));
+    assert!(p.approve(&run, "tester").is_err());
+    assert!(p.discard(&run, "tester").is_err());
+    assert!(!dir.path().join("deployed").exists());
+}
+
+#[test]
+fn a_dispatched_run_cannot_be_discarded_or_approved_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let eng = FakeEngine::new(dir.path());
+    let rules = Rules::ok();
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets)
+        .unwrap()
+        .with_adapter(CopyToFolder::new(dir.path()));
+    let run = granted(
+        p.preflight(&PreflightRequest { config: cfg() }, &rules, &mut ids("run"))
+            .unwrap(),
+    );
+    p.approve(&run, "tester").unwrap();
+    p.publish(&run, &cfg(), &rules).unwrap();
+    assert!(p.discard(&run, "tester").is_err());
+    assert!(p.approve(&run, "tester").is_err());
+    assert_eq!(p.run(&run).unwrap().phase().as_str(), "complete");
+}
+
+#[test]
+fn preflight_argv_is_what_boris_0_9_0_accepts() {
+    let run = StableId("run-1".into());
+    let argv: Vec<(String, Vec<String>)> = cv_publish::preflight::verbs(&cfg(), &run)
+        .unwrap()
+        .into_iter()
+        .map(|(_, v)| match v {
+            Verb::Custom { name, args } => (name, args),
+            other => panic!("{other:?}"),
+        })
+        .collect();
+    let s = |v: &[&str]| v.iter().map(|x| x.to_string()).collect::<Vec<_>>();
+    assert_eq!(
+        argv,
+        [
+            ("build".into(), s(&["--html-dir", ".cv/publish/run-1/site"])),
+            ("validate".into(), s(&["--profile", "boris.json"])),
+            ("check".into(), vec![]),
+            ("graph".into(), s(&["--out", ".cv/publish/run-1/graph.mmd"])),
+        ]
+    );
+}

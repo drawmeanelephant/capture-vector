@@ -21,6 +21,8 @@ pub struct RunView {
     pub refusals: Vec<String>,
     pub reconciliations: Vec<String>,
     pub exports: Option<Vec<ExportEvidence>>,
+    pub advisory: Vec<String>,
+    pub discarded_by: Option<String>,
 }
 
 /// UI-facing phase vocabulary (Publish module goldens map onto this).
@@ -37,6 +39,7 @@ pub enum RunPhase {
     Partial,
     Failed,
     Incomplete,
+    Discarded,
 }
 
 impl RunPhase {
@@ -52,6 +55,7 @@ impl RunPhase {
             Self::Partial => "partial",
             Self::Failed => "failed",
             Self::Incomplete => "incomplete",
+            Self::Discarded => "discarded",
         }
     }
 }
@@ -69,6 +73,7 @@ impl RunView {
                 RunStatus::Incomplete => RunPhase::Incomplete,
             },
             None if !self.blocks.is_empty() => RunPhase::PreflightBlocked,
+            None if self.discarded_by.is_some() => RunPhase::Discarded,
             None if self.approved_by.is_some() => RunPhase::Approved,
             None => RunPhase::Granted,
         }
@@ -135,6 +140,10 @@ pub fn runs(records: &[Record]) -> BTreeMap<StableId, RunView> {
                 .push(observation.clone()),
             Entry::ExportsChecked { run, exports } => {
                 view(&mut out, run).exports = Some(exports.clone())
+            }
+            Entry::Advisory { run, findings } => view(&mut out, run).advisory = findings.clone(),
+            Entry::GrantDiscarded { run, by } => {
+                view(&mut out, run).discarded_by = Some(by.clone())
             }
             Entry::Artifact(_) | Entry::Check(_) | Entry::Claim(_) | Entry::Delivery(_) => {}
         }

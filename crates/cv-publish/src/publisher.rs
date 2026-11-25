@@ -189,14 +189,16 @@ impl<'a> Publisher<'a> {
         if blocks.is_empty() && graph.is_none() {
             blocks.push("graph: not produced".into());
         }
+        let mut advisory = Vec::new();
         if blocks.is_empty() {
+            let verdict = ruleset.evaluate(&site, &files);
             blocks.extend(
-                ruleset
-                    .evaluate(&site, &files)
+                verdict
                     .blocking
                     .into_iter()
                     .map(|b| format!("ruleset: {b}")),
             );
+            advisory = verdict.advisory;
         }
 
         let proof = ingest::from_output_dir(&run, &site)?;
@@ -208,6 +210,12 @@ impl<'a> Publisher<'a> {
         }
         for n in proof.claims {
             self.append(Entry::Claim(n))?;
+        }
+        if !advisory.is_empty() {
+            self.append(Entry::Advisory {
+                run: run.clone(),
+                findings: advisory,
+            })?;
         }
 
         if !blocks.is_empty() {
@@ -266,11 +274,44 @@ impl<'a> Publisher<'a> {
         let Some(grant) = &v.grant else {
             return Err(self.refuse(run, "no grant: preflight blocked".into()));
         };
+        if v.discarded_by.is_some() {
+            return Err(self.refuse(run, "grant discarded".into()));
+        }
+        if v.was_dispatched() {
+            return Err(self.refuse(run, format!("already dispatched ({})", v.phase().as_str())));
+        }
         let grant_digest = hash_json(grant)?;
         self.append(Entry::Approved {
             run: run.clone(),
             by: by.into(),
             grant_digest,
+        })
+    }
+
+    /// Withdraw a grant that was never dispatched. The run's evidence
+    /// stays; it can no longer be approved or published.
+    pub fn discard(&mut self, run: &StableId, by: &str) -> Result<()> {
+        let v = self
+            .run(run)
+            .ok_or_else(|| PublishError::UnknownRun(run.clone()))?;
+        if v.grant.is_none() {
+            return Err(self.refuse(run, "no grant to discard".into()));
+        }
+        if v.was_dispatched() {
+            return Err(self.refuse(
+                run,
+                format!(
+                    "already dispatched ({}); reconcile it instead",
+                    v.phase().as_str()
+                ),
+            ));
+        }
+        if v.discarded_by.is_some() {
+            return Err(PublishError::Refused("grant already discarded".into()));
+        }
+        self.append(Entry::GrantDiscarded {
+            run: run.clone(),
+            by: by.into(),
         })
     }
 
@@ -346,6 +387,9 @@ impl<'a> Publisher<'a> {
         let (Some(grant), Some(plan)) = (v.grant.clone(), v.plan.clone()) else {
             return Err(self.refuse(run, "no grant: preflight blocked".into()));
         };
+        if v.discarded_by.is_some() {
+            return Err(self.refuse(run, "grant discarded".into()));
+        }
         let approved = self.journal.records().iter().any(|r| {
             matches!(&r.entry, Entry::Approved { run: a, grant_digest, .. }
                 if a == run && hash_json(&grant).is_ok_and(|h| h == *grant_digest))

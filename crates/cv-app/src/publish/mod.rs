@@ -1,24 +1,32 @@
 //! Publish port: the target registry from `cv_publish` and the workspace's
 //! `.cv/ledger/` journal, read for display (`cv_ledger::journal::read`).
-//! Nothing here writes: no run is recovered, sealed or dispatched, so an
-//! interrupted `dispatching` run stays as the ledger recorded it.
+//! Reading never writes: no run is recovered, sealed or dispatched by a
+//! read, so an interrupted `dispatching` run stays as the ledger recorded
+//! it until a verb opens the publisher. Verbs are offered only by a port
+//! built [`DiskPort::writable`].
 
 pub mod scene;
+pub mod write;
 
 use cv_core::id::StableId;
 use cv_core::publish::{RunState, RunStatus};
 use cv_ledger::journal::{self, Committed, Entry, JOURNAL_REL};
 use cv_ledger::{RunPhase, RunView, runs};
+use cv_model::modules::publish::{Done, Observed};
 use cv_model::modules::publish::{
     EvidenceKind, EvidenceRecord, Ledger, LedgerRead, Phase, PlanSummary, PublishPort, RunRecord,
     TargetInfo, TargetSettings,
 };
 use cv_publish::{SealedPlan, TargetConfig, registry};
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use write::Writer;
 
 pub struct DiskPort {
-    read: LedgerRead,
+    /// The read taken at open, handed out once; later reads go to disk.
+    read: Option<LedgerRead>,
+    root: Option<PathBuf>,
+    writer: Option<Writer>,
     describe: String,
 }
 
@@ -26,7 +34,9 @@ impl DiskPort {
     /// No workspace: targets only.
     pub fn ephemeral() -> Self {
         Self {
-            read: LedgerRead::NoWorkspace,
+            read: Some(LedgerRead::NoWorkspace),
+            root: None,
+            writer: None,
             describe: "no workspace".into(),
         }
     }
@@ -35,16 +45,33 @@ impl DiskPort {
     /// the module is built.
     pub fn open(root: &Path) -> Self {
         Self {
-            read: read(root),
+            read: Some(read(root)),
+            root: Some(root.to_path_buf()),
+            writer: None,
             describe: JOURNAL_REL.into(),
+        }
+    }
+
+    /// Reads like [`Self::open`] and publishes through `writer`.
+    pub fn writable(root: &Path, writer: Writer) -> Self {
+        Self {
+            writer: Some(writer),
+            ..Self::open(root)
         }
     }
 
     /// Why the journal could not be shown, if it could not.
     pub fn error(&self) -> Option<&str> {
         match &self.read {
-            LedgerRead::Unreadable(e) => Some(e),
+            Some(LedgerRead::Unreadable(e)) => Some(e),
             _ => None,
+        }
+    }
+
+    fn writer(&mut self) -> Result<(&Path, &mut Writer), String> {
+        match (&self.root, &mut self.writer) {
+            (Some(root), Some(w)) => Ok((root, w)),
+            _ => Err("this publish ledger is read-only".into()),
         }
     }
 }
@@ -54,10 +81,40 @@ impl PublishPort for DiskPort {
         targets()
     }
     fn ledger(&mut self) -> LedgerRead {
-        std::mem::take(&mut self.read)
+        match (self.read.take(), &self.root) {
+            (Some(r), _) => r,
+            (None, Some(root)) => read(root),
+            (None, None) => LedgerRead::NoWorkspace,
+        }
     }
     fn describe(&self) -> String {
         self.describe.clone()
+    }
+    fn adapters(&self) -> Vec<String> {
+        match self.writer {
+            Some(_) => vec![cv_publish::adapters::COPY_TO_FOLDER.into()],
+            None => Vec::new(),
+        }
+    }
+    fn preflight(&mut self, target: &str) -> Result<Done, String> {
+        let (root, w) = self.writer()?;
+        w.preflight(root, target)
+    }
+    fn approve(&mut self, run: &str) -> Result<Done, String> {
+        let (root, w) = self.writer()?;
+        w.approve(root, run)
+    }
+    fn dispatch(&mut self, run: &str) -> Result<Done, String> {
+        let (root, w) = self.writer()?;
+        w.dispatch(root, run)
+    }
+    fn reconcile(&mut self, run: &str, how: Observed) -> Result<Done, String> {
+        let (root, w) = self.writer()?;
+        w.reconcile(root, run, how)
+    }
+    fn discard(&mut self, run: &str) -> Result<Done, String> {
+        let (root, w) = self.writer()?;
+        w.discard(root, run)
     }
 }
 
@@ -70,6 +127,8 @@ pub fn targets() -> Vec<TargetInfo> {
             verified: t.verified(),
             secret: t.secret_name().map(str::to_string),
             hosts_html: t.hosts_html(),
+            delivery: write::delivery_config(t)
+                .map(|c| format!("{} → {}", c.adapter, c.destination)),
         })
         .collect()
 }
@@ -94,6 +153,7 @@ fn phase(p: RunPhase) -> Phase {
         RunPhase::Partial => Phase::Partial,
         RunPhase::Failed => Phase::Failed,
         RunPhase::Incomplete => Phase::Incomplete,
+        RunPhase::Discarded => Phase::Discarded,
     }
 }
 
@@ -121,7 +181,9 @@ fn entry_run(e: &Entry) -> &StableId {
         | Entry::RunState { run, .. }
         | Entry::Refused { run, .. }
         | Entry::Reconciled { run, .. }
-        | Entry::ExportsChecked { run, .. } => run,
+        | Entry::ExportsChecked { run, .. }
+        | Entry::Advisory { run, .. }
+        | Entry::GrantDiscarded { run, .. } => run,
     }
 }
 
@@ -130,6 +192,8 @@ fn run_record(id: &str, v: &RunView) -> RunRecord {
     r.grant = v.grant.clone();
     r.blocks = v.blocks.clone();
     r.approved_by = v.approved_by.clone();
+    r.discarded_by = v.discarded_by.clone();
+    r.advisory = v.advisory.clone();
     r.history = v.history.iter().map(|s| state_label(s).into()).collect();
     r.refusals = v.refusals.clone();
     r.exports_checked = v.exports.is_some();
@@ -273,7 +337,9 @@ pub fn fold(c: &Committed) -> Ledger {
             | Entry::PreflightBlocked { .. }
             | Entry::Approved { .. }
             | Entry::RunState { note: None, .. }
-            | Entry::Refused { .. } => {}
+            | Entry::Refused { .. }
+            | Entry::Advisory { .. }
+            | Entry::GrantDiscarded { .. } => {}
         }
     }
     if let Some(t) = &c.torn_tail {
