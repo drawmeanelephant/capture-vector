@@ -49,9 +49,9 @@ Out of scope:
 ## What helps a report
 
 - `git rev-parse --short HEAD` and `rustc --version`.
-- Platform and OS version. Windows and Linux behavior is unproven
-  (`spike/FINDINGS.md`); a report that only reproduces there is still
-  welcome, just label the platform.
+- Platform and OS version. Windows behavior is unproven and Linux evidence
+  is limited to `spike/FINDINGS.md`; a report that only reproduces there is
+  still welcome, just label the platform.
 - Whether `--scene` / `--tree` reproduces it headlessly.
 
 Never include a real secret, session token, or page body in a report.

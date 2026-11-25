@@ -16,6 +16,24 @@ publishing Boris content. Outlook-style mailboxes over a graph compiler.
    current verified state.
 5. [`spike/FINDINGS.md`](spike/FINDINGS.md) — what is proven vs unproven.
 
+## Claim before implementation
+
+Before writing code for a GitHub issue, claim the issue and honor existing
+claims. The canonical protocol is [`docs/agent-claims.md`](docs/agent-claims.md);
+the shortest path is:
+
+```sh
+python3 scripts/agent-claim.py status <issue>
+python3 scripts/agent-claim.py claim <issue> --agent <unique-agent-or-session-id>
+```
+
+Use the issue comment ledger as the source of truth even when labels or
+assignees disagree. If `status` or `claim` reports an active claim, pick
+another issue. Release the claim when the PR opens or work stops. When `gh`
+is unavailable or unauthenticated, post the manual claim format from
+`docs/agent-claims.md` with the available GitHub issue tool instead of
+skipping the ledger.
+
 ## Build, run, and QA
 
 - Setup + build: `./scripts/fetch-rune.sh && cargo build --workspace`.
@@ -117,4 +135,5 @@ Tech-debt ledger: `docs/tech-debt.md`.
   CI/tests use a mock secret backend, never these.
 - Element-tree/layout JSON is the cross-OS UI gate; PNG goldens only on
   one canonical rasterizer config.
-- Windows/Linux behavior is UNPROVEN — don't claim it until run there.
+- Windows behavior is UNPROVEN — don't claim it until run there. Linux
+  claims must stay within the evidence in `spike/FINDINGS.md`.
