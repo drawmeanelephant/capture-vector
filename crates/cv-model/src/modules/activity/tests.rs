@@ -82,7 +82,7 @@ fn rebuild_bursts_coalesce_without_dropping_events() {
     assert_eq!(m.list_len(None), 3);
     let top = m.row(None, 0);
     assert_eq!(top.title, "Build succeeded (rebuild)");
-    assert_eq!(top.badge.as_deref(), Some("×10"));
+    assert_eq!(top.badge.map(|c| c.text).as_deref(), Some("×10"));
     assert_eq!(m.accounted(), ids);
 }
 

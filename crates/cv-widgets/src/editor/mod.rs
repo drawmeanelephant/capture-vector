@@ -158,6 +158,20 @@ impl EditorWindow {
         self.session.borrow().is_dirty(self.buffer)
     }
 
+    pub fn can_undo(&self) -> bool {
+        self.session
+            .borrow()
+            .get(self.buffer)
+            .is_some_and(|e| e.buffer.can_undo())
+    }
+
+    pub fn can_redo(&self) -> bool {
+        self.session
+            .borrow()
+            .get(self.buffer)
+            .is_some_and(|e| e.buffer.can_redo())
+    }
+
     pub fn save_status(&self) -> SaveStatus {
         self.session
             .borrow()

@@ -3,7 +3,7 @@
 //! hover colours themselves.
 
 use cv_model::theme::{Rgba, ShadowTok, SpringTok, Theme, TypeStyle};
-use rune::{Color, El, Family, Shadow, Spring, TextStyle};
+use rune::{Color, Cx, El, Family, Shadow, Spring, TextStyle};
 use rune_kit::{Kit, MarkdownStyle, PaletteFocus, PaletteSeed};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -118,6 +118,15 @@ impl Styled for El {
     }
 }
 
+/// Apply the theme's reduced-motion switch to Rune's own motion (press
+/// scale, transitions, springs). It can only add reduction: the OS
+/// preference still holds when the theme leaves motion on.
+pub fn motion_preference<S>(cx: &mut Cx<S>, t: &Theme) {
+    if t.motion.reduced {
+        cx.reduced_motion(true);
+    }
+}
+
 /// rune-kit's tokens rebuilt from the app theme, so kit components
 /// (Markdown sketch, buttons, toasts) wear our palette, radii, depth and
 /// springs. Cached: the theme only changes on the mode/motion toggles.
@@ -153,6 +162,11 @@ fn build_kit(t: &Theme) -> Kit {
     p.layer_01 = color(c.pane_alt);
     p.layer_02 = color(c.pane);
     p.bg_accent = color(c.accent);
+    // Kit "contrast" buttons are our primary buttons: they sit on the accent.
+    p.bg_contrast = color(c.accent);
+    p.text_contrast = color(c.accent_text);
+    p.contrast_hover = tint(c.accent_text, 0x1f);
+    p.contrast_pressed = tint(c.accent_text, 0x38);
     p.text_base = color(c.text);
     p.text_strong = color(c.text);
     p.text_muted = color(c.text_dim);
@@ -192,10 +206,57 @@ fn build_kit(t: &Theme) -> Kit {
     k
 }
 
-/// The draft-sketch Markdown look on the app kit: code frames sit on the
-/// app's alternate pane with its hairline border.
+/// The draft-sketch Markdown look on the app kit, set in the shell's type
+/// ramp so the sketch never outranks the reading title. Code frames sit
+/// on the app's alternate pane with its hairline border.
 pub fn markdown(t: &Theme) -> MarkdownStyle {
-    MarkdownStyle::from_kit(&kit(t)).code_block(color(t.colors.pane_alt), color(t.colors.border))
+    let leaded = |s: TypeStyle| TextStyle {
+        line_height: (s.size * 1.5).round(),
+        ..font(s)
+    };
+    let SketchType {
+        body,
+        headings,
+        code,
+    } = sketch_type(t);
+    let mut md = MarkdownStyle::from_kit(&kit(t))
+        .code_block(color(t.colors.pane_alt), color(t.colors.border))
+        .body_font(leaded(body))
+        .code_block_font(leaded(code));
+    for (level, h) in (1..).zip(headings) {
+        md = md.heading_font(level, leaded(h));
+    }
+    md
+}
+
+/// The sketch's faces on the shell ramp: 13 pt body, headings from the
+/// display size down to the title size.
+struct SketchType {
+    body: TypeStyle,
+    headings: [TypeStyle; 3],
+    code: TypeStyle,
+}
+
+fn sketch_type(t: &Theme) -> SketchType {
+    let ty = &t.type_;
+    SketchType {
+        body: TypeStyle {
+            weight: 400.0,
+            ..ty.title
+        },
+        headings: [
+            ty.display,
+            TypeStyle {
+                size: 14.0,
+                ..ty.title
+            },
+            ty.title,
+        ],
+        code: TypeStyle {
+            size: 12.0,
+            ..ty.mono
+        },
+    }
 }
 
 #[cfg(test)]
@@ -213,6 +274,16 @@ mod tests {
         assert_eq!(k.radius.md, t.shape.md);
         assert_eq!(k.elevation.overlay.len(), t.elevation.overlay.len());
         assert!(!kit(&Theme::light()).dark);
+    }
+
+    #[test]
+    fn the_sketch_is_set_in_the_shell_ramp() {
+        let t = Theme::dark();
+        let s = sketch_type(&t);
+        assert_eq!(s.body.size, t.type_.title.size);
+        assert_eq!(s.headings[0], t.type_.display);
+        assert!(s.headings.windows(2).all(|w| w[0].size >= w[1].size));
+        assert!(s.headings.iter().all(|h| h.size >= s.body.size));
     }
 
     #[test]

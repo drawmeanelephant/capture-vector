@@ -158,7 +158,7 @@ fn rows_show_state_and_unknown_runs_say_to_reconcile() {
     let i = m.index_of_key(None, "run-2").unwrap();
     let row = m.row(None, i);
     assert_eq!(row.title, "Static dist · run-2");
-    assert_eq!(row.badge.as_deref(), Some("unknown"));
+    assert_eq!(row.badge.map(|c| c.text).as_deref(), Some("unknown"));
     assert_eq!(row.rail, Some(Tone::Warn));
     let r = m.reading("run-2");
     assert!(r.lines.iter().any(|l| l.text.contains("Reconcile before")));
@@ -217,7 +217,7 @@ fn targets_list_the_registry_with_their_latest_run() {
     let pages = m.row(Some(TARGETS), 0);
     assert_eq!(pages.key, "target:github-pages");
     assert_eq!(pages.detail, "2 run(s) · latest dispatching");
-    assert_eq!(pages.badge.as_deref(), Some("verified"));
+    assert_eq!(pages.badge.map(|c| c.text).as_deref(), Some("verified"));
     assert_eq!(m.row(Some(TARGETS), 1).detail, "no runs");
     let r = m.reading("target:standard-site");
     assert!(

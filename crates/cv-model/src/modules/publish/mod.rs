@@ -9,8 +9,8 @@
 //! unconfirmed, and an `unknown` run blocks its target until reconciled.
 
 use crate::module::{
-    InspectorModel, Module, ModuleSpec, NavCache, NavItem, NavModel, ReadingLine, ReadingModel,
-    Registry, RowModel, Slot, Tone,
+    Chip, InspectorModel, Module, ModuleSpec, NavCache, NavItem, NavModel, ReadingLine,
+    ReadingModel, Registry, RowModel, Slot, Tone,
 };
 use cv_core::events::Envelope;
 use cv_core::id::{AccountId, AttrValue, NounAttrRow, NounId, NounKind, StableId, noun_kind};
@@ -633,6 +633,7 @@ impl Module for PublishModule {
                     _ => Tone::Dim,
                 },
                 rail: None,
+                path: false,
             },
             Item::Target(i) => {
                 let t = &self.targets[i];
@@ -651,9 +652,13 @@ impl Module for PublishModule {
                     key,
                     title: t.label.clone(),
                     detail,
-                    badge: Some(verification(t.verified).into()),
+                    badge: Some(Chip::new(
+                        verification(t.verified),
+                        status_tone(verification(t.verified)),
+                    )),
                     tone: Tone::Normal,
                     rail: None,
+                    path: false,
                 }
             }
             Item::Run(i) => {
@@ -667,9 +672,10 @@ impl Module for PublishModule {
                     key,
                     title: format!("{} · {}", self.label_of(&r.target), r.id),
                     detail,
-                    badge: Some(r.phase.label().into()),
+                    badge: Some(Chip::new(r.phase.label(), r.phase.tone())),
                     tone: Tone::Normal,
                     rail: Some(r.phase.tone()),
+                    path: false,
                 }
             }
             Item::Evidence(i) => {
@@ -678,9 +684,10 @@ impl Module for PublishModule {
                     key,
                     title: format!("{} · {}", e.kind.label(), e.name),
                     detail: e.run.clone(),
-                    badge: Some(e.status.clone()),
+                    badge: Some(Chip::new(e.status.clone(), status_tone(&e.status))),
                     tone: Tone::Normal,
                     rail: Some(status_tone(&e.status)),
+                    path: false,
                 }
             }
         }
@@ -735,6 +742,13 @@ impl Module for PublishModule {
                 let mut checks = evidence(EvidenceKind::Check);
                 checks.extend(evidence(EvidenceKind::Claim));
                 InspectorModel {
+                    badges: vec![
+                        Chip::new(r.phase.label(), r.phase.tone()),
+                        Chip::new(
+                            s.map_or("unconfigured", |s| verification(s.verified)),
+                            s.map_or(Tone::Dim, |s| status_tone(verification(s.verified))),
+                        ),
+                    ],
                     fields: vec![
                         field("run", r.id.clone()),
                         field("target", r.target.clone()),

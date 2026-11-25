@@ -31,13 +31,14 @@ or changed lines:
 | `fill`, `color` | Fill and text colour as `#rrggbbaa`, when not transparent (schema 1). |
 | `radius` | Corner radius in points, when not 0. |
 | `shadows` | `El::box_shadow` layers at their presented geometry: `[x, y, blur, spread, "#rrggbbaa", inset]`. Only on keyed nodes whose keyed path segments are unique, since Rune looks poses up by key. |
-| `scale` | Effective uniform scale, when not 1 (press scale, presence). |
+| `scale` | Effective uniform scale to 0.01, when not 1 (press scale, presence). |
 | `hover`, `press` | Hover and press track amounts, when above 0. Resting goldens never have them; harness tests use `Harness::hover` and `Harness::hold`. |
 | `focused`, `focus_visible` | Keyboard focus, and whether its ring shows. |
 | `selected` | A selected list, tree or table item (`El::focus_selected`). |
 
-Borders, gradients, outlines and blur are not in `ElementInfo`, so they
-stay PNG-gated (Linux + Lavapipe). Gating them in JSON needs Rune to
+Borders, gradients, outlines, blur and layer opacity (how a disabled kit
+button dims) are not in `ElementInfo`, so they stay PNG-gated (Linux +
+Lavapipe); test disabled controls through the accessibility tree. Gating them in JSON needs Rune to
 expose them first.
 
 Layout JSON (`<scene>.layout.json`) is still schema 1: keyed rects only.
@@ -51,6 +52,12 @@ Layout JSON (`<scene>.layout.json`) is still schema 1: keyed rects only.
    open both and run `cargo run -p xtask -- png-diff <a> <b>`.
 3. Bless: `CV_BLESS=1 cargo test -p cv-app --test goldens` and/or
    `CV_BLESS=1 scripts/check-ui-png.sh` (Linux + Lavapipe only).
+   Without a Linux + Lavapipe machine, use CI's renders: on a PNG
+   mismatch the ubuntu job uploads the `ui-png-lavapipe` artifact
+   (`gh run download <run-id> -n ui-png-lavapipe -D target/ui-ci`).
+   Review each changed scene, then copy `<scene>.png` over
+   `png/<scene>.png`; `effects.fx.png` is `png/effects.png`, and
+   `canary.fx.png` is only checked against `png/canary.png`.
 4. Commit goldens in the same commit as the UI change, with one line per
    changed scene saying why.
 

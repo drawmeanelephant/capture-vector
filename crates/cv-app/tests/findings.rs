@@ -66,7 +66,7 @@ fn build_finished_findings_snooze_redraw() {
         Some("audit")
     );
     assert!(!h.has("rail-audit-badge"), "no findings before a build");
-    assert!(h.texts().iter().any(|t| t == "Empty mailbox"));
+    assert!(h.has("list-empty"), "the empty mailbox says so");
 
     build(&mut h);
     let open = text_of(&h, "rail-audit-badge")

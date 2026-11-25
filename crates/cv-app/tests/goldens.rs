@@ -353,3 +353,75 @@ fn held_press_shows_press_in_the_tree_until_release() {
         assert_eq!(h.state().selected_key(), Some(item));
     }
 }
+
+#[test]
+fn held_buttons_shrink_until_the_motion_toggle_reduces_motion() {
+    let mut h = scene("watch-dead");
+    assert!(h.hold("banner-dismiss"));
+    let held = node(&h, "banner-dismiss");
+    let scale = held["scale"].as_f64().unwrap_or(1.0);
+    assert!(scale < 1.0, "a held press shrinks: {held}");
+    let (x, y) = h.rt.find("banner-dismiss").unwrap();
+    h.rt.pointer_up(x, y);
+    h.settle();
+    assert!(!h.has("banner"), "the release dismissed it");
+    h.script(&["cmd:shell.motion.toggle"]);
+    assert!(h.state().theme.motion.reduced);
+    assert!(!h.rt.system_reduced_motion(), "the OS setting stays off");
+    h.script(&["key:mod+k", "key:text:watch-dead", "key:enter"]);
+    assert!(h.hold("banner-dismiss"));
+    let held = node(&h, "banner-dismiss");
+    assert!(
+        held.get("scale").is_none(),
+        "reduced motion keeps scale 1: {held}"
+    );
+    assert!(held["press"].as_f64().unwrap_or(0.0) > 0.0, "{held}");
+}
+
+#[test]
+fn watch_dead_banner_offers_a_restart_that_reports_when_nothing_is_open() {
+    let mut h = scene("watch-dead");
+    assert!(h.state().workspace.is_none());
+    assert!(h.has("banner-restart"));
+    h.script(&["click:banner-restart"]);
+    assert!(h.state().requests.is_empty());
+    assert!(
+        h.state().status.contains("no workspace is open"),
+        "{}",
+        h.state().status
+    );
+    assert!(h.has("banner"), "restart does not dismiss the banner");
+    assert!(
+        !scene("store-corrupt").has("banner-restart"),
+        "only a dead watch offers it"
+    );
+}
+
+#[test]
+fn nothing_draws_under_the_macos_traffic_lights() {
+    let lights = Harness::traffic_lights().expect("headless runs report the default chrome");
+    let hit = |r: &[f64], l: &[f32; 4]| {
+        let (x, y, w, h) = (l[0] as f64, l[1] as f64, l[2] as f64, l[3] as f64);
+        r[0] < x + w && x < r[0] + r[2] && r[1] < y + h && y < r[1] + r[3]
+    };
+    for name in ["canary", "pages", "pages-watch-dead", "audit", "light"] {
+        let tree = scene(name).tree();
+        for n in tree["nodes"].as_array().expect("nodes") {
+            let role = n["role"].as_str().unwrap_or_default();
+            if !matches!(role, "text" | "icon" | "button" | "tab" | "treeitem") {
+                continue;
+            }
+            let r: Vec<f64> = n["rect"]
+                .as_array()
+                .expect("rect")
+                .iter()
+                .filter_map(|v| v.as_f64())
+                .collect();
+            assert!(
+                !lights.iter().any(|l| hit(&r, l)),
+                "{name}: {} sits under the traffic lights",
+                n["path"]
+            );
+        }
+    }
+}

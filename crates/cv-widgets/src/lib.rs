@@ -2,7 +2,9 @@
 //! All rune contact is firewalled here so the pinned dev rev can be
 //! swapped without touching lanes. CI's manifest grep enforces the boundary.
 //!
-//! - [`shell`]: the module rail/chrome view over `cv_model::workbench`.
+//! - [`shell`]: the module rail/chrome view over `cv_model::workbench`;
+//!   `palette` draws its command palette, `reading` and `inspector` its
+//!   right-hand panes.
 //! - [`theme`]: `cv_model::theme` tokens → rune colours/type/springs, kit.
 //! - [`controls`], [`icons`]: buttons on the app kit; the icon set as data.
 //! - [`fx`]: opt-in signature effects (`effects` feature for the GPU layers).
@@ -22,7 +24,10 @@ pub mod fx;
 #[cfg(any(test, feature = "harness"))]
 pub mod harness;
 pub mod icons;
+mod inspector;
 pub mod keys;
+mod palette;
+mod reading;
 #[cfg(feature = "reference")]
 pub mod reference;
 pub mod shell;

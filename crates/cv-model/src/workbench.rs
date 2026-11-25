@@ -169,6 +169,12 @@ pub struct Workbench {
     pub windows: Windows,
     pub palette: Palette,
     pub inspector_open: bool,
+    /// Inspector sections whose open state the user flipped from the
+    /// default (open when it has items), by title.
+    pub sections_flipped: BTreeSet<String>,
+    /// Shows the window bookkeeping (dirty state per window) in the
+    /// inspector; a debugging aid, off by default.
+    pub debug_windows: bool,
     pub status: String,
     /// Root of the open workspace, if any.
     pub workspace: Option<PathBuf>,
@@ -205,6 +211,8 @@ impl Workbench {
             windows: Windows::new(),
             palette: Palette::default(),
             inspector_open: true,
+            sections_flipped: BTreeSet::new(),
+            debug_windows: false,
             status: String::new(),
             workspace: None,
             recent: Vec::new(),
@@ -556,6 +564,7 @@ impl Workbench {
             CommandSpec::new("shell.theme.toggle", "Toggle light/dark theme"),
             CommandSpec::new("shell.motion.toggle", "Toggle reduced motion"),
             CommandSpec::new("shell.inspector.toggle", "Toggle inspector").chord("mod+i"),
+            CommandSpec::new("shell.debug.windows", "Toggle window debug info"),
             CommandSpec::new(
                 "shell.window.companion",
                 "Open selection in companion window",
@@ -563,6 +572,7 @@ impl Workbench {
             .chord("enter"),
             CommandSpec::new("shell.window.close-companions", "Close companion windows"),
             CommandSpec::new("shell.degraded.dismiss", "Dismiss degraded banner"),
+            CommandSpec::new("shell.watch.restart", "Restart watch (reopen workspace)"),
             CommandSpec::new("shell.follow", "Open linked noun").chord("mod+o"),
             CommandSpec::new("shell.workspace.open", "Open workspace…").chord("mod+shift+o"),
         ];
@@ -590,6 +600,18 @@ impl Workbench {
         out
     }
 
+    /// Whether the inspector section `title` shows its items: open when
+    /// it has any, unless the user flipped it.
+    pub fn section_open(&self, title: &str, empty: bool) -> bool {
+        empty == self.sections_flipped.contains(title)
+    }
+
+    pub fn toggle_section(&mut self, title: &str) {
+        if !self.sections_flipped.remove(title) {
+            self.sections_flipped.insert(title.to_string());
+        }
+    }
+
     pub fn run_command(&mut self, id: &str) {
         match id {
             "shell.palette" => self.palette.toggle(),
@@ -599,6 +621,7 @@ impl Workbench {
             }),
             "shell.motion.toggle" => self.set_reduced_motion(!self.theme.motion.reduced),
             "shell.inspector.toggle" => self.inspector_open = !self.inspector_open,
+            "shell.debug.windows" => self.debug_windows = !self.debug_windows,
             "shell.window.companion" => {
                 if let Some(key) = self.selected_key().map(str::to_string) {
                     self.apply(Intent::OpenCompanion { key });
@@ -620,6 +643,11 @@ impl Workbench {
                 None => self.status = "no workspace open".into(),
             },
             "shell.workspace.open" => self.requests.push(ShellRequest::PickWorkspace),
+            // Reopening the open workspace starts a new watch and rearms recovery.
+            "shell.watch.restart" => match self.workspace.clone() {
+                Some(root) => self.requests.push(ShellRequest::OpenWorkspace(root)),
+                None => self.status = "no workspace is open; open one to start a watch".into(),
+            },
             _ => {
                 if let Some(i) = id.strip_prefix("shell.workspace.recent.") {
                     match i.parse::<usize>().ok().and_then(|i| self.recent.get(i)) {

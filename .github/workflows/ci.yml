@@ -49,6 +49,17 @@ jobs:
           ls /usr/share/vulkan/icd.d/
           bash scripts/check-ui-png.sh
 
+      # A mismatch keeps the Lavapipe renders, so a deliberate visual change
+      # is blessed from the canonical rasterizer, never a local GPU.
+      - name: upload PNG renders
+        if: failure() && matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ui-png-lavapipe
+          path: target/ui/*.png
+          if-no-files-found: ignore
+          retention-days: 7
+
       # The opt-in `effects` compositor draws real GPU frames, so it runs
       # where Lavapipe is installed.
       - name: cargo test -p cv-widgets --features effects (lavapipe)

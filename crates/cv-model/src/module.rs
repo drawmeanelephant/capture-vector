@@ -80,10 +80,28 @@ pub struct RowModel {
     pub key: String,
     pub title: String,
     pub detail: String,
-    pub badge: Option<String>,
+    pub badge: Option<Chip>,
     pub tone: Tone,
     /// Severity rail drawn at the row's leading edge.
     pub rail: Option<Tone>,
+    /// `title` is a path: a cut drops its start so the file name stays.
+    pub path: bool,
+}
+
+/// A short status word drawn as a tinted pill; `tone` says what it means.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Chip {
+    pub text: String,
+    pub tone: Tone,
+}
+
+impl Chip {
+    pub fn new(text: impl Into<String>, tone: Tone) -> Self {
+        Self {
+            text: text.into(),
+            tone,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
@@ -107,6 +125,8 @@ pub struct ReadingModel {
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize)]
 pub struct InspectorModel {
+    /// Status chips above the fields (authority, the publish gate).
+    pub badges: Vec<Chip>,
     pub fields: Vec<(String, String)>,
     /// Rendered by one shared surface wherever they appear — the value is
     /// never remapped per module.

@@ -2,7 +2,8 @@
 
 use super::Closing;
 use super::EditorWindow;
-use crate::theme::{color, font};
+use crate::controls::{self, Variant};
+use crate::theme::{self, color, font};
 use cv_model::theme::Theme;
 use cv_ui_editor::frontmatter::{self, Note, SCHEMA};
 use cv_ui_editor::problems::Freshness;
@@ -16,17 +17,15 @@ fn label(t: &Theme, s: impl Into<String>) -> El {
         .color(color(t.colors.text_dim))
 }
 
-fn button(t: &Theme, key: &str, s: &str, f: fn(&mut EditorWindow, &mut Tx)) -> El {
-    row()
-        .key(key)
-        .padding(t.spacing.unit)
-        .fill(color(t.colors.pane_alt))
-        .child(
-            text(s.to_string())
-                .font(font(t.type_.label))
-                .color(color(t.colors.text)),
-        )
-        .on_press_tx(move |s: &mut EditorWindow, tx: &mut Tx| f(s, tx))
+fn button(
+    t: &Theme,
+    key: &str,
+    s: &str,
+    v: Variant,
+    enabled: bool,
+    f: fn(&mut EditorWindow, &mut Tx),
+) -> El {
+    controls::button_tx(t, key, s, v, enabled, f)
 }
 
 fn save_text(st: &SaveStatus) -> String {
@@ -84,13 +83,34 @@ fn header(s: &EditorWindow) -> El {
     if !st.is_empty() {
         r = r.child(label(t, st).key("editor-save-status"));
     }
-    r.child(button(t, "editor-save", "Save", |s, _| s.save()))
-        .child(button(t, "editor-undo", "Undo", |s, _| {
+    r.child(button(
+        t,
+        "editor-save",
+        "Save",
+        Variant::Primary,
+        s.is_dirty(),
+        |s, _| s.save(),
+    ))
+    .child(button(
+        t,
+        "editor-undo",
+        "Undo",
+        Variant::Ghost,
+        s.can_undo(),
+        |s, _| {
             s.undo();
-        }))
-        .child(button(t, "editor-redo", "Redo", |s, _| {
+        },
+    ))
+    .child(button(
+        t,
+        "editor-redo",
+        "Redo",
+        Variant::Ghost,
+        s.can_redo(),
+        |s, _| {
             s.redo();
-        }))
+        },
+    ))
 }
 
 fn close_prompt(s: &EditorWindow) -> Option<El> {
@@ -115,18 +135,30 @@ fn close_prompt(s: &EditorWindow) -> Option<El> {
         );
     if matches!(s.closing, Closing::Confirm { .. }) {
         r = r
-            .child(button(t, "editor-close-save", "Save and close", |s, tx| {
-                s.save_and_close(tx)
-            }))
+            .child(button(
+                t,
+                "editor-close-save",
+                "Save and close",
+                Variant::Primary,
+                true,
+                |s, tx| s.save_and_close(tx),
+            ))
             .child(button(
                 t,
                 "editor-close-discard",
                 "Discard and close",
+                Variant::Danger,
+                true,
                 |s, tx| s.discard_and_close(tx),
             ))
-            .child(button(t, "editor-close-cancel", "Keep editing", |s, _| {
-                s.closing = Closing::Open
-            }));
+            .child(button(
+                t,
+                "editor-close-cancel",
+                "Keep editing",
+                Variant::Neutral,
+                true,
+                |s, _| s.closing = Closing::Open,
+            ));
     }
     Some(r)
 }
@@ -335,8 +367,9 @@ fn draft_sketch(s: &EditorWindow) -> El {
         )
 }
 
-pub fn view(s: &EditorWindow, _cx: &mut Cx<EditorWindow>) -> El {
+pub fn view(s: &EditorWindow, cx: &mut Cx<EditorWindow>) -> El {
     let t = &s.theme;
+    theme::motion_preference(cx, t);
     row()
         .key("editor")
         .w_full()

@@ -5,8 +5,8 @@
 
 use crate::command::{CommandSpec, Intent};
 use crate::module::{
-    InspectorModel, Module, ModuleSpec, NavItem, NavModel, ReadingLine, ReadingModel, Registry,
-    RowModel, Slot, Tone,
+    Chip, InspectorModel, Module, ModuleSpec, NavItem, NavModel, ReadingLine, ReadingModel,
+    Registry, RowModel, Slot, Tone,
 };
 use cv_core::diagnostic::Diagnostic;
 use cv_core::events::engine::{BuildPhase, EngineEvent};
@@ -215,13 +215,14 @@ impl Module for DemoModule {
                 key: page_key(i),
                 title: format!("Synthetic page {:04}", i + 1),
                 detail: format!("content/synthetic/{}.md", page_key(i)),
-                badge: i.is_multiple_of(97).then(|| "stale".into()),
+                badge: i.is_multiple_of(97).then(|| Chip::new("stale", Tone::Warn)),
                 tone: if i.is_multiple_of(97) {
                     Tone::Warn
                 } else {
                     Tone::Normal
                 },
                 rail: None,
+                path: false,
             },
             _ => self
                 .events
@@ -230,9 +231,10 @@ impl Module for DemoModule {
                     key: e.key.clone(),
                     title: e.title.clone(),
                     detail: e.detail.clone(),
-                    badge: Some(format!("#{}", e.seq)),
+                    badge: Some(Chip::new(format!("#{}", e.seq), Tone::Normal)),
                     tone: e.tone,
                     rail: None,
+                    path: false,
                 })
                 .unwrap_or_default(),
         }

@@ -568,6 +568,33 @@ fn installed_package_without_fixtures_boots_empty() {
     assert_ne!(wb.app.snapshot_epoch, 0, "checkout fixtures load the demo");
 }
 
+#[test]
+fn restart_watch_reopens_the_workspace_and_a_new_watch_comes_up() {
+    let ws = workspace("happy");
+    let cfg = tempfile::tempdir().unwrap();
+    let fake = Fake::new("happy", None);
+    fake.set("watch-exit.txt", b"1\n");
+    fake.set("verbs/build/stderr.txt", b"");
+    fake.set("verbs/build/exit-code.txt", b"0\n");
+    let env = fake.env(cfg.path());
+    let mut wb = init();
+    open(&mut wb, ws.path(), &env);
+    wait_for(&mut wb, "watch death", |wb| {
+        wb.app.degraded == Some(DegradedReason::WatchDead)
+    });
+    wb.run_command("shell.watch.restart");
+    let root = wb.workspace.clone().unwrap();
+    assert_eq!(
+        std::mem::take(&mut wb.requests),
+        vec![ShellRequest::OpenWorkspace(root.clone())]
+    );
+    std::fs::remove_file(fake.dir.path().join("watch-exit.txt")).unwrap();
+    open(&mut wb, &root, &env);
+    wait_for(&mut wb, "new watch handshake", |wb| {
+        wb.app.degraded.is_none() && wb.app.engine.as_deref() == Some("boris/0.9.0")
+    });
+}
+
 /// Select `page` in Pages and press Enter, serving the requests it queues
 /// as the native shell does. The companion that opened for it.
 fn enter_on_page(wb: &mut Workbench, page: &str) -> Companion {

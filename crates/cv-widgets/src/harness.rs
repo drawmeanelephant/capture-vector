@@ -32,6 +32,10 @@ impl Harness {
         rt.poll = Some(input_poll);
         rt.on_key = Some(input_on_key);
         rt.set_system_reduced_motion(reduced);
+        // What the CLI's headless runs (and so the PNG gate) report, so trees
+        // and renders lay out the same macOS titlebar.
+        rt.set_titlebar_inset(rune::Chrome::DEFAULT.titlebar_inset());
+        keys::pin_keycaps(rune::KeyPlatform::Mac);
         let mut h = Self { rt };
         h.settle();
         h
@@ -107,6 +111,11 @@ impl Harness {
                 _ => panic!("bad script step {step}"),
             }
         }
+    }
+
+    /// Where macOS draws the traffic lights over a headless run's content.
+    pub fn traffic_lights() -> Option<[[f32; 4]; 3]> {
+        rune::Chrome::DEFAULT.traffic_light_rects()
     }
 
     pub fn has(&self, key: &str) -> bool {

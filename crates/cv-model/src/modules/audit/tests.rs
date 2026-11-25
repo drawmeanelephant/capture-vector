@@ -92,7 +92,7 @@ fn build_finished_evaluates_into_the_mailbox() {
         })
     );
     let r = m.row(Some("open"), 0);
-    assert!(r.rail.is_some() && r.badge.as_deref() == Some("open"));
+    assert!(r.rail.is_some() && r.badge.as_ref().is_some_and(|c| c.text == "open"));
     let nav = m.nav();
     for k in ["open", "snoozed", "pack:seo-core", "pack:a11y-content"] {
         assert!(nav.items.iter().any(|i| i.key == k), "{k}");
@@ -129,6 +129,28 @@ fn heuristic_findings_never_block() {
 }
 
 #[test]
+fn the_inspector_shows_the_publish_gate_as_a_chip() {
+    let mut m = module(vec![]);
+    m.ingest(&built(1));
+    let gate = |k: &str| m.inspector(k).badges.last().cloned().unwrap();
+    let heuristic: Vec<_> = m
+        .entries()
+        .iter()
+        .filter(|e| e.af.finding.tier == AuthorityTier::Heuristic)
+        .map(|e| e.id.clone())
+        .collect();
+    assert!(!heuristic.is_empty());
+    for k in &heuristic {
+        assert_eq!(gate(k), Chip::new("does not block publishing", Tone::Dim));
+        assert_eq!(m.inspector(k).badges[0].text, "heuristic (advisory)");
+    }
+    for i in 0..m.list_len(Some("blocking")) {
+        let k = m.row(Some("blocking"), i).key;
+        assert_eq!(gate(&k), Chip::new("blocks publishing", Tone::Error));
+    }
+}
+
+#[test]
 fn snooze_survives_the_next_build_and_a_reopen() {
     let mut m = module(vec![]);
     m.ingest(&built(1));
@@ -139,7 +161,10 @@ fn snooze_survives_the_next_build_and_a_reopen() {
     assert!(matches!(&st[..], [Intent::Status(s)] if s.ends_with("snoozed")));
     assert_eq!(m.badge(), Some(before - 1));
     assert_eq!(m.list_len(Some("snoozed")), 1);
-    assert_eq!(m.row(Some("snoozed"), 0).badge.as_deref(), Some("snoozed"));
+    assert_eq!(
+        m.row(Some("snoozed"), 0).badge.map(|c| c.text).as_deref(),
+        Some("snoozed")
+    );
     m.ingest(&built(2));
     assert_eq!(m.entry(&key).unwrap().state, FindingLifecycle::Ignored);
     assert_eq!(m.badge(), Some(before - 1));

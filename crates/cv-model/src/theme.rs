@@ -76,6 +76,8 @@ pub struct TypeStyle {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Type {
+    /// The reading pane's title: one step above every pane header.
+    pub display: TypeStyle,
     pub title: TypeStyle,
     pub body: TypeStyle,
     pub label: TypeStyle,
@@ -234,6 +236,7 @@ impl Motion {
 fn type_ramp() -> Type {
     let s = |size, weight, mono| TypeStyle { size, weight, mono };
     Type {
+        display: s(16.0, 600.0, false),
         title: s(13.0, 600.0, false),
         body: s(12.0, 400.0, false),
         label: s(11.0, 500.0, false),
@@ -330,7 +333,7 @@ impl Theme {
             },
             gradients: Gradients {
                 selection: grad(Rgba(0x00, 0xd1, 0xff, 0x40), Rgba(0x00, 0xd1, 0xff, 0x26)),
-                rail_active: grad(Rgba::rgb(0x33, 0xdc, 0xff), Rgba::rgb(0x00, 0xb4, 0xe0)),
+                rail_active: grad(Rgba(0x00, 0xd1, 0xff, 0x47), Rgba(0x00, 0xd1, 0xff, 0x1f)),
                 banner: grad(Rgba::rgb(0x5a, 0x1a, 0x2c), Rgba::rgb(0x3a, 0x1a, 0x24)),
                 pane_sheen: grad(Rgba(0xff, 0xff, 0xff, 0x08), Rgba(0xff, 0xff, 0xff, 0x00)),
             },
@@ -372,7 +375,7 @@ impl Theme {
             },
             gradients: Gradients {
                 selection: grad(Rgba(0x00, 0x6e, 0xd6, 0x30), Rgba(0x00, 0x6e, 0xd6, 0x1c)),
-                rail_active: grad(Rgba::rgb(0x1a, 0x80, 0xe0), Rgba::rgb(0x00, 0x5f, 0xbd)),
+                rail_active: grad(Rgba(0x00, 0x6e, 0xd6, 0x38), Rgba(0x00, 0x6e, 0xd6, 0x14)),
                 banner: grad(Rgba::rgb(0xfb, 0xd0, 0xdb), Rgba::rgb(0xfd, 0xe4, 0xea)),
                 pane_sheen: grad(Rgba(0xff, 0xff, 0xff, 0x80), Rgba(0xff, 0xff, 0xff, 0x00)),
             },

@@ -5,7 +5,7 @@
 
 use super::activity::severity_tone;
 use crate::module::{
-    InspectorModel, Link, Module, ModuleSpec, NavCache, NavItem, NavModel, PageRecord,
+    Chip, InspectorModel, Link, Module, ModuleSpec, NavCache, NavItem, NavModel, PageRecord,
     ProjectSnapshot, ReadingLine, ReadingModel, Registry, RowModel, Slot, Tone,
 };
 use cv_core::diagnostic::{Diagnostic, Severity};
@@ -326,9 +326,13 @@ impl Module for PagesModule {
                     } else {
                         "not attached to a page".into()
                     },
-                    badge: Some(format!("{n} diag")),
+                    badge: Some(Chip::new(
+                        format!("{n} diag"),
+                        self.worst(PROJECT_KEY).map_or(Tone::Error, severity_tone),
+                    )),
                     tone: self.worst(PROJECT_KEY).map_or(Tone::Error, severity_tone),
                     rail: Some(self.worst(PROJECT_KEY).map_or(Tone::Error, severity_tone)),
+                    path: false,
                 };
             }
             return RowModel::default();
@@ -342,6 +346,11 @@ impl Module for PagesModule {
             String::new()
         };
         let stale = !diags.is_empty() && diags.iter().all(|d| self.is_stale(d));
+        let tone = match self.worst(&p.path) {
+            _ if stale => Tone::Dim,
+            Some(s) => severity_tone(s),
+            None => Tone::Normal,
+        };
         RowModel {
             key: p.path.clone(),
             title: format!("{indent}{}", p.title),
@@ -350,13 +359,10 @@ impl Module for PagesModule {
             } else {
                 p.path.clone()
             },
-            badge: (!diags.is_empty()).then(|| format!("{} diag", diags.len())),
-            tone: match self.worst(&p.path) {
-                _ if stale => Tone::Dim,
-                Some(s) => severity_tone(s),
-                None => Tone::Normal,
-            },
+            badge: (!diags.is_empty()).then(|| Chip::new(format!("{} diag", diags.len()), tone)),
+            tone,
             rail: self.worst(&p.path).map(severity_tone),
+            path: false,
         }
     }
 
@@ -482,6 +488,7 @@ impl Module for PagesModule {
             stack.extend(self.children.get(&self.pages[k].id).into_iter().flatten());
         }
         InspectorModel {
+            badges: vec![],
             fields,
             diagnostics,
             lists: vec![

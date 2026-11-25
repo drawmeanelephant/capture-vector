@@ -1,7 +1,9 @@
-//! rune key events → toolkit-neutral `cv_model::workbench::KeyPress`.
+//! rune key events → toolkit-neutral `cv_model::workbench::KeyPress`, and
+//! display chords → keycaps.
 
 use cv_model::workbench::{KeyInput, KeyPress};
-use rune::{Key, KeyEvent};
+use rune::{Chord, Key, KeyEvent, KeyPlatform};
+use std::sync::OnceLock;
 
 pub fn map(ev: &KeyEvent) -> Option<KeyPress> {
     let key = match &ev.key {
@@ -29,6 +31,20 @@ pub fn map(ev: &KeyEvent) -> Option<KeyPress> {
     })
 }
 
+/// The platform whose keycaps the shell draws. Headless runs pin macOS so
+/// tree goldens and PNGs match on every OS, as they pin its titlebar.
+static KEYCAPS: OnceLock<KeyPlatform> = OnceLock::new();
+
+pub fn pin_keycaps(platform: KeyPlatform) {
+    let _ = KEYCAPS.set(platform);
+}
+
+/// A display chord such as `"mod+shift+o"` as keycaps ("⇧", "⌘", "O" on
+/// macOS); `None` when Rune cannot read it.
+pub fn keycaps(chord: &str) -> Option<Vec<String>> {
+    let platform = KEYCAPS.get().copied().unwrap_or_else(KeyPlatform::current);
+    Chord::parse(chord).ok().map(|c| c.keycaps_on(platform))
+}
 /// Parse a script token: `"mod+k"`, `"down"`, `"enter"`, `"esc"`, `"tab"`,
 /// `"shift+tab"`, `"bksp"`, or literal text (`"text:replay"`).
 pub fn parse(token: &str) -> Vec<KeyEvent> {

@@ -11,8 +11,8 @@
 
 use crate::command::{CommandSpec, Intent};
 use crate::module::{
-    InspectorModel, Link, Module, ModuleSpec, NavItem, NavModel, OutputRecord, ProjectSnapshot,
-    ReadingLine, ReadingModel, Registry, RowModel, Slot, Tone,
+    Chip, InspectorModel, Link, Module, ModuleSpec, NavItem, NavModel, OutputRecord,
+    ProjectSnapshot, ReadingLine, ReadingModel, Registry, RowModel, Slot, Tone,
 };
 use cv_core::events::engine::EngineEvent;
 use cv_core::events::{AppEvent, Envelope};
@@ -585,14 +585,26 @@ impl Module for AuditModule {
         };
         let f = &e.af.finding;
         let failed = e.failed();
+        let severity = match f.severity() {
+            Severity::Error => Tone::Error,
+            Severity::Warning => Tone::Warn,
+            Severity::Info => Tone::Normal,
+        };
         RowModel {
             key: e.id.clone(),
             title: format!("{} · {}", f.code, f.subject.stable.0),
             detail: f.evidence.summary.clone(),
             badge: Some(if failed {
-                lifecycle_label(e.state).into()
+                Chip::new(
+                    lifecycle_label(e.state),
+                    match e.state {
+                        FindingLifecycle::Open => severity,
+                        FindingLifecycle::Fixed => Tone::Ok,
+                        FindingLifecycle::Ignored | FindingLifecycle::Wontfix => Tone::Dim,
+                    },
+                )
             } else {
-                "not checked".into()
+                Chip::new("not checked", Tone::Dim)
             }),
             tone: match e.state {
                 _ if !failed => Tone::Dim,
@@ -600,12 +612,8 @@ impl Module for AuditModule {
                 FindingLifecycle::Ignored | FindingLifecycle::Wontfix => Tone::Dim,
                 FindingLifecycle::Open => Tone::Normal,
             },
-            rail: Some(match e.af.finding.severity() {
-                _ if !failed => Tone::Dim,
-                Severity::Error => Tone::Error,
-                Severity::Warning => Tone::Warn,
-                Severity::Info => Tone::Normal,
-            }),
+            rail: Some(if failed { severity } else { Tone::Dim }),
+            path: false,
         }
     }
 
@@ -693,7 +701,20 @@ impl Module for AuditModule {
                 evidence.push(format!("{k}: {v}"));
             }
         }
+        let publish = if e.blocks_publish() {
+            Chip::new("blocks publishing", Tone::Error)
+        } else {
+            Chip::new("does not block publishing", Tone::Dim)
+        };
+        let authority = Chip::new(
+            tier_label(f.tier),
+            match f.tier {
+                AuthorityTier::Heuristic => Tone::Dim,
+                AuthorityTier::NormativeSpec | AuthorityTier::EngineDocumented => Tone::Normal,
+            },
+        );
         InspectorModel {
+            badges: vec![authority, publish],
             fields: vec![
                 ("code".into(), f.code.clone()),
                 ("pack".into(), e.af.pack.clone()),
@@ -709,8 +730,6 @@ impl Module for AuditModule {
                     }
                     .into(),
                 ),
-                ("tier".into(), tier_label(f.tier).into()),
-                ("blocks".into(), e.blocks_publish().to_string()),
                 ("artifacts".into(), set),
                 ("ruleset".into(), rules),
                 ("packs".into(), DEFAULT_PACKS.join(", ")),
