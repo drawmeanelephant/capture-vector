@@ -6,6 +6,7 @@
 //! are the entire suite; hand-authored Boris JSON is banned.
 
 pub mod build_info;
+pub mod graph;
 pub mod lab;
 pub mod proof;
 pub mod watch;

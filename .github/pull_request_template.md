@@ -7,6 +7,8 @@ What changed and which lane/signal it serves.
 The problem or requirement this addresses. Link the issue when one
 exists (`Closes #123`).
 
+Claim: claim-<id from scripts/agent-claim.py claim>
+
 ## Testing
 
 - [ ] `cargo test --workspace --locked`
@@ -29,5 +31,7 @@ What can break, who is affected, and how to revert (usually
       changed.
 - [ ] New behavior has a test (unit or integration) that fails without
       the change.
-- [ ] If this implements a claimed issue, the claim was released with
-      reason `pr-opened` (see `docs/agent-claims.md`).
+- [ ] If this closes an issue, the `Claim:` line above names its claim
+      and the claim was released with reason `pr-opened` (see
+      `docs/agent-claims.md`). Maintainers skipping the claim write
+      `Claim: maintainer` instead.

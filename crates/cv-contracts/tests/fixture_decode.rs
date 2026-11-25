@@ -1,7 +1,7 @@
 //! The entire cv-contracts suite: decode real captures only.
 //! Hand-authored Boris JSON is banned — these read `fixtures/` directly.
 
-use cv_contracts::{build_info::BuildInfo, proof::*, watch};
+use cv_contracts::{build_info::BuildInfo, graph::Graph, proof::*, watch};
 use std::path::{Path, PathBuf};
 
 fn fixtures() -> PathBuf {
@@ -92,4 +92,31 @@ fn proof_family_decodes() {
     .unwrap();
     assert_eq!(idx.format, "boris-rendered-search-index");
     assert!(!idx.documents.is_empty());
+}
+#[test]
+fn every_captured_ir_graph_decodes() {
+    let mut graphs = 0;
+    for dir in ["editor/captures", "research/captures"] {
+        for corpus in std::fs::read_dir(fixtures().join(dir)).unwrap() {
+            let corpus = corpus.unwrap().path();
+            for rel in ["graph.json", "build-ir/graph.json"] {
+                let path = corpus.join(rel);
+                let Ok(raw) = std::fs::read_to_string(&path) else {
+                    continue;
+                };
+                let g: Graph = serde_json::from_str(&raw)
+                    .unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+                assert!(!g.nodes.is_empty(), "{}", path.display());
+                graphs += 1;
+            }
+        }
+    }
+    assert!(graphs >= 4, "only {graphs} IR graphs captured");
+    let quoted: Graph = serde_json::from_str(
+        &std::fs::read_to_string(fixtures().join("editor/captures/quoted-scalars/graph.json"))
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(quoted.relations[0].kind, "relates_to");
+    assert_eq!(quoted.relations[0].from.kind, "page");
 }

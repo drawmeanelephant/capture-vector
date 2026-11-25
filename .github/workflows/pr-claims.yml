@@ -1,0 +1,31 @@
+name: pr-claims
+
+# Runs the checker from the PR's own checkout, so the token stays read-only:
+# never switch this to pull_request_target.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: pr-claims-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  claims:
+    name: issue claim check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: check PR issue references against the claim ledger
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python3 scripts/agent-claim.py check-pr "$PR_NUMBER"

@@ -1,0 +1,2 @@
+error: EFRONTMATTER: single.md:2:1: single-quoted values are not supported; use plain text or double quotes [Use a plain or double-quoted value]
+error: content or layout failure: ParseFailed

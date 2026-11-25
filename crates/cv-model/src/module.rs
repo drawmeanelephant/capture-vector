@@ -194,6 +194,19 @@ pub struct PageRecord {
     pub body: String,
     /// Rendered dist path, when the last build wrote one.
     pub output: Option<String>,
+    pub fields: FieldSource,
+}
+
+/// Where a page's display fields (id, title, parent, tags, relations)
+/// came from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
+pub enum FieldSource {
+    /// The Boris IR graph from the last IR build.
+    Boris,
+    /// Read from source frontmatter because no Boris IR covers the page
+    /// yet: a display guess that Boris may read differently.
+    #[default]
+    Source,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
@@ -298,6 +311,12 @@ impl Registry {
         let mut r = Self::default();
         crate::modules::register_all(&mut r);
         r
+    }
+    /// Unregister `id`; returns whether it was registered.
+    pub fn remove(&mut self, id: &str) -> bool {
+        let before = self.modules.len();
+        self.modules.retain(|m| m.spec().id != id);
+        self.modules.len() != before
     }
     pub fn len(&self) -> usize {
         self.modules.len()

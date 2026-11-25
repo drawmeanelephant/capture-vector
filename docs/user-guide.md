@@ -59,8 +59,11 @@ The shell follows an Outlook-style arrangement:
 - reading pane;
 - inspector on the right.
 
-Current modules include Pages, Outputs, Audit, Research, Activity, and a
-demo surface used by the headless verification harness. Pages and outputs
+Current modules include Pages, Outputs, Audit, Research, and Activity.
+The fixture demo (no workspace open, running from a checkout) adds a Demo
+module whose `Simulate: …` palette verbs fake degraded states for the
+headless verification harness. Real workspaces do not show it; set
+`CV_DEBUG=1` to keep it there for debugging. Pages and outputs
 come from the Boris project snapshot. Research and audit state live in the
 workspace's `.cv/` sidecar, never in Boris frontmatter.
 

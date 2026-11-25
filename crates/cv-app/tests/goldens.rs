@@ -2,6 +2,7 @@
 //! driven headless in-process (no GPU). Bless: `CV_BLESS=1 cargo test -p cv-app`.
 
 use cv_app::{SCENES, init};
+use cv_core::events::shell::DegradedReason;
 use cv_widgets::harness::{Harness, check_golden};
 use std::path::PathBuf;
 
@@ -34,6 +35,7 @@ const TREE_SCENES: &[&str] = &[
     "broken-wikilink",
     "dogfood",
     "activity-broken",
+    "content-only",
     "empty",
     "mid-watch",
     "pages-watch-dead",
@@ -47,6 +49,7 @@ const TREE_SCENES: &[&str] = &[
     "publish-empty",
     "publish-degraded",
     "effects",
+    "engine-absent-toast",
 ];
 
 #[test]
@@ -240,6 +243,42 @@ fn transient_status_shows_as_a_closable_toast() {
 }
 
 #[test]
+fn engine_absent_toast_summarizes_the_search() {
+    let h = scene("engine-absent-toast");
+    assert!(h.has("banner"));
+    assert!(h.has("status-msg") && h.has("close"));
+    let texts = h.texts();
+    assert!(
+        texts
+            .iter()
+            .any(|t| t == "/workspace/happy: boris not found (searched 24 locations)"),
+        "{texts:?}"
+    );
+    assert!(!texts.iter().any(|t| t.contains("/opt/tool-")));
+}
+
+#[test]
+fn a_huge_status_keeps_the_toast_short_and_closable() {
+    let mut h = scene("engine-absent-toast");
+    h.state_mut().status = "/very/long/searched/path/boris ".repeat(400);
+    h.settle();
+    let els = h.rt.elements();
+    let rect = |k: &str| {
+        els.iter()
+            .find(|e| e.key.as_deref() == Some(k))
+            .map(|e| e.rect)
+            .unwrap_or_else(|| panic!("no {k}"))
+    };
+    let [_, y, _, height] = rect("status-msg");
+    let (_, window_h) = cv_widgets::harness::SIZE;
+    assert!(height <= window_h / 3.0, "toast is {height}pt tall");
+    let [_, close_y, _, _] = rect("close");
+    assert!(close_y >= y && close_y >= 0.0, "close at {close_y}");
+    h.script(&["click:close"]);
+    assert!(!h.has("status-msg"));
+}
+
+#[test]
 fn effects_are_opt_in_and_off_under_reduced_motion() {
     let plain = scene("canary");
     assert!(!plain.has("fx-rail"), "no effect slots without the flag");
@@ -394,6 +433,40 @@ fn watch_dead_banner_offers_a_restart_that_reports_when_nothing_is_open() {
     assert!(
         !scene("store-corrupt").has("banner-restart"),
         "only a dead watch offers it"
+    );
+}
+
+#[test]
+fn content_only_banner_names_the_initial_build_failure_and_reveals_it() {
+    let mut h = scene("content-only");
+    assert_eq!(
+        h.state().app.degraded,
+        Some(DegradedReason::InitialBuildFailed {
+            code: "ELAYOUT".into(),
+            message: "failed to load layout themes/boris/layouts/main.html: FileNotFound".into(),
+        })
+    );
+    let tree = h.tree().to_string();
+    assert!(tree.contains("Initial build failed: ELAYOUT"), "{tree}");
+    assert!(tree.contains("boris init"));
+    assert!(!h.has("banner-restart"), "a restart cannot fix the folder");
+    let ids: Vec<_> = h.state().commands().into_iter().map(|c| c.id).collect();
+    assert!(!ids.iter().any(|id| id == "watch.restart"));
+    assert!(ids.iter().any(|id| id == "shell.degraded.reveal"));
+
+    h.script(&["click:banner-reveal"]);
+    let wb = h.state();
+    assert_eq!(wb.registry.get(wb.active).unwrap().spec().id, "activity");
+    assert_eq!(
+        wb.row(wb.windows.primary.row.as_ref().unwrap().0).title,
+        "ELAYOUT: failed to load layout themes/boris/layouts/main.html: FileNotFound"
+    );
+
+    h.script(&["click:banner-reopen"]);
+    assert!(h.state().status.contains("no workspace is open"));
+    assert!(
+        h.has("banner"),
+        "reopening without a workspace keeps the cause up"
     );
 }
 

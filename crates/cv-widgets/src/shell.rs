@@ -45,6 +45,23 @@ pub fn degraded_text(r: &DegradedReason) -> String {
             "Boris build failed — workspace remains browsable; see Activity for build details."
                 .into()
         }
+        DegradedReason::InitialBuildFailed { code, message } => {
+            format!("Initial build failed: {code} — {message}")
+        }
+    }
+}
+
+/// What the author can do about a degraded state the banner cannot fix.
+pub fn degraded_hint(r: &DegradedReason) -> Option<&'static str> {
+    match r {
+        DegradedReason::InitialBuildFailed { code, .. } if code == "ELAYOUT" => Some(
+            "A bare content tree has no theme or boris.json profile; `boris init` scaffolds a \
+             starter site. Fix the folder, then reopen the workspace.",
+        ),
+        DegradedReason::InitialBuildFailed { .. } => Some(
+            "Restarting the watch fails the same way. Fix the folder, then reopen the workspace.",
+        ),
+        _ => None,
     }
 }
 
@@ -56,7 +73,8 @@ pub fn degraded_tone(r: &DegradedReason) -> Tone {
         DegradedReason::EngineAbsent
         | DegradedReason::EngineBuildFailing
         | DegradedReason::StoreCorrupt
-        | DegradedReason::BuildFailed => Tone::Error,
+        | DegradedReason::BuildFailed
+        | DegradedReason::InitialBuildFailed { .. } => Tone::Error,
     }
 }
 
@@ -185,12 +203,7 @@ fn banner(s: &Workbench, lights: f32) -> Option<El> {
             .motion(theme::spring(t.motion.panel))
             .child(icon(&icons::TRIANGLE_ALERT, 14.0).color(color(fg)))
             .child(chip(t, "banner-chip", "DEGRADED", tn))
-            .child(
-                text(degraded_text(r))
-                    .font(font(t.type_.body))
-                    .color(color(t.colors.text)),
-            )
-            .child(spacer())
+            .children(banner_message(t, r))
             .children((*r == DegradedReason::WatchDead).then(|| {
                 controls::button(
                     t,
@@ -200,6 +213,29 @@ fn banner(s: &Workbench, lights: f32) -> Option<El> {
                     |s: &mut Workbench| s.run_command("shell.watch.restart"),
                 )
             }))
+            .children(
+                matches!(r, DegradedReason::InitialBuildFailed { .. })
+                    .then(|| {
+                        [
+                            controls::button(
+                                t,
+                                "banner-reveal",
+                                "Show diagnostic",
+                                controls::Variant::Neutral,
+                                |s: &mut Workbench| s.run_command("shell.degraded.reveal"),
+                            ),
+                            controls::button(
+                                t,
+                                "banner-reopen",
+                                "Reopen workspace",
+                                controls::Variant::Ghost,
+                                |s: &mut Workbench| s.run_command("shell.watch.restart"),
+                            ),
+                        ]
+                    })
+                    .into_iter()
+                    .flatten(),
+            )
             .child(controls::button(
                 t,
                 "banner-dismiss",
@@ -209,6 +245,31 @@ fn banner(s: &Workbench, lights: f32) -> Option<El> {
             )),
     )
 }
+/// The banner's message, then whatever fills the row before its buttons.
+fn banner_message(t: &Theme, r: &DegradedReason) -> Vec<El> {
+    let message = text(degraded_text(r))
+        .font(font(t.type_.body))
+        .color(color(t.colors.text));
+    let Some(hint) = degraded_hint(r) else {
+        return vec![message, spacer()];
+    };
+    vec![
+        col()
+            .key("banner-message")
+            .grow(1.0)
+            .min_w(0.0)
+            .gap(t.spacing.unit * 0.5)
+            .child(message.wrap())
+            .child(
+                text(hint)
+                    .key("banner-hint")
+                    .font(font(t.type_.label))
+                    .color(color(t.colors.text_dim))
+                    .wrap(),
+            ),
+    ]
+}
+
 /// AppKit's titlebar band: the traffic lights sit in its top 28 pt when the
 /// content fills the window (`Chrome::full_size_content`).
 const TITLEBAR_BAND: f32 = 28.0;
@@ -682,6 +743,29 @@ fn status(s: &Workbench) -> El {
         ))
 }
 
+/// Longest status text a toast shows. The toast grows upward from its
+/// bottom pin with its close button on the first row, so an unbounded body
+/// pushes the close button off the top of the window.
+pub const TOAST_MAX_CHARS: usize = 160;
+
+/// Title and optional body for a status toast: short messages are the
+/// title; longer ones go under "Status" on one paragraph, cut to
+/// [`TOAST_MAX_CHARS`] with "…".
+pub fn toast_copy(status: &str) -> (String, Option<String>) {
+    let flat = status.split_whitespace().collect::<Vec<_>>().join(" ");
+    let n = flat.chars().count();
+    if n <= 40 {
+        return (flat, None);
+    }
+    let body = if n <= TOAST_MAX_CHARS {
+        flat
+    } else {
+        let cut: String = flat.chars().take(TOAST_MAX_CHARS - 1).collect();
+        format!("{}…", cut.trim_end())
+    };
+    ("Status".into(), Some(body))
+}
+
 /// Transient status messages, bottom-right above the status bar.
 fn toasts(s: &Workbench) -> Option<El> {
     if s.status.is_empty() {
@@ -689,12 +773,11 @@ fn toasts(s: &Workbench) -> Option<El> {
     }
     let t = &s.theme;
     let k = theme::kit(t);
-    let short = s.status.chars().count() <= 40;
-    let mut toast = if short {
-        Toast::new("status-msg", s.status.clone())
-    } else {
-        Toast::new("status-msg", "Status").description(s.status.clone())
-    };
+    let (title, body) = toast_copy(&s.status);
+    let mut toast = Toast::new("status-msg", title);
+    if let Some(b) = body {
+        toast = toast.description(b);
+    }
     toast = toast.on_close(|s: &mut Workbench| s.status.clear());
     Some(ToastRegion::new().toast(toast.build(&k)).build(&k))
 }
@@ -731,4 +814,35 @@ pub fn view(s: &Workbench, cx: &mut Cx<Workbench>) -> El {
             .child(crate::palette::panel(s, w));
     }
     root
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn short_status_is_the_toast_title() {
+        assert_eq!(toast_copy("Note archived"), ("Note archived".into(), None));
+    }
+
+    #[test]
+    fn long_status_is_cut_to_one_bounded_paragraph() {
+        let long = format!(
+            "boris not found\n{}",
+            "/a/very/long/searched/path ".repeat(200)
+        );
+        let (title, body) = toast_copy(&long);
+        assert_eq!(title, "Status");
+        let body = body.unwrap();
+        assert_eq!(body.chars().count(), TOAST_MAX_CHARS);
+        assert!(body.starts_with("boris not found /a/"));
+        assert!(body.ends_with('…'));
+        assert!(!body.contains('\n'));
+    }
+
+    #[test]
+    fn mid_length_status_is_shown_whole() {
+        let s = "workspace: boris not found (searched 24 locations)";
+        assert_eq!(toast_copy(s), ("Status".into(), Some(s.into())));
+    }
 }

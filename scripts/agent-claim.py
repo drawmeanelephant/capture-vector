@@ -23,11 +23,23 @@ from typing import Any
 MARKER = "capture-vector-claim:v1"
 CLAIM_LABEL = "agent: claimed"
 MAX_CLAIM_HOURS = 24.0
+MAINTAINER_ASSOCIATIONS = frozenset({"OWNER", "MEMBER", "COLLABORATOR"})
+CHECK_FAILED = 4
 
 JSON_BLOCK_RE = re.compile(
     r"<!--\s*capture-vector-claim:v1\s*-->\s*```json\s*(\{.*?\})\s*```",
     re.DOTALL,
 )
+
+
+ISSUE_REF_RE = re.compile(
+    r"\b(?P<keyword>close[sd]?|fix(?:e[sd])?|resolve[sd]?|part\s+of)\b:?\s+"
+    r"(?P<repo>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)?#(?P<number>\d+)\b",
+    re.IGNORECASE,
+)
+PR_CLAIM_LINE_RE = re.compile(r"^\s*claim:\s*(?P<value>.+?)\s*$", re.IGNORECASE | re.MULTILINE)
+CLAIM_ID_RE = re.compile(r"claim-[A-Za-z0-9_-]+")
+NO_CLAIM_BRANCHES = frozenset({"", "HEAD", "main", "master"})
 
 
 class ClaimError(RuntimeError):
@@ -159,42 +171,59 @@ def parse_claim_events(comments: list[dict[str, Any]]) -> list[ClaimEvent]:
     return sorted(events, key=lambda event: (event.created_at, event.comment_id))
 
 
-def active_claims(events: list[ClaimEvent], now: datetime | None = None) -> list[ClaimEvent]:
-    now = now or utc_now()
-    latest: dict[str, ClaimEvent] = {}
-    first_seen: dict[str, tuple[datetime, int]] = {}
+@dataclass
+class ClaimHistory:
+    first: ClaimEvent
+    latest: ClaimEvent
+    release: ClaimEvent | None = None
+
+    @property
+    def order(self) -> tuple[datetime, int]:
+        return (self.first.created_at, self.first.comment_id)
+
+    def is_active(self, now: datetime) -> bool:
+        if self.release is not None:
+            return False
+        try:
+            expires = self.latest.expires_at
+        except ClaimError:
+            return False
+        return expires is not None and expires > now
+
+
+def claim_histories(events: list[ClaimEvent]) -> list[ClaimHistory]:
+    """Fold the ledger into one history per claim id, in claim order.
+
+    Heartbeats and releases count only from the claim's comment author or a
+    maintainer (release only); everything after an honored release is ignored.
+    """
+    histories: dict[str, ClaimHistory] = {}
     claim_authors: dict[str, str] = {}
-    released: set[str] = set()
-    maintainer_associations = {"OWNER", "MEMBER", "COLLABORATOR"}
     for event in events:
-        if event.claim_id in released:
+        history = histories.get(event.claim_id)
+        if history is not None and history.release is not None:
             continue
         if event.event == "claim":
-            first_seen.setdefault(event.claim_id, (event.created_at, event.comment_id))
             claim_authors[event.claim_id] = event.author_login
-            latest[event.claim_id] = event
+            if history is None:
+                histories[event.claim_id] = ClaimHistory(first=event, latest=event)
+            else:
+                history.latest = event
+        elif history is None:
+            continue
         elif event.event == "heartbeat":
             if event.author_login == claim_authors.get(event.claim_id):
-                latest[event.claim_id] = event
+                history.latest = event
         elif event.event == "release":
             same_author = event.author_login == claim_authors.get(event.claim_id)
-            maintainer = event.author_association in maintainer_associations
-            if same_author or maintainer:
-                latest.pop(event.claim_id, None)
-                released.add(event.claim_id)
+            if same_author or event.author_association in MAINTAINER_ASSOCIATIONS:
+                history.release = event
+    return sorted(histories.values(), key=lambda history: history.order)
 
-    active = []
-    for event in latest.values():
-        try:
-            expires = event.expires_at
-        except ClaimError:
-            continue
-        if expires is not None and expires > now:
-            active.append(event)
-    return sorted(
-        active,
-        key=lambda event: first_seen.get(event.claim_id, (event.created_at, event.comment_id)),
-    )
+
+def active_claims(events: list[ClaimEvent], now: datetime | None = None) -> list[ClaimEvent]:
+    now = now or utc_now()
+    return [history.latest for history in claim_histories(events) if history.is_active(now)]
 
 
 def claim_body(record: dict[str, Any]) -> str:
@@ -215,6 +244,8 @@ def claim_body(record: dict[str, Any]) -> str:
         )
         if record.get("session"):
             lines.append(f"Session: {record['session']}")
+        if record.get("branch"):
+            lines.append(f"Branch: `{record['branch']}`")
     elif record["event"] == "heartbeat":
         lines.append(f"Heartbeat for claim `{record['id']}`; active until `{record['expires_at']}`.")
     else:
@@ -272,9 +303,23 @@ def new_record(args: argparse.Namespace, event: str) -> dict[str, Any]:
     }
     if args.session:
         record["session"] = args.session
+    if event == "claim":
+        branch = claim_branch(args.branch)
+        if branch:
+            record["branch"] = branch
     if args.reason:
         record["reason"] = args.reason
     return record
+
+
+def claim_branch(explicit: str | None) -> str | None:
+    if explicit is not None:
+        return explicit or None
+    try:
+        branch = run(["git", "rev-parse", "--abbrev-ref", "HEAD"]).strip()
+    except ClaimError:
+        return None
+    return None if branch in NO_CLAIM_BRANCHES else branch
 
 
 def print_claims(claims: list[ClaimEvent]) -> None:
@@ -394,6 +439,221 @@ def cmd_scan(args: argparse.Namespace) -> int:
     return 0
 
 
+@dataclass(frozen=True)
+class IssueRef:
+    number: int
+    closing: bool
+
+
+@dataclass(frozen=True)
+class Finding:
+    level: str  # "error" | "warning" | "notice"
+    issue: int | None
+    message: str
+
+
+def issue_refs(body: str, repo: str) -> list[IssueRef]:
+    """Issue references a PR body makes with a closing keyword or `Part of`.
+
+    Bare `#N` mentions are prose, not work claims, and are ignored, as are
+    references to other repositories.
+    """
+    refs: dict[int, IssueRef] = {}
+    for match in ISSUE_REF_RE.finditer(body or ""):
+        other_repo = match.group("repo")
+        if other_repo and other_repo.lower() != repo.lower():
+            continue
+        number = int(match.group("number"))
+        closing = not match.group("keyword").lower().startswith("part")
+        previous = refs.get(number)
+        refs[number] = IssueRef(number, closing or (previous is not None and previous.closing))
+    return sorted(refs.values(), key=lambda ref: ref.number)
+
+
+def pr_claim_values(body: str) -> tuple[set[str], bool]:
+    """Claim ids named on `Claim:` lines, and whether one says `maintainer`."""
+    ids: set[str] = set()
+    maintainer = False
+    for match in PR_CLAIM_LINE_RE.finditer(body or ""):
+        value = match.group("value")
+        ids.update(CLAIM_ID_RE.findall(value))
+        if re.search(r"\bmaintainer\b", value, re.IGNORECASE):
+            maintainer = True
+    return ids, maintainer
+
+
+def claim_links_branch(record: dict[str, Any], branch: str) -> bool:
+    if not branch:
+        return False
+    if record.get("branch") == branch:
+        return True
+    token = re.compile(rf"(?<![\w./-]){re.escape(branch)}(?![\w./-])")
+    return any(token.search(str(record.get(key) or "")) for key in ("session", "scope"))
+
+
+def claim_command(issue: int, branch: str) -> str:
+    return (
+        f"python3 scripts/agent-claim.py claim {issue} "
+        f"--agent <unique-agent-id> --branch {branch}"
+    )
+
+
+def evaluate_pr(
+    pr: dict[str, Any],
+    open_prs: list[dict[str, Any]],
+    ledgers: dict[int, list[ClaimEvent]],
+    repo: str,
+    now: datetime | None = None,
+) -> list[Finding]:
+    """Check one PR's issue references against claim ledgers and other open PRs.
+
+    A claim counts when it names this PR's head branch (`branch` field, or the
+    branch as a token in `session`/`scope`) or when the PR body lists its id
+    on a `Claim:` line. Released claims count, because the protocol releases
+    on `pr-opened`; only claims that yielded a race (`lost-race`) do not.
+    """
+    now = now or utc_now()
+    number = int(pr["number"])
+    branch = str((pr.get("head") or {}).get("ref", ""))
+    body = pr.get("body") or ""
+    named_ids, maintainer_opt_out = pr_claim_values(body)
+    maintainer_ok = maintainer_opt_out and pr.get("author_association") in MAINTAINER_ASSOCIATIONS
+    findings: list[Finding] = []
+
+    refs = issue_refs(body, repo)
+    if not refs:
+        findings.append(Finding("notice", None, "no Fixes/Closes/Resolves/Part of #N references; nothing to check"))
+        return findings
+
+    for ref in refs:
+        if not ref.closing:
+            findings.append(
+                Finding(
+                    "notice",
+                    ref.number,
+                    f"#{ref.number} is referenced with 'Part of'; tracking issues are shared and are not claim-checked",
+                )
+            )
+            continue
+
+        histories = claim_histories(ledgers.get(ref.number, []))
+        usable = [h for h in histories if (h.release is None or h.release.record.get("reason") != "lost-race")]
+        mine = [
+            h
+            for h in usable
+            if h.first.claim_id in named_ids or claim_links_branch(h.first.record, branch)
+        ]
+        foreign_active = [h for h in histories if h.is_active(now) and all(h is not m for m in mine)]
+
+        if mine:
+            first_mine = mine[0]
+            earlier = [h for h in foreign_active if h.order < first_mine.order]
+            later = [h for h in foreign_active if h.order > first_mine.order]
+            for h in earlier:
+                findings.append(
+                    Finding(
+                        "error",
+                        ref.number,
+                        f"#{ref.number} has an earlier active claim {h.first.claim_id} by {h.first.agent}; "
+                        f"this PR's claim {first_mine.first.claim_id} should have yielded",
+                    )
+                )
+            for h in later:
+                findings.append(
+                    Finding(
+                        "warning",
+                        ref.number,
+                        f"#{ref.number} also has a later active claim {h.first.claim_id} by {h.first.agent}; "
+                        "that agent should yield to this PR",
+                    )
+                )
+            if not earlier:
+                findings.append(
+                    Finding("notice", ref.number, f"#{ref.number} is claimed by {first_mine.first.claim_id} ({first_mine.first.agent})")
+                )
+        else:
+            if foreign_active:
+                holder = foreign_active[0].first
+                problem = f"#{ref.number} is claimed by another session: {holder.claim_id} ({holder.agent})"
+                findings.append(Finding("error", ref.number, f"{problem}; pick another issue or coordinate on #{ref.number}"))
+            else:
+                problem = f"#{ref.number} has no claim linked to branch {branch!r} or to a 'Claim:' line in the PR body"
+                fix = (
+                    f"claim it with `{claim_command(ref.number, branch)}`, add 'Claim: <claim-id>' to the PR body, "
+                    "then release the claim with --reason pr-opened"
+                )
+                if maintainer_ok:
+                    findings.append(Finding("warning", ref.number, f"{problem}; accepted because a maintainer wrote 'Claim: maintainer'"))
+                else:
+                    findings.append(Finding("error", ref.number, f"{problem}; {fix}"))
+
+        for other in open_prs:
+            other_number = int(other.get("number", 0))
+            if other_number == number:
+                continue
+            if not any(r.number == ref.number and r.closing for r in issue_refs(other.get("body") or "", repo)):
+                continue
+            other_branch = (other.get("head") or {}).get("ref", "?")
+            other_key = (str(other.get("created_at", "")), other_number)
+            this_key = (str(pr.get("created_at", "")), number)
+            if other_key < this_key:
+                findings.append(
+                    Finding(
+                        "error",
+                        ref.number,
+                        f"#{ref.number} is already closed by open PR #{other_number} ({other_branch}); "
+                        f"close one of the two PRs, or change this PR's reference to 'Part of #{ref.number}'",
+                    )
+                )
+            else:
+                findings.append(
+                    Finding(
+                        "warning",
+                        ref.number,
+                        f"newer open PR #{other_number} ({other_branch}) also closes #{ref.number}; its check fails until one is closed",
+                    )
+                )
+    return findings
+
+
+def report_findings(findings: list[Finding], pr_number: int) -> None:
+    annotate = os.environ.get("GITHUB_ACTIONS") == "true"
+    for finding in findings:
+        if annotate and finding.level in {"error", "warning"}:
+            print(f"::{finding.level} title=PR #{pr_number} claim check::{finding.message}")
+        else:
+            print(f"{finding.level}: {finding.message}")
+
+
+def single(data: Any) -> dict[str, Any]:
+    if isinstance(data, list) and len(data) == 1 and isinstance(data[0], dict):
+        return data[0]
+    if isinstance(data, dict):
+        return data
+    raise ClaimError("unexpected pull request response from GitHub")
+
+
+def cmd_check_pr(args: argparse.Namespace) -> int:
+    pr = single(gh_api(args.repo, f"pulls/{args.pr}"))
+    open_prs = gh_api(args.repo, "pulls?state=open")
+    if not isinstance(open_prs, list):
+        raise ClaimError("unexpected open pull request response from GitHub")
+    refs = issue_refs(pr.get("body") or "", args.repo)
+    ledgers = {ref.number: fetch_events(args.repo, ref.number) for ref in refs if ref.closing}
+
+    findings = evaluate_pr(pr, open_prs, ledgers, args.repo)
+    if args.json:
+        print(json.dumps([finding.__dict__ for finding in findings], indent=2, sort_keys=True))
+    else:
+        report_findings(findings, int(pr["number"]))
+    if any(finding.level == "error" for finding in findings):
+        print(
+            f"claim check failed for PR #{pr['number']}; see docs/agent-claims.md#pull-request-check",
+            file=sys.stderr,
+        )
+        return CHECK_FAILED
+    return 0
+
 def add_common(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--repo", help="owner/repo; defaults to GITHUB_REPOSITORY or origin")
     parser.add_argument("--json", action="store_true", help="emit machine-readable JSON where supported")
@@ -412,6 +672,14 @@ def main(argv: list[str] | None = None) -> int:
     add_common(scan)
     scan.set_defaults(func=cmd_scan)
 
+    check_pr = subparsers.add_parser(
+        "check-pr",
+        help="check a PR's Fixes/Closes references against claim ledgers and other open PRs",
+    )
+    check_pr.add_argument("pr", type=int)
+    add_common(check_pr)
+    check_pr.set_defaults(func=cmd_check_pr)
+
     for name, help_text, func in [
         ("claim", "claim an issue", cmd_claim),
         ("heartbeat", "extend an active claim", cmd_heartbeat),
@@ -421,6 +689,10 @@ def main(argv: list[str] | None = None) -> int:
         sub.add_argument("issue", type=int)
         sub.add_argument("--agent", help="unique agent/session name (or set CV_AGENT)")
         sub.add_argument("--session", help="agent session URL or other resumable reference")
+        sub.add_argument(
+            "--branch",
+            help="PR head branch this claim covers (claim only; defaults to the current git branch, '' to omit)",
+        )
         sub.add_argument("--scope", default="implementation", help="claimed scope; use lane/file detail when useful")
         sub.add_argument("--hours", type=float, default=4.0, help="lease length in hours (default: 4, max: 24)")
         sub.add_argument("--claim-id", help="existing claim id for heartbeat/release")

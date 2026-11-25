@@ -9,15 +9,29 @@ BORIS="${CV_BORIS_BIN:-boris}"
 CORPUS_SRC="${1:?usage: capture-fixtures.sh <corpora-dir> — e.g. a solipsist Stunts/ or Tests/Fixtures checkout}"
 FIX="$ROOT/fixtures"
 # captures/lab/ belongs to capture-lab-fixtures.sh: keep it and its table.
-rm -rf "$FIX/corpus-src"
+# Corpora with a boris.json build as projects; the rest pass their root
+# via --input. content-only is a bare content/ tree with no profile or
+# theme, whose first build fails ELAYOUT.
+ALL_CORPORA="happy happy-textile cook-one dogfood broken-duplicate-id broken-frontmatter broken-parent broken-textile broken-wikilink content-only"
+# CV_CAPTURE_ONLY="<corpus> …" recaptures only those corpora and keeps the
+# others' captures byte-for-byte; the manifest still pins every file.
+CORPORA="${CV_CAPTURE_ONLY:-$ALL_CORPORA}"
 mkdir -p "$FIX/corpus-src" "$FIX/captures"
-find "$FIX/captures" -mindepth 1 -maxdepth 1 ! -name lab -exec rm -rf {} +
+if [ -n "${CV_CAPTURE_ONLY:-}" ]; then
+  for c in $CORPORA; do
+    case " $ALL_CORPORA " in
+      *" $c "*) rm -rf "$FIX/corpus-src/$c" "$FIX/captures/$c" ;;
+      *) echo "capture-fixtures: unknown corpus '$c'" >&2; exit 2 ;;
+    esac
+  done
+else
+  rm -rf "$FIX/corpus-src"
+  mkdir -p "$FIX/corpus-src"
+  find "$FIX/captures" -mindepth 1 -maxdepth 1 ! -name lab -exec rm -rf {} +
+fi
 
 # one line of build-info JSON (version + vcs revision) is the pinned identity
 "$BORIS" --build-info > "$FIX/engine-version.txt" 2>&1 || "$BORIS" --version > "$FIX/engine-version.txt" 2>&1
-
-CORPORA="happy happy-textile cook-one dogfood broken-duplicate-id broken-frontmatter broken-parent broken-textile broken-wikilink"
-
 for c in $CORPORA; do
   src="$CORPUS_SRC/$c"
   [ -d "$src" ] || { echo "skip $c (no corpus at $src)"; continue; }
@@ -27,9 +41,10 @@ for c in $CORPORA; do
   run="$FIX/corpus-src/$c"
   cap="$FIX/captures/$c"; mkdir -p "$cap"
 
-  # project roots carry boris.json and build normally; bare content roots
-  # (the broken stunts) are passed via --input
-  if [ -f "$run/boris.json" ]; then
+  # project roots (boris.json, or a content/ tree Boris defaults to) build
+  # from the root as an author's folder would; bare page roots (the broken
+  # stunts) are passed via --input
+  if [ -f "$run/boris.json" ] || [ -d "$run/content" ]; then
     for verb in build validate check; do
       mkdir -p "$cap/$verb"
       ( cd "$run" && "$BORIS" "$verb" ) > "$cap/$verb/stdout.txt" 2> "$cap/$verb/stderr.txt"
@@ -107,6 +122,7 @@ done
 # manifest: sha256 of every captured artifact + engine version + commands
 # Quote one Bash argument for replay, then escape it for a TOML basic string.
 printf -v capture_command 'scripts/capture-fixtures.sh %q' "$CORPUS_SRC"
+[ -n "${CV_CAPTURE_ONLY:-}" ] && printf -v capture_command 'CV_CAPTURE_ONLY=%q %s' "$CV_CAPTURE_ONLY" "$capture_command"
 capture_command=${capture_command//\\/\\\\}
 capture_command=${capture_command//\"/\\\"}
 # Carry the trailing tables forward verbatim: the [migration_lab] tool pin

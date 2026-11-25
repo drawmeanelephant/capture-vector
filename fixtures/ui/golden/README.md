@@ -11,7 +11,12 @@ Scenes are named in `crates/cv-app/src/lib.rs` (`SCENES`): `canary`
 (StubEngine replays `fixtures/captures/happy/watch/session.ndjson`),
 `pages-5k` (5,000-row virtualized list), `palette`, `light`
 (light + reduced motion), and one per degraded state: `engine-absent`,
-`version-mismatch`, `watch-dead`, `store-corrupt`. Scripted input
+`version-mismatch`, `watch-dead`, `store-corrupt`; `content-only`
+replays `fixtures/captures/content-only/watch/session.ndjson`, whose
+non-recoverable first build (`ELAYOUT`) the banner names. `workspace.{tree,layout}`
+is not a scene: `crates/cv-app/tests/workspace.rs` opens a temp copy of
+`happy` as a real workspace (no engine) and pins its rail without Demo;
+bless it with `CV_BLESS=1 cargo test -p cv-app --test workspace`. Scripted input
 (`key:`, `click:`, `cmd:` steps) lives in `cv_widgets::harness::Harness`.
 
 Tree JSON is built from `Runtime::elements()` (layout + retained tree)
