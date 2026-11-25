@@ -257,7 +257,7 @@ fn path_start_boundary(input: &str, start: usize) -> bool {
     input[..start]
         .chars()
         .next_back()
-        .is_some_and(|c| c.is_whitespace() || matches!(c, '"' | '\'' | '=' | '(' | '[' | '{'))
+        .is_some_and(|c| c.is_whitespace() || matches!(c, '"' | '\'' | '`' | '=' | '(' | '[' | '{'))
 }
 
 fn path_end_boundary(input: &str, end: usize, spelling: &RootSpelling) -> bool {
@@ -272,7 +272,7 @@ fn path_end_boundary(input: &str, end: usize, spelling: &RootSpelling) -> bool {
     }
     rest.chars()
         .next()
-        .is_some_and(|c| c.is_whitespace() || matches!(c, '"' | '\''))
+        .is_some_and(|c| c.is_whitespace() || matches!(c, '"' | '\'' | '`'))
 }
 
 fn json_escaped(s: &str) -> String {
@@ -875,6 +875,27 @@ mod tests {
         );
         let png = [0x89, b'P', b'N', b'G', 0xff, b'/', b's'];
         assert_eq!(normalize(&png, root), png.to_vec());
+    }
+
+    #[test]
+    fn normalize_replaces_markdown_code_span_paths() {
+        let root = Path::new("/scratch/abc");
+        assert_eq!(
+            normalize(b"Source root | `/scratch/abc/src/mini-jekyll` |", root),
+            b"Source root | `/CAPTURE_ROOT/src/mini-jekyll` |".to_vec()
+        );
+        assert_eq!(
+            normalize(b"Source vault: `/scratch/abc/src/mini-obsidian`", root),
+            b"Source vault: `/CAPTURE_ROOT/src/mini-obsidian`".to_vec()
+        );
+        assert_eq!(
+            normalize(b"Exact root: `/scratch/abc`", root),
+            b"Exact root: `/CAPTURE_ROOT`".to_vec()
+        );
+        assert_eq!(
+            normalize(b"Source root | `/scratch/abc2/src/mini-jekyll` |", root),
+            b"Source root | `/scratch/abc2/src/mini-jekyll` |".to_vec()
+        );
     }
 
     #[test]
