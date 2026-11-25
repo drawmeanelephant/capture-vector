@@ -98,7 +98,11 @@ impl Ruleset for AuditRules {
             }
         } else {
             set = set.missing(ArtifactKind::Ir);
-            for f in artifacts.files.iter().filter(|f| f.path.ends_with(".html")) {
+            for f in artifacts
+                .files
+                .iter()
+                .filter(|f| cv_publish::publisher::is_html_page(f.kind.as_deref()))
+            {
                 match std::fs::read(artifacts.site.join(&f.path))
                     .map_err(|e| e.to_string())
                     .and_then(|b| {

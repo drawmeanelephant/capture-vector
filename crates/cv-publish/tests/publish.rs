@@ -188,6 +188,7 @@ fn sealed_inventory_rejects_nonportable_file_names() {
         destination: "out".into(),
         site: "site".into(),
         files: vec![PlanFile {
+            kind: None,
             path: r"guides\one.html".into(),
             bytes: 0,
             sha256: Hash([0; 32]),
@@ -789,6 +790,7 @@ fn copy_to_folder_never_clobbers_siblings() {
     std::fs::write(dest.join("index.css"), b"keep me too").unwrap();
     let files = vec![(
         PlanFile {
+            kind: None,
             path: "index.html".into(),
             bytes: 2,
             sha256: cv_publish::plan::sha256(b"hi"),
@@ -845,6 +847,7 @@ fn copy_to_folder_accepts_names_at_the_length_limit() {
     let name = format!("{}.html", "a".repeat(245));
     let files = vec![(
         PlanFile {
+            kind: None,
             path: name.clone(),
             bytes: 2,
             sha256: cv_publish::plan::sha256(b"hi"),
@@ -985,6 +988,7 @@ fn heuristic_only_ruleset_cannot_block_preflight_or_publish() {
     let files: Vec<PlanFile> = ["index.html", "guides/a.html"]
         .iter()
         .map(|p| PlanFile {
+            kind: None,
             path: (*p).into(),
             bytes: 0,
             sha256: Hash([0; 32]),

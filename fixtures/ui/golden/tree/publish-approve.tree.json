@@ -1102,7 +1102,7 @@
     },
     {
       "color": "#8a93a3ff",
-      "help": "5 files · 12600 B",
+      "help": "6 files · 12614 B",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-run-000000-0/#2",
       "rect": [
@@ -1112,7 +1112,7 @@
         13.8
       ],
       "role": "text",
-      "text": "5 files · 12600 B"
+      "text": "6 files · 12614 B"
     },
     {
       "color": "#e6e9efff",
@@ -1649,7 +1649,7 @@
         13.8
       ],
       "role": "text",
-      "text": "5 files · 12600 B → publish/static-dist"
+      "text": "6 files · 12614 B → publish/static-dist"
     },
     {
       "key": "line-11",
@@ -2196,7 +2196,7 @@
         13.8
       ],
       "role": "text",
-      "text": "5"
+      "text": "6"
     },
     {
       "key": "field-bytes",
@@ -2234,7 +2234,7 @@
         13.8
       ],
       "role": "text",
-      "text": "12600"
+      "text": "12614"
     },
     {
       "key": "field-artifacts",
@@ -2272,7 +2272,7 @@
         13.8
       ],
       "role": "text",
-      "text": "5"
+      "text": "6"
     },
     {
       "key": "field-artifact set",
@@ -2301,7 +2301,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "42d8d33ebc01401fb92696df33740f0c798b293103b3e0d30de58c034c2616ef",
+      "help": "ea89f212c50eaeaa563f2c0370e8ec4ac684e6fc63684de6d16e850cace7051d",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-artifact set/#1",
       "rect": [
@@ -2311,7 +2311,7 @@
         13.8
       ],
       "role": "text",
-      "text": "42d8d33ebc01401fb92696df33740f0c798b293103b3e0d30de58c034c2616ef"
+      "text": "ea89f212c50eaeaa563f2c0370e8ec4ac684e6fc63684de6d16e850cace7051d"
     },
     {
       "key": "field-graph",
@@ -2379,7 +2379,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "9bfdb7048b6896865505cfd16e10b408b64f9e395549edabc8467d3a1a72b814",
+      "help": "466d9114158b9f9f8644bbd1ed32b6bcd995d8cbf8746ab0ec1c37c4acd2912a",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-plan/#1",
       "rect": [
@@ -2389,7 +2389,7 @@
         13.8
       ],
       "role": "text",
-      "text": "9bfdb7048b6896865505cfd16e10b408b64f9e395549edabc8467d3a1a72b814"
+      "text": "466d9114158b9f9f8644bbd1ed32b6bcd995d8cbf8746ab0ec1c37c4acd2912a"
     },
     {
       "key": "field-target cfg",
@@ -3447,7 +3447,7 @@
         540.0
       ],
       "role": "text",
-      "text": "Static dist · 5 files · 12600 B by copy-to-folder to publish/static-dist\nApproval is recorded in the ledger before anything is dispatched. Dispatch delivers exactly these sealed bytes, once; a hash that no longer matches refuses.\n\nSealed hashes\n  artifact set: 42d8d33ebc01401f…\n  graph: d1020957f0580499…\n  plan: 9bfdb7048b689686…\n  target cfg: 2a1253c01b262a39…\n  ruleset: 3424026284a0d80c…\n  boris: boris/0.9.0\n\nAdvisory findings (7): heuristic or below error, these never block\n  advisory · SEO-CANONICAL-PRESENT on guides/getting-started · heuristic\n  advisory · SEO-CANONICAL-PRESENT on guides/publishing · heuristic\n  advisory · SEO-CANONICAL-PRESENT on index · heuristic\n  advisory · SEO-META-DESCRIPTION on guides/getting-started · heuristic\n  advisory · SEO-META-DESCRIPTION on guides/publishing · heuristic\n  advisory · SEO-META-DESCRIPTION on index · heuristic\n  … 1 more in the run's reading"
+      "text": "Static dist · 6 files · 12614 B by copy-to-folder to publish/static-dist\nApproval is recorded in the ledger before anything is dispatched. Dispatch delivers exactly these sealed bytes, once; a hash that no longer matches refuses.\n\nSealed hashes\n  artifact set: ea89f212c50eaeaa…\n  graph: d1020957f0580499…\n  plan: 466d9114158b9f9f…\n  target cfg: 2a1253c01b262a39…\n  ruleset: 3424026284a0d80c…\n  boris: boris/0.9.0\n\nAdvisory findings (7): heuristic or below error, these never block\n  advisory · SEO-CANONICAL-PRESENT on guides/getting-started · heuristic\n  advisory · SEO-CANONICAL-PRESENT on guides/publishing · heuristic\n  advisory · SEO-CANONICAL-PRESENT on index · heuristic\n  advisory · SEO-META-DESCRIPTION on guides/getting-started · heuristic\n  advisory · SEO-META-DESCRIPTION on guides/publishing · heuristic\n  advisory · SEO-META-DESCRIPTION on index · heuristic\n  … 1 more in the run's reading"
     },
     {
       "key": "close",

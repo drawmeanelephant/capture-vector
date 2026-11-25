@@ -5,7 +5,7 @@
 //! IndexNow-class pings are an [`HttpPost`] with a different body.
 
 use crate::Observation;
-use crate::plan::{PlanFile, SealedPlan, sha256};
+use crate::plan::{PlanFile, SealedPlan, host_relative, sha256};
 use crate::secrets::{Secret, SecretBackend};
 use crate::targets::TargetConfig;
 use cv_core::engine::{Engine, ExitClass, Verb};
@@ -150,8 +150,9 @@ impl DeliveryAdapter for CopyToFolder {
             .files
             .iter()
             .map(|(f, _)| {
-                let relative =
-                    copy_destination(&d.config.destination)?.join(portable_relative(&f.path)?);
+                let relative = copy_destination(&d.config.destination)?.join(
+                    host_relative(&f.path).map_err(|e| std::io::Error::other(e.to_string()))?,
+                );
                 confined_file(&self.root, &relative)
             })
             .collect::<std::io::Result<Vec<_>>>()
@@ -217,7 +218,7 @@ impl DeliveryAdapter for CopyToFolder {
     fn read_back(&self, cfg: &TargetConfig, path: &str) -> Option<Vec<u8>> {
         let relative = copy_destination(&cfg.destination)
             .ok()?
-            .join(portable_relative(path).ok()?);
+            .join(host_relative(path).ok()?);
         std::fs::read(confined_file(&self.root, &relative).ok()?).ok()
     }
 
@@ -352,7 +353,7 @@ impl<T: HttpTransport> DeliveryAdapter for HttpPost<T> {
             .plan
             .files
             .iter()
-            .filter(|f| f.path.ends_with(".html"))
+            .filter(|f| crate::publisher::is_html_page(f.kind.as_deref()))
             .map(|f| format!("{base}/{}", f.path))
             .collect();
         let body = serde_json::to_vec(&serde_json::json!({ "host": host, "urlList": urls }))

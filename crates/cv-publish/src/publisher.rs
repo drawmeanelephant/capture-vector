@@ -60,9 +60,67 @@ fn collect_input_files(dir: &Path, out: &mut Vec<SourceInput>) -> Result<()> {
 /// exclusion, committed status, and byte truth. Returns the deployable
 /// payload, the artifact kind of each payload file, and whether the
 /// inventory itself was valid enough to trust as a deploy contract.
+/// Non-payload namespaces, compared component-wise and case-insensitively:
+/// `_boris/proof/` is evidence, `.boris-cache/` is compiler cache. Case
+/// folding matters because copy-to-folder targets case-insensitive
+/// filesystems (APFS, NTFS) where `_boris/PROOF` *is* the proof directory.
+fn is_reserved_namespace(path: &str) -> bool {
+    let components: Vec<String> = path.split('/').map(|c| c.to_lowercase()).collect();
+    components.first().is_some_and(|c| c == ".boris-cache")
+        || (components.first().is_some_and(|c| c == "_boris")
+            && components.get(1).is_some_and(|c| c == "proof"))
+}
+
+/// Page-ness comes only from Boris's committed artifact kind, never from
+/// the file extension. Shared by graph membership, Audit construction, and
+/// delivery URL projection.
+pub fn is_html_page(kind: Option<&str>) -> bool {
+    kind == Some("html-page")
+}
+
+/// File identity (dev+inode) and link count of one payload candidate.
+/// Hardlink aliases let proof bytes or externally mutable content ship as
+/// payload without any lexical tell; identity comparison is the only sound
+/// check. Unix-only: Windows delivery is unproven platform behavior.
+#[cfg(unix)]
+fn file_identity(path: &Path) -> Option<(u64, u64, u64)> {
+    use std::os::unix::fs::MetadataExt;
+    let m = std::fs::metadata(path).ok()?;
+    Some((m.dev(), m.ino(), m.nlink()))
+}
+
+/// Identities of every regular file under the reserved namespaces of one
+/// output tree. Payload sharing any of these identities is proof evidence
+/// or cache content hardlinked into the payload area.
+#[cfg(unix)]
+fn reserved_identities(site: &Path) -> std::collections::BTreeSet<(u64, u64)> {
+    let mut out = std::collections::BTreeSet::new();
+    for reserved in ["_boris/proof", ".boris-cache"] {
+        let root = site.join(reserved);
+        if !root.is_dir() {
+            continue;
+        }
+        let mut stack = vec![root];
+        while let Some(dir) = stack.pop() {
+            if let Ok(entries) = std::fs::read_dir(&dir) {
+                for e in entries.flatten() {
+                    let p = e.path();
+                    if p.is_dir() {
+                        stack.push(p);
+                    } else if let Some((dev, ino, _)) = file_identity(&p) {
+                        out.insert((dev, ino));
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
 fn evaluate_proof_inventory(
     idx: &ingest::ArtifactIndex,
     output_files: &[PlanFile],
+    site: &Path,
     blocks: &mut Vec<String>,
 ) -> (
     Vec<PlanFile>,
@@ -110,9 +168,9 @@ fn evaluate_proof_inventory(
             ));
             continue;
         }
-        if artifact.path.starts_with("_boris/proof/") {
+        if is_reserved_namespace(&artifact.path) {
             blocks.push(format!(
-                "proof artifacts: {} is evidence, never payload",
+                "proof artifacts: {} is in a reserved namespace, never payload",
                 artifact.path
             ));
             continue;
@@ -129,7 +187,9 @@ fn evaluate_proof_inventory(
         match output_files.iter().find(|f| f.path == artifact.path) {
             Some(f) if f.bytes == artifact.bytes && f.sha256.to_hex() == artifact.sha256 => {
                 kinds.insert(artifact.path.clone(), artifact.kind.clone());
-                files.push(f.clone())
+                let mut f = f.clone();
+                f.kind = Some(artifact.kind.clone());
+                files.push(f)
             }
             Some(_) => blocks.push(format!(
                 "proof artifacts: {} does not match the sealed bytes",
@@ -139,6 +199,38 @@ fn evaluate_proof_inventory(
                 "proof artifacts: {} is missing from the output",
                 artifact.path
             )),
+        }
+    }
+    // Completeness: every non-reserved regular output file must carry a
+    // committed inventory record. An uninventoried file is not silently
+    // dropped payload — the tree no longer matches what Boris committed.
+    let committed: std::collections::BTreeSet<&str> =
+        files.iter().map(|f| f.path.as_str()).collect();
+    for f in output_files {
+        if !is_reserved_namespace(&f.path) && !committed.contains(f.path.as_str()) {
+            blocks.push(format!(
+                "proof artifacts: output file {} has no committed inventory record",
+                f.path
+            ));
+        }
+    }
+    #[cfg(unix)]
+    {
+        let reserved = reserved_identities(site);
+        for f in &files {
+            if let Some((dev, ino, nlink)) = file_identity(&site.join(&f.path)) {
+                if reserved.contains(&(dev, ino)) {
+                    blocks.push(format!(
+                        "proof artifacts: {} is a hardlink alias of reserved-namespace bytes",
+                        f.path
+                    ));
+                } else if nlink > 1 {
+                    blocks.push(format!(
+                        "proof artifacts: {} is multiply linked and can mutate outside the sealed tree",
+                        f.path
+                    ));
+                }
+            }
         }
     }
     files.sort();
@@ -179,7 +271,7 @@ fn deployable_inventory(site: &Path) -> Result<Vec<PlanFile>> {
     let mut seen = std::collections::BTreeSet::new();
     let mut casefolded = std::collections::BTreeSet::new();
     for artifact in &idx.artifacts {
-        if artifact.path.starts_with("_boris/proof/") || !seen.insert(artifact.path.clone()) {
+        if is_reserved_namespace(&artifact.path) || !seen.insert(artifact.path.clone()) {
             return Err(PublishError::SealBroken(vec!["artifact_set"]));
         }
         if !casefolded.insert(artifact.path.to_lowercase()) {
@@ -194,7 +286,30 @@ fn deployable_inventory(site: &Path) -> Result<Vec<PlanFile>> {
         if f.bytes != artifact.bytes || f.sha256.to_hex() != artifact.sha256 {
             return Err(PublishError::SealBroken(vec!["artifact_set"]));
         }
-        files.push(f.clone());
+        let mut f = f.clone();
+        f.kind = Some(artifact.kind.clone());
+        files.push(f);
+    }
+    // Completeness: any non-reserved output file without a committed
+    // inventory record means the tree no longer matches what Boris
+    // committed — the seal is broken rather than the file silently dropped.
+    let committed: std::collections::BTreeSet<&str> =
+        files.iter().map(|f| f.path.as_str()).collect();
+    for f in &output {
+        if !is_reserved_namespace(&f.path) && !committed.contains(f.path.as_str()) {
+            return Err(PublishError::SealBroken(vec!["artifact_set"]));
+        }
+    }
+    #[cfg(unix)]
+    {
+        let reserved = reserved_identities(site);
+        for f in &files {
+            if let Some((dev, ino, nlink)) = file_identity(&site.join(&f.path))
+                && (reserved.contains(&(dev, ino)) || nlink > 1)
+            {
+                return Err(PublishError::SealBroken(vec!["artifact_set"]));
+            }
+        }
     }
     files.sort();
     Ok(files)
@@ -385,7 +500,7 @@ impl<'a> Publisher<'a> {
             blocks.push("build: output dir is empty".into());
         }
         let (files, kinds, proof_inventory_valid) = match ingest::artifact_inventory(&site) {
-            Ok(Some(idx)) => evaluate_proof_inventory(&idx, &output_files, &mut blocks),
+            Ok(Some(idx)) => evaluate_proof_inventory(&idx, &output_files, &site, &mut blocks),
             Ok(None) => {
                 blocks.push("proof artifacts: artifacts.json missing".into());
                 Default::default()
@@ -404,7 +519,7 @@ impl<'a> Publisher<'a> {
                 Ok(expected) => {
                     let actual: std::collections::BTreeSet<String> = files
                         .iter()
-                        .filter(|f| kinds.get(&f.path).is_some_and(|k| k == "html-page"))
+                        .filter(|f| is_html_page(kinds.get(&f.path).map(String::as_str)))
                         .map(|f| f.path.clone())
                         .collect();
                     for path in expected.difference(&actual) {
@@ -481,7 +596,18 @@ impl<'a> Publisher<'a> {
             files,
         };
         let grant = PreflightGrant {
-            artifact_set_hash: artifact_seal_hash(&site, &plan.files)?,
+            artifact_set_hash: match artifact_seal_hash(&site, &plan.files) {
+                Ok(h) => h,
+                Err(e) => {
+                    let blocks = vec![format!("proof artifacts: unreadable for sealing: {e}")];
+                    self.append(Entry::PreflightBlocked {
+                        run: run.clone(),
+                        target,
+                        blocks: blocks.clone(),
+                    })?;
+                    return Ok(PreflightOutcome::Blocked { run, blocks });
+                }
+            },
             graph_hash: sha256(graph.as_deref().unwrap_or_default()),
             plan_hash: plan.hash()?,
             target_cfg_hash: hash_json(cfg)?,

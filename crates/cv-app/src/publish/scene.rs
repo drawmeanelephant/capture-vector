@@ -86,7 +86,33 @@ impl Engine for CapturedBuild {
                 let dist = cv_fixtures::fixtures_root().join("captures/happy/dist/dist");
                 let out = self.root.join(flag(args, "--html-dir")?);
                 copy_tree(&dist, &out).map_err(io)?;
-                std::fs::write(out.join("robots.txt"), "User-agent: *\n").map_err(io)?;
+                // The scene engine synthesizes hosted-target output: robots.txt
+                // is only consistent evidence when the inventory commits it.
+                let robots = b"User-agent: *\n";
+                std::fs::write(out.join("robots.txt"), robots).map_err(io)?;
+                let inventory = out.join("_boris/proof/artifacts.json");
+                let mut idx: serde_json::Value =
+                    serde_json::from_slice(&std::fs::read(&inventory).map_err(io)?)
+                        .map_err(|e| cv_core::Error::Engine(e.to_string()))?;
+                let mut artifacts = idx["artifacts"].as_array().unwrap().clone();
+                artifacts.retain(|a| a["path"].as_str() != Some("robots.txt"));
+                artifacts.push(serde_json::json!({
+                    "path": "robots.txt",
+                    "kind": "static-file",
+                    "producer": "static-files",
+                    "required": false,
+                    "status": "committed",
+                    "bytes": robots.len(),
+                    "sha256": sha256_hex(robots),
+                }));
+                artifacts.sort_by(|a, b| a["path"].as_str().cmp(&b["path"].as_str()));
+                idx["artifacts"] = serde_json::json!(artifacts);
+                std::fs::write(
+                    &inventory,
+                    serde_json::to_vec_pretty(&idx)
+                        .map_err(|e| cv_core::Error::Engine(e.to_string()))?,
+                )
+                .map_err(io)?;
                 Ok(ExitClass::Ok)
             }
             "build" if args.iter().any(|a| a == "--out") => {
@@ -424,4 +450,8 @@ pub fn reconciled(wb: &mut Workbench) {
             wb.dialog_choose(row);
         }
     });
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    cv_publish::plan::sha256(bytes).to_hex()
 }

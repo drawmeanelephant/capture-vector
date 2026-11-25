@@ -171,7 +171,7 @@ fn a_proof_evidence_entry_in_the_inventory_is_never_payload() {
     assert!(
         blocks
             .iter()
-            .any(|b| b.contains("is evidence, never payload")),
+            .any(|b| b.contains("is in a reserved namespace")),
         "{blocks:?}"
     );
 }

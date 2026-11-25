@@ -81,7 +81,7 @@ fn preflight_approve_dispatch_copies_the_sealed_files_to_the_folder() {
         .body
         .clone();
     let body = body.unwrap();
-    assert!(body.contains("5 files"), "{body}");
+    assert!(body.contains("6 files"), "{body}");
     assert!(body.contains("plan: "), "{body}");
     assert!(body.contains("Advisory findings (7)"), "{body}");
     wb.dialog_act("approve");

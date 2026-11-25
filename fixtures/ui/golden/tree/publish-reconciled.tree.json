@@ -1101,7 +1101,7 @@
     },
     {
       "color": "#8a93a3ff",
-      "help": "5 files · 12600 B",
+      "help": "6 files · 12614 B",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-lost-000000-0/#2",
       "rect": [
@@ -1111,7 +1111,7 @@
         13.8
       ],
       "role": "text",
-      "text": "5 files · 12600 B"
+      "text": "6 files · 12614 B"
     },
     {
       "color": "#ff3d71ff",
@@ -1420,7 +1420,7 @@
         13.8
       ],
       "role": "text",
-      "text": "5 files · 12600 B → publish/static-dist"
+      "text": "6 files · 12614 B → publish/static-dist"
     },
     {
       "key": "line-5",
@@ -2119,7 +2119,7 @@
         13.8
       ],
       "role": "text",
-      "text": "5"
+      "text": "6"
     },
     {
       "key": "field-bytes",
@@ -2157,7 +2157,7 @@
         13.8
       ],
       "role": "text",
-      "text": "12600"
+      "text": "12614"
     },
     {
       "key": "field-artifacts",
@@ -2195,7 +2195,7 @@
         13.8
       ],
       "role": "text",
-      "text": "5"
+      "text": "6"
     },
     {
       "key": "field-artifact set",
@@ -2224,7 +2224,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "42d8d33ebc01401fb92696df33740f0c798b293103b3e0d30de58c034c2616ef",
+      "help": "ea89f212c50eaeaa563f2c0370e8ec4ac684e6fc63684de6d16e850cace7051d",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-artifact set/#1",
       "rect": [
@@ -2234,7 +2234,7 @@
         13.8
       ],
       "role": "text",
-      "text": "42d8d33ebc01401fb92696df33740f0c798b293103b3e0d30de58c034c2616ef"
+      "text": "ea89f212c50eaeaa563f2c0370e8ec4ac684e6fc63684de6d16e850cace7051d"
     },
     {
       "key": "field-graph",
@@ -2302,7 +2302,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "2df9368e2f0d64695b8bbc61a5e9b861717131c2b16da63ba0661e26b090dcd9",
+      "help": "b0b41be0ca2cd973043b85efcdfb06d47d678033a034e3e6f43901602f3190da",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-plan/#1",
       "rect": [
@@ -2312,7 +2312,7 @@
         13.8
       ],
       "role": "text",
-      "text": "2df9368e2f0d64695b8bbc61a5e9b861717131c2b16da63ba0661e26b090dcd9"
+      "text": "b0b41be0ca2cd973043b85efcdfb06d47d678033a034e3e6f43901602f3190da"
     },
     {
       "key": "field-target cfg",

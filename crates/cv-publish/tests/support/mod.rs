@@ -120,7 +120,6 @@ impl Engine for FakeEngine {
                     std::fs::create_dir_all(f.parent().unwrap()).unwrap();
                     std::fs::write(f, body).unwrap();
                 }
-                std::fs::write(site.join("robots.txt"), "User-agent: *\n").unwrap();
                 let proof = site.join("_boris/proof");
                 if !self.omit_proof {
                     std::fs::create_dir_all(&proof).unwrap();
@@ -145,8 +144,8 @@ impl Engine for FakeEngine {
                         .map(|(path, body)| {
                             serde_json::json!({
                                 "path": path,
-                                "kind": if path.ends_with(".html") { "html-page" } else { "machine-export" },
-                                "producer": "fake-engine",
+                                "kind": if path.ends_with(".html") { "html-page" } else { "static-file" },
+                                "producer": if path.ends_with(".html") { "html-render" } else { "static-files" },
                                 "required": true,
                                 "status": "committed",
                                 "bytes": body.len(),
@@ -154,6 +153,8 @@ impl Engine for FakeEngine {
                             })
                         })
                         .collect();
+                    let mut artifacts = artifacts;
+                    artifacts.sort_by(|a, b| a["path"].as_str().cmp(&b["path"].as_str()));
                     let index = serde_json::json!({
                         "format": "boris-publication-artifacts",
                         "schema_version": 1,
@@ -316,6 +317,9 @@ impl Engine for CapturedEngine {
                         serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
                     let entry = idx["artifacts"][0].clone();
                     idx["artifacts"].as_array_mut().unwrap().push(entry);
+                    let mut sorted = idx["artifacts"].as_array().unwrap().clone();
+                    sorted.sort_by(|a, b| a["path"].as_str().cmp(&b["path"].as_str()));
+                    idx["artifacts"] = serde_json::json!(sorted);
                     std::fs::write(&path, serde_json::to_vec_pretty(&idx).unwrap()).unwrap();
                 }
                 if self.case_collision_entry {
@@ -327,6 +331,9 @@ impl Engine for CapturedEngine {
                         idx["artifacts"][0]["path"].as_str().unwrap().to_uppercase()
                     );
                     idx["artifacts"].as_array_mut().unwrap().push(entry);
+                    let mut sorted = idx["artifacts"].as_array().unwrap().clone();
+                    sorted.sort_by(|a, b| a["path"].as_str().cmp(&b["path"].as_str()));
+                    idx["artifacts"] = serde_json::json!(sorted);
                     std::fs::write(&path, serde_json::to_vec_pretty(&idx).unwrap()).unwrap();
                 }
                 if self.proof_payload_entry {
@@ -336,6 +343,9 @@ impl Engine for CapturedEngine {
                     let mut entry = idx["artifacts"][0].clone();
                     entry["path"] = serde_json::json!("_boris/proof/index.html");
                     idx["artifacts"].as_array_mut().unwrap().push(entry);
+                    let mut sorted = idx["artifacts"].as_array().unwrap().clone();
+                    sorted.sort_by(|a, b| a["path"].as_str().cmp(&b["path"].as_str()));
+                    idx["artifacts"] = serde_json::json!(sorted);
                     std::fs::write(&path, serde_json::to_vec_pretty(&idx).unwrap()).unwrap();
                 }
                 Ok(ExitClass::Ok)

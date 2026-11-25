@@ -14,6 +14,12 @@ pub struct PlanFile {
     pub path: String,
     pub bytes: u64,
     pub sha256: Hash,
+    /// Boris's committed artifact `kind` when this file is payload selected
+    /// through the proof inventory; `None` for uninventoried walks. Sealed
+    /// into the plan hash, so page-ness downstream never falls back to the
+    /// file extension.
+    #[serde(default)]
+    pub kind: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -66,6 +72,43 @@ pub(crate) fn safe_rel_path(path: &str) -> Result<&Path> {
         .map_err(|_| PublishError::Refused(format!("invalid relative publish path: {path:?}")))
 }
 
+/// Host-valid output-relative publish path. Copy-to-folder delivers on the
+/// local host, so the grammar is the host's — not the cross-platform
+/// portable subset `portable_relative` enforces for sidecar state. Real
+/// Boris output names such as `aux.html` or `guides/a:b.html` are valid
+/// payload on unix hosts. The security-critical properties are unchanged:
+/// relative, normalized, no parent traversal, no escape. Windows-reserved
+/// names are a destination concern on Windows hosts, where `Path::components`
+/// already parses host separators.
+pub(crate) fn host_relative(path: &str) -> Result<&Path> {
+    use std::path::Component;
+    let p = Path::new(path);
+    let mut count = 0usize;
+    for c in p.components() {
+        match c {
+            Component::Normal(seg) => {
+                if seg.as_encoded_bytes().contains(&0) {
+                    return Err(PublishError::Refused(format!(
+                        "invalid relative publish path: {path:?}"
+                    )));
+                }
+                count += 1;
+            }
+            _ => {
+                return Err(PublishError::Refused(format!(
+                    "invalid relative publish path: {path:?}"
+                )));
+            }
+        }
+    }
+    if count == 0 || path.contains('\0') {
+        return Err(PublishError::Refused(format!(
+            "invalid relative publish path: {path:?}"
+        )));
+    }
+    Ok(p)
+}
+
 /// Walk an output tree into a sorted inventory.
 pub fn inventory(root: &Path) -> Result<Vec<PlanFile>> {
     let mut out = Vec::new();
@@ -99,6 +142,7 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<PlanFile>) -> Result<()> {
             safe_rel_path(&rel)?;
             let bytes = std::fs::read(&p)?;
             out.push(PlanFile {
+                kind: None,
                 path: rel,
                 bytes: bytes.len() as u64,
                 sha256: sha256(&bytes),
@@ -126,4 +170,15 @@ pub fn load_sealed(site: &Path, plan: &SealedPlan) -> Result<Vec<(PlanFile, Vec<
         out.push((f.clone(), bytes));
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn host_relative_probe() {
+        assert!(super::host_relative("../escape.html").is_err());
+        assert!(super::host_relative("aux.html").is_ok());
+        assert!(super::host_relative("guides/a:b.html").is_ok());
+        assert!(super::host_relative("star*.html").is_ok());
+    }
 }

@@ -153,6 +153,7 @@ fn load_sealed_refuses_plan_paths_that_escape_the_site() {
             "site",
             "deployed",
             vec![PlanFile {
+                kind: None,
                 path: path.clone(),
                 bytes: 7,
                 sha256: cv_publish::plan::sha256(b"outside"),
@@ -251,6 +252,7 @@ fn reconcile_by_probe_refuses_a_forged_destination_outside_the_project() {
 fn deliver_one(root: &Path, destination: &str, path: &str) -> Result<Delivered, TransportFailure> {
     let files = vec![(
         PlanFile {
+            kind: None,
             path: path.into(),
             bytes: 2,
             sha256: cv_publish::plan::sha256(b"hi"),
@@ -282,16 +284,29 @@ fn copy_to_folder_refuses_plan_paths_that_escape_the_destination() {
         "../escape.html".to_string(),
         "../../escape.html".into(),
         absolute.to_str().unwrap().into(),
-        r"C:\escape.html".into(),
-        r"\\server\share\escape.html".into(),
     ] {
         let out = deliver_one(&project, "out", &path);
-        assert!(!out.unwrap_err().contacted, "{path:?}");
+        assert!(out.is_err(), "{path:?} unexpectedly delivered: {out:?}");
+    }
+    assert!(!project.join("out").exists(), "refused before contact");
+    // Windows-syntax paths are host grammar, not escapes: on unix they are
+    // ordinary (if odd) file names confined inside the destination; on
+    // Windows `Path::components` parses the prefix/separators and the
+    // host-relative grammar refuses them there.
+    for path in [r"C:\escape.html", r"\\server\share\escape.html"] {
+        let out = deliver_one(&project, "out", path);
+        #[cfg(unix)]
+        {
+            assert!(out.is_ok(), "{path:?} is host-valid on unix: {out:?}");
+            assert!(project.join("out").join(path).exists());
+            std::fs::remove_file(project.join("out").join(path)).unwrap();
+        }
+        #[cfg(windows)]
+        assert!(out.is_err(), "{path:?} must be refused on windows");
     }
     assert!(!project.join("escape.html").exists());
     assert!(!tmp.path().join("escape.html").exists());
     assert!(!absolute.exists());
-    assert!(!project.join("out").exists(), "refused before contact");
 }
 
 #[test]

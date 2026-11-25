@@ -143,7 +143,63 @@ pub fn artifact_inventory(out_dir: &Path) -> Result<Option<ArtifactIndex>> {
         )));
     }
     schema("artifacts.json", idx.schema_version)?;
+    validate_artifact_contract(&idx)?;
     Ok(Some(idx))
+}
+
+/// Boris's committed-artifact contract, mirrored for validation only:
+/// artifact kinds are a closed enum, each kind has exactly one producer,
+/// status is a closed enum, and the inventory is in canonical path order.
+/// Boris itself rejects inventories violating these; a mirror that accepts
+/// them would seal payload Boris never committed.
+fn validate_artifact_contract(idx: &ArtifactIndex) -> Result<()> {
+    fn producer_for(kind: &str) -> Option<&'static str> {
+        Some(match kind {
+            "html-page" => "html-render",
+            "theme-asset" => "theme-assets",
+            "content-asset" => "content-assets",
+            "rendered-search" => "rendered-search",
+            "sitemap" => "sitemap",
+            "rss" => "rss",
+            "llms" => "llms",
+            "static-file" => "static-files",
+            _ => return None,
+        })
+    }
+    let mut prev: Option<&str> = None;
+    for a in &idx.artifacts {
+        let Some(expected) = producer_for(&a.kind) else {
+            return Err(LedgerError::Proof(format!(
+                "artifacts.json: {} has unknown kind {:?}",
+                a.path, a.kind
+            )));
+        };
+        if a.producer != expected {
+            return Err(LedgerError::Proof(format!(
+                "artifacts.json: {} producer {:?} is not {expected:?} for kind {:?}",
+                a.path, a.producer, a.kind
+            )));
+        }
+        if !matches!(
+            a.status.as_str(),
+            "committed" | "omitted-by-plan" | "not-applicable"
+        ) {
+            return Err(LedgerError::Proof(format!(
+                "artifacts.json: {} has unknown status {:?}",
+                a.path, a.status
+            )));
+        }
+        if let Some(prev) = prev
+            && prev > a.path.as_str()
+        {
+            return Err(LedgerError::Proof(format!(
+                "artifacts.json: {} is out of canonical path order",
+                a.path
+            )));
+        }
+        prev = Some(&a.path);
+    }
+    Ok(())
 }
 
 /// Read the proof pack under a built output tree.
