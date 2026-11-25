@@ -215,7 +215,7 @@ fn run_record(id: &str, v: &RunView) -> RunRecord {
             Ok(c) => {
                 r.settings = Some(TargetSettings {
                     profile: c.profile.unwrap_or_else(|| "default HTML target".into()),
-                    base_url: if c.deploy.base_url.is_empty() {
+                    base_url: if c.deploy.base_url.is_empty() && v.target == "static-dist" {
                         "unhosted local copy".into()
                     } else {
                         c.deploy.base_url

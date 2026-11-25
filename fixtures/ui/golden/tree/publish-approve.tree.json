@@ -1242,7 +1242,7 @@
         588.0,
         63.8,
         452.0,
-        335.8
+        386.8
       ],
       "role": "group"
     },
@@ -1659,7 +1659,7 @@
         604.0,
         353.5,
         420.0,
-        30.0
+        45.0
       ],
       "role": "group"
     },
@@ -1671,6 +1671,44 @@
         604.0,
         353.5,
         96.0,
+        45.0
+      ],
+      "role": "text",
+      "text": "delivery"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-11/#1",
+      "rect": [
+        708.0,
+        353.5,
+        316.0,
+        45.0
+      ],
+      "role": "text",
+      "text": "overlay copy: unmanaged files at the destination are preserved, and stale pages from earlier runs stay reachable"
+    },
+    {
+      "key": "line-12",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-12",
+      "rect": [
+        604.0,
+        404.5,
+        420.0,
+        30.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-12/#0",
+      "rect": [
+        604.0,
+        404.5,
+        96.0,
         30.0
       ],
       "role": "text",
@@ -1679,10 +1717,10 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-11/#1",
+      "path": "shell/body/reading/reading-scroll/reading-body/line-12/#1",
       "rect": [
         708.0,
-        353.5,
+        404.5,
         316.0,
         30.0
       ],

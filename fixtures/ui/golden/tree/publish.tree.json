@@ -2246,7 +2246,7 @@
       "text": "base url"
     },
     {
-      "color": "#e6e9efff",
+      "color": "#00d1ffff",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-base url/#1",
       "rect": [
@@ -2255,8 +2255,8 @@
         144.0,
         13.8
       ],
-      "role": "text",
-      "text": "unhosted local copy"
+      "role": "link",
+      "text": "https://example.test/"
     },
     {
       "key": "field-adapter",
@@ -2592,7 +2592,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "e3da8ee2c46c41a6dfeec3eae8b0e9cea65aff0197e40640cc21f8240255fadb",
+      "help": "80811fe6256ef6e939e5243622ef261987cdcbc68817c08f0de7a2fdc4102b5b",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-target cfg/#1",
       "rect": [
@@ -2602,7 +2602,7 @@
         13.8
       ],
       "role": "text",
-      "text": "e3da8ee2c46c41a6dfeec3eae8b0e9cea65aff0197e40640cc21f8240255fadb"
+      "text": "80811fe6256ef6e939e5243622ef261987cdcbc68817c08f0de7a2fdc4102b5b"
     },
     {
       "key": "field-ruleset",

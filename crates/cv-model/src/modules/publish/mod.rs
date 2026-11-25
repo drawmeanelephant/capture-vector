@@ -579,6 +579,18 @@ impl PublishModule {
                 Tone::Normal,
                 true,
             ));
+            if p.adapter == "copy-to-folder" {
+                lines.push(line(
+                    "delivery",
+                    concat!(
+                        "overlay copy: unmanaged files at the destination are preserved, ",
+                        "and stale pages from earlier runs stay reachable"
+                    )
+                    .to_string(),
+                    Tone::Dim,
+                    false,
+                ));
+            }
         }
         if !r.history.is_empty() {
             lines.push(line("history", r.history.join(" → "), Tone::Normal, true));

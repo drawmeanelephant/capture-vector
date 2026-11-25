@@ -148,7 +148,14 @@ impl DeliveryAdapter for LostOutcome {
 }
 
 pub(super) fn config(target: Target, adapter: &str, destination: &str) -> TargetConfig {
-    TargetConfig::default_html(target, "", adapter, destination)
+    // Only static-dist is an unhosted copy. Hosted and record targets seed
+    // with a real configuration shape rather than a falsely empty base.
+    let base = if target == Target::StaticDist {
+        ""
+    } else {
+        "https://example.test/"
+    };
+    TargetConfig::default_html(target, base, adapter, destination)
 }
 
 pub(super) fn open<'a>(root: &Path, engine: &'a CapturedBuild) -> Publisher<'a> {
