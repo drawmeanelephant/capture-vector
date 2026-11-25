@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My Boris Site · My Boris Site</title>
+  <link rel="stylesheet" href="assets/css/boris.css">
+  
+</head>
+<body>
+<header class="site-header">
+  <p class="site-title">My Boris Site</p>
+  <nav class="site-nav"><nav class="site-nav" aria-label="Site">
+<ul>
+<li class="site-nav__trunk is-current"><a href="index.html" aria-current="page">My Boris Site</a>
+<ul>
+<li class="site-nav__satellite"><a href="guides/getting-started.html">Getting Started</a></li>
+<li class="site-nav__satellite"><a href="guides/publishing.html">Publishing</a></li>
+</ul>
+</li>
+</ul>
+</nav></nav>
+</header>
+<main class="site-body">
+  <div class="site-breadcrumb"><nav class="breadcrumb" aria-label="Breadcrumb">
+<ol>
+<li aria-current="page">My Boris Site</li>
+</ol>
+</nav></div>
+  <aside class="site-toc"><nav class="page-toc" aria-label="On this page">
+<ul>
+<li class="page-toc__l1"><a href="#welcome">Welcome</a></li>
+<li class="page-toc__l2"><a href="#anatomy-of-this-starter">Anatomy of this starter</a></li>
+</ul>
+</nav></aside>
+  <article class="site-content"><h1 id="welcome">Welcome</h1>
+<p>This is a fresh <a href="https://github.com/drawmeanelephant/boris">Boris</a>
+documentation site. It already has a page graph: this trunk page,
+two guides beneath it, wiki links between them, and one semantic
+relation.</p>
+<p>Start here:</p>
+<ul>
+<li><a href="guides/getting-started.html">Getting Started</a> — add your own pages and watch the graph grow.</li>
+<li><a href="guides/publishing.html">Publishing</a> — turn the site into a verified publication.</li>
+</ul>
+<h2 id="anatomy-of-this-starter">Anatomy of this starter</h2>
+<p>The tree <code>boris init</code> created:</p>
+<pre><code class="language-text">content/
+  index.md                    trunk page (this one)
+  guides/getting-started.md   satellite, parent: index
+  guides/publishing.md        satellite, parent: index
+themes/boris/                 starter theme (closed layout slots)
+boris.json                    publication profile (GitHub Pages)
+standard-site.json            Atmosphere profile (edit the fake DID/URL)
+</code></pre>
+</article>
+</main>
+<footer class="site-footer"></footer>
+</body>
+</html>

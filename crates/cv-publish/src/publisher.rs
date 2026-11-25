@@ -55,6 +55,89 @@ fn collect_input_files(dir: &Path, out: &mut Vec<SourceInput>) -> Result<()> {
     Ok(())
 }
 
+/// Evaluate Boris's proof artifact inventory against the built output:
+/// target identity, path portability and duplication, the proof-payload
+/// exclusion, committed status, and byte truth. Returns the deployable
+/// payload, the artifact kind of each payload file, and whether the
+/// inventory itself was valid enough to trust as a deploy contract.
+fn evaluate_proof_inventory(
+    idx: &ingest::ArtifactIndex,
+    output_files: &[PlanFile],
+    blocks: &mut Vec<String>,
+) -> (
+    Vec<PlanFile>,
+    std::collections::BTreeMap<String, String>,
+    bool,
+) {
+    let mut files = Vec::new();
+    let mut kinds = std::collections::BTreeMap::new();
+    if idx.target != DEFAULT_HTML_TARGET {
+        blocks.push(format!(
+            "proof artifacts: target {} is not {DEFAULT_HTML_TARGET}",
+            idx.target
+        ));
+        return (files, kinds, false);
+    }
+    let mut seen = std::collections::BTreeSet::new();
+    for artifact in &idx.artifacts {
+        let normalized = artifact
+            .path
+            .split('/')
+            .filter(|seg| !seg.is_empty() && *seg != ".")
+            .collect::<Vec<_>>()
+            .join("/");
+        if normalized != artifact.path || artifact.path.split('/').any(|seg| seg == "..") {
+            blocks.push(format!(
+                "proof artifacts: {} is not a portable normalized path",
+                artifact.path
+            ));
+            continue;
+        }
+        if !seen.insert(artifact.path.clone()) {
+            blocks.push(format!(
+                "proof artifacts: duplicate artifact path {}",
+                artifact.path
+            ));
+            continue;
+        }
+        if artifact.path.starts_with("_boris/proof/") {
+            blocks.push(format!(
+                "proof artifacts: {} is evidence, never payload",
+                artifact.path
+            ));
+            continue;
+        }
+        if artifact.status != "committed" {
+            if artifact.required {
+                blocks.push(format!(
+                    "proof artifacts: {} is {}",
+                    artifact.path, artifact.status
+                ));
+            }
+            continue;
+        }
+        match output_files.iter().find(|f| f.path == artifact.path) {
+            Some(f) if f.bytes == artifact.bytes && f.sha256.to_hex() == artifact.sha256 => {
+                kinds.insert(artifact.path.clone(), artifact.kind.clone());
+                files.push(f.clone())
+            }
+            Some(_) => blocks.push(format!(
+                "proof artifacts: {} does not match the sealed bytes",
+                artifact.path
+            )),
+            None => blocks.push(format!(
+                "proof artifacts: {} is missing from the output",
+                artifact.path
+            )),
+        }
+    }
+    files.sort();
+    if files.is_empty() {
+        blocks.push("proof artifacts: no committed payload artifacts".into());
+    }
+    (files, kinds, true)
+}
+
 fn graph_html_paths(graph: &[u8]) -> Result<std::collections::BTreeSet<String>> {
     let value: serde_json::Value = serde_json::from_slice(graph)
         .map_err(|e| PublishError::Refused(format!("graph: invalid json: {e}")))?;
@@ -83,8 +166,9 @@ fn deployable_inventory(site: &Path) -> Result<Vec<PlanFile>> {
         return Err(PublishError::SealBroken(vec!["artifact_set"]));
     }
     let mut files = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
     for artifact in &idx.artifacts {
-        if artifact.path.starts_with("_boris/proof/") {
+        if artifact.path.starts_with("_boris/proof/") || !seen.insert(artifact.path.clone()) {
             return Err(PublishError::SealBroken(vec!["artifact_set"]));
         }
         if artifact.status != "committed" {
@@ -276,81 +360,46 @@ impl<'a> Publisher<'a> {
             blocks.push("source inputs changed during preflight".into());
         }
         let site = confined(&self.root, Path::new(&site_rel))?;
-        let output_files = inventory(&site)?;
+        let output_files = match inventory(&site) {
+            Ok(files) => files,
+            Err(e) => {
+                blocks.push(format!("output inventory: {e}"));
+                Vec::new()
+            }
+        };
         if blocks.is_empty() && output_files.is_empty() {
             blocks.push("build: output dir is empty".into());
         }
-        let mut files = Vec::<PlanFile>::new();
-        let mut proof_inventory_valid = false;
-        match ingest::artifact_inventory(&site) {
-            Ok(Some(idx)) => {
-                if idx.target != DEFAULT_HTML_TARGET {
-                    blocks.push(format!(
-                        "proof artifacts: target {} is not {DEFAULT_HTML_TARGET}",
-                        idx.target
-                    ));
-                } else {
-                    proof_inventory_valid = true;
-                    for artifact in &idx.artifacts {
-                        if artifact.path.starts_with("_boris/proof/") {
-                            blocks.push(format!(
-                                "proof artifacts: {} is evidence, never payload",
-                                artifact.path
-                            ));
-                            continue;
-                        }
-                        if artifact.status != "committed" {
-                            if artifact.required {
-                                blocks.push(format!(
-                                    "proof artifacts: {} is {}",
-                                    artifact.path, artifact.status
-                                ));
-                            }
-                            continue;
-                        }
-                        match output_files.iter().find(|f| f.path == artifact.path) {
-                            Some(f)
-                                if f.bytes == artifact.bytes
-                                    && f.sha256.to_hex() == artifact.sha256 =>
-                            {
-                                files.push(f.clone())
-                            }
-                            Some(_) => blocks.push(format!(
-                                "proof artifacts: {} does not match the sealed bytes",
-                                artifact.path
-                            )),
-                            None => blocks.push(format!(
-                                "proof artifacts: {} is missing from the output",
-                                artifact.path
-                            )),
-                        }
-                    }
-                    files.sort();
-                    if files.is_empty() {
-                        blocks.push("proof artifacts: no committed payload artifacts".into());
-                    }
-                }
+        let (files, kinds, proof_inventory_valid) = match ingest::artifact_inventory(&site) {
+            Ok(Some(idx)) => evaluate_proof_inventory(&idx, &output_files, &mut blocks),
+            Ok(None) => {
+                blocks.push("proof artifacts: artifacts.json missing".into());
+                Default::default()
             }
-            Ok(None) => blocks.push("proof artifacts: artifacts.json missing".into()),
-            Err(e) => blocks.push(format!("proof artifacts: {e}")),
-        }
+            Err(e) => {
+                blocks.push(format!("proof artifacts: {e}"));
+                Default::default()
+            }
+        };
         let graph = self.read_graph(&run)?;
         if blocks.is_empty() && graph.is_none() {
             blocks.push("graph: not produced".into());
         }
-        if let Some(graph_bytes) = &graph {
+        if proof_inventory_valid && let Some(graph_bytes) = &graph {
             match graph_html_paths(graph_bytes) {
                 Ok(expected) => {
                     let actual: std::collections::BTreeSet<String> = files
                         .iter()
-                        .filter(|f| f.path.ends_with(".html"))
+                        .filter(|f| kinds.get(&f.path).is_some_and(|k| k == "html-page"))
                         .map(|f| f.path.clone())
                         .collect();
                     for path in expected.difference(&actual) {
                         blocks.push(format!("graph: {path} has no sealed HTML artifact"));
                     }
                     for path in actual.difference(&expected) {
-                        blocks.push(format!("graph: sealed HTML artifact {path} has no IR page"));
+                        blocks.push(format!(
+                            "graph: sealed html-page artifact {path} has no IR page"
+                        ));
                     }
                 }
                 Err(e) => blocks.push(e.to_string()),
@@ -361,6 +410,7 @@ impl<'a> Publisher<'a> {
             let verdict = ruleset.evaluate(&PreflightArtifacts {
                 site: &site,
                 files: &files,
+                kinds: &kinds,
                 ir_graph: Some(confined_file(&self.root, Path::new(&graph_file(&run)?))?.as_path()),
                 config: cfg,
             });
@@ -471,10 +521,15 @@ impl<'a> Publisher<'a> {
                 .strip_prefix(&self.root)
                 .unwrap_or(path)
                 .to_string_lossy();
-            material.extend_from_slice(rel.as_bytes());
-            material.push(0);
+            let rel = rel.as_bytes();
+            material.extend_from_slice(&(rel.len() as u64).to_le_bytes());
+            material.extend_from_slice(rel);
+            material.push(match &input {
+                SourceInput::File(_) => 1,
+                SourceInput::Link(_) => 2,
+            });
+            material.extend_from_slice(&(bytes.len() as u64).to_le_bytes());
             material.extend_from_slice(sha256(&bytes).to_hex().as_bytes());
-            material.push(b'\n');
         }
         Ok(sha256(&material))
     }

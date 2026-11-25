@@ -3,7 +3,9 @@
 
 use crate::nouns::{ArtifactNoun, CheckNoun, ClaimNoun, derive_id};
 use crate::{LedgerError, Result};
-use cv_contracts::proof::{ArtifactIndex, ChecksFile, EvidenceFile};
+use cv_contracts::proof::{ChecksFile, EvidenceFile};
+
+pub use cv_contracts::proof::ArtifactIndex;
 use cv_core::id::StableId;
 use std::path::Path;
 

@@ -175,3 +175,91 @@ fn a_proof_evidence_entry_in_the_inventory_is_never_payload() {
         "{blocks:?}"
     );
 }
+
+/// Real Boris commits `.html` content assets as `kind: content-asset` —
+/// opaque payload, not pages. The pinned happy-assets capture contains
+/// `guides/getting-started.assets/manual.html`; preflight must grant with
+/// the asset in the deployable plan and no false graph-membership block.
+#[test]
+fn an_html_content_asset_is_payload_not_a_page() {
+    let dir = tempfile::tempdir().unwrap();
+    let eng = CapturedEngine::with_html_content_asset(dir.path());
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+    let out = p.preflight(
+        &PreflightRequest { config: cfg() },
+        &Rules::ok(),
+        &mut ids("run"),
+    );
+    let Ok(PreflightOutcome::Granted { run, .. }) = out else {
+        panic!("html content asset must not block preflight: {out:?}")
+    };
+    let plan: SealedPlan = serde_json::from_value(p.run(&run).unwrap().plan.unwrap()).unwrap();
+    assert_eq!(plan.files.len(), 6, "{:?}", plan.files);
+    assert!(
+        plan.files
+            .iter()
+            .any(|f| f.path == "guides/getting-started.assets/manual.html"),
+        "the content asset is committed payload: {:?}",
+        plan.files
+    );
+}
+
+/// Duplicate artifact paths in a well-formed inventory are rejected before
+/// sealing rather than repeated in the plan.
+#[test]
+fn duplicate_artifact_paths_block_the_grant() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    eng.duplicate_entry = true;
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+    let out = p
+        .preflight(
+            &PreflightRequest { config: cfg() },
+            &Rules::ok(),
+            &mut ids("run"),
+        )
+        .unwrap();
+    let PreflightOutcome::Blocked { blocks, .. } = out else {
+        panic!("duplicate artifact paths must block: {out:?}")
+    };
+    assert!(
+        blocks
+            .iter()
+            .any(|b| b.starts_with("proof artifacts: duplicate artifact path")),
+        "{blocks:?}"
+    );
+}
+
+/// A symlink in the output tree makes the output inventory unreadable.
+/// That failure is a durable PreflightBlocked, not a hard error.
+#[cfg(unix)]
+#[test]
+fn an_unreadable_output_inventory_is_a_durable_preflight_block() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir(dir.path().join("content")).unwrap();
+    std::fs::write(dir.path().join("content/index.md"), "# home\n").unwrap();
+    let mut eng = FakeEngine::new(dir.path());
+    eng.symlink_output = true;
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+    let out = p
+        .preflight(
+            &PreflightRequest { config: cfg() },
+            &Rules::ok(),
+            &mut ids("run"),
+        )
+        .unwrap();
+    let PreflightOutcome::Blocked { run, blocks } = out else {
+        panic!("output inventory failure must block, not error: {out:?}")
+    };
+    assert!(
+        blocks.iter().any(|b| b.starts_with("output inventory:")),
+        "{blocks:?}"
+    );
+    assert!(
+        p.journal().records().iter().any(|r| matches!(
+            &r.entry,
+            Entry::PreflightBlocked { run: rrun, .. } if *rrun == run
+        )),
+        "the block must be durable"
+    );
+}

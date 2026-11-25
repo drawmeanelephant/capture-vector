@@ -76,7 +76,12 @@ impl Ruleset for AuditRules {
         }
         if let Some(g) = ir {
             set = set.ir(g.clone());
-            for f in artifacts.files.iter().filter(|f| f.path.ends_with(".html")) {
+            for f in artifacts.files.iter().filter(|f| {
+                artifacts
+                    .kinds
+                    .get(&f.path)
+                    .is_some_and(|k| k == "html-page")
+            }) {
                 let entity = g
                     .nodes
                     .iter()
@@ -344,6 +349,16 @@ captured = "2026-11-23"
         AuditRules(cv_rules::Ruleset::new(vec![pack]).unwrap())
     }
 
+    fn html_kinds(
+        files: &[cv_publish::plan::PlanFile],
+    ) -> std::collections::BTreeMap<String, String> {
+        files
+            .iter()
+            .filter(|f| f.path.ends_with(".html"))
+            .map(|f| (f.path.clone(), "html-page".to_string()))
+            .collect()
+    }
+
     fn verdict(rules: &AuditRules) -> RulesetVerdict {
         let d = tempfile::tempdir().unwrap();
         std::fs::write(d.path().join("index.html"), "<h1>t</h1>").unwrap();
@@ -355,9 +370,11 @@ captured = "2026-11-23"
         )
         .unwrap();
         let files = cv_publish::plan::inventory(d.path()).unwrap();
+        let kinds = html_kinds(&files);
         rules.evaluate(&PreflightArtifacts {
             site: d.path(),
             files: &files,
+            kinds: &kinds,
             ir_graph: Some(ir.join("graph.json").as_path()),
             config: &delivery_config(Target::StaticDist).unwrap(),
         })
@@ -385,9 +402,11 @@ captured = "2026-11-23"
         std::fs::write(d.path().join("index.html"), "<h1>t</h1>").unwrap();
         let files = cv_publish::plan::inventory(d.path()).unwrap();
         let static_dist = delivery_config(Target::StaticDist).unwrap();
+        let kinds = html_kinds(&files);
         let v = AuditRules::shipped().evaluate(&PreflightArtifacts {
             site: d.path(),
             files: &files,
+            kinds: &kinds,
             ir_graph: None,
             config: &static_dist,
         });
@@ -404,6 +423,7 @@ captured = "2026-11-23"
         let v = AuditRules::shipped().evaluate(&PreflightArtifacts {
             site: d.path(),
             files: &files,
+            kinds: &kinds,
             ir_graph: None,
             config: &hosted,
         });

@@ -33,6 +33,7 @@ pub struct FakeEngine {
     pub omit_proof: bool,
     pub malformed_proof: bool,
     pub mutate_source_on_ir: bool,
+    pub symlink_output: bool,
     pub verbs: Mutex<Vec<Verb>>,
 }
 
@@ -54,6 +55,7 @@ impl FakeEngine {
             omit_proof: false,
             malformed_proof: false,
             mutate_source_on_ir: false,
+            symlink_output: false,
             verbs: Mutex::new(vec![]),
         }
     }
@@ -105,6 +107,14 @@ impl Engine for FakeEngine {
                 if name == "build" && args.iter().any(|a| a == "--html-dir") =>
             {
                 let site = self.root.join(arg(args, "--html-dir"));
+                #[cfg(unix)]
+                if self.symlink_output {
+                    std::os::unix::fs::symlink(
+                        self.root.join("content/index.md"),
+                        site.join("linked.md"),
+                    )
+                    .unwrap();
+                }
                 for (p, body) in &self.pages {
                     let f = site.join(p);
                     std::fs::create_dir_all(f.parent().unwrap()).unwrap();
@@ -233,18 +243,31 @@ fn copy_tree(from: &Path, to: &Path) {
 /// that captured output explicitly, but no proof JSON is hand-authored here.
 pub struct CapturedEngine {
     pub root: PathBuf,
+    pub fixture: &'static str,
     pub omit_proof: bool,
     pub malformed_proof: bool,
     pub proof_payload_entry: bool,
+    pub duplicate_entry: bool,
 }
 
 impl CapturedEngine {
     pub fn new(root: &Path) -> Self {
         Self {
             root: root.into(),
+            fixture: "captures/happy/dist/dist",
             omit_proof: false,
             malformed_proof: false,
             proof_payload_entry: false,
+            duplicate_entry: false,
+        }
+    }
+
+    /// The real Boris capture whose output commits an `.html` content asset
+    /// (`kind: content-asset`) alongside the three html pages.
+    pub fn with_html_content_asset(root: &Path) -> Self {
+        Self {
+            fixture: "captures/happy-assets/dist/dist",
+            ..Self::new(root)
         }
     }
 }
@@ -278,15 +301,20 @@ impl Engine for CapturedEngine {
         match name.as_str() {
             "build" if args.iter().any(|a| a == "--html-dir") => {
                 let out = self.root.join(arg(args, "--html-dir"));
-                copy_tree(
-                    &cv_fixtures::fixtures_root().join("captures/happy/dist/dist"),
-                    &out,
-                );
+                copy_tree(&cv_fixtures::fixtures_root().join(self.fixture), &out);
                 if self.omit_proof {
                     let _ = std::fs::remove_file(out.join("_boris/proof/artifacts.json"));
                 }
                 if self.malformed_proof {
                     std::fs::write(out.join("_boris/proof/artifacts.json"), b"not json").unwrap();
+                }
+                if self.duplicate_entry {
+                    let path = out.join("_boris/proof/artifacts.json");
+                    let mut idx: serde_json::Value =
+                        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+                    let entry = idx["artifacts"][0].clone();
+                    idx["artifacts"].as_array_mut().unwrap().push(entry);
+                    std::fs::write(&path, serde_json::to_vec_pretty(&idx).unwrap()).unwrap();
                 }
                 if self.proof_payload_entry {
                     let path = out.join("_boris/proof/artifacts.json");

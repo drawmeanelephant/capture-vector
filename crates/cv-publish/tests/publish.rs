@@ -990,9 +990,11 @@ fn heuristic_only_ruleset_cannot_block_preflight_or_publish() {
             sha256: Hash([0; 32]),
         })
         .collect();
+    let kinds = std::collections::BTreeMap::new();
     let v = heuristic.evaluate(&PreflightArtifacts {
         site: &site,
         files: &files,
+        kinds: &kinds,
         ir_graph: None,
         config: &cfg(),
     });

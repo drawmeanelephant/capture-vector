@@ -30,6 +30,10 @@ pub struct PreflightArtifacts<'a> {
     /// engine produced it. Entity identity comes from here, never from
     /// string-repairing output routes.
     pub ir_graph: Option<&'a Path>,
+    /// Boris's own artifact `kind` for every committed payload path, from
+    /// the proof inventory. Page-ness comes from here, never from the
+    /// file extension: an `.html` content asset is opaque payload.
+    pub kinds: &'a std::collections::BTreeMap<String, String>,
     pub config: &'a TargetConfig,
 }
 

@@ -11,8 +11,9 @@ FIX="$ROOT/fixtures"
 # captures/lab/ belongs to capture-lab-fixtures.sh: keep it and its table.
 # Corpora with a boris.json build as projects; the rest pass their root
 # via --input. content-only is a bare content/ tree with no profile or
-# theme, whose first build fails ELAYOUT.
-ALL_CORPORA="happy happy-textile cook-one dogfood broken-duplicate-id broken-frontmatter broken-parent broken-textile broken-wikilink content-only"
+# theme, whose first build fails ELAYOUT. happy-assets is happy plus an
+# .html content asset (kind content-asset, not a page).
+ALL_CORPORA="happy happy-assets happy-textile cook-one dogfood broken-duplicate-id broken-frontmatter broken-parent broken-textile broken-wikilink content-only"
 # `init` is not a corpus: it captures `boris init` itself (see below).
 # `verbs` is not one either: one-shot palette verbs over corpus-src copies.
 # CV_CAPTURE_ONLY="<name> …" recaptures only those and keeps every other
