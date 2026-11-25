@@ -20,9 +20,10 @@ pub enum NounView {
 }
 
 /// kind → presenting lane. Holds one entry per `noun_kind::ALL` member;
-/// the comprehensiveness test asserts that. `plan`/`receipt` are
-/// well-knowns the publish lane will mint — until it exists they present
-/// through the audit evidence lane like the other ledger nouns.
+/// the comprehensiveness test asserts that. The publish lane presents
+/// the publish ledger's nouns (runs as `plan`, export read-backs as
+/// `receipt`, deliveries, proof-pack checks and claims); `artifact`
+/// nouns stay with the audit evidence lane.
 const VIEWS: &[(&str, NounView)] = &[
     (
         cv_core::id::noun_kind::PAGE,
@@ -34,11 +35,11 @@ const VIEWS: &[(&str, NounView)] = &[
     ),
     (
         cv_core::id::noun_kind::PLAN,
-        NounView::Lane(crate::modules::audit::ID),
+        NounView::Lane(crate::modules::publish::ID),
     ),
     (
         cv_core::id::noun_kind::RECEIPT,
-        NounView::Lane(crate::modules::audit::ID),
+        NounView::Lane(crate::modules::publish::ID),
     ),
     (
         cv_core::id::noun_kind::NOTE,
@@ -62,15 +63,15 @@ const VIEWS: &[(&str, NounView)] = &[
     ),
     (
         cv_core::id::noun_kind::CHECK,
-        NounView::Lane(crate::modules::audit::ID),
+        NounView::Lane(crate::modules::publish::ID),
     ),
     (
         cv_core::id::noun_kind::CLAIM,
-        NounView::Lane(crate::modules::audit::ID),
+        NounView::Lane(crate::modules::publish::ID),
     ),
     (
         cv_core::id::noun_kind::DELIVERY,
-        NounView::Lane(crate::modules::audit::ID),
+        NounView::Lane(crate::modules::publish::ID),
     ),
 ];
 

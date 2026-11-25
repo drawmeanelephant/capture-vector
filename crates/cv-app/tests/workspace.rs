@@ -354,6 +354,35 @@ fn research_notes_are_exclusive_and_persist_across_reopen() {
 }
 
 #[test]
+fn publish_ledger_loads_read_only_on_open_and_a_corrupt_one_is_disclosed() {
+    let ws = workspace("happy");
+    cv_app::publish::scene::seed(ws.path());
+    let journal = ws.path().join(".cv/ledger/ledger.jsonl");
+    let cfg = tempfile::tempdir().unwrap();
+    let env = absent_env(cfg.path());
+    let mut wb = init();
+    open(&mut wb, ws.path(), &env);
+    assert_ne!(wb.app.degraded, Some(DegradedReason::StoreCorrupt));
+    assert_eq!(module_len(&wb, "publish", Some("runs")), 4);
+    assert_eq!(module_len(&wb, "publish", Some("unresolved")), 1);
+    drop(wb);
+
+    cv_app::publish::scene::corrupt(ws.path());
+    let corrupt = std::fs::read(&journal).unwrap();
+    let mut again = init();
+    open(&mut again, ws.path(), &env);
+    assert_eq!(again.app.degraded, Some(DegradedReason::StoreCorrupt));
+    assert!(
+        again.status.contains("publish ledger unreadable"),
+        "{}",
+        again.status
+    );
+    // Nothing guessed from a journal that cannot be trusted; it stays as found.
+    assert_eq!(module_len(&again, "publish", Some("runs")), 1);
+    assert_eq!(module_len(&again, "publish", Some("completed")), 0);
+    assert_eq!(std::fs::read(&journal).unwrap(), corrupt);
+}
+#[test]
 fn open_and_recent_commands_queue_requests() {
     let a = workspace("happy");
     let b = workspace("happy");

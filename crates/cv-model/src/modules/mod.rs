@@ -7,6 +7,7 @@ pub mod audit;
 pub mod demo;
 pub mod outputs;
 pub mod pages;
+pub mod publish;
 pub mod research;
 
 pub fn register_all(r: &mut crate::module::Registry) {
@@ -15,5 +16,6 @@ pub fn register_all(r: &mut crate::module::Registry) {
     demo::register(r);
     outputs::register(r);
     pages::register(r);
+    publish::register(r);
     research::register(r);
 }

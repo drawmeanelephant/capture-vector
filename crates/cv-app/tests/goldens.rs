@@ -41,6 +41,11 @@ const TREE_SCENES: &[&str] = &[
     "audit",
     "audit-detail",
     "audit-degraded",
+    "publish",
+    "publish-detail",
+    "publish-unknown",
+    "publish-empty",
+    "publish-degraded",
     "effects",
 ];
 

@@ -249,7 +249,6 @@
     {
       "fill": "#08090cff",
       "key": "rail-publish",
-      "label": "not registered",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-publish",
       "rect": [
@@ -261,7 +260,7 @@
       "role": "tab"
     },
     {
-      "color": "#8a93a3ff",
+      "color": "#e6e9efff",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-publish/#0",
       "rect": [
