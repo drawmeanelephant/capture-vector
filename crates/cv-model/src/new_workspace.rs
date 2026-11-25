@@ -257,14 +257,35 @@ mod tests {
     use crate::module::Registry;
     use crate::workbench::{KeyInput, KeyPress};
 
+    /// A parent path valid for the host running the test. The form accepts
+    /// native absolute paths; rooted-but-prefixless Unix syntax is not an
+    /// absolute Windows path and must stay invalid there.
+    fn parent() -> PathBuf {
+        if cfg!(windows) {
+            PathBuf::from(r"C:\home\me")
+        } else {
+            PathBuf::from("/home/me")
+        }
+    }
+
     fn wb() -> Workbench {
         let mut wb = Workbench::new(Registry::default());
         wb.archetypes = Ok(Archetypes {
             names: vec!["docs".into(), "garden".into()],
             default: 0,
         });
-        wb.new_parent = Some(PathBuf::from("/home/me"));
+        wb.new_parent = Some(parent());
         wb
+    }
+
+    fn take_creation(wb: &mut Workbench) -> WorkspaceCreation {
+        match wb.requests.pop() {
+            Some(ShellRequest::CreateWorkspace(creation)) => creation,
+            other => panic!(
+                "expected one create-workspace request, got {other:?}; remaining {:?}",
+                wb.requests
+            ),
+        }
     }
 
     fn typed(wb: &mut Workbench, s: &str) {
@@ -298,7 +319,10 @@ mod tests {
             panic!("{:?}", d.spec.kind)
         };
         assert_eq!(fields[0].value(), Value::Choice("docs".into()));
-        assert_eq!(fields[1].value(), Value::Path("/home/me".into()));
+        assert_eq!(
+            fields[1].value(),
+            Value::Path(parent().display().to_string())
+        );
     }
 
     #[test]
@@ -307,13 +331,11 @@ mod tests {
         fill(&mut wb, "notes");
         wb.key(&KeyPress::new(KeyInput::Enter));
         let draft = NewWorkspace {
-            parent: "/home/me".into(),
+            parent: parent(),
             name: "notes".into(),
             archetype: "garden".into(),
         };
-        let Some(ShellRequest::CreateWorkspace(creation)) = wb.requests.first().cloned() else {
-            panic!("unexpected requests {:?}", wb.requests)
-        };
+        let creation = take_creation(&mut wb);
         assert_eq!(creation.draft, draft);
         assert!(!creation.cancel.is_cancelled());
         assert_eq!(wb.dialogs.open().unwrap().spec.id, CREATING);
@@ -325,7 +347,7 @@ mod tests {
         assert!(!wb.dialogs.is_open());
         assert_eq!(
             wb.requests.last(),
-            Some(&ShellRequest::OpenWorkspace("/home/me/notes".into()))
+            Some(&ShellRequest::OpenWorkspace(parent().join("notes")))
         );
     }
 
@@ -334,9 +356,7 @@ mod tests {
         let mut wb = wb();
         fill(&mut wb, "notes");
         wb.key(&KeyPress::new(KeyInput::Enter));
-        let ShellRequest::CreateWorkspace(creation) = wb.requests.remove(0) else {
-            panic!()
-        };
+        let creation = take_creation(&mut wb);
         assert!(wb.dialogs.open().is_some_and(|d| d.spec.id == CREATING));
 
         wb.dialog_cancel();
@@ -345,7 +365,7 @@ mod tests {
 
         wb.notice(ShellNotice::Created {
             creation,
-            result: Ok("/home/me/notes".into()),
+            result: Ok(parent().join("notes")),
         });
         assert!(
             !wb.requests
@@ -364,9 +384,7 @@ mod tests {
         let mut wb = wb();
         fill(&mut wb, "notes");
         wb.key(&KeyPress::new(KeyInput::Enter));
-        let ShellRequest::CreateWorkspace(creation) = wb.requests.remove(0) else {
-            panic!()
-        };
+        let creation = take_creation(&mut wb);
         wb.notice(ShellNotice::Created {
             creation,
             result: Err("target directory is not empty".into()),
