@@ -45,6 +45,9 @@ pub enum Intent {
     /// local envelope so Activity and the journal see it like any event.
     Pages(PagesEvent),
     Status(String),
+    /// Close the open stores, rebuild every SQLite index from `.cv/` JSONL,
+    /// and reopen the same workspace.
+    RebuildIndexes,
     OpenCompanion {
         key: String,
     },

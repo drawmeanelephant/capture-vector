@@ -77,7 +77,8 @@ fn booted() -> (
     booted_with_outputs(false)
 }
 
-fn booted_with_outputs(
+fn boot_workspace(
+    ws: tempfile::TempDir,
     outputs: bool,
 ) -> (
     tempfile::TempDir,
@@ -85,7 +86,6 @@ fn booted_with_outputs(
     tempfile::TempDir,
     Workbench,
 ) {
-    let ws = workspace();
     if outputs {
         copy_tree(
             &cv_fixtures::fixtures_root().join("captures/happy/dist/dist"),
@@ -108,6 +108,17 @@ fn booted_with_outputs(
         .unwrap();
     wb.drain();
     (ws, bin_dir, recent, wb)
+}
+
+fn booted_with_outputs(
+    outputs: bool,
+) -> (
+    tempfile::TempDir,
+    tempfile::TempDir,
+    tempfile::TempDir,
+    Workbench,
+) {
+    boot_workspace(workspace(), outputs)
 }
 
 fn set_text(wb: &mut Workbench, field: usize, value: &str) {
@@ -175,6 +186,45 @@ fn new_page_form_writes_source_and_reports_activity() {
 }
 
 #[test]
+fn rename_is_the_single_user_facing_rename_move_command() {
+    let (_ws, _bin, _recent, wb) = booted();
+    let commands = wb.commands();
+    assert!(commands.iter().any(|c| c.id == "pages.rename"));
+    assert!(commands.iter().all(|c| c.id != "pages.move"));
+    assert!(
+        commands
+            .iter()
+            .find(|c| c.id == "pages.rename")
+            .is_some_and(|c| c.title.contains("Rename/move"))
+    );
+}
+
+#[test]
+fn degraded_research_storage_does_not_remove_page_lifecycle_writes() {
+    let ws = workspace();
+    std::fs::create_dir_all(ws.path().join(".cv")).unwrap();
+    std::fs::write(ws.path().join(".cv/research"), b"not a dir").unwrap();
+    let (ws, _bin, _recent, mut wb) = boot_workspace(ws, false);
+    assert!(
+        wb.status.contains("research notes not persisted"),
+        "{}",
+        wb.status
+    );
+
+    wb.run_command("pages.new");
+    set_text(&mut wb, 0, "Lifecycle During Degraded Research");
+    wb.dialog_field(1, Some(1));
+    set_text(&mut wb, 2, "guides/degraded-research.md");
+    wb.dialog_act("create");
+    assert!(
+        ws.path()
+            .join("content/guides/degraded-research.md")
+            .is_file()
+    );
+    assert!(wb.status.contains("Page created"), "{}", wb.status);
+}
+
+#[test]
 fn rename_move_pins_stable_id_keeps_selection_and_invalidates_a_clean_editor() {
     let (ws, _bin, _recent, mut wb) = booted();
     let old = "guides/getting-started.md";
@@ -234,25 +284,9 @@ fn rename_preserves_a_snooze_through_the_pinned_stable_id() {
     wb.dialog_act("move");
     assert!(wb.status.contains("Page moved"), "{}", wb.status);
 
-    // The next real build would write the page at its new route while the
-    // pinned frontmatter id keeps its entity stable. Simulate that output
-    // honestly here: same bytes, new route, manifest updated to match.
-    let dist = ws.path().join("dist");
-    std::fs::rename(
-        dist.join("guides/getting-started.html"),
-        dist.join("guides/renamed.html"),
-    )
-    .unwrap();
-    let manifest = dist.join("_boris/proof/artifacts.json");
-    let mut proof: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&manifest).unwrap()).unwrap();
-    for a in proof["artifacts"].as_array_mut().unwrap() {
-        if a["path"] == "guides/getting-started.html" {
-            a["path"] = "guides/renamed.html".into();
-        }
-    }
-    std::fs::write(&manifest, serde_json::to_vec_pretty(&proof).unwrap()).unwrap();
-
+    // Real Boris writes the next HTML at the pinned stable entity id
+    // (`guides/getting-started.html`), not at the renamed source path. The
+    // captured output tree therefore needs no route rewrite here.
     let bin = bin_dir
         .path()
         .join(if cfg!(windows) { "boris.bat" } else { "boris" });
@@ -425,6 +459,49 @@ fn a_dirty_editor_refuses_rename_without_touching_disk() {
         wb.status
     );
     assert!(activity_has(&wb, "Page rename failed"));
+}
+
+#[test]
+fn dirty_editor_case_variant_refuses_rename_where_the_filesystem_aliases_case() {
+    let (ws, _bin, _recent, mut wb) = booted();
+    let aliased = ws.path().join("Content/guides/getting-started.md");
+    if !aliased.exists() {
+        // Linux and case-sensitive volumes correctly treat these as
+        // distinct paths; there is no alias for this test to exercise.
+        return;
+    }
+    cv_app::editor::open_page(&mut wb, ws.path(), "Content/guides/getting-started.md").unwrap();
+    let ses = cv_widgets::editor::host::session();
+    let id = ses
+        .borrow()
+        .find("Content/guides/getting-started.md")
+        .unwrap();
+    ses.borrow_mut()
+        .get_mut(id)
+        .unwrap()
+        .buffer
+        .insert(0, "dirty")
+        .unwrap();
+    drop(ses);
+    let path = ws.path().join("content/guides/getting-started.md");
+    let before = std::fs::read(&path).unwrap();
+
+    wb.select_key("guides/getting-started.md");
+    wb.run_command("pages.rename");
+    set_text(&mut wb, 0, "guides/case-dirty-rename.md");
+    wb.dialog_act("move");
+
+    assert!(
+        wb.status.contains("save or close the editor"),
+        "{}",
+        wb.status
+    );
+    assert_eq!(std::fs::read(&path).unwrap(), before);
+    assert!(
+        !ws.path()
+            .join("content/guides/case-dirty-rename.md")
+            .exists()
+    );
 }
 
 #[test]

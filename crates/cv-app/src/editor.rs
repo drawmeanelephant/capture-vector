@@ -25,7 +25,7 @@ pub fn open_page(wb: &mut Workbench, root: &Path, rel: &str) -> std::io::Result<
     let ses = host::session();
     let path = confined_file(root, Path::new(rel))?;
     let base = fingerprint_file(&path)?;
-    let found = ses.borrow().find(rel);
+    let found = crate::file_identity::buffer_for(root, rel);
     match found {
         None => {
             let text = std::fs::read_to_string(&path)?;

@@ -21,7 +21,7 @@ use std::path::{Component, Path, PathBuf};
 use std::time::SystemTime;
 
 const ARTIFACTS: &str = "dist/dist/_boris/proof/artifacts.json";
-const SOURCE_EXT: &[&str] = &[".md", ".textile", ".cook"];
+const SOURCE_EXT: &[&str] = &[".md", ".mdx", ".textile", ".cook"];
 
 pub fn corpus_snapshot(name: &str) -> ProjectSnapshot {
     let manifest = Manifest::load(&fixtures_root().join("MANIFEST.toml"));
@@ -473,7 +473,9 @@ pub fn workspace_snapshot(
     let paths: HashSet<&str> = outputs.iter().map(|o| o.path.as_str()).collect();
     let mut pages = scan.pages;
     for p in &mut pages {
-        let html = format!("{}.html", strip_ext(&p.path));
+        // Boris emits page HTML by stable entity id, not by source path:
+        // a renamed source with an explicit id keeps its output route.
+        let html = format!("{}.html", p.id);
         p.output = paths.contains(html.as_str()).then_some(html);
     }
     ProjectSnapshot {
@@ -551,6 +553,31 @@ mod tests {
         assert_eq!(snap.pages[2].title, "Home");
         assert_eq!(snap.pages[2].body, "Hello");
         assert_eq!(snap.pages[2].output.as_deref(), Some("index.html"));
+    }
+
+    #[test]
+    fn outputs_follow_stable_entity_ids_and_mdx_pages_are_scanned() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        write(
+            root,
+            "content/guides/renamed.md",
+            "---\nid: \"guides/getting-started\"\ntitle: Renamed\n---\nBody",
+        );
+        write(root, "content/page.mdx", "# MDX");
+        write(
+            root,
+            "dist/_boris/proof/artifacts.json",
+            corpus("happy").file(ARTIFACTS),
+        );
+
+        let snap = workspace_snapshot(root, "dist", None, 1);
+        assert_eq!(paths(&snap.pages), ["guides/renamed.md", "page.mdx"]);
+        assert_eq!(
+            snap.pages[0].output.as_deref(),
+            Some("guides/getting-started.html")
+        );
+        assert_eq!(snap.pages[1].output, None);
     }
 
     /// Copies a captured editor-lane corpus into a fresh workspace,

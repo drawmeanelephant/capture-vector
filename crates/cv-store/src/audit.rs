@@ -55,6 +55,8 @@ pub struct Scan {
 #[derive(Debug)]
 pub enum Error {
     Io(std::io::Error),
+    /// Another writer holds the stable lifecycle lock.
+    Locked(PathBuf),
     Symlink(PathBuf),
     Json(serde_json::Error),
     Schema(SidecarError),
@@ -64,6 +66,11 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::Io(e) => write!(f, "{e}"),
+            Error::Locked(p) => write!(
+                f,
+                "lock acquisition failed because the operation would block: {}",
+                p.display()
+            ),
             Error::Symlink(p) => write!(f, "refusing symlinked {}", p.display()),
             Error::Json(e) => write!(f, "{e}"),
             Error::Schema(e) => write!(f, "{e}"),
@@ -115,7 +122,10 @@ impl LifecycleLog {
             .create(true)
             .truncate(false)
             .open(&writer_path)?;
-        crate::lock::try_lock_settled(&writer).map_err(std::io::Error::other)?;
+        crate::lock::try_lock_settled(&writer).map_err(|e| match e {
+            std::fs::TryLockError::WouldBlock => Error::Locked(writer_path.clone()),
+            std::fs::TryLockError::Error(e) => Error::Io(e),
+        })?;
         let mut file = OpenOptions::new()
             .read(true)
             .write(true)

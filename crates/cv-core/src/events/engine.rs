@@ -27,6 +27,11 @@ pub enum EngineEvent {
     /// stream as terminated and wait for a snapshot resync.
     WatchSessionEnded {
         reason: WatchEndReason,
+        /// Native watch child's actual process ending, when the producer is
+        /// a single watch process. `None` for older recorded events and for
+        /// the polling fallback, which has no one long-lived Boris process.
+        #[serde(default)]
+        exit: Option<WatchExit>,
     },
     /// A mutating verb completed (exit class recorded verbatim).
     VerbFinished {
@@ -44,6 +49,14 @@ pub enum EngineEvent {
 pub enum BuildPhase {
     Initial,
     Rebuild,
+}
+
+/// How a native watch child ended, kept distinct from unrelated verb exits.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum WatchExit {
+    Exited { code: i32 },
+    Signaled { signal: i32 },
+    Killed,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -63,6 +63,38 @@ impl LedgerIndex {
         Ok(idx)
     }
 
+    /// Close the journal writer shape around a full index reset: acquire
+    /// the journal's writer lock by opening it, build a complete SQLite
+    /// replacement beside the live index, then install it by rename.
+    /// Returns the committed journal records replayed into the index.
+    pub fn rebuild_from_journal(project_root: &Path) -> Result<u64> {
+        let journal = Journal::open(project_root)?;
+        let records = journal.records();
+        let index_dir = cv_store::paths::create_project_index_dir(project_root, "ledger")?;
+        let path = index_dir.join("index.sqlite");
+        let tmp = tempfile::Builder::new()
+            .prefix("index-rebuild-")
+            .suffix(".sqlite")
+            .tempfile_in(&index_dir)?;
+        let tmp = tmp.into_temp_path();
+        let tmp_path: &Path = tmp.as_ref();
+        let result = (|| {
+            let mut idx = Self::connect(tmp_path)?;
+            idx.rebuild(records)?;
+            idx.close()?;
+            cv_store::paths::replace_file(tmp_path, &path)?;
+            Ok(())
+        })();
+        for suffix in ["-journal", "-wal", "-shm"] {
+            let _ = std::fs::remove_file(PathBuf::from(format!("{}{suffix}", tmp_path.display())));
+        }
+        result.map(|_| records.len() as u64)
+    }
+
+    fn close(self) -> Result<()> {
+        self.conn.close().map_err(|(_, e)| e.into())
+    }
+
     fn connect(path: &Path) -> Result<Self> {
         let conn = Connection::open(path)?;
         conn.execute_batch(SCHEMA)?;

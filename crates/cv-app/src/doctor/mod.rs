@@ -14,6 +14,7 @@ use cv_model::modules::doctor::{
     Store,
 };
 use cv_store::sidecar;
+use std::fs::OpenOptions;
 use std::path::Path;
 
 pub fn pin() -> Pin {
@@ -143,6 +144,27 @@ fn stamp(root: &Path, ns: &sidecar::Namespace) -> Stamp {
     }
 }
 
+/// The holder of an existing lock file. Opens already know their own
+/// outcome; for a read-only namespace (ledger) probe without creating or
+/// deleting the stable lock file. A successful probe is released at once.
+fn lock_state(root: &Path, rel: &str, known: Option<LockHolder>) -> Option<LockHolder> {
+    let path = cv_store::paths::confined_file(root, Path::new(rel)).ok()?;
+    if !path.is_file() {
+        return None;
+    }
+    if let Some(h) = known {
+        return Some(h);
+    }
+    let file = OpenOptions::new().read(true).write(true).open(&path).ok()?;
+    let state = match file.try_lock() {
+        Ok(()) => LockHolder::NotHeld,
+        Err(std::fs::TryLockError::WouldBlock) => LockHolder::OtherProcess,
+        Err(std::fs::TryLockError::Error(_)) => LockHolder::Unknown,
+    };
+    drop(file);
+    Some(state)
+}
+
 /// Read every namespace's stamp (never writing), with what the opens
 /// reported. Runs on the open path, never inside a frame.
 pub fn store(root: &Path, opened: &StoreOpen) -> Store {
@@ -156,13 +178,19 @@ pub fn store(root: &Path, opened: &StoreOpen) -> Store {
             .with_extension("lock")
             .display()
     );
+    let ledger_index = cv_ledger::LedgerIndex::path_for(root)
+        .ok()
+        .map(|p| p.display().to_string());
+    let observed_lock = |path: String, known: Option<LockHolder>| {
+        lock_state(root, &path, known).map(|holder| Lock { path, holder })
+    };
     let ns = |s: &sidecar::Namespace, o: &Opened, lock: Option<String>, index: Option<String>| {
         Namespace {
             name: s.name.into(),
             dir: s.dir.into(),
             supported: s.current,
             stamp: stamp(root, s),
-            lock: lock.zip(o.lock).map(|(path, holder)| Lock { path, holder }),
+            lock: lock.and_then(|path| observed_lock(path, o.lock)),
             index,
             error: o.error.clone(),
         }
@@ -182,7 +210,12 @@ pub fn store(root: &Path, opened: &StoreOpen) -> Store {
                 Some(audit_lock),
                 None,
             ),
-            ns(&cv_ledger::journal::SIDECAR, &opened.ledger, None, None),
+            ns(
+                &cv_ledger::journal::SIDECAR,
+                &opened.ledger,
+                Some(cv_ledger::journal::WRITER_LOCK_REL.into()),
+                ledger_index,
+            ),
         ],
     }
 }

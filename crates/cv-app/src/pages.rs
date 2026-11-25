@@ -25,14 +25,14 @@ impl WorkspacePages {
         }
     }
 
-    fn buffer_dirty(path: &str) -> bool {
+    fn buffer_dirty(&self, path: &str) -> bool {
         let ses = host::session();
         let ses = ses.borrow();
-        ses.find(path).is_some_and(|id| ses.is_dirty(id))
+        crate::file_identity::buffer_for(&self.root, path).is_some_and(|id| ses.is_dirty(id))
     }
 
-    fn refuse_dirty(path: &str) -> Result<(), String> {
-        if Self::buffer_dirty(path) {
+    fn refuse_dirty(&self, path: &str) -> Result<(), String> {
+        if self.buffer_dirty(path) {
             return Err(format!(
                 "save or close the editor on {path} before changing the page"
             ));
@@ -71,7 +71,7 @@ impl PagesPort for WorkspacePages {
 
     fn write(&mut self, draft: &PageDraft) -> Result<WriteOutcome, String> {
         if draft.base.is_some() {
-            Self::refuse_dirty(&draft.path)?;
+            self.refuse_dirty(&draft.path)?;
         }
         let out = self
             .engine
@@ -90,7 +90,7 @@ impl PagesPort for WorkspacePages {
         path: &str,
         base: cv_core::engine::Fingerprint,
     ) -> Result<RemoveOutcome, String> {
-        Self::refuse_dirty(path)?;
+        self.refuse_dirty(path)?;
         let out = self
             .engine
             .remove_content(path, base)
@@ -102,8 +102,8 @@ impl PagesPort for WorkspacePages {
     }
 
     fn rename(&mut self, mv: &PageMove) -> Result<MoveOutcome, String> {
-        Self::refuse_dirty(&mv.from)?;
-        Self::refuse_dirty(&mv.to)?;
+        self.refuse_dirty(&mv.from)?;
+        self.refuse_dirty(&mv.to)?;
         let out = self.engine.move_content(mv).map_err(|e| e.to_string())?;
         if matches!(out, MoveOutcome::Moved { .. }) {
             Self::close_buffer(&mv.from);

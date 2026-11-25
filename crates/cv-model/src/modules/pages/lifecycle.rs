@@ -13,7 +13,6 @@ use serde::{Deserialize, Serialize};
 
 pub const NEW: &str = "pages.new";
 pub const RENAME: &str = "pages.rename";
-pub const MOVE: &str = "pages.move";
 pub const REPARENT: &str = "pages.reparent";
 pub const DELETE: &str = "pages.delete";
 
@@ -29,7 +28,7 @@ pub fn commands() -> Vec<CommandSpec> {
 pub fn run(m: &mut PagesModule, command: &str) -> Vec<Intent> {
     match command {
         NEW => vec![Intent::dialog(new_form(m, None, None))],
-        RENAME | MOVE => match selected(m) {
+        RENAME => match selected(m) {
             Some((path, _, title)) => match source_base(m, &path) {
                 Ok(base) => vec![Intent::dialog(rename_prompt(
                     &path, &title, None, &base, None,
@@ -68,7 +67,7 @@ pub fn answer(m: &mut PagesModule, command: &str, a: &DialogAnswer) -> Vec<Inten
     }
     match command {
         NEW => create(m, a),
-        RENAME | MOVE => rename(m, a),
+        RENAME => rename(m, a),
         REPARENT => reparent(m, a),
         DELETE => delete(m, a),
         _ => vec![Intent::Status(format!("unknown answer {command}"))],
