@@ -372,7 +372,10 @@ fn drive_hugo_to_inventory(m: &mut MigrateModule) -> String {
     m.run(NEW);
     m.answer(FAMILY, &answer(Some("choose"), &[(CHOICE, "static-site")]));
     m.answer(MODE, &answer(Some("choose"), &[(CHOICE, "hugo")]));
-    let out = m.answer(INPUT, &answer(Some("go"), &[("root", "/elsewhere/site")]));
+    let out = m.answer(
+        INPUT,
+        &answer(Some("go"), &[("root", abs("elsewhere/site"))]),
+    );
     import_job(&out)
         .expect("hugo starts its inventory")
         .run_id
@@ -380,6 +383,20 @@ fn drive_hugo_to_inventory(m: &mut MigrateModule) -> String {
 }
 
 use crate::dialog::{CHOICE, DialogAnswer, Value};
+
+/// Platform-absolute fixture spelling, leaked for `&'static` convenience in
+/// tests: the wizard correctly rejects Unix-style `/...` input on Windows,
+/// so fixture paths must be absolute on the host actually running the test.
+/// `C:/...` is absolute on Windows; bytes (including trailing whitespace)
+/// are otherwise preserved verbatim.
+fn abs(rel: &'static str) -> &'static str {
+    let s = if cfg!(windows) {
+        format!("C:/{rel}")
+    } else {
+        format!("/{rel}")
+    };
+    Box::leak(s.into_boxed_str())
+}
 
 fn answer(action: Option<&str>, values: &[(&str, &str)]) -> DialogAnswer {
     let mut a = DialogAnswer {
@@ -455,7 +472,10 @@ fn a_missing_required_input_reopens_the_form_with_typed_values_kept() {
     to_wordpress_form(&mut m);
     let out = m.answer(
         INPUT,
-        &answer(Some("go"), &[("wxr", ""), ("media", "/elsewhere/media")]),
+        &answer(
+            Some("go"),
+            &[("wxr", ""), ("media", abs("elsewhere/media"))],
+        ),
     );
     let Some(Intent::Dialog(d)) = out.iter().find(|i| matches!(i, Intent::Dialog(_))) else {
         panic!("expected the form again, got {out:?}");
@@ -465,7 +485,7 @@ fn a_missing_required_input_reopens_the_form_with_typed_values_kept() {
     assert!(import_job(&out).is_none(), "nothing runs without --wxr");
     assert_eq!(
         m.wizard.inputs.get("--media").map(String::as_str),
-        Some("/elsewhere/media"),
+        Some(abs("elsewhere/media")),
         "the typed optional input survives validation"
     );
     let crate::dialog::DialogKind::Form(fields) = &d.kind else {
@@ -474,7 +494,7 @@ fn a_missing_required_input_reopens_the_form_with_typed_values_kept() {
     let media = fields.iter().find(|f| f.id == "media").unwrap();
     assert_eq!(
         media.value(),
-        Value::Path("/elsewhere/media".into()),
+        Value::Path(abs("elsewhere/media").into()),
         "the form is prefilled"
     );
 }
@@ -485,7 +505,7 @@ fn a_valid_file_input_starts_the_emit_job_without_an_inventory() {
     to_wordpress_form(&mut m);
     let out = m.answer(
         INPUT,
-        &answer(Some("go"), &[("wxr", "/elsewhere/export.xml")]),
+        &answer(Some("go"), &[("wxr", abs("elsewhere/export.xml"))]),
     );
     let job = import_job(&out).expect("a valid form starts the import");
     assert_eq!(job.mode, "wordpress");
@@ -494,7 +514,7 @@ fn a_valid_file_input_starts_the_emit_job_without_an_inventory() {
         job.inputs,
         vec![(
             "--wxr".into(),
-            std::path::PathBuf::from("/elsewhere/export.xml")
+            std::path::PathBuf::from(abs("elsewhere/export.xml"))
         )]
     );
     assert!(
@@ -510,7 +530,10 @@ fn hugo_starts_its_read_only_inventory_companion_first() {
     m.run(NEW);
     m.answer(FAMILY, &answer(Some("choose"), &[(CHOICE, "static-site")]));
     m.answer(MODE, &answer(Some("choose"), &[(CHOICE, "hugo")]));
-    let out = m.answer(INPUT, &answer(Some("go"), &[("root", "/elsewhere/site")]));
+    let out = m.answer(
+        INPUT,
+        &answer(Some("go"), &[("root", abs("elsewhere/site"))]),
+    );
     let job = import_job(&out).expect("hugo starts a job");
     assert_eq!(job.mode, "hugo-inventory");
     assert_eq!(job.phase, crate::command::ImportPhase::Inventory);
@@ -561,7 +584,10 @@ fn choosing_emit_after_the_inventory_starts_the_emitting_mode() {
     assert_eq!(job.phase, crate::command::ImportPhase::Emit);
     assert_eq!(
         job.inputs,
-        vec![("--root".into(), std::path::PathBuf::from("/elsewhere/site"))],
+        vec![(
+            "--root".into(),
+            std::path::PathBuf::from(abs("elsewhere/site"))
+        )],
         "the same source paths are used"
     );
 }
@@ -590,7 +616,7 @@ fn progress_cancellation_cancels_the_shared_token() {
     to_wordpress_form(&mut m);
     m.answer(
         INPUT,
-        &answer(Some("go"), &[("wxr", "/elsewhere/export.xml")]),
+        &answer(Some("go"), &[("wxr", abs("elsewhere/export.xml"))]),
     );
     let wizard::WizardStage::Running { cancel, .. } = &m.wizard.stage else {
         panic!("the job is running");
@@ -607,12 +633,15 @@ fn paths_with_trailing_whitespace_are_preserved_verbatim() {
     to_wordpress_form(&mut m);
     // `/tmp/export.xml ` (trailing space) is a different file from
     // `/tmp/export.xml`; trimming it would corrupt the user's pick.
-    let out = m.answer(INPUT, &answer(Some("go"), &[("wxr", "/tmp/export.xml ")]));
+    let out = m.answer(
+        INPUT,
+        &answer(Some("go"), &[("wxr", abs("tmp/export.xml "))]),
+    );
     let job = import_job(&out).expect("a valid form starts the import");
     let (_, path) = job.inputs.iter().find(|(f, _)| f == "--wxr").unwrap();
     assert_eq!(
         path,
-        &std::path::PathBuf::from("/tmp/export.xml "),
+        &std::path::PathBuf::from(abs("tmp/export.xml ")),
         "the spelling reaches the job verbatim"
     );
 }
@@ -642,7 +671,10 @@ fn clearing_an_optional_input_stays_cleared_after_a_failed_submit() {
         INPUT,
         &answer(
             Some("go"),
-            &[("wxr", "/elsewhere/export.xml"), ("media", "/media-one")],
+            &[
+                ("wxr", abs("elsewhere/export.xml")),
+                ("media", abs("media-one")),
+            ],
         ),
     );
     assert!(import_job(&out).is_some(), "first submit starts");
@@ -655,7 +687,10 @@ fn clearing_an_optional_input_stays_cleared_after_a_failed_submit() {
         INPUT,
         &answer(
             Some("go"),
-            &[("wxr", "/elsewhere/export.xml"), ("media", "/media-one")],
+            &[
+                ("wxr", abs("elsewhere/export.xml")),
+                ("media", abs("media-one")),
+            ],
         ),
     );
     // validation failure on resubmit with media cleared
@@ -672,7 +707,7 @@ fn clearing_an_optional_input_stays_cleared_after_a_failed_submit() {
     // Now fix only the wxr and submit: media must NOT resurrect.
     let out = m.answer(
         INPUT,
-        &answer(Some("go"), &[("wxr", "/elsewhere/export.xml")]),
+        &answer(Some("go"), &[("wxr", abs("elsewhere/export.xml"))]),
     );
     let job = import_job(&out).expect("fixed submit starts");
     assert!(
@@ -691,7 +726,7 @@ fn count_extras_are_type_checked_and_passed_through() {
     // Non-numeric --max-pages rejected at the boundary.
     let bad = m.answer(
         INPUT,
-        &answer(Some("go"), &[("root", "/site"), ("max-pages", "abc")]),
+        &answer(Some("go"), &[("root", abs("site")), ("max-pages", "abc")]),
     );
     let Some(Intent::Dialog(d)) = bad.iter().find(|i| matches!(i, Intent::Dialog(_))) else {
         panic!("expected the form again, got {bad:?}");
@@ -709,7 +744,7 @@ fn count_extras_are_type_checked_and_passed_through() {
     // extras of its own — scalar options follow the mode actually running.
     let out = m.answer(
         INPUT,
-        &answer(Some("go"), &[("root", "/site"), ("max-pages", "12")]),
+        &answer(Some("go"), &[("root", abs("site")), ("max-pages", "12")]),
     );
     let inv = import_job(&out).expect("valid extras start the inventory");
     assert_eq!(inv.mode, "hugo-inventory");
