@@ -7,9 +7,11 @@ pub mod build_info;
 pub mod dialogs;
 pub mod doctor;
 pub mod editor;
+mod file_identity;
 pub mod live;
 pub mod logging;
 pub mod new_workspace;
+pub mod pages;
 pub mod publish;
 pub mod snapshot;
 pub mod workspace;
@@ -184,6 +186,10 @@ pub fn open_workspace(
     wb.registry = Registry::default();
     let slot = live::EngineSlot::default();
     let input = snapshot::content_input(&root);
+    cv_model::modules::pages::install_in(
+        Box::new(pages::WorkspacePages::new(&root, slot.clone())),
+        &input,
+    );
     let research = if rebuild_indexes {
         cv_notes::disk::open_rebuilding_index(
             &root,

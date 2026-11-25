@@ -496,6 +496,21 @@ fn activity_rows(wb: &Workbench) -> Vec<String> {
         .collect()
 }
 
+#[cfg(unix)]
+fn wait_for_ir_graph(root: &tempfile::TempDir, wb: &mut Workbench) {
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while !root.path().join(".cv/ir/graph.json").is_file() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "{:?}",
+            page_titles(wb)
+        );
+        std::thread::sleep(Duration::from_millis(10));
+        wb.drain();
+    }
+    wb.drain();
+}
+
 fn finished(seq: u64) -> Envelope {
     build(
         seq,
@@ -524,15 +539,10 @@ fn a_burst_of_watch_builds_runs_one_ir_projection_and_pages_show_boris_fields() 
         sink(finished(seq));
     }
     wb.drain();
-    assert!(page_titles(&wb).contains(&"\"Mini Site (English)\"".to_string()));
+    assert!(page_titles(&wb).contains(&"Mini Site (English)".to_string()));
 
     let argv = root.path().join("argv.log");
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while !page_titles(&wb).contains(&"Mini Site (English)".to_string()) {
-        assert!(Instant::now() < deadline, "{:?}", page_titles(&wb));
-        std::thread::sleep(Duration::from_millis(10));
-        wb.drain();
-    }
+    wait_for_ir_graph(&root, &mut wb);
     std::thread::sleep(IR_WINDOW * 3);
     assert_eq!(
         std::fs::read_to_string(&argv).unwrap(),
@@ -571,7 +581,6 @@ fn layout_failed(seq: u64) -> Envelope {
 #[cfg(unix)]
 #[test]
 fn a_failed_html_build_still_gets_boris_fields_from_the_ir_projection() {
-    use std::time::Instant;
     let (_root, mut wb, delivery) = ir_workspace(None);
     let sched = Arc::new(EngineScheduler::new(
         delivery.engine.clone(),
@@ -584,12 +593,7 @@ fn a_failed_html_build_still_gets_boris_fields_from_the_ir_projection() {
     // The watch child exits after a non-recoverable failure, dropping
     // its sink: the pending projection still runs.
     drop(sink);
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while !page_titles(&wb).contains(&"Mini Site (English)".to_string()) {
-        assert!(Instant::now() < deadline, "{:?}", page_titles(&wb));
-        std::thread::sleep(Duration::from_millis(10));
-        wb.drain();
-    }
+    wait_for_ir_graph(&_root, &mut wb);
 }
 
 #[cfg(unix)]
@@ -613,7 +617,7 @@ fn a_failed_ir_projection_is_disclosed_after_a_red_watch_build_and_pages_keep_th
         std::thread::sleep(Duration::from_millis(10));
         wb.drain();
     }
-    assert!(page_titles(&wb).contains(&"\"Mini Site (English)\"".to_string()));
+    assert!(page_titles(&wb).contains(&"Mini Site (English)".to_string()));
     assert_eq!(
         wb.app.degraded,
         Some(DegradedReason::InitialBuildFailed {
@@ -636,12 +640,7 @@ fn a_failed_ir_projection_keeps_the_previous_boris_graph_and_discloses_it() {
         panic!("a green build never recovers")
     });
     sink(finished(0));
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while !page_titles(&wb).contains(&"Mini Site (English)".to_string()) {
-        assert!(Instant::now() < deadline, "{:?}", page_titles(&wb));
-        std::thread::sleep(Duration::from_millis(10));
-        wb.drain();
-    }
+    wait_for_ir_graph(&root, &mut wb);
 
     std::fs::write(
         root.path().join("boris"),

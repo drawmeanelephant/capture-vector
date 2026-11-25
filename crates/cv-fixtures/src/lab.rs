@@ -163,25 +163,27 @@ pub fn copy_tree(from: &Path, to: &Path) -> io::Result<()> {
     Ok(())
 }
 
-/// Replace every occurrence of `root` with [`CAPTURE_ROOT`] in UTF-8
-/// text, across the raw, JSON-escaped, Windows verbatim/non-verbatim, and
-/// slash-normalized spellings a captured report can carry. Other bytes
+/// Replace occurrences of `root` with [`CAPTURE_ROOT`] in UTF-8 text when
+/// they are whole paths or path prefixes, across the raw, JSON-escaped,
+/// Windows verbatim/non-verbatim, and slash-normalized spellings a captured
+/// report can carry. A match must end the path token or continue at a
+/// separator valid for that spelling, so sibling names such as `root2` and
+/// Unix filenames containing backslashes are not rewritten. Other bytes
 /// (images) pass through unchanged.
 pub fn normalize(bytes: &[u8], root: &Path) -> Vec<u8> {
     let root = root.to_str().expect("capture root is UTF-8");
     match std::str::from_utf8(bytes) {
-        Ok(s) => {
-            let mut normalized = s.to_string();
-            for spelling in root_spellings(root) {
-                normalized = normalized.replace(&spelling, CAPTURE_ROOT);
-            }
-            normalized.into_bytes()
-        }
+        Ok(s) => normalize_text(s, &root_spellings(root)).into_bytes(),
         Err(_) => bytes.to_vec(),
     }
 }
 
-fn root_spellings(root: &str) -> Vec<String> {
+struct RootSpelling {
+    text: String,
+    separators: Vec<&'static str>,
+}
+
+fn root_spellings(root: &str) -> Vec<RootSpelling> {
     let mut bases = vec![root.to_string()];
     if let Some(non_verbatim) = non_verbatim_windows(root) {
         bases.push(non_verbatim);
@@ -189,23 +191,88 @@ fn root_spellings(root: &str) -> Vec<String> {
 
     let mut spellings = Vec::new();
     for base in bases {
-        push_unique(&mut spellings, base.clone());
-        push_unique(&mut spellings, json_escaped(&base));
-        if looks_windows_path(&base) {
+        let windows = looks_windows_path(&base);
+        let raw_separators: &[&str] = if windows { &["/", "\\"] } else { &["/"] };
+        push_spelling(&mut spellings, base.clone(), raw_separators);
+        let escaped_separators: &[&str] = if windows { &["/", "\\\\"] } else { &["/"] };
+        push_spelling(&mut spellings, json_escaped(&base), escaped_separators);
+        if windows {
             let slashes = base.replace('\\', "/");
-            push_unique(&mut spellings, slashes.clone());
-            push_unique(&mut spellings, json_escaped(&slashes));
+            push_spelling(&mut spellings, slashes.clone(), raw_separators);
+            push_spelling(&mut spellings, json_escaped(&slashes), escaped_separators);
         }
     }
-    spellings.sort_by(|a, b| b.len().cmp(&a.len()).then_with(|| a.cmp(b)));
-    spellings.dedup();
+    spellings.sort_by(|a, b| {
+        b.text
+            .len()
+            .cmp(&a.text.len())
+            .then_with(|| a.text.cmp(&b.text))
+    });
     spellings
 }
 
-fn push_unique(spellings: &mut Vec<String>, spelling: String) {
-    if !spelling.is_empty() && !spellings.contains(&spelling) {
-        spellings.push(spelling);
+fn push_spelling(spellings: &mut Vec<RootSpelling>, text: String, separators: &[&'static str]) {
+    if text.is_empty() {
+        return;
     }
+    if let Some(existing) = spellings.iter_mut().find(|s| s.text == text) {
+        for separator in separators {
+            if !existing.separators.contains(separator) {
+                existing.separators.push(separator);
+            }
+        }
+    } else {
+        spellings.push(RootSpelling {
+            text,
+            separators: separators.to_vec(),
+        });
+    }
+}
+
+fn normalize_text(input: &str, spellings: &[RootSpelling]) -> String {
+    let mut out = String::with_capacity(input.len());
+    let mut cursor = 0;
+    while cursor < input.len() {
+        let rest = &input[cursor..];
+        if let Some(spelling) = spellings.iter().find(|spelling| {
+            rest.starts_with(&spelling.text)
+                && path_start_boundary(input, cursor)
+                && path_end_boundary(input, cursor + spelling.text.len(), spelling)
+        }) {
+            out.push_str(CAPTURE_ROOT);
+            cursor += spelling.text.len();
+        } else {
+            let c = rest.chars().next().expect("cursor is a char boundary");
+            out.push(c);
+            cursor += c.len_utf8();
+        }
+    }
+    out
+}
+
+fn path_start_boundary(input: &str, start: usize) -> bool {
+    if start == 0 {
+        return true;
+    }
+    input[..start]
+        .chars()
+        .next_back()
+        .is_some_and(|c| c.is_whitespace() || matches!(c, '"' | '\'' | '`' | '=' | '(' | '[' | '{'))
+}
+
+fn path_end_boundary(input: &str, end: usize, spelling: &RootSpelling) -> bool {
+    let rest = &input[end..];
+    if rest.is_empty()
+        || spelling
+            .separators
+            .iter()
+            .any(|separator| rest.starts_with(separator))
+    {
+        return true;
+    }
+    rest.chars()
+        .next()
+        .is_some_and(|c| c.is_whitespace() || matches!(c, '"' | '\'' | '`'))
 }
 
 fn json_escaped(s: &str) -> String {
@@ -451,10 +518,14 @@ pub enum StubLabError {
     OutputSymlink(PathBuf),
     StageNotOwned(PathBuf),
     BackupNotOwned(PathBuf),
+    /// A pre-commit owned sibling delete failed. The pinned shared helper
+    /// uses this error name for backup deletion too.
     StageCleanupFailed {
         path: PathBuf,
         source: io::Error,
     },
+    /// Post-commit deletion of the moved-aside previous output failed. The
+    /// pinned rollback is best-effort and the backup may already be partial.
     BackupCleanupFailed {
         path: PathBuf,
         source: io::Error,
@@ -490,7 +561,7 @@ impl std::fmt::Display for StubLabError {
             ),
             Self::StageCleanupFailed { path, source } => write!(
                 f,
-                "stub lab stage {} cleanup failed: {source}",
+                "stub lab publication sibling {} cleanup failed: {source}",
                 path.display()
             ),
             Self::BackupCleanupFailed { path, source } => write!(
@@ -512,11 +583,14 @@ impl std::error::Error for StubLabError {}
 
 const OUTPUT_MARKER: &str = ".boris-migration-lab-output";
 
-/// Publication-backed modes write a complete owned sibling stage, then
-/// rename it into place. They may write into an absent or empty output, and
-/// they may replace a non-empty output only when its marker is byte-identical
-/// to the capture's owner marker. Modes without a marker write directly, as
-/// the pinned non-publication modes do.
+// Publication-backed modes write a complete owned sibling stage, then
+// rename it into place. They may write into an absent or empty output, and
+// they may replace a non-empty output only when its marker is byte-identical
+// to the capture's owner marker. Post-commit backup-cleanup rollback is
+// best-effort and pinned-faithful rather than atomic: once deletion of the
+// previous backup starts, `BackupCleanupFailed` can leave a partially
+// deleted previous tree in the final output. Modes without a marker write
+// directly, as the pinned non-publication modes do.
 const STAGE_SUFFIX: &str = ".boris-migration-lab-stage";
 const BACKUP_SUFFIX: &str = ".boris-migration-lab-prev";
 
@@ -579,13 +653,10 @@ impl SiblingKind {
             Self::Backup => StubLabError::BackupNotOwned(path),
         }
     }
+}
 
-    fn cleanup_error(self, path: PathBuf, source: io::Error) -> StubLabError {
-        match self {
-            Self::Stage => StubLabError::StageCleanupFailed { path, source },
-            Self::Backup => StubLabError::BackupCleanupFailed { path, source },
-        }
-    }
+fn remove_tree(path: &Path) -> io::Result<()> {
+    std::fs::remove_dir_all(path)
 }
 
 fn delete_owned_if_present(
@@ -593,13 +664,25 @@ fn delete_owned_if_present(
     marker: &[u8],
     kind: SiblingKind,
 ) -> Result<(), StubLabError> {
+    delete_owned_if_present_with(path, marker, kind, &remove_tree)
+}
+
+fn delete_owned_if_present_with(
+    path: &Path,
+    marker: &[u8],
+    kind: SiblingKind,
+    remove_tree: &dyn Fn(&Path) -> io::Result<()>,
+) -> Result<(), StubLabError> {
     let Some(meta) = metadata_if_present(path)? else {
         return Ok(());
     };
     if !meta.is_dir() || !is_owned_directory(path, marker) {
         return Err(kind.ownership_error(path.to_path_buf()));
     }
-    std::fs::remove_dir_all(path).map_err(|source| kind.cleanup_error(path.to_path_buf(), source))
+    remove_tree(path).map_err(|source| StubLabError::StageCleanupFailed {
+        path: path.to_path_buf(),
+        source,
+    })
 }
 
 struct Publication {
@@ -654,8 +737,16 @@ impl Publication {
         self.active = false;
     }
 
-    fn commit(&mut self) -> Result<(), StubLabError> {
-        delete_owned_if_present(&self.backup_path, &self.marker, SiblingKind::Backup)?;
+    fn commit_with_remover(
+        &mut self,
+        remove_tree: &dyn Fn(&Path) -> io::Result<()>,
+    ) -> Result<(), StubLabError> {
+        delete_owned_if_present_with(
+            &self.backup_path,
+            &self.marker,
+            SiblingKind::Backup,
+            remove_tree,
+        )?;
         let mut moved_previous = false;
         if directory_exists(&self.final_path)? {
             std::fs::rename(&self.final_path, &self.backup_path).map_err(StubLabError::Io)?;
@@ -672,7 +763,7 @@ impl Publication {
         }
         self.active = false;
 
-        if moved_previous && let Err(source) = std::fs::remove_dir_all(&self.backup_path) {
+        if moved_previous && let Err(source) = remove_tree(&self.backup_path) {
             if std::fs::rename(&self.final_path, &self.stage_path).is_err() {
                 return Err(StubLabError::BackupCleanupFailed {
                     path: self.backup_path.clone(),
@@ -703,10 +794,19 @@ fn publish_with_writer(
     marker: &[u8],
     write_stage: impl FnOnce(&Path) -> io::Result<()>,
 ) -> Result<(), StubLabError> {
+    publish_with_writer_and_remover(out, marker, write_stage, &remove_tree)
+}
+
+fn publish_with_writer_and_remover(
+    out: &Path,
+    marker: &[u8],
+    write_stage: impl FnOnce(&Path) -> io::Result<()>,
+    remove_tree: &dyn Fn(&Path) -> io::Result<()>,
+) -> Result<(), StubLabError> {
     let mut publication = Publication::begin(out, marker)?;
     let result = match write_stage(&publication.stage_path) {
         Err(e) => Err(StubLabError::Io(e)),
-        Ok(()) => publication.commit(),
+        Ok(()) => publication.commit_with_remover(remove_tree),
     };
     if result.is_err() {
         publication.abandon();
@@ -752,6 +852,20 @@ impl StubLab {
 mod tests {
     use super::*;
 
+    fn publication_scratch(name: &str) -> PathBuf {
+        let unique = format!(
+            "cv-fixtures-{name}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let root = std::env::temp_dir().join(unique);
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::canonicalize(root).unwrap()
+    }
+
     #[test]
     fn normalize_replaces_the_root_in_text_only() {
         let root = Path::new("/scratch/abc");
@@ -761,6 +875,27 @@ mod tests {
         );
         let png = [0x89, b'P', b'N', b'G', 0xff, b'/', b's'];
         assert_eq!(normalize(&png, root), png.to_vec());
+    }
+
+    #[test]
+    fn normalize_replaces_markdown_code_span_paths() {
+        let root = Path::new("/scratch/abc");
+        assert_eq!(
+            normalize(b"Source root | `/scratch/abc/src/mini-jekyll` |", root),
+            b"Source root | `/CAPTURE_ROOT/src/mini-jekyll` |".to_vec()
+        );
+        assert_eq!(
+            normalize(b"Source vault: `/scratch/abc/src/mini-obsidian`", root),
+            b"Source vault: `/CAPTURE_ROOT/src/mini-obsidian`".to_vec()
+        );
+        assert_eq!(
+            normalize(b"Exact root: `/scratch/abc`", root),
+            b"Exact root: `/CAPTURE_ROOT`".to_vec()
+        );
+        assert_eq!(
+            normalize(b"Source root | `/scratch/abc2/src/mini-jekyll` |", root),
+            b"Source root | `/scratch/abc2/src/mini-jekyll` |".to_vec()
+        );
     }
 
     #[test]
@@ -827,6 +962,38 @@ mod tests {
             br#"{"source":"/CAPTURE_ROOT","other":"/CAPTURE_ROOT","slash":"/CAPTURE_ROOT"}"#
                 .to_vec()
         );
+
+        let descendant = format!("{{\"source\":\"{verbatim}\\\\out\"}}");
+        assert_eq!(
+            normalize(descendant.as_bytes(), root),
+            br#"{"source":"/CAPTURE_ROOT\\out"}"#.to_vec()
+        );
+    }
+
+    #[test]
+    fn normalize_does_not_replace_sibling_prefixes() {
+        let root = Path::new("/scratch/abc");
+        for input in [
+            b"wrote /scratch/abc2/out".as_slice(),
+            b"wrote /scratch/abc.txt".as_slice(),
+            b"wrote /tmp/scratch/abc/out".as_slice(),
+        ] {
+            assert_eq!(normalize(input, root), input.to_vec());
+        }
+        assert_eq!(
+            normalize(b"--out=/scratch/abc/out", root),
+            b"--out=/CAPTURE_ROOT/out".to_vec()
+        );
+
+        let windows = Path::new("\\\\?\\C:\\scratch\\abc");
+        assert_eq!(
+            normalize(br#"wrote C:\scratch\abc2\out"#, windows),
+            br#"wrote C:\scratch\abc2\out"#.to_vec()
+        );
+        assert_eq!(
+            normalize(br#"{"source":"C:\\scratch\\abc2"}"#, windows),
+            br#"{"source":"C:\\scratch\\abc2"}"#.to_vec()
+        );
     }
 
     #[test]
@@ -840,21 +1007,17 @@ mod tests {
             normalize(b"wrote /scratch/a/b/out", root),
             b"wrote /scratch/a/b/out".to_vec()
         );
+
+        let parent = Path::new("/scratch/a");
+        assert_eq!(
+            normalize(b"wrote /scratch/a\\b/out", parent),
+            b"wrote /scratch/a\\b/out".to_vec()
+        );
     }
 
     #[test]
     fn publication_write_failure_preserves_previous_output_and_cleans_stage() {
-        let unique = format!(
-            "cv-fixtures-publication-test-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        );
-        let root = std::env::temp_dir().join(unique);
-        std::fs::create_dir_all(&root).unwrap();
-        let root = std::fs::canonicalize(root).unwrap();
+        let root = publication_scratch("publication-write-failure");
         let out = root.join("out");
         std::fs::create_dir_all(&out).unwrap();
         let marker = b"format=boris-migration-lab-output\nowner=test-owner\nschema_version=1\n";
@@ -873,6 +1036,88 @@ mod tests {
         assert!(!out.join("partial.txt").exists());
         assert!(!stage.exists());
         assert!(!backup.exists());
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn backup_cleanup_failure_can_leave_a_partial_previous_output() {
+        let root = publication_scratch("publication-backup-partial");
+        let out = root.join("out");
+        std::fs::create_dir_all(out.join("protected")).unwrap();
+        let marker = b"format=boris-migration-lab-output\nowner=test-owner\nschema_version=1\n";
+        std::fs::write(out.join(OUTPUT_MARKER), marker).unwrap();
+        std::fs::write(out.join("old.txt"), b"old").unwrap();
+        std::fs::write(out.join("protected").join("secret.txt"), b"secret").unwrap();
+        let stage = publication_sibling(&out, STAGE_SUFFIX);
+        let backup = publication_sibling(&out, BACKUP_SUFFIX);
+        let injected_remove = |path: &Path| {
+            if path == backup.as_path() {
+                std::fs::remove_file(path.join(OUTPUT_MARKER))?;
+                std::fs::remove_file(path.join("old.txt"))?;
+                return Err(io::Error::other("injected partial backup cleanup failure"));
+            }
+            remove_tree(path)
+        };
+
+        let result = publish_with_writer_and_remover(
+            &out,
+            marker,
+            |stage| std::fs::write(stage.join("new.txt"), b"new"),
+            &injected_remove,
+        );
+
+        match result {
+            Err(StubLabError::BackupCleanupFailed { path, .. }) => assert_eq!(path, backup),
+            other => panic!("expected BackupCleanupFailed, got {other:?}"),
+        }
+        assert!(!out.join(OUTPUT_MARKER).exists());
+        assert!(!out.join("old.txt").exists());
+        assert!(!out.join("new.txt").exists());
+        assert_eq!(
+            std::fs::read(out.join("protected").join("secret.txt")).unwrap(),
+            b"secret"
+        );
+        assert!(!stage.exists());
+        assert!(!backup.exists());
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn preexisting_backup_cleanup_failure_uses_the_pinned_stage_error_name() {
+        let root = publication_scratch("publication-backup-preexisting");
+        let out = root.join("out");
+        std::fs::create_dir_all(&out).unwrap();
+        let marker = b"format=boris-migration-lab-output\nowner=test-owner\nschema_version=1\n";
+        std::fs::write(out.join(OUTPUT_MARKER), marker).unwrap();
+        std::fs::write(out.join("current.txt"), b"current").unwrap();
+        let backup = publication_sibling(&out, BACKUP_SUFFIX);
+        std::fs::create_dir_all(&backup).unwrap();
+        std::fs::write(backup.join(OUTPUT_MARKER), marker).unwrap();
+        std::fs::write(backup.join("stale.txt"), b"stale").unwrap();
+        let stage = publication_sibling(&out, STAGE_SUFFIX);
+        let injected_remove = |path: &Path| {
+            if path == backup.as_path() {
+                return Err(io::Error::other(
+                    "injected pre-existing backup cleanup failure",
+                ));
+            }
+            remove_tree(path)
+        };
+
+        let result = publish_with_writer_and_remover(
+            &out,
+            marker,
+            |stage| std::fs::write(stage.join("new.txt"), b"new"),
+            &injected_remove,
+        );
+
+        match result {
+            Err(StubLabError::StageCleanupFailed { path, .. }) => assert_eq!(path, backup),
+            other => panic!("expected StageCleanupFailed, got {other:?}"),
+        }
+        assert_eq!(std::fs::read(out.join("current.txt")).unwrap(), b"current");
+        assert_eq!(std::fs::read(backup.join("stale.txt")).unwrap(), b"stale");
+        assert!(!stage.exists());
         std::fs::remove_dir_all(&root).unwrap();
     }
 

@@ -177,6 +177,43 @@ pub enum WriteOutcome {
     },
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RemoveOutcome {
+    Removed,
+    /// Base fingerprint didn't match disk; nothing was removed.
+    StaleBase {
+        found: Fingerprint,
+    },
+}
+
+/// A content move whose destination carries `body`. The body is usually
+/// the source verbatim; page lifecycle uses the same operation when it
+/// must pin an explicit `id:` before moving a path-derived id.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PageMove {
+    /// Workspace-relative source and destination.
+    pub from: String,
+    pub to: String,
+    pub body: String,
+    /// Required fingerprint of `from`; `to` must not exist.
+    pub base: Fingerprint,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum MoveOutcome {
+    Moved {
+        fingerprint: Fingerprint,
+    },
+    /// `from` no longer matches the fingerprint the caller read.
+    SourceStale {
+        found: Fingerprint,
+    },
+    /// `to` already exists; overwrite is never implicit.
+    TargetExists {
+        found: Fingerprint,
+    },
+}
+
 /// Handle to a live watch session. `stop()` kills child + process group.
 pub trait WatchHandle: Send {
     fn session(&self) -> &crate::events::SessionId;
@@ -209,6 +246,21 @@ pub trait Engine: Send {
         draft: &PageDraft,
         base: Option<Fingerprint>,
     ) -> crate::Result<WriteOutcome>;
+    /// Fingerprint-checked delete. Default is honest refusal for engines
+    /// without a content-write capability.
+    fn remove_content(&self, path: &str, _base: Fingerprint) -> crate::Result<RemoveOutcome> {
+        Err(crate::Error::Engine(format!(
+            "engine does not support removing {path}"
+        )))
+    }
+    /// Fingerprint-checked move/write. The implementation performs the
+    /// destination write and source removal as one serialized mutation.
+    fn move_content(&self, mv: &PageMove) -> crate::Result<MoveOutcome> {
+        let _ = mv;
+        Err(crate::Error::Engine(
+            "engine does not support moving content".into(),
+        ))
+    }
 }
 
 /// Where the engine binary came from (Doctor disclosure).

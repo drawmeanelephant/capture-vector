@@ -12,8 +12,8 @@ use crate::snapshot::DiskTruth;
 use crate::verbs::{IR_DIR, VerbOutput, argv, flag_value, run_argv, verb_name};
 use crate::watch::WatchStart;
 use cv_core::engine::{
-    Engine, EngineCaps, EngineInfo, EventSink, ExitClass, Fingerprint, PageDraft, Verb,
-    WatchHandle, WriteOutcome,
+    Engine, EngineCaps, EngineInfo, EventSink, ExitClass, Fingerprint, MoveOutcome, PageDraft,
+    PageMove, RemoveOutcome, Verb, WatchHandle, WriteOutcome,
 };
 use cv_core::events::engine::{BuildPhase, EngineEvent};
 use cv_core::events::{BuildId, Cursor};
@@ -337,5 +337,19 @@ impl Engine for ProcessEngine {
             draft.body.as_bytes(),
             base.or(draft.base),
         )?)
+    }
+
+    fn remove_content(&self, path: &str, base: Fingerprint) -> cv_core::Result<RemoveOutcome> {
+        if !self.report.caps.writes {
+            return Err(EngineError::Refused("workspace is not writable (probe)".into()).into());
+        }
+        Ok(crate::write::remove_staged(&self.cfg.root, path, base)?)
+    }
+
+    fn move_content(&self, mv: &PageMove) -> cv_core::Result<MoveOutcome> {
+        if !self.report.caps.writes {
+            return Err(EngineError::Refused("workspace is not writable (probe)".into()).into());
+        }
+        Ok(crate::write::move_staged(&self.cfg.root, mv)?)
     }
 }

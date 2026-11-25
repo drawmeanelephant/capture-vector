@@ -3,15 +3,25 @@
 //! list shows its children. Diagnostics attach to pages by the source path
 //! Boris cites and are the same `Diagnostic` values Activity shows.
 
+mod edit;
+mod lifecycle;
+pub mod port;
+
 use super::activity::severity_tone;
+use crate::command::{CommandSpec, Intent};
+use crate::dialog::DialogAnswer;
 use crate::module::{
     Chip, FieldSource, InspectorModel, Link, Module, ModuleSpec, NavCache, NavItem, NavModel,
     PageRecord, ProjectSnapshot, ReadingLine, ReadingModel, Registry, RowModel, Slot, Tone,
 };
 use cv_core::diagnostic::{Diagnostic, Severity};
+use cv_core::engine::{MoveOutcome, PageDraft, PageMove, RemoveOutcome, WriteOutcome};
 use cv_core::events::engine::EngineEvent;
+use cv_core::events::pages::PagesEvent;
 use cv_core::events::{AppEvent, Envelope};
 use cv_core::id::{AccountId, AttrValue, NounAttrRow, NounId, NounKind, StableId, noun_kind};
+use port::PagesPort;
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 
 pub const ID: &str = "pages";
@@ -23,13 +33,48 @@ const TRUNKS: &str = "trunks";
 const ISSUES: &str = "issues";
 const ORPHANS: &str = "orphans";
 const TREE: &str = "tree:";
+const NO_PARENT: &str = "<trunk>";
 
-pub fn register(r: &mut Registry) {
-    r.register(Box::new(PagesModule::default()))
-        .expect("pages module id is unique");
+type Seed = (Box<dyn PagesPort>, String);
+thread_local! {
+    static SEED: RefCell<Option<Seed>> = const { RefCell::new(None) };
 }
 
-#[derive(Default)]
+/// Composition-root hook: lifecycle verbs write through `port`, and
+/// input-relative page paths are interpreted under `content_dir`.
+pub fn install_in(port: Box<dyn PagesPort>, content_dir: &str) {
+    SEED.with(|s| *s.borrow_mut() = Some((port, content_dir.into())));
+}
+
+pub fn register(r: &mut Registry) {
+    let (port, dir) = SEED
+        .with(|s| s.borrow_mut().take())
+        .unwrap_or_else(|| (Box::new(UnavailablePort), "content".into()));
+    let mut m = PagesModule::new(port);
+    m.content_dir = dir;
+    r.register(Box::new(m)).expect("pages module id is unique");
+}
+
+struct UnavailablePort;
+impl PagesPort for UnavailablePort {
+    fn read(&self, _: &str) -> Result<port::Source, String> {
+        Err("page lifecycle is unavailable without a writable workspace".into())
+    }
+    fn write(&mut self, _: &PageDraft) -> Result<WriteOutcome, String> {
+        Err("page lifecycle is unavailable without a writable workspace".into())
+    }
+    fn remove(
+        &mut self,
+        _: &str,
+        _: cv_core::engine::Fingerprint,
+    ) -> Result<RemoveOutcome, String> {
+        Err("page lifecycle is unavailable without a writable workspace".into())
+    }
+    fn rename(&mut self, _: &PageMove) -> Result<MoveOutcome, String> {
+        Err("page lifecycle is unavailable without a writable workspace".into())
+    }
+}
+
 pub struct PagesModule {
     pages: Vec<PageRecord>,
     by_path: BTreeMap<String, usize>,
@@ -49,6 +94,16 @@ pub struct PagesModule {
     build: Option<String>,
     /// Invalidated by `load` and `ingest`, the only mutators.
     nav_cache: NavCache,
+    focus: Option<String>,
+    /// Workspace-relative content input (`content`, or another profile input).
+    content_dir: String,
+    port: Box<dyn PagesPort>,
+}
+
+impl Default for PagesModule {
+    fn default() -> Self {
+        Self::new(Box::new(UnavailablePort))
+    }
 }
 
 impl PagesModule {
@@ -254,6 +309,197 @@ impl PagesModule {
             .iter()
             .map(|d| d.severity)
             .min_by_key(rank)
+    }
+
+    fn new(port: Box<dyn PagesPort>) -> Self {
+        Self {
+            pages: Vec::new(),
+            by_path: BTreeMap::new(),
+            by_id: BTreeMap::new(),
+            children: BTreeMap::new(),
+            order: Vec::new(),
+            order_pos: Vec::new(),
+            depth: Vec::new(),
+            trunks: Vec::new(),
+            orphans: Vec::new(),
+            issues: Vec::new(),
+            failed: false,
+            diagnostics: Vec::new(),
+            build: None,
+            nav_cache: NavCache::default(),
+            focus: None,
+            content_dir: "content".into(),
+            port,
+        }
+    }
+
+    fn workspace_path(&self, input_rel: &str) -> String {
+        match self.content_dir.as_str() {
+            "" | "." => input_rel.into(),
+            d => format!("{}/{}", d.trim_end_matches('/'), input_rel),
+        }
+    }
+
+    fn focused(&mut self) -> Option<usize> {
+        let key = self.focus.take()?;
+        self.by_path.get(&key).copied()
+    }
+
+    fn descendants(&self, i: usize) -> std::collections::BTreeSet<String> {
+        let mut out = std::collections::BTreeSet::new();
+        let mut stack: Vec<usize> = self
+            .children
+            .get(&self.pages[i].id)
+            .cloned()
+            .unwrap_or_default();
+        while let Some(k) = stack.pop() {
+            if out.insert(self.pages[k].id.clone()) {
+                stack.extend(
+                    self.children
+                        .get(&self.pages[k].id)
+                        .into_iter()
+                        .flatten()
+                        .copied(),
+                );
+            }
+        }
+        out
+    }
+
+    fn inbound_links(&self, id: &str) -> Vec<String> {
+        self.pages
+            .iter()
+            .filter(|p| p.wikilinks.iter().any(|t| t == id))
+            .map(|p| format!("{} ({})", p.title, p.id))
+            .collect()
+    }
+
+    fn outcome(&self, ev: PagesEvent) -> Vec<Intent> {
+        let status = ev.summary();
+        vec![Intent::Pages(ev), Intent::Status(status)]
+    }
+
+    fn failed(&self, verb: &str, path: &str, message: String) -> Vec<Intent> {
+        self.outcome(PagesEvent::Failed {
+            verb: verb.into(),
+            path: path.into(),
+            message,
+        })
+    }
+
+    fn parent_options(&self) -> Vec<String> {
+        let mut out = vec![NO_PARENT.to_string()];
+        out.extend(self.order.iter().map(|&i| self.pages[i].id.clone()));
+        out
+    }
+
+    fn rebuild_for_lifecycle(&mut self) {
+        self.rebuild();
+        self.reindex_issues();
+        self.nav_cache.invalidate();
+    }
+
+    fn pages_mut(&mut self) -> &mut Vec<PageRecord> {
+        &mut self.pages
+    }
+
+    fn has_page_id(&self, id: &str) -> bool {
+        self.by_id.contains_key(id)
+    }
+
+    fn page_id_title(&self, path: &str) -> Option<(String, String)> {
+        let p = &self.pages[*self.by_path.get(path)?];
+        Some((p.id.clone(), p.title.clone()))
+    }
+
+    fn page_id_title_parent(&self, path: &str) -> Option<(String, String, Option<String>)> {
+        let p = &self.pages[*self.by_path.get(path)?];
+        Some((p.id.clone(), p.title.clone(), p.parent.clone()))
+    }
+
+    fn move_page_path(&mut self, from: &str, to: &str) {
+        if let Some(&i) = self.by_path.get(from) {
+            self.pages[i].path = to.into();
+        }
+    }
+
+    fn set_page_parent(&mut self, path: &str, parent: Option<&str>) {
+        if let Some(&i) = self.by_path.get(path) {
+            self.pages[i].parent = parent.map(str::to_string);
+        }
+    }
+
+    fn remove_page(&mut self, path: &str) {
+        if let Some(i) = self.by_path.get(path).copied() {
+            self.pages.remove(i);
+        }
+    }
+
+    /// Existing ids a page may point at: itself and its descendants are
+    /// excluded so the dialog cannot offer an immediate parent cycle.
+    fn reparent_targets(&self, path: &str) -> Vec<(String, String)> {
+        let Some(&i) = self.by_path.get(path) else {
+            return Vec::new();
+        };
+        let mut excluded = self.descendants(i);
+        excluded.insert(self.pages[i].id.clone());
+        self.order
+            .iter()
+            .map(|&k| &self.pages[k])
+            .filter(|p| !excluded.contains(&p.id))
+            .map(|p| (p.id.clone(), format!("{} ({})", p.title, p.id)))
+            .collect()
+    }
+
+    /// Inbound references and direct child satellites the latest Boris IR
+    /// reported. Source-only pages are new to that IR, so their impact is
+    /// disclosed as unknown rather than mistaken for an empty impact.
+    fn delete_impact(&self, path: &str) -> String {
+        let Some(&i) = self.by_path.get(path) else {
+            return "Boris IR no longer lists this page.".into();
+        };
+        let p = &self.pages[i];
+        if p.fields == FieldSource::Source {
+            return "Boris IR does not cover this page yet; inbound [[links]] and child satellites are unknown.".into();
+        }
+        let links = self.inbound_links(&p.id);
+        let kids: Vec<String> = self
+            .children
+            .get(&p.id)
+            .into_iter()
+            .flatten()
+            .filter(|&&k| self.pages[k].fields == FieldSource::Boris)
+            .map(|&k| format!("{} ({})", self.pages[k].title, self.pages[k].id))
+            .collect();
+        let incomplete = self.pages.iter().any(|p| p.fields == FieldSource::Source);
+        let mut out = String::new();
+        if links.is_empty() && kids.is_empty() {
+            out.push_str(
+                "The latest Boris IR reports no inbound [[links]] and no child satellites.",
+            );
+        } else {
+            if !links.is_empty() {
+                out.push_str("Inbound [[links]]:\n");
+                for l in links {
+                    out.push_str(&format!("• {l}\n"));
+                }
+            }
+            if !kids.is_empty() {
+                if !out.is_empty() {
+                    out.push('\n');
+                }
+                out.push_str("Child satellites:\n");
+                for k in kids {
+                    out.push_str(&format!("• {k}\n"));
+                }
+            }
+        }
+        if incomplete {
+            out.push_str(
+                "\n\nSome pages are not covered by that IR yet; this impact may be incomplete.",
+            );
+        }
+        out.trim_end().to_string()
     }
 
     fn referenced_by(&self, id: &str) -> Vec<String> {
@@ -529,6 +775,31 @@ impl Module for PagesModule {
             key: o.clone(),
             label: "Open output".into(),
         })
+    }
+
+    fn key_for(&self, noun: &NounId) -> Option<String> {
+        if noun.kind.as_str() != noun_kind::PAGE {
+            return None;
+        }
+        self.by_id
+            .get(&noun.stable.0)
+            .map(|&i| self.pages[i].path.clone())
+    }
+
+    fn select(&mut self, key: Option<&str>) {
+        self.focus = key.map(str::to_string);
+    }
+
+    fn commands(&self) -> Vec<CommandSpec> {
+        lifecycle::commands()
+    }
+
+    fn run(&mut self, command: &str) -> Vec<Intent> {
+        lifecycle::run(self, command)
+    }
+
+    fn answer(&mut self, command: &str, answer: &DialogAnswer) -> Vec<Intent> {
+        lifecycle::answer(self, command, answer)
     }
 
     fn attr_rows(&self) -> Vec<NounAttrRow> {

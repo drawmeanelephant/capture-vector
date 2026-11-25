@@ -20,7 +20,7 @@ use std::io::{self, Read};
 use std::path::{Component, Path, PathBuf};
 
 const ARTIFACTS: &str = "dist/dist/_boris/proof/artifacts.json";
-const SOURCE_EXT: &[&str] = &[".md", ".textile", ".cook"];
+const SOURCE_EXT: &[&str] = &[".md", ".mdx", ".textile", ".cook"];
 
 pub fn corpus_snapshot(name: &str) -> ProjectSnapshot {
     let manifest = Manifest::load(&fixtures_root().join("MANIFEST.toml"));
@@ -110,6 +110,13 @@ fn output(v: &Value) -> OutputRecord {
     }
 }
 
+fn scalar(v: &str) -> String {
+    v.strip_prefix('"')
+        .and_then(|x| x.strip_suffix('"'))
+        .unwrap_or(v)
+        .to_string()
+}
+
 fn list(v: &str) -> Vec<String> {
     v.trim()
         .trim_start_matches('[')
@@ -158,9 +165,9 @@ pub fn page(path: &str, raw: &str) -> PageRecord {
     for (k, v) in fm.lines().filter_map(|l| l.split_once(':')) {
         let v = v.trim().to_string();
         match k.trim() {
-            "id" => p.id = v.clone(),
-            "title" => p.title = v.clone(),
-            "parent" => p.parent = Some(v.clone()),
+            "id" => p.id = scalar(&v),
+            "title" => p.title = scalar(&v),
+            "parent" => p.parent = Some(scalar(&v)),
             "tags" => p.tags = list(&v),
             "relations" => {
                 p.relations = list(&v)
@@ -415,6 +422,17 @@ fn apply_ir(pages: &mut [PageRecord], graph: &Graph) {
             .filter(|r| r.from.kind == "page" && r.from.value == n.id)
             .map(|r| (r.kind.clone(), r.to.value.clone()))
             .collect();
+        p.wikilinks = graph
+            .edges
+            .iter()
+            .filter(|e| {
+                e.kind == "reference"
+                    && e.from.kind == "page"
+                    && e.from.value == n.id
+                    && e.to.kind == "page"
+            })
+            .map(|e| e.to.value.clone())
+            .collect();
         p.fields = FieldSource::Boris;
     }
 }
@@ -456,7 +474,9 @@ pub fn workspace_snapshot(
     let paths: HashSet<&str> = outputs.iter().map(|o| o.path.as_str()).collect();
     let mut pages = scan.pages;
     for p in &mut pages {
-        let html = format!("{}.html", strip_ext(&p.path));
+        // Boris emits page HTML by stable entity id, not by source path:
+        // a renamed source with an explicit id keeps its output route.
+        let html = format!("{}.html", p.id);
         p.output = paths.contains(html.as_str()).then_some(html);
     }
     ProjectSnapshot {
@@ -535,6 +555,31 @@ mod tests {
         assert_eq!(snap.pages[2].title, "Home");
         assert_eq!(snap.pages[2].body, "Hello");
         assert_eq!(snap.pages[2].output.as_deref(), Some("index.html"));
+    }
+
+    #[test]
+    fn outputs_follow_stable_entity_ids_and_mdx_pages_are_scanned() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        write(
+            root,
+            "content/guides/renamed.md",
+            "---\nid: \"guides/getting-started\"\ntitle: Renamed\n---\nBody",
+        );
+        write(root, "content/page.mdx", "# MDX");
+        write(
+            root,
+            "dist/_boris/proof/artifacts.json",
+            corpus("happy").file(ARTIFACTS),
+        );
+
+        let snap = workspace_snapshot(root, "dist", None, 1);
+        assert_eq!(paths(&snap.pages), ["guides/renamed.md", "page.mdx"]);
+        assert_eq!(
+            snap.pages[0].output.as_deref(),
+            Some("guides/getting-started.html")
+        );
+        assert_eq!(snap.pages[1].output, None);
     }
 
     /// Copies a captured editor-lane corpus into a fresh workspace,
@@ -657,6 +702,31 @@ mod tests {
         let snap = workspace_snapshot(ws.path(), "dist", None, 1);
         assert_eq!(by_path(&snap, "index.md").title, "Mini Site (English)");
         assert_eq!(by_path(&snap, "index.md").fields, FieldSource::Boris);
+    }
+
+    #[test]
+    fn source_fallback_reads_boris_double_quoted_scalars_without_quotes() {
+        let temp = tempfile::tempdir().unwrap();
+        write(
+            temp.path(),
+            "content/guides/renamed.md",
+            "---\nid: \"guides/getting-started\"\ntitle: \"Getting Started\"\nparent: \"index\"\n---\n# Body\n",
+        );
+        let snap = workspace_snapshot(temp.path(), "dist", None, 1);
+        let p = by_path(&snap, "guides/renamed.md");
+        assert_eq!(p.fields, FieldSource::Source);
+        assert_eq!(p.id, "guides/getting-started");
+        assert_eq!(p.title, "Getting Started");
+        assert_eq!(p.parent.as_deref(), Some("index"));
+        assert_eq!(
+            p.frontmatter,
+            vec![
+                ("id".into(), "\"guides/getting-started\"".into()),
+                ("title".into(), "\"Getting Started\"".into()),
+                ("parent".into(), "\"index\"".into()),
+            ],
+            "frontmatter rows stay exactly as authored"
+        );
     }
 
     #[test]

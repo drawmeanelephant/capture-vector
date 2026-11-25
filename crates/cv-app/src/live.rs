@@ -10,8 +10,8 @@
 
 use crate::snapshot::workspace_snapshot;
 use cv_core::engine::{
-    Engine, EngineCaps, EngineInfo, EventSink, ExitClass, Fingerprint, PageDraft, Verb,
-    WatchHandle, WriteOutcome,
+    Engine, EngineCaps, EngineInfo, EventSink, ExitClass, Fingerprint, MoveOutcome, PageDraft,
+    PageMove, RemoveOutcome, Verb, WatchHandle, WriteOutcome,
 };
 use cv_core::events::engine::EngineEvent;
 use cv_core::events::shell::DegradedReason;
@@ -97,6 +97,12 @@ impl Engine for SlotEngine {
         base: Option<Fingerprint>,
     ) -> cv_core::Result<WriteOutcome> {
         self.0.get().ok_or_else(absent)?.write_content(draft, base)
+    }
+    fn remove_content(&self, path: &str, base: Fingerprint) -> cv_core::Result<RemoveOutcome> {
+        self.0.get().ok_or_else(absent)?.remove_content(path, base)
+    }
+    fn move_content(&self, mv: &PageMove) -> cv_core::Result<MoveOutcome> {
+        self.0.get().ok_or_else(absent)?.move_content(mv)
     }
 }
 
