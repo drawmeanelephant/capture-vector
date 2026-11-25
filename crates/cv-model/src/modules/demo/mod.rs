@@ -129,6 +129,25 @@ fn describe(ev: &EngineEvent) -> (String, String, Tone, Vec<ReadingLine>) {
                 line("exit", format!("{exit:?}")),
             ],
         ),
+        EngineEvent::VerbReported(r) => (
+            format!("{} finished", r.verb),
+            format!("{:?}", r.exit),
+            if r.exit == cv_core::engine::ExitClass::Ok {
+                Tone::Normal
+            } else {
+                Tone::Error
+            },
+            vec![
+                line("command", r.command()),
+                line("exit", format!("{:?}", r.exit)),
+            ],
+        ),
+        EngineEvent::VerbFailed { verb, error } => (
+            format!("{verb} failed"),
+            error.clone(),
+            Tone::Error,
+            vec![line("verb", verb.clone()), line("error", error.clone())],
+        ),
         EngineEvent::MalformedLine { raw } => (
             "Malformed engine line".into(),
             raw.clone(),

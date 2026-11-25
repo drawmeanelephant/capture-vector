@@ -19,6 +19,7 @@ pub mod exit;
 pub mod fallback;
 pub mod file_identity;
 pub mod init;
+pub mod ir;
 pub mod lab;
 pub mod locate;
 pub mod paths;
@@ -34,4 +35,4 @@ pub mod write;
 
 pub use engine::{EngineConfig, ProcessEngine};
 pub use error::EngineError;
-pub use scheduler::{EngineScheduler, SeatPolicy};
+pub use scheduler::{EngineScheduler, RecoveryBuild, SeatPolicy};

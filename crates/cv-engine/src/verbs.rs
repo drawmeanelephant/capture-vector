@@ -20,7 +20,7 @@ pub const IR_DIR: &str = ".cv/ir";
 pub fn is_mutating(verb: &Verb) -> bool {
     !matches!(
         verb,
-        Verb::Validate | Verb::Check | Verb::Plan | Verb::Graph
+        Verb::Validate | Verb::Check | Verb::Plan | Verb::Graph | Verb::Impact { .. }
     )
 }
 
@@ -95,9 +95,24 @@ pub fn argv(verb: &Verb) -> Result<Vec<String>> {
     Ok(match verb {
         Verb::Build => s(&["build"]),
         Verb::Validate => s(&["validate"]),
-        Verb::Check => s(&["check"]),
-        Verb::Plan => s(&["plan"]),
+        // Findings feed Audit, so they are read from Boris's JSON report.
+        Verb::Check => s(&["check", "--format", "json"]),
+        // Boris plans only an explicitly selected profile.
+        Verb::Plan => s(&["plan", "--profile", "boris.json"]),
         Verb::Graph => s(&["graph"]),
+        Verb::Impact { id } => {
+            if id.is_empty() || id.starts_with('-') {
+                return Err(EngineError::Refused(
+                    "impact needs a page id that does not start with '-'".into(),
+                ));
+            }
+            vec![
+                "impact".into(),
+                id.clone(),
+                "--format".into(),
+                "json".into(),
+            ]
+        }
         Verb::Export { kind } => match kind {
             ExportKind::Out => s(&["build", "--out", ".boris"]),
             ExportKind::Rag => s(&["build", "--rag"]),
@@ -215,7 +230,13 @@ mod tests {
 
     #[test]
     fn reads_and_writes_are_classified() {
-        for v in [Verb::Validate, Verb::Check, Verb::Plan, Verb::Graph] {
+        for v in [
+            Verb::Validate,
+            Verb::Check,
+            Verb::Plan,
+            Verb::Graph,
+            Verb::Impact { id: "index".into() },
+        ] {
             assert!(!is_mutating(&v), "{v:?}");
         }
         for v in [
@@ -333,6 +354,18 @@ mod tests {
             ["build", "--out", ".boris"]
         );
         assert_eq!(argv(&Verb::Build).unwrap(), ["build"]);
+    }
+
+    #[test]
+    fn impact_names_one_page_id_and_refuses_flags() {
+        let impact = |id: &str| argv(&Verb::Impact { id: id.into() });
+        assert_eq!(
+            impact("guides/getting-started").unwrap(),
+            ["impact", "guides/getting-started", "--format", "json"]
+        );
+        for id in ["", "-x", "--format"] {
+            assert!(matches!(impact(id), Err(EngineError::Refused(_))), "{id:?}");
+        }
     }
 
     #[test]

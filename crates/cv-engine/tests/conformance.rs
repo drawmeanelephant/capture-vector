@@ -8,7 +8,7 @@ mod common;
 use common::{FakeBoris, collector, payloads, wait_until};
 use cv_core::engine::{Engine, ExitClass, Verb};
 use cv_core::events::engine::EngineEvent;
-use cv_core::events::{AppEvent, Envelope};
+use cv_core::events::{AppEvent, Envelope, EventId};
 use cv_engine::EngineError;
 use cv_engine::probe::WatchMode;
 use cv_engine::proc::CancelToken;
@@ -282,11 +282,45 @@ fn ir_projection_equals_across_engines() {
         assert!(
             fake.read("argv.log")
                 .lines()
-                .any(|l| l == "build --out .cv/ir"),
+                .any(|l| l == format!("build --out {}", cv_engine::ir::IR_STAGING_DIR)),
             "{name}: {}",
             fake.read("argv.log")
         );
     }
+}
+
+#[test]
+fn caused_one_shot_events_are_minted_and_replayed_with_their_cause() {
+    let fake = FakeBoris::corpus("happy");
+    let engine = fake.engine();
+    let cause = EventId("fatal-watch-event".into());
+    let (sink, got) = collector();
+    let exit = engine.run_caused(&Verb::Build, sink, Some(&cause)).unwrap();
+    assert_eq!(exit, ExitClass::Ok);
+    let envs = got.lock().unwrap();
+    assert_eq!(envs.len(), 2);
+    assert!(envs.iter().all(|e| e.cause.as_ref() == Some(&cause)));
+
+    // The replay ring stores the minted envelope, not a later sink-side
+    // mutation: a consumer that catches up sees the same causal fact.
+    let after_first = envs[0].cursor.clone();
+    let resume = engine.resume(&after_first);
+    drop(envs);
+    let cv_engine::ring::Resume::Replay(replayed) = resume else {
+        panic!("same-session replay must be available");
+    };
+    assert_eq!(replayed.len(), 1);
+    assert_eq!(replayed[0].cause.as_ref(), Some(&cause));
+
+    // The fixture oracle implements the same causal port; in particular
+    // the terminal VerbFinished carries the cause that lets Doctor close
+    // the recovery window.
+    let stub = StubEngine::new("happy");
+    let (sink, got) = collector();
+    stub.run_caused(&Verb::Build, sink, Some(&cause)).unwrap();
+    let envs = got.lock().unwrap();
+    assert_eq!(envs.len(), 2);
+    assert!(envs.iter().all(|e| e.cause.as_ref() == Some(&cause)));
 }
 
 /// The projection never takes the watch's seat: the live watch child
@@ -298,17 +332,19 @@ fn ir_projection_runs_beside_a_live_watch() {
     fake.set("watch-hold", "");
     let engine = std::sync::Arc::new(fake.engine());
     let sched = EngineScheduler::new(engine.clone(), SeatPolicy::StopWatch);
-    let (sink, got) = collector();
-    let session = sched.start_watch(sink).unwrap();
-    wait_until("hello", T, || !got.lock().unwrap().is_empty());
+    let got = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let push = |got: &std::sync::Arc<std::sync::Mutex<Vec<Envelope>>>| {
+        let got = got.clone();
+        Box::new(move |e| got.lock().unwrap().push(e)) as cv_core::engine::EventSink
+    };
+    let session = sched.start_watch(push(&got)).unwrap();
+    wait_until("watch build events", T, || got.lock().unwrap().len() >= 3);
 
-    let r = sched
-        .run(&engine.ir_projection(), Box::new(|_| {}))
-        .unwrap();
+    let r = sched.run(&engine.ir_projection(), push(&got)).unwrap();
     assert_eq!(r.exit, ExitClass::Ok);
     assert_eq!(r.stopped_watch, None);
     assert_eq!(r.out_dir.as_deref(), Some(".cv/ir"));
-    assert_eq!(sched.watch_session(), Some(session));
+    assert_eq!(sched.watch_session(), Some(session.clone()));
     assert!(engine.watch_live());
     let builds: Vec<String> = fake
         .read("argv.log")
@@ -316,7 +352,29 @@ fn ir_projection_runs_beside_a_live_watch() {
         .filter(|l| l.starts_with("build"))
         .map(String::from)
         .collect();
-    assert_eq!(builds, ["build --out .cv/ir"]);
+    assert_eq!(
+        builds,
+        [format!("build --out {}", cv_engine::ir::IR_STAGING_DIR)]
+    );
+    // Real emitter-minted envelopes from one live engine session, not
+    // handcrafted cursors: watch build results occupy 1-2, while the IR
+    // projection's build result and verb completion occupy 3-4.
+    {
+        let envs = got.lock().unwrap();
+        assert!(envs.iter().all(|e| e.cursor.session == session));
+        assert_eq!(
+            envs.iter().map(|e| e.cursor.seq).collect::<Vec<_>>(),
+            [0, 1, 2, 3, 4]
+        );
+        assert!(matches!(
+            engine_payload(&envs[3]),
+            Some(EngineEvent::BuildFinished { .. })
+        ));
+        assert!(matches!(
+            engine_payload(&envs[4]),
+            Some(EngineEvent::VerbFinished { verb, exit: ExitClass::Ok }) if verb == "ir"
+        ));
+    }
     sched.stop_watch();
 }
 

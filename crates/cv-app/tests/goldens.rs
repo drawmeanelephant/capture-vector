@@ -65,6 +65,11 @@ const TREE_SCENES: &[&str] = &[
     "migrate-review",
     "migrate-lab-absent",
     "migrate-undecodable",
+    "verb-build",
+    "verb-content-failure",
+    "verb-usage-error",
+    "verb-impact",
+    "verb-check-audit",
 ];
 
 #[test]

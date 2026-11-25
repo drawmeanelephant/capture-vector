@@ -308,6 +308,15 @@ impl Engine for RefusingEngine {
     ) -> cv_core::Result<cv_core::engine::ExitClass> {
         Err(cv_core::Error::Engine("none".into()))
     }
+    fn run_caused(
+        &self,
+        cmd: &cv_core::engine::Verb,
+        sink: cv_core::engine::EventSink,
+        _: Option<&cv_core::events::EventId>,
+    ) -> cv_core::Result<cv_core::engine::ExitClass> {
+        self.run(cmd, sink)
+    }
+
     fn write_content(
         &self,
         _: &PageDraft,

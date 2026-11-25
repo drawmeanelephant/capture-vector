@@ -189,6 +189,7 @@ mod tests {
 
     fn event(session: &str, seq: u64, raw: String) -> Envelope {
         Envelope {
+            cause: None,
             workspace: WorkspaceId("ws".into()),
             snapshot_epoch: SnapshotEpoch(0),
             build_id: None,

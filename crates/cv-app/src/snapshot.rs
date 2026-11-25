@@ -18,7 +18,6 @@ use std::collections::{HashMap, HashSet};
 use std::fs::{self, File, Metadata, OpenOptions};
 use std::io::{self, Read};
 use std::path::{Component, Path, PathBuf};
-use std::time::SystemTime;
 
 const ARTIFACTS: &str = "dist/dist/_boris/proof/artifacts.json";
 const SOURCE_EXT: &[&str] = &[".md", ".mdx", ".textile", ".cook"];
@@ -373,12 +372,13 @@ impl<'a> Scan<'a> {
 
 /// IR-mode builds write `graph.json` under `--out`: the live session's
 /// own projection (`IR_DIR`), Boris's default `.boris`, or the HTML dir
-/// of a workspace built with `--out <html_dir>`. The newest file is the
-/// last build's; on a tie the earlier candidate wins, so the projection
+/// of a workspace built with `--out <html_dir>`. The freshest *valid*
+/// file wins; a malformed or unreadable newer candidate never hides an
+/// older good one. On a tie the earlier candidate wins, so the projection
 /// the live session keeps fresh is read first.
 fn ir_graph(root: &Path, html_dir: &str) -> Option<Graph> {
-    let mut newest: Option<(SystemTime, PathBuf)> = None;
-    for dir in [IR_DIR, ".boris", html_dir] {
+    let mut candidates = Vec::new();
+    for (priority, dir) in [IR_DIR, ".boris", html_dir].into_iter().enumerate() {
         let rel = Path::new(dir).join("graph.json");
         let Some(modified) = confined_file(root, &rel)
             .ok()
@@ -387,11 +387,12 @@ fn ir_graph(root: &Path, html_dir: &str) -> Option<Graph> {
         else {
             continue;
         };
-        if newest.as_ref().is_none_or(|(at, _)| modified > *at) {
-            newest = Some((modified, rel));
-        }
+        candidates.push((modified, priority, rel));
     }
-    workspace_json(root, &newest?.1, MAX_INDEX_BYTES).and_then(|v| serde_json::from_value(v).ok())
+    candidates.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+    candidates.into_iter().find_map(|(_, _, rel)| {
+        workspace_json(root, &rel, MAX_INDEX_BYTES).and_then(|v| serde_json::from_value(v).ok())
+    })
 }
 
 /// Replace the frontmatter guess with what Boris reported for every page
@@ -522,6 +523,7 @@ pub fn workspace_snapshot(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::SystemTime;
 
     #[test]
     fn crlf_frontmatter_still_parses_fields() {
@@ -690,6 +692,43 @@ mod tests {
 
         set_mtime(ws.path(), "dist/graph.json", SystemTime::now());
         assert_eq!(title(2), "My Boris Site");
+    }
+
+    #[test]
+    fn a_malformed_newest_ir_graph_falls_back_to_an_older_valid_graph() {
+        let ws = captured_workspace("quoted-scalars", ".boris/graph.json");
+        write(ws.path(), ".cv/ir/graph.json", "{\"not\": ");
+        let older = SystemTime::now() - std::time::Duration::from_secs(60);
+        set_mtime(ws.path(), ".boris/graph.json", older);
+        set_mtime(ws.path(), ".cv/ir/graph.json", SystemTime::now());
+
+        let snap = workspace_snapshot(ws.path(), "dist", None, 1);
+        assert_eq!(by_path(&snap, "index.md").title, "Mini Site (English)");
+        assert_eq!(by_path(&snap, "index.md").fields, FieldSource::Boris);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_linked_newest_ir_graph_is_not_followed_and_an_older_valid_graph_wins() {
+        let ws = captured_workspace("quoted-scalars", ".boris/graph.json");
+        let outside = tempfile::tempdir().unwrap();
+        write(
+            outside.path(),
+            "graph.json",
+            cv_fixtures::ir_capture("happy").file("graph.json"),
+        );
+        std::fs::create_dir_all(ws.path().join(".cv/ir")).unwrap();
+        std::os::unix::fs::symlink(
+            outside.path().join("graph.json"),
+            ws.path().join(".cv/ir/graph.json"),
+        )
+        .unwrap();
+        let older = SystemTime::now() - std::time::Duration::from_secs(60);
+        set_mtime(ws.path(), ".boris/graph.json", older);
+
+        let snap = workspace_snapshot(ws.path(), "dist", None, 1);
+        assert_eq!(by_path(&snap, "index.md").title, "Mini Site (English)");
+        assert_eq!(by_path(&snap, "index.md").fields, FieldSource::Boris);
     }
 
     #[test]

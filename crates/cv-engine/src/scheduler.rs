@@ -9,10 +9,10 @@
 use crate::EngineError;
 use crate::verbs::{is_mutating, own_out_dir, writes_html};
 use cv_core::engine::{
-    Engine, EventSink, ExitClass, Fingerprint, MoveOutcome, PageDraft, PageMove, RemoveOutcome,
-    Verb, WatchHandle, WriteOutcome,
+    CancelToken, Engine, EventSink, ExitClass, Fingerprint, MoveOutcome, PageDraft, PageMove,
+    RemoveOutcome, Verb, WatchHandle, WriteOutcome,
 };
-use cv_core::events::SessionId;
+use cv_core::events::{EventId, SessionId};
 use cv_core::rules::ArtifactSet;
 use std::path::{Component, Path};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -36,6 +36,18 @@ pub struct RunReport {
     /// Where a build wrote instead of the seat: its own output dir, or
     /// the isolated dir it was redirected to.
     pub out_dir: Option<String>,
+}
+
+/// Outcome of a fatal-watch diagnostic build. Unlike ordinary builds,
+/// recovery never stops the watch currently occupying the output seat:
+/// that watch is necessarily a replacement, not the fatal session whose
+/// recovery was already retired.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RecoveryBuild {
+    /// The diagnostic ran while no watch owned the output seat.
+    Ran(ExitClass),
+    /// A replacement watch was already installed; recovery is abandoned.
+    WatchReplaced(SessionId),
 }
 
 /// Is `dir` a workspace-relative path that neither is, contains, nor
@@ -118,7 +130,72 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         Some(h.session().clone())
     }
 
+    /// Stop the watch only while it is still `session`: a handle that
+    /// outlived its session must not stop the watch that replaced it.
+    pub fn stop_watch_session(&self, session: &SessionId) -> bool {
+        let mut slot = self.watch.lock().unwrap();
+        if slot.as_ref().is_none_or(|w| w.session() != session) {
+            return false;
+        }
+        let mut h = slot.take().expect("checked above");
+        drop(slot);
+        h.stop();
+        true
+    }
+
     pub fn run(&self, verb: &Verb, sink: EventSink) -> cv_core::Result<RunReport> {
+        self.run_caused(verb, sink, None)
+    }
+
+    pub fn run_caused(
+        &self,
+        verb: &Verb,
+        sink: EventSink,
+        cause: Option<&EventId>,
+    ) -> cv_core::Result<RunReport> {
+        self.dispatch(verb, |e, v| e.run_caused(v, sink, cause))
+    }
+
+    /// A user-requested run (`Engine::run_reported`) under the same seat
+    /// rules as `run`: a build stops the watch or is redirected.
+    pub fn run_reported(
+        &self,
+        verb: &Verb,
+        sink: EventSink,
+        cancel: &CancelToken,
+    ) -> cv_core::Result<RunReport> {
+        self.dispatch(verb, |e, v| e.run_reported(v, sink, cancel))
+    }
+
+    /// Run the fatal-watch diagnostic without ordinary stop-current-watch
+    /// seat policy. The writer lock is held for the whole build, so
+    /// `start_watch` cannot interleave once the empty-seat check passes.
+    /// The watch mutex is only inspected and is never held across a stop
+    /// or join, preserving the existing writer→watch lock order.
+    pub fn run_recovery_build_caused(
+        &self,
+        sink: EventSink,
+        cause: Option<&EventId>,
+    ) -> cv_core::Result<RecoveryBuild> {
+        let _w = self.rw.write().unwrap();
+        if let Some(session) = self
+            .watch
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|w| w.session().clone())
+        {
+            return Ok(RecoveryBuild::WatchReplaced(session));
+        }
+        let exit = self.engine.run_caused(&Verb::Build, sink, cause)?;
+        Ok(RecoveryBuild::Ran(exit))
+    }
+
+    fn dispatch(
+        &self,
+        verb: &Verb,
+        run: impl FnOnce(&E, &Verb) -> cv_core::Result<ExitClass>,
+    ) -> cv_core::Result<RunReport> {
         let own = own_out_dir(verb);
         if let Some(dir) = &own
             && !clear_of_seat(dir, &self.seat)
@@ -132,7 +209,7 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         }
         if !is_mutating(verb) {
             let _r = self.rw.read().unwrap();
-            let exit = self.engine.run(verb, sink)?;
+            let exit = run(&self.engine, verb)?;
             return Ok(RunReport {
                 exit,
                 stopped_watch: None,
@@ -163,7 +240,7 @@ impl<E: Engine + Sync> EngineScheduler<E> {
                 }
             }
         }
-        let exit = self.engine.run(&verb, sink)?;
+        let exit = run(&self.engine, &verb)?;
         Ok(RunReport {
             exit,
             stopped_watch,
@@ -210,6 +287,8 @@ impl<E: Engine + Sync> Drop for EngineScheduler<E> {
 mod tests {
     use super::*;
     use cv_core::engine::{EngineCaps, EngineInfo};
+    use cv_core::events::engine::EngineEvent;
+    use cv_core::events::{Cursor, Envelope, EventId, SnapshotEpoch};
     use std::sync::atomic::AtomicI64;
     use std::time::Duration;
 
@@ -264,6 +343,45 @@ mod tests {
             }
             mine.fetch_sub(1, Ordering::SeqCst);
             Ok(ExitClass::Ok)
+        }
+        fn run_caused(
+            &self,
+            cmd: &Verb,
+            sink: EventSink,
+            _: Option<&EventId>,
+        ) -> cv_core::Result<ExitClass> {
+            self.run(cmd, sink)
+        }
+        fn run_reported(
+            &self,
+            cmd: &Verb,
+            mut sink: EventSink,
+            _: &CancelToken,
+        ) -> cv_core::Result<ExitClass> {
+            let exit = self.run(cmd, Box::new(|_| {}))?;
+            sink(Envelope {
+                cause: None,
+                workspace: cv_core::id::WorkspaceId("scheduler-test".into()),
+                snapshot_epoch: SnapshotEpoch(0),
+                build_id: None,
+                cursor: Cursor {
+                    session: SessionId("reported".into()),
+                    seq: 0,
+                },
+                event_id: EventId(format!("reported-{}", cmd.name())),
+                payload: cv_core::events::AppEvent::Engine(EngineEvent::VerbReported(
+                    cv_core::events::engine::VerbReport {
+                        verb: cmd.name(),
+                        argv: vec![cmd.name()],
+                        exit,
+                        code: Some(0),
+                        duration_ms: 0,
+                        stdout: String::new(),
+                        stderr: String::new(),
+                    },
+                )),
+            });
+            Ok(exit)
         }
         fn write_content(
             &self,
@@ -344,6 +462,73 @@ mod tests {
                 args: vec!["--html-dir".into(), ".cv/out/1".into()]
             }
         );
+    }
+
+    #[test]
+    fn a_reported_build_takes_the_seat_like_any_build() {
+        let p = Arc::new(Probe::default());
+        let s = EngineScheduler::new(Arc::new(Fake(p.clone())), SeatPolicy::StopWatch);
+        s.start_watch(noop()).unwrap();
+        let cancel = CancelToken::new();
+        let r = s
+            .run_reported(&Verb::Impact { id: "index".into() }, noop(), &cancel)
+            .unwrap();
+        assert_eq!(r.stopped_watch, None, "a read leaves the watch alone");
+        let r = s.run_reported(&Verb::Build, noop(), &cancel).unwrap();
+        assert_eq!(r.stopped_watch, Some(SessionId("w".into())));
+        assert_eq!(p.watch_stops.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn a_stale_handle_cannot_stop_the_watch_that_replaced_it() {
+        let p = Arc::new(Probe::default());
+        let s = EngineScheduler::new(Arc::new(Fake(p.clone())), SeatPolicy::StopWatch);
+        s.start_watch(noop()).unwrap();
+        assert!(!s.stop_watch_session(&SessionId("earlier".into())));
+        assert_eq!(s.watch_session(), Some(SessionId("w".into())));
+        assert!(s.stop_watch_session(&SessionId("w".into())));
+        assert!(s.watch_session().is_none());
+        assert_eq!(p.watch_stops.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn recovery_build_abandons_when_a_watch_replaces_the_fatal_session() {
+        let p = Arc::new(Probe::default());
+        let s = EngineScheduler::new(Arc::new(Fake(p.clone())), SeatPolicy::StopWatch);
+        let fatal = s.start_watch(noop()).unwrap();
+        assert!(s.stop_watch_session(&fatal));
+        // A palette/manual build takes the empty writer seat first. The
+        // replacement it installs is the exact interleaving delayed
+        // recovery must not stop when it reaches its own writer seat.
+        s.run(&Verb::Build, noop()).unwrap();
+        let replacement = s.start_watch(noop()).unwrap();
+
+        let outcome = s.run_recovery_build_caused(noop(), None).unwrap();
+        assert_eq!(outcome, RecoveryBuild::WatchReplaced(replacement.clone()));
+        assert_eq!(s.watch_session(), Some(replacement));
+        assert_eq!(
+            p.watch_stops.load(Ordering::SeqCst),
+            1,
+            "only the fatal session was stopped"
+        );
+        assert_eq!(
+            p.verbs.lock().unwrap().as_slice(),
+            [Verb::Build],
+            "only the manual build ran; the abandoned diagnostic did not"
+        );
+    }
+
+    #[test]
+    fn recovery_build_runs_after_the_fatal_session_when_no_watch_intervenes() {
+        let p = Arc::new(Probe::default());
+        let s = EngineScheduler::new(Arc::new(Fake(p.clone())), SeatPolicy::StopWatch);
+        let fatal = s.start_watch(noop()).unwrap();
+        assert!(s.stop_watch_session(&fatal));
+
+        let outcome = s.run_recovery_build_caused(noop(), None).unwrap();
+        assert_eq!(outcome, RecoveryBuild::Ran(ExitClass::Ok));
+        assert_eq!(p.verbs.lock().unwrap().as_slice(), [Verb::Build]);
+        assert!(s.watch_session().is_none());
     }
 
     fn ir(out: &str) -> Verb {

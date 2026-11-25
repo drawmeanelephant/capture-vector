@@ -27,7 +27,7 @@ use cv_core::diagnostic::{Diagnostic, Severity};
 use cv_core::engine::{EngineSource, ExitClass};
 use cv_core::events::engine::{BuildPhase, EngineEvent, WatchEndReason, WatchExit};
 use cv_core::events::shell::{DegradedReason, ShellEvent};
-use cv_core::events::{AppEvent, Cursor, Envelope};
+use cv_core::events::{AppEvent, Cursor, Envelope, EventId};
 use std::cell::RefCell;
 
 pub const ID: &str = "doctor";
@@ -65,7 +65,15 @@ pub struct Fatal {
     pub from_followup: bool,
     session: String,
     seq: u64,
+    event: EventId,
     followup_armed: bool,
+}
+
+/// A one-shot build outcome waiting for the `VerbFinished` envelope that
+/// identifies whether it was the recovery `build` or another verb such as `ir`.
+#[derive(Debug, Clone, PartialEq)]
+struct Followup {
+    diagnostics: Vec<Diagnostic>,
 }
 
 /// The watch session as the committed event stream tells it.
@@ -81,6 +89,7 @@ pub struct WatchLog {
     pub watch_exit: Option<WatchExit>,
     pub last_verb: Option<(String, ExitClass)>,
     pub fatal: Option<Fatal>,
+    followup: Option<Followup>,
     /// A watch-dead disclosure arrived after the newest session start.
     pub dead: bool,
     pub degraded: Option<DegradedReason>,
@@ -103,6 +112,7 @@ impl WatchLog {
                         if let Some(f) = &mut self.fatal {
                             f.followup_armed = false;
                         }
+                        self.followup = None;
                     }
                     EngineEvent::WatchSessionEnded { reason, exit } => {
                         self.ended = Some(reason.clone());
@@ -113,39 +123,43 @@ impl WatchLog {
                             && f.diagnostics.is_empty()
                             && !f.from_followup
                         {
-                            // A native fatal watch has now ended. Only the
-                            // next failure in this same session can be the
-                            // recovery one-shot that names its diagnostics.
+                            // A native fatal watch has now ended. Only
+                            // envelopes explicitly caused by this fatal event
+                            // may complete the diagnostic recovery attempt.
                             f.followup_armed = true;
                         }
                     }
                     EngineEvent::VerbFinished { verb, exit } => {
                         self.last_verb = Some((verb.clone(), *exit));
+                        self.close_followup(verb, env);
+                    }
+                    EngineEvent::VerbFailed { verb, .. } => self.close_followup(verb, env),
+                    EngineEvent::BuildFinished { diagnostics, .. } => {
+                        if self.followup_open(env) {
+                            self.followup = Some(Followup {
+                                diagnostics: diagnostics.clone(),
+                            });
+                        }
                     }
                     EngineEvent::BuildFailed {
                         phase,
                         diagnostics,
-                        recoverable: false,
+                        recoverable,
                     } => {
-                        self.fatal = Some(Fatal {
-                            phase: *phase,
-                            diagnostics: diagnostics.clone(),
-                            from_followup: false,
-                            session: env.cursor.session.0.clone(),
-                            seq: env.cursor.seq,
-                            followup_armed: false,
-                        });
-                    }
-                    EngineEvent::BuildFailed { diagnostics, .. } => {
-                        if let Some(f) = &mut self.fatal
-                            && f.followup_armed
-                            && f.session == env.cursor.session.0
-                            && f.seq < env.cursor.seq
-                            && f.diagnostics.is_empty()
-                            && !diagnostics.is_empty()
-                        {
-                            f.diagnostics = diagnostics.clone();
-                            f.from_followup = true;
+                        if self.followup_open(env) {
+                            self.followup = Some(Followup {
+                                diagnostics: diagnostics.clone(),
+                            });
+                        } else if !recoverable {
+                            self.fatal = Some(Fatal {
+                                phase: *phase,
+                                diagnostics: diagnostics.clone(),
+                                from_followup: false,
+                                session: env.cursor.session.0.clone(),
+                                seq: env.cursor.seq,
+                                event: env.event_id.clone(),
+                                followup_armed: false,
+                            });
                         }
                     }
                     _ => {}
@@ -163,6 +177,47 @@ impl WatchLog {
                 true
             }
             _ => false,
+        }
+    }
+
+    /// Recovery candidates must carry an explicit causal link back to
+    /// the fatal envelope. Same-session order alone is not evidence: IR
+    /// projections and publish preflight builds share the watch cursor
+    /// session and can complete in this window.
+    fn followup_open(&self, env: &Envelope) -> bool {
+        self.fatal.as_ref().is_some_and(|f| {
+            f.followup_armed
+                && f.session == env.cursor.session.0
+                && f.seq < env.cursor.seq
+                && f.diagnostics.is_empty()
+                && !f.from_followup
+                && env.cause.as_ref() == Some(&f.event)
+        })
+    }
+
+    /// Pair the caused one-shot build outcome with its completing verb.
+    /// Uncaused `build`, `ir`, publish-preflight, or other same-session
+    /// verb events neither supply diagnostics nor close the recovery window.
+    fn close_followup(&mut self, verb: &str, env: &Envelope) {
+        if verb != "build" || env.cause.is_none() {
+            return;
+        }
+        let caused = self
+            .fatal
+            .as_ref()
+            .is_some_and(|f| env.cause.as_ref() == Some(&f.event));
+        if !caused {
+            return;
+        }
+        let followup = self.followup.take();
+        if let Some(f) = &mut self.fatal {
+            if let Some(followup) = followup
+                && !followup.diagnostics.is_empty()
+            {
+                f.diagnostics = followup.diagnostics;
+                f.from_followup = true;
+            }
+            f.followup_armed = false;
         }
     }
 

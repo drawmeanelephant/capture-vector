@@ -74,10 +74,11 @@ impl PagesPort for WorkspacePages {
             .engine
             .write_content(draft, draft.base)
             .map_err(|e| e.to_string())?;
-        if let WriteOutcome::Written { fingerprint } = out
-            && draft.base.is_some()
-        {
-            self.reload_buffer(&draft.path, &draft.body, fingerprint);
+        if let WriteOutcome::Written { fingerprint } = out {
+            self.engine.0.request_resync();
+            if draft.base.is_some() {
+                self.reload_buffer(&draft.path, &draft.body, fingerprint);
+            }
         }
         Ok(out)
     }
@@ -93,10 +94,11 @@ impl PagesPort for WorkspacePages {
             .engine
             .remove_content(path, base)
             .map_err(|e| e.to_string())?;
-        if out == RemoveOutcome::Removed
-            && let Some(id) = buffer
-        {
-            self.close_buffer(id);
+        if out == RemoveOutcome::Removed {
+            self.engine.0.request_resync();
+            if let Some(id) = buffer {
+                self.close_buffer(id);
+            }
         }
         Ok(out)
     }
@@ -108,6 +110,7 @@ impl PagesPort for WorkspacePages {
         let to_buffer = crate::file_identity::buffer_for(&self.root, &mv.to);
         let out = self.engine.move_content(mv).map_err(|e| e.to_string())?;
         if matches!(out, MoveOutcome::Moved { .. }) {
+            self.engine.0.request_resync();
             for id in [from_buffer, to_buffer].into_iter().flatten() {
                 self.close_buffer(id);
             }

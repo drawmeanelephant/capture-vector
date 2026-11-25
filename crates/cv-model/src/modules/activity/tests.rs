@@ -5,6 +5,7 @@ use cv_core::id::WorkspaceId;
 
 pub(crate) fn env(n: u64, payload: EngineEvent) -> Envelope {
     Envelope {
+        cause: None,
         workspace: WorkspaceId("t".into()),
         snapshot_epoch: SnapshotEpoch(0),
         build_id: Some(BuildId(format!("b{n}"))),
@@ -84,6 +85,77 @@ fn rebuild_bursts_coalesce_without_dropping_events() {
     assert_eq!(top.title, "Build succeeded (rebuild)");
     assert_eq!(top.badge.map(|c| c.text).as_deref(), Some("×10"));
     assert_eq!(m.accounted(), ids);
+}
+
+#[test]
+fn non_ok_verb_outcomes_are_error_rows_in_the_errors_mailbox() {
+    use cv_core::engine::ExitClass;
+
+    let mut m = ActivityModule::default();
+    m.ingest(&env(
+        1,
+        EngineEvent::VerbFinished {
+            verb: "ir".into(),
+            exit: ExitClass::ContentFailure,
+        },
+    ));
+    m.ingest(&env(
+        2,
+        EngineEvent::VerbFailed {
+            verb: "ir".into(),
+            error: "publish failed".into(),
+        },
+    ));
+
+    assert_eq!(m.list_len(Some("all")), 2);
+    assert_eq!(m.list_len(Some("errors")), 2);
+    for i in 0..m.list_len(Some("errors")) {
+        assert_eq!(m.row(Some("errors"), i).tone, crate::module::Tone::Error);
+    }
+}
+
+#[test]
+fn repeated_ir_projection_outcomes_fold_without_dropping_events_or_hiding_fallback() {
+    use cv_core::engine::ExitClass;
+
+    let mut m = ActivityModule::default();
+    let mut ids = BTreeSet::new();
+    for n in 0..6 {
+        for payload in [
+            EngineEvent::BuildFinished {
+                phase: BuildPhase::Initial,
+                pages_written: 0,
+                diagnostics: vec![],
+                duration_ms: n,
+            },
+            EngineEvent::VerbFinished {
+                verb: "ir".into(),
+                exit: ExitClass::ContentFailure,
+            },
+        ] {
+            let is_verb = matches!(&payload, EngineEvent::VerbFinished { .. });
+            let e = env(n * 2 + u64::from(is_verb), payload);
+            ids.insert(e.event_id.0.clone());
+            m.ingest(&e);
+        }
+    }
+
+    assert_eq!(m.entries().len(), 2);
+    assert_eq!(m.accounted(), ids);
+    let verb = m
+        .entries()
+        .iter()
+        .find(|e| matches!(e.kind, EntryKind::Verb { .. }))
+        .unwrap();
+    assert_eq!(verb.occurrences.len(), 6);
+    assert!(verb.title().contains("ir"));
+    assert!(verb.detail().contains("ContentFailure"));
+    assert!(
+        verb.detail().contains("last published Boris IR")
+            && verb.detail().contains("marked source fields"),
+        "{}",
+        verb.detail()
+    );
 }
 
 #[test]
