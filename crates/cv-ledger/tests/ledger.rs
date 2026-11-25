@@ -190,6 +190,51 @@ fn forced_ledger_rebuild_drops_stale_sqlite_sidecars() {
 }
 
 #[test]
+fn ordinary_ledger_open_rebuilds_through_a_clean_replacement_when_contaminated() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut j = Journal::open(dir.path()).unwrap();
+    state(&mut j, RunState::Dispatching);
+    let idx = LedgerIndex::open(dir.path(), &j).unwrap();
+    let path = idx.path().to_path_buf();
+    assert_eq!(idx.runs().unwrap().len(), 1);
+    drop(idx);
+
+    // A foreign shape with un-checkpointed WAL at the index path:
+    // `runs` with the wrong columns, so an in-place rebuild cannot even
+    // replay into it, plus `victim` debris.
+    let victim_dir = tempfile::tempdir().unwrap();
+    let victim_path = victim_dir.path().join("victim.sqlite");
+    let victim = rusqlite::Connection::open(&victim_path).unwrap();
+    victim
+        .execute_batch(
+            "PRAGMA journal_mode=WAL;
+             CREATE TABLE victim(x);
+             INSERT INTO victim VALUES (1);
+             CREATE TABLE runs(foreign_column TEXT);
+             CREATE TABLE nouns(foreign_column TEXT);
+             CREATE TABLE meta(foreign_column TEXT);",
+        )
+        .unwrap();
+    copy_sidecar_set(&victim_path, &path);
+    drop(victim);
+
+    let idx = LedgerIndex::open(dir.path(), &j).unwrap();
+    assert_eq!(
+        idx.runs().unwrap().len(),
+        1,
+        "ordinary open must rebuild the journal rows"
+    );
+    let check = rusqlite::Connection::open(&path).unwrap();
+    let mut victim_shape = check
+        .prepare("SELECT name FROM sqlite_master WHERE name = 'victim'")
+        .unwrap();
+    assert!(
+        !victim_shape.exists([]).unwrap(),
+        "foreign tables must not survive an ordinary-open rebuild"
+    );
+}
+
+#[test]
 fn torn_append_is_dropped_not_guessed() {
     let dir = tempfile::tempdir().unwrap();
     let mut j = Journal::open(dir.path()).unwrap();

@@ -141,15 +141,22 @@ impl FtsIndex {
         Ok(Self { conn })
     }
 
-    /// Open, or delete and recreate when the file is not a usable index.
-    fn open_or_reset(path: &Path) -> Result<Self, DiskError> {
-        match Self::open(path).and_then(|i| i.journal_lines().map(|_| i)) {
-            Ok(i) => Ok(i),
-            Err(_) => {
-                let _ = std::fs::remove_file(path);
-                Self::open(path)
-            }
+    /// Whether the index at `path` cannot stand in for a replay of
+    /// `lines` journal lines: missing, unreadable, foreign, or stale.
+    /// The probe connection is always closed before returning, so the
+    /// caller may replace the file immediately afterwards (a rename over
+    /// it would otherwise trip Windows sharing discipline).
+    fn needs_rebuild(path: &Path, lines: u64) -> bool {
+        if !path.is_file() {
+            return true;
         }
+        (|| -> Result<bool, DiskError> {
+            let idx = Self::open(path)?;
+            let stale = idx.journal_lines()? != Some(lines);
+            idx.close()?;
+            Ok(stale)
+        })()
+        .unwrap_or(true)
     }
 
     fn journal_lines(&self) -> Result<Option<u64>, DiskError> {
@@ -401,19 +408,20 @@ fn open_inner(
     }
     let index_dir = cv_store::paths::create_project_index_dir(root, "research")?;
     let index_path = index_dir.join(INDEX);
-    if force_index_rebuild {
+    // Stale, foreign and corrupt indexes all rebuild through the same
+    // complete-replacement protocol as a forced rebuild: replaying into
+    // the existing file would keep a foreign shape (an ordinary table
+    // shadowing the FTS5 virtual table, debris tables) and any stale
+    // sidecar artifacts.
+    if force_index_rebuild || FtsIndex::needs_rebuild(&index_path, notes.lines()) {
         FtsIndex::rebuild_atomic(&index_path, &nb, notes.lines())?;
         report.index_rebuilt = true;
     }
-    let mut index = FtsIndex::open_or_reset(&index_path)?;
+    let index = FtsIndex::open(&index_path)?;
     // Drop a pre-app-data index (and its journal artifacts); it
     // rebuilds from the journals.
     for suffix in ["", "-journal", "-wal", "-shm"] {
         let _ = std::fs::remove_file(dir.join(format!("{INDEX}{suffix}")));
-    }
-    if !force_index_rebuild && index.journal_lines()? != Some(notes.lines()) {
-        index.rebuild(&nb, notes.lines())?;
-        report.index_rebuilt = true;
     }
     let port = DiskPort {
         root: root.to_path_buf(),

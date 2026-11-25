@@ -206,6 +206,64 @@ fn forced_index_rebuild_restores_rows_a_fresh_index_header_hides() {
 }
 
 #[test]
+fn ordinary_open_rebuilds_through_a_clean_replacement_when_contaminated() {
+    let ws = tempfile::tempdir().unwrap();
+    research::copy_corpus("promoted", ws.path());
+    let (mut r, _) = open(ws.path());
+    let id = r
+        .capture(
+            Capture::Idea {
+                text: "ordinary open contamination probe".into(),
+            },
+            Some("ordinary probe"),
+        )
+        .unwrap();
+    drop(r);
+
+    let index = cv_store::paths::project_index_dir(ws.path(), "research")
+        .unwrap()
+        .join(disk::INDEX);
+
+    // A foreign database shape with un-checkpointed WAL at the index
+    // path: `research_notes_fts` as an ordinary table (not FTS5), debris
+    // in `victim`, and no usable metadata, so the ordinary staleness
+    // check does trigger a rebuild.
+    let victim_dir = tempfile::tempdir().unwrap();
+    let victim_path = victim_dir.path().join("victim.sqlite");
+    let victim = rusqlite::Connection::open(&victim_path).unwrap();
+    victim
+        .execute_batch(
+            "PRAGMA journal_mode=WAL;
+             CREATE TABLE victim(x);
+             INSERT INTO victim VALUES (1);
+             CREATE TABLE research_notes_fts(note, title, body, tags);
+             INSERT INTO research_notes_fts VALUES ('foreign', 'foreign', 'foreign', '');",
+        )
+        .unwrap();
+    for suffix in ["", "-wal"] {
+        let mut from = victim_path.as_os_str().to_os_string();
+        from.push(suffix);
+        let mut to = index.as_os_str().to_os_string();
+        to.push(suffix);
+        std::fs::copy(&from, &to).unwrap();
+    }
+    drop(victim);
+
+    let clock = || Box::new(FixedClock(cv_core::sys::Timestamp(1_700_000_000_000)));
+    let (r, rep) = disk::open(ws.path(), AccountId("local".into()), clock()).unwrap();
+    assert!(rep.index_rebuilt, "foreign shape must trigger a rebuild");
+    assert_eq!(r.port.search("ordinary contamination"), Some(vec![id]));
+    let check = rusqlite::Connection::open(&index).unwrap();
+    let mut victim_shape = check
+        .prepare("SELECT name FROM sqlite_master WHERE name = 'victim'")
+        .unwrap();
+    assert!(
+        !victim_shape.exists([]).unwrap(),
+        "foreign tables must not survive an ordinary-open rebuild"
+    );
+}
+
+#[test]
 fn forced_index_rebuild_drops_stale_sqlite_sidecars() {
     let ws = tempfile::tempdir().unwrap();
     research::copy_corpus("promoted", ws.path());
