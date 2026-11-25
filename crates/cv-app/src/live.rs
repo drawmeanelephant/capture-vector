@@ -175,6 +175,20 @@ impl Engine for SlotEngine {
             .run_caused(cmd, sink, cause)?
             .exit)
     }
+    fn run_reported(
+        &self,
+        cmd: &Verb,
+        sink: EventSink,
+        cancel: &cv_core::engine::CancelToken,
+    ) -> cv_core::Result<ExitClass> {
+        Ok(self
+            .0
+            .get()
+            .ok_or_else(absent)?
+            .run_reported(cmd, sink, cancel)?
+            .exit)
+    }
+
     fn write_content(
         &self,
         draft: &PageDraft,
@@ -584,10 +598,9 @@ fn recover_build(
     notice: &Option<String>,
 ) {
     // This runs off the pump thread: stopping the watch joins its pump.
-    // Retire the handle and status before the diagnostic build takes the seat.
-    if sched.stop_watch().as_ref() != Some(&session)
-        || !delivery.inbox.send(Inbound::WatchStopped(session))
-    {
+    // Stop only the fatal session atomically; a delayed recovery must not
+    // strand a replacement watch that manual recovery already installed.
+    if !sched.stop_watch_session(&session) || !delivery.inbox.send(Inbound::WatchStopped(session)) {
         return;
     }
     let inbox = &delivery.inbox;

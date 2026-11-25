@@ -250,15 +250,18 @@ pub trait Engine: Send {
     /// A user-requested run whose outcome is the evidence itself: the
     /// terminal envelope is `EngineEvent::VerbReported` (argv, exit code,
     /// duration, output) instead of `VerbFinished`, and `cancel` stops the
-    /// child. The default is an engine that cannot report: plain `run`.
+    /// child. Engines without reporting support refuse rather than
+    /// emitting the wrong terminal event.
     fn run_reported(
         &self,
         cmd: &Verb,
         sink: EventSink,
         cancel: &CancelToken,
     ) -> crate::Result<ExitClass> {
-        let _ = cancel;
-        self.run(cmd, sink)
+        let _ = (cmd, sink, cancel);
+        Err(crate::Error::Engine(
+            "engine does not support reported verb runs".into(),
+        ))
     }
     fn write_content(
         &self,

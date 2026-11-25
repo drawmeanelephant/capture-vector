@@ -251,6 +251,8 @@ impl<E: Engine + Sync> Drop for EngineScheduler<E> {
 mod tests {
     use super::*;
     use cv_core::engine::{EngineCaps, EngineInfo};
+    use cv_core::events::engine::EngineEvent;
+    use cv_core::events::{Cursor, Envelope, EventId, SnapshotEpoch};
     use std::sync::atomic::AtomicI64;
     use std::time::Duration;
 
@@ -313,6 +315,37 @@ mod tests {
             _: Option<&EventId>,
         ) -> cv_core::Result<ExitClass> {
             self.run(cmd, sink)
+        }
+        fn run_reported(
+            &self,
+            cmd: &Verb,
+            mut sink: EventSink,
+            _: &CancelToken,
+        ) -> cv_core::Result<ExitClass> {
+            let exit = self.run(cmd, Box::new(|_| {}))?;
+            sink(Envelope {
+                cause: None,
+                workspace: cv_core::id::WorkspaceId("scheduler-test".into()),
+                snapshot_epoch: SnapshotEpoch(0),
+                build_id: None,
+                cursor: Cursor {
+                    session: SessionId("reported".into()),
+                    seq: 0,
+                },
+                event_id: EventId(format!("reported-{}", cmd.name())),
+                payload: cv_core::events::AppEvent::Engine(EngineEvent::VerbReported(
+                    cv_core::events::engine::VerbReport {
+                        verb: cmd.name(),
+                        argv: vec![cmd.name()],
+                        exit,
+                        code: Some(0),
+                        duration_ms: 0,
+                        stdout: String::new(),
+                        stderr: String::new(),
+                    },
+                )),
+            });
+            Ok(exit)
         }
         fn write_content(
             &self,

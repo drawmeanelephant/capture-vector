@@ -346,6 +346,50 @@ fn run_native_recovery(exit: Option<i32>) -> Workbench {
 
 #[cfg(unix)]
 #[test]
+fn delayed_recovery_does_not_stop_a_replacement_watch() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let root = tempfile::tempdir().unwrap();
+    let bin = root.path().join("boris");
+    std::fs::write(
+        &bin,
+        r#"#!/bin/sh
+case "$1" in
+watch) echo '{"event":"hello","watch_events_schema":1,"compiler":"boris/0.9.0"}' >&2; sleep 30;;
+build) echo build >> attempts; exit 0;;
+*) exit 2;;
+esac
+"#,
+    )
+    .unwrap();
+    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let mut wb = Workbench::new(Registry::with_all());
+    let delivery = test_delivery(root.path(), WatchMode::Native, &wb);
+    let sched = Arc::new(EngineScheduler::new(
+        delivery.engine.clone(),
+        SeatPolicy::StopWatch,
+    ));
+    let obsolete = sched.start_watch(Box::new(|_| {})).unwrap();
+    assert!(sched.stop_watch_session(&obsolete));
+    let replacement = sched.start_watch(Box::new(|_| {})).unwrap();
+
+    recover_build(
+        &sched,
+        obsolete,
+        &EventId("fatal-watch-event".into()),
+        &delivery,
+        &None,
+        &None,
+    );
+
+    assert_eq!(sched.watch_session(), Some(replacement.clone()));
+    assert!(!root.path().join("attempts").exists());
+    wb.drain();
+    assert!(sched.stop_watch_session(&replacement));
+}
+
+#[cfg(unix)]
+#[test]
 fn failed_diagnostic_build_stops_once_and_discloses_the_failure() {
     let wb = run_native_recovery(Some(3));
     assert!(
