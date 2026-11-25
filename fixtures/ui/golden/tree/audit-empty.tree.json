@@ -1258,7 +1258,7 @@
       "path": "shell/body/list-pane/list-empty/#0",
       "rect": [
         414.0,
-        352.0,
+        300.1,
         28.0,
         28.0
       ],
@@ -1271,7 +1271,7 @@
       "path": "shell/body/list-pane/list-empty/list-empty-title",
       "rect": [
         375.9,
-        388.0,
+        336.1,
         104.3,
         16.3
       ],
@@ -1285,12 +1285,385 @@
       "path": "shell/body/list-pane/list-empty/list-empty-hint",
       "rect": [
         349.3,
-        412.3,
+        360.4,
         157.5,
         13.8
       ],
       "role": "text",
       "text": "Open a workspace with ⇧⌘O"
+    },
+    {
+      "key": "list-empty-actions",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions",
+      "rect": [
+        284.0,
+        382.1,
+        288.0,
+        95.8
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#17191dff",
+      "help": "Open workspace…  ⇧⌘O",
+      "key": "list-empty-open",
+      "label": "Open workspace…",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-open",
+      "radius": 4.0,
+      "rect": [
+        335.9,
+        386.1,
+        184.3,
+        20.0
+      ],
+      "role": "button",
+      "shadows": [
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.5,
+          "#262b35ff",
+          false
+        ],
+        [
+          0.0,
+          1.0,
+          1.5,
+          0.0,
+          "#0000004d",
+          false
+        ]
+      ]
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-open/#0",
+      "rect": [
+        345.9,
+        389.1,
+        164.3,
+        14.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "label",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-open/#0/label",
+      "rect": [
+        345.9,
+        390.1,
+        99.3,
+        12.0
+      ],
+      "role": "text",
+      "text": "Open workspace…"
+    },
+    {
+      "key": "keys",
+      "label": "⇧ ⌘ O",
+      "opacity": 0.8,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-open/#0/keys",
+      "rect": [
+        451.2,
+        389.1,
+        58.9,
+        14.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "key0",
+      "opacity": 0.8,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-open/#0/keys/key0",
+      "radius": 2.0,
+      "rect": [
+        451.2,
+        389.1,
+        19.6,
+        14.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#797b81ff",
+      "opacity": 0.8,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-open/#0/keys/key0/#0",
+      "rect": [
+        455.2,
+        390.6,
+        11.6,
+        11.0
+      ],
+      "role": "text",
+      "text": "⇧"
+    },
+    {
+      "key": "key1",
+      "opacity": 0.8,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-open/#0/keys/key1",
+      "radius": 2.0,
+      "rect": [
+        472.8,
+        389.1,
+        18.9,
+        14.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#797b81ff",
+      "opacity": 0.8,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-open/#0/keys/key1/#0",
+      "rect": [
+        476.8,
+        390.6,
+        10.9,
+        11.0
+      ],
+      "role": "text",
+      "text": "⌘"
+    },
+    {
+      "key": "key2",
+      "opacity": 0.8,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-open/#0/keys/key2",
+      "radius": 2.0,
+      "rect": [
+        493.7,
+        389.1,
+        16.4,
+        14.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#797b81ff",
+      "opacity": 0.8,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-open/#0/keys/key2/#0",
+      "rect": [
+        497.7,
+        390.6,
+        8.4,
+        11.0
+      ],
+      "role": "text",
+      "text": "O"
+    },
+    {
+      "fill": "#17191dff",
+      "help": "New workspace…  ⇧⌘N",
+      "key": "list-empty-new",
+      "label": "New workspace…",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-new",
+      "radius": 4.0,
+      "rect": [
+        338.2,
+        412.1,
+        179.5,
+        20.0
+      ],
+      "role": "button",
+      "shadows": [
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.5,
+          "#262b35ff",
+          false
+        ],
+        [
+          0.0,
+          1.0,
+          1.5,
+          0.0,
+          "#0000004d",
+          false
+        ]
+      ]
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-new/#0",
+      "rect": [
+        348.2,
+        415.1,
+        159.5,
+        14.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "label",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-new/#0/label",
+      "rect": [
+        348.2,
+        416.1,
+        94.7,
+        12.0
+      ],
+      "role": "text",
+      "text": "New workspace…"
+    },
+    {
+      "key": "keys",
+      "label": "⇧ ⌘ N",
+      "opacity": 0.8,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-new/#0/keys",
+      "rect": [
+        449.0,
+        415.1,
+        58.8,
+        14.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "key0",
+      "opacity": 0.8,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-new/#0/keys/key0",
+      "radius": 2.0,
+      "rect": [
+        449.0,
+        415.1,
+        19.6,
+        14.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#797b81ff",
+      "opacity": 0.8,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-new/#0/keys/key0/#0",
+      "rect": [
+        453.0,
+        416.6,
+        11.6,
+        11.0
+      ],
+      "role": "text",
+      "text": "⇧"
+    },
+    {
+      "key": "key1",
+      "opacity": 0.8,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-new/#0/keys/key1",
+      "radius": 2.0,
+      "rect": [
+        470.5,
+        415.1,
+        18.9,
+        14.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#797b81ff",
+      "opacity": 0.8,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-new/#0/keys/key1/#0",
+      "rect": [
+        474.5,
+        416.6,
+        10.9,
+        11.0
+      ],
+      "role": "text",
+      "text": "⌘"
+    },
+    {
+      "key": "key2",
+      "opacity": 0.8,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-new/#0/keys/key2",
+      "radius": 2.0,
+      "rect": [
+        491.5,
+        415.1,
+        16.3,
+        14.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#797b81ff",
+      "opacity": 0.8,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-new/#0/keys/key2/#0",
+      "rect": [
+        495.5,
+        416.6,
+        8.3,
+        11.0
+      ],
+      "role": "text",
+      "text": "N"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "list-empty-new-why",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-new-why",
+      "rect": [
+        284.0,
+        438.1,
+        288.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "New workspace needs Boris: Boris has not been located yet"
+    },
+    {
+      "fill": "#17191dff",
+      "key": "list-empty-doctor",
+      "label": "Open Doctor",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-doctor",
+      "radius": 4.0,
+      "rect": [
+        384.6,
+        457.9,
+        86.7,
+        20.0
+      ],
+      "role": "button",
+      "shadows": [
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.5,
+          "#262b35ff",
+          false
+        ],
+        [
+          0.0,
+          1.0,
+          1.5,
+          0.0,
+          "#0000004d",
+          false
+        ]
+      ]
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "label",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-empty/list-empty-actions/list-empty-doctor/label",
+      "rect": [
+        394.6,
+        461.9,
+        66.7,
+        12.0
+      ],
+      "role": "text",
+      "text": "Open Doctor"
     },
     {
       "key": "list-viewport",

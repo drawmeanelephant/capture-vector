@@ -80,6 +80,60 @@ fn scene_goldens() {
 }
 
 #[test]
+fn all_fifteen_init_archetype_choices_stay_inside_the_form_dialog() {
+    let names = [
+        "docs",
+        "garden",
+        "cookbook",
+        "blog",
+        "textile",
+        "landing",
+        "wiki",
+        "link-in-bio",
+        "changelog",
+        "resume",
+        "newsletter",
+        "portfolio",
+        "archive",
+        "dashboard",
+        "photo-gallery",
+    ];
+    let mut wb = init();
+    wb.archetypes = Ok(cv_model::new_workspace::Archetypes {
+        names: names.iter().map(|n| n.to_string()).collect(),
+        default: 0,
+    });
+    wb.run_command(cv_model::new_workspace::NEW);
+    let h = Harness::new(wb);
+    let elements = h.rt.elements();
+    let rect = |key: &str| {
+        elements
+            .iter()
+            .find(|e| e.key.as_deref() == Some(key))
+            .unwrap_or_else(|| panic!("{key} not mounted"))
+            .rect
+    };
+    let dialog = rect("dialog-dialog");
+    let group = rect("dialog-field-archetype-options");
+    assert!(
+        group[3] > 22.0,
+        "fifteen choices should wrap onto multiple rows: {group:?}"
+    );
+    for i in 0..names.len() {
+        let key = format!("dialog-field-archetype-option-{i}");
+        let r = rect(&key);
+        assert!(
+            r[0] >= dialog[0] && r[0] + r[2] <= dialog[0] + dialog[2],
+            "{key} escapes horizontally: option {r:?}, dialog {dialog:?}"
+        );
+        assert!(
+            r[1] >= dialog[1] && r[1] + r[3] <= dialog[1] + dialog[3],
+            "{key} escapes vertically: option {r:?}, dialog {dialog:?}"
+        );
+    }
+}
+
+#[test]
 fn tree_is_deterministic() {
     let a = scene("canary").tree();
     let b = scene("canary").tree();

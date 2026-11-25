@@ -104,15 +104,33 @@ fn query(s: &Workbench) -> El {
         .child(line.items_center().gap(1.0))
 }
 
+fn activate(s: &mut Workbench, c: &CommandSpec) {
+    s.palette.close();
+    if let Some(why) = &c.disabled {
+        s.status = format!("{} is unavailable: {why}", c.title);
+    } else {
+        s.run_command(&c.id);
+    }
+}
+
 fn option(s: &Workbench, i: usize, c: &CommandSpec) -> El {
     let t = &s.theme;
     let sel = i == s.palette.cursor;
     let id = c.id.clone();
+    let a11y = match &c.disabled {
+        Some(why) => format!("{} (unavailable: {why})", c.title),
+        None => c.title.clone(),
+    };
+    let ink = if c.disabled.is_some() {
+        t.colors.text_dim
+    } else {
+        t.colors.text
+    };
     let mut r = row()
         .key(format!("cmd-{}", c.id))
         .role("option")
         .focus_selected(sel)
-        .label(c.title.clone())
+        .label(a11y)
         .w_full()
         .px(t.spacing.unit * 1.5)
         .h(t.spacing.row_h)
@@ -121,17 +139,28 @@ fn option(s: &Workbench, i: usize, c: &CommandSpec) -> El {
         .rounded(t, Size::Sm)
         .on_hover(move |s: &mut Workbench| s.palette.cursor = i)
         .on_press(move |s: &mut Workbench| {
-            s.palette.close();
-            s.run_command(&id);
+            let cmd = s.commands().into_iter().find(|c| c.id == id);
+            if let Some(cmd) = cmd {
+                activate(s, &cmd);
+            }
         })
         .child(
             text(c.title.clone())
                 .font(font(t.type_.body))
-                .color(color(t.colors.text))
+                .color(color(ink))
                 .single_line()
                 .shrink()
                 .truncate(),
         )
+        .children(c.disabled.as_ref().map(|why| {
+            text(why.clone())
+                .key(format!("cmd-{}-why", c.id))
+                .font(font(t.type_.label))
+                .color(color(t.colors.text_dim))
+                .single_line()
+                .shrink()
+                .truncate()
+        }))
         .child(spacer());
     if sel {
         r = r.fill(color(t.colors.selection));

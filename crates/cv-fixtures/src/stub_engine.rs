@@ -268,6 +268,63 @@ fn map_event(ev: WatchEvent, build: &BuildId) -> Option<EngineEvent> {
     })
 }
 
+impl StubEngine {
+    /// `boris init --help` as captured (Boris prints it on stderr).
+    pub fn init_help() -> String {
+        let c = crate::corpus(crate::INIT);
+        format!(
+            "{}{}",
+            c.file_str("help/stdout.txt"),
+            c.file_str("help/stderr.txt")
+        )
+    }
+
+    /// The captured report of the last `Verb::Init` outcome for
+    /// `archetype` (`refuse`: a target that was not empty), stdout then
+    /// stderr, as `ProcessEngine::run_verb` would hand it back.
+    pub fn init_report(capture: &str) -> String {
+        let c = crate::corpus(crate::INIT);
+        format!(
+            "{}{}",
+            c.file_str(&format!("{capture}/stdout.txt")),
+            c.file_str(&format!("{capture}/stderr.txt"))
+        )
+    }
+}
+
+/// Replay `boris init <dir> --type <archetype>`: a target that is not
+/// empty gets the captured refusal; otherwise the captured starter tree is
+/// written into `dir` (used as given — the stub has no workspace).
+fn init(dir: &std::path::Path, archetype: &str) -> cv_core::Result<ExitClass> {
+    let c = crate::corpus(crate::INIT);
+    let occupied = dir.exists()
+        && (!dir.is_dir() || std::fs::read_dir(dir).is_ok_and(|mut d| d.next().is_some()));
+    let capture = if occupied { "refuse" } else { archetype };
+    if c.pinned_under(&format!("{capture}/")).is_empty() || capture == "help" {
+        return Err(cv_core::Error::Engine(format!(
+            "stub engine has no capture for init --type {archetype}"
+        )));
+    }
+    let code: i32 = c
+        .file_str(&format!("{capture}/exit-code.txt"))
+        .trim()
+        .parse()
+        .unwrap_or(3);
+    let exit = ExitClass::from_code(code);
+    if !occupied && exit == ExitClass::Ok {
+        let tree = format!("{archetype}/tree/");
+        for rel in c.pinned_under(&tree) {
+            let dst = dir.join(&rel[tree.len()..]);
+            let io = |e: std::io::Error| cv_core::Error::Engine(format!("{}: {e}", dst.display()));
+            if let Some(parent) = dst.parent() {
+                std::fs::create_dir_all(parent).map_err(io)?;
+            }
+            std::fs::write(&dst, c.file(&rel)).map_err(io)?;
+        }
+    }
+    Ok(exit)
+}
+
 impl Engine for StubEngine {
     fn locate(&self) -> cv_core::Result<EngineInfo> {
         Ok(EngineInfo {
@@ -309,6 +366,17 @@ impl Engine for StubEngine {
     }
 
     fn run(&self, cmd: &Verb, mut sink: EventSink) -> cv_core::Result<ExitClass> {
+        if let Verb::Init { dir, archetype } = cmd {
+            let exit = init(std::path::Path::new(dir), archetype)?;
+            self.emit(
+                &mut sink,
+                EngineEvent::VerbFinished {
+                    verb: cmd.name(),
+                    exit,
+                },
+            );
+            return Ok(exit);
+        }
         // Replay the corpus's captured exit code for the verb.
         let (c, dir, is_build) = match cmd {
             Verb::Build => (crate::corpus(&self.corpus), "build/", true),

@@ -1,0 +1,19 @@
+{
+  "format": "boris-publication-profile",
+  "schema_version": 1,
+  "input": "content",
+  "site": { "title": "My Boris Site" },
+  "publication": {
+    "target": "standard-site",
+    "base_url": "https://replace-me.example.com/",
+    "origin": "https://replace-me.example.com/",
+    "base_path": "",
+    "did": "did:plc:aaaaaaaaaaaaaaaaaaaaaaaa",
+    "name": "My Boris Site",
+    "show_in_discover": false,
+    "prune": false
+  },
+  "targets": [
+    { "name": "public", "output": "dist", "public": true, "theme": "themes/boris" }
+  ]
+}

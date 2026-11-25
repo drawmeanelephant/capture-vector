@@ -50,6 +50,18 @@ impl Corpus {
         String::from_utf8(self.file(rel)).expect("fixture not utf-8")
     }
 
+    /// Every pinned capture under `prefix` (`docs/tree/`), relative to
+    /// the corpus, sorted.
+    pub fn pinned_under(&self, prefix: &str) -> Vec<String> {
+        let root = format!("captures/{}/", self.name);
+        self.manifest
+            .pinned_files()
+            .filter_map(|(k, _)| k.strip_prefix(&root))
+            .filter(|rel| rel.starts_with(prefix))
+            .map(str::to_string)
+            .collect()
+    }
+
     /// The corpus source tree (authoring inputs that produced captures).
     pub fn corpus_src(&self, rel: &str) -> PathBuf {
         check_rel(rel);
@@ -117,13 +129,21 @@ pub fn ir_capture(name: &str) -> Corpus {
     }
 }
 
-/// Every Boris corpus name present on disk (not the lab captures).
+/// The `boris init` captures: `help/`, one `<archetype>/` per captured
+/// starter (its report plus the `tree/` it wrote), and `refuse/` (a
+/// target that is not empty). Opened with [`corpus`], but not a corpus:
+/// it has no sources, builds or watch session.
+pub const INIT: &str = "init";
+
+/// Every Boris corpus name present on disk (neither the lab captures nor
+/// the init pseudo-capture).
 pub fn corpora() -> Vec<String> {
     let mut v: Vec<_> = std::fs::read_dir(fixtures_root().join("captures"))
         .unwrap()
         .filter_map(|e| e.ok())
         .filter(|e| e.path().is_dir() && e.file_name() != lab::LAB_DIR)
         .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|n| n != INIT)
         .collect();
     v.sort();
     v
