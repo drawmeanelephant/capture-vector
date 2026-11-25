@@ -15,6 +15,9 @@ publishing Boris content. Outlook-style mailboxes over a graph compiler.
 4. [`spec/GAMEPLAN.md`](spec/GAMEPLAN.md) — wave-0 exit criteria and
    current verified state.
 5. [`spike/FINDINGS.md`](spike/FINDINGS.md) — what is proven vs unproven.
+6. [`docs/agent-claims.md`](docs/agent-claims.md) — claim the issue before
+   writing code. The `pr-claims` CI check fails a PR whose `Fixes #N` has
+   no linked claim, or duplicates another open PR.
 
 ## Claim before implementation
 
@@ -24,12 +27,15 @@ the shortest path is:
 
 ```sh
 python3 scripts/agent-claim.py status <issue>
-python3 scripts/agent-claim.py claim <issue> --agent <unique-agent-or-session-id>
+python3 scripts/agent-claim.py claim <issue> --agent <unique-agent-or-session-id> --branch <pr-branch>
 ```
 
 Use the issue comment ledger as the source of truth even when labels or
 assignees disagree. If `status` or `claim` reports an active claim, pick
-another issue. Release the claim when the PR opens or work stops. When `gh`
+another issue. Put `Fixes #<issue>` and `Claim: <claim-id>` in the PR
+body, then release the claim with `--reason pr-opened` when the PR opens,
+or release it when work stops. The `pr-claims` check prints the exact
+fix when the link is missing. When `gh`
 is unavailable or unauthenticated, post the manual claim format from
 `docs/agent-claims.md` with the available GitHub issue tool instead of
 skipping the ledger.
