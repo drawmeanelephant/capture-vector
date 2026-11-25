@@ -5,8 +5,8 @@
 
 use super::activity::severity_tone;
 use crate::module::{
-    Chip, InspectorModel, Link, Module, ModuleSpec, NavCache, NavItem, NavModel, PageRecord,
-    ProjectSnapshot, ReadingLine, ReadingModel, Registry, RowModel, Slot, Tone,
+    Chip, FieldSource, InspectorModel, Link, Module, ModuleSpec, NavCache, NavItem, NavModel,
+    PageRecord, ProjectSnapshot, ReadingLine, ReadingModel, Registry, RowModel, Slot, Tone,
 };
 use cv_core::diagnostic::{Diagnostic, Severity};
 use cv_core::events::engine::EngineEvent;
@@ -474,6 +474,12 @@ impl Module for PagesModule {
                 .into(),
             ),
         ];
+        if p.fields == FieldSource::Source {
+            fields.push((
+                "fields".into(),
+                "from source frontmatter, no Boris IR yet".into(),
+            ));
+        }
         fields.extend(p.frontmatter.iter().filter(|(k, _)| k != "id").cloned());
         if let Some(b) = &self.build {
             fields.push(("build".into(), b.clone()));

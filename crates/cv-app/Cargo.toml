@@ -7,6 +7,7 @@ rust-version.workspace = true
 description = "Composition root + rune shell wiring. Integrator-owned."
 
 [dependencies]
+cv-contracts.workspace = true
 cv-core.workspace = true
 cv-engine.workspace = true
 cv-ledger.workspace = true

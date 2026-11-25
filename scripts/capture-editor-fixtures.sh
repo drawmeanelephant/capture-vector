@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # capture-editor-fixtures.sh — capture REAL Boris outputs for the editor
-# lane (L7) into fixtures/editor/captures/. Hand-authored Boris JSON is
-# banned; rerun this with the pinned boris/0.9.0 instead.
+# lane (L7) and the Pages snapshot's IR reader into
+# fixtures/editor/captures/. Hand-authored Boris JSON is banned; rerun
+# this with the pinned boris/0.9.0 instead.
 #   BORIS=/path/to/boris scripts/capture-editor-fixtures.sh
 set -uo pipefail
 BORIS="${BORIS:-boris}"
@@ -15,7 +16,9 @@ for src in "$E"/corpus-src/*/; do
   work="$(mktemp -d)"; cp -R "$src/." "$work/"
   ( cd "$work" && "$BORIS" build --no-rag ) > /dev/null 2> "$cap/ir-stderr.txt"
   echo $? > "$cap/ir-exit-code.txt"
-  [ -f "$work/.boris/completion.json" ] && cp "$work/.boris/completion.json" "$cap/completion.json"
+  for ir in completion graph; do
+    [ -f "$work/.boris/$ir.json" ] && cp "$work/.boris/$ir.json" "$cap/$ir.json"
+  done
   ( cd "$work" && "$BORIS" build ) > /dev/null 2> "$cap/html-stderr.txt"
   echo $? > "$cap/html-exit-code.txt"
   if [ -d "$work/dist" ]; then

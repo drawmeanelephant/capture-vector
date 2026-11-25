@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "0.3.0",
+  "frozen": true,
+  "nodes": [
+    {
+      "index": 0,
+      "id": "guides/double",
+      "sourcePath": "guides/double.md",
+      "role": "satellite",
+      "parent": "home",
+      "parentIndex": 1,
+      "title": "Double: quoted (title)",
+      "status": null,
+      "tags": [],
+      "bodyOffset": 104
+    },
+    {
+      "index": 1,
+      "id": "home",
+      "sourcePath": "index.md",
+      "role": "trunk",
+      "parent": null,
+      "parentIndex": null,
+      "title": "Mini Site (English)",
+      "status": null,
+      "tags": ["start", "quoted: yes"],
+      "bodyOffset": 79
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "type": "page",
+        "value": "guides/double"
+      },
+      "to": {
+        "type": "page",
+        "value": "home"
+      },
+      "kind": "parent"
+    },
+    {
+      "from": {
+        "type": "page",
+        "value": "guides/double"
+      },
+      "to": {
+        "type": "page",
+        "value": "home"
+      },
+      "kind": "reference"
+    },
+    {
+      "from": {
+        "type": "page",
+        "value": "home"
+      },
+      "to": {
+        "type": "page",
+        "value": "guides/double"
+      },
+      "kind": "reference"
+    }
+  ],
+  "reverseIndex": [
+    {
+      "target": {
+        "type": "page",
+        "value": "guides/double"
+      },
+      "incomingEdges": [2]
+    },
+    {
+      "target": {
+        "type": "page",
+        "value": "home"
+      },
+      "incomingEdges": [0, 1]
+    }
+  ],
+  "nav": [
+    {
+      "index": 0,
+      "id": "guides/double",
+      "breadcrumb": [1, 0],
+      "children": [],
+      "siblings": []
+    },
+    {
+      "index": 1,
+      "id": "home",
+      "breadcrumb": [1],
+      "children": [0],
+      "siblings": []
+    }
+  ],
+  "relations": [
+    {
+      "from": {
+        "type": "page",
+        "value": "guides/double"
+      },
+      "to": {
+        "type": "page",
+        "value": "home"
+      },
+      "kind": "relates_to"
+    }
+  ]
+}
