@@ -17,10 +17,11 @@ CJK alternative costs roughly 12-16 MB per weight, so this smaller
 Android fallback is the deliberate size/coverage trade-off.
 
 At the pinned Rune revision `AppSpec::fonts` replaces rather than extends
-Rune's embedded Inter faces, so Capture Vector must restate those three
-faces (1,248,684 bytes) beside the fallback. Worst-case embedded font
-growth is therefore 4,700,584 bytes before linker alignment or dedupe;
-the fallback itself contributes 3,451,900 bytes.
+Rune's embedded Inter faces, so Capture Vector restates those three faces
+(1,248,684 bytes) beside the fallback and builds Rune without its
+`embedded-fonts` feature. The replacement is byte-neutral apart from
+linker layout; expected font-data growth is therefore the fallback's
+3,451,900 bytes, not a duplicate copy of Inter.
 
 Regenerate, verifying both digests before committing, by downloading
 `https://android.googlesource.com/platform/frameworks/base/+/android-15.0.0_r1/data/fonts/DroidSansFallback.ttf?format=TEXT`,
