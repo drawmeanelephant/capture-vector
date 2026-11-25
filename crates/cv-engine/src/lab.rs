@@ -297,11 +297,7 @@ fn canonical_out(out: &Path) -> Result<(PathBuf, PathBuf), LabError> {
         path: out.to_path_buf(),
         reason,
     };
-    // Split on separators rather than matching Component::ParentDir:
-    // Windows canonicalize() returns `\\?\` verbatim paths, whose
-    // components are not parsed, so `..` hides inside a single Normal
-    // segment. No real directory is named `..`.
-    if out.to_string_lossy().split(['/', '\\']).any(|s| s == "..") {
+    if out.components().any(|c| matches!(c, Component::ParentDir)) {
         return Err(refuse("must not contain `..`".into()));
     }
     let abs = std::path::absolute(out).map_err(|e| refuse(e.to_string()))?;
@@ -587,7 +583,12 @@ mod tests {
         let (_t, root) = scratch();
         let src = root.join("src");
         std::fs::create_dir(&src).unwrap();
-        let dotdot = root.join("a").join("..").join("out");
+        let mut dotdot_raw = root.as_os_str().to_os_string();
+        for part in ["a", "..", "out"] {
+            dotdot_raw.push(std::path::MAIN_SEPARATOR_STR);
+            dotdot_raw.push(part);
+        }
+        let dotdot = PathBuf::from(dotdot_raw);
         assert!(matches!(
             jekyll(vec![("--root", src.clone())], dotdot).prepare(),
             Err(LabError::OutPath { .. })
