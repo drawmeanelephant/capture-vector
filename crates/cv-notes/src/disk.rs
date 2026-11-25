@@ -207,12 +207,18 @@ impl FtsIndex {
             let mut idx = Self::open(tmp_path)?;
             idx.rebuild(nb, lines)?;
             idx.close()?;
+            // The replacement rename covers only the database file: a
+            // WAL or hot journal the old index left behind would replay
+            // into the replacement on next open, restoring the stale
+            // shape while the rebuild reports success. Connections are
+            // quiesced (the writer lock is ours, the old index handle
+            // dropped), so sidecars here are always stale.
+            cv_store::paths::remove_sqlite_sidecars(path)?;
             cv_store::paths::replace_file(tmp_path, path)?;
+            cv_store::paths::remove_sqlite_sidecars(path)?;
             Ok(())
         })();
-        for suffix in ["-journal", "-wal", "-shm"] {
-            let _ = std::fs::remove_file(PathBuf::from(format!("{}{suffix}", tmp_path.display())));
-        }
+        let _ = cv_store::paths::remove_sqlite_sidecars(tmp_path);
         result
     }
 

@@ -131,6 +131,64 @@ fn forced_ledger_index_rebuild_restores_rows_a_fresh_header_hides() {
     assert_eq!(idx.runs().unwrap().len(), 1);
 }
 
+/// Copy `src` over `dst` under a SQLite sidecar suffix layout: `""` is the
+/// database itself, `-wal`/`-shm` its artifacts.
+fn copy_sidecar_set(src: &std::path::Path, dst: &std::path::Path) {
+    for suffix in ["", "-wal"] {
+        let mut from = src.as_os_str().to_os_string();
+        from.push(suffix);
+        let mut to = dst.as_os_str().to_os_string();
+        to.push(suffix);
+        std::fs::copy(&from, &to).unwrap();
+    }
+}
+
+#[test]
+fn forced_ledger_rebuild_drops_stale_sqlite_sidecars() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut j = Journal::open(dir.path()).unwrap();
+    state(&mut j, RunState::Dispatching);
+    let idx = LedgerIndex::open(dir.path(), &j).unwrap();
+    let path = idx.path().to_path_buf();
+    assert_eq!(idx.runs().unwrap().len(), 1);
+    drop(idx);
+    drop(j);
+
+    // Shape a stale WAL pair at the index path: a foreign database whose
+    // un-checkpointed WAL carries a `victim` schema, as a crashed writer
+    // or a synced foreign artifact would leave behind. Copying while the
+    // victim connection is open keeps the WAL un-checkpointed.
+    let victim_dir = tempfile::tempdir().unwrap();
+    let victim_path = victim_dir.path().join("victim.sqlite");
+    let victim = rusqlite::Connection::open(&victim_path).unwrap();
+    victim
+        .execute_batch(
+            "PRAGMA journal_mode=WAL;
+             CREATE TABLE victim(x);
+             INSERT INTO victim VALUES (1);",
+        )
+        .unwrap();
+    copy_sidecar_set(&victim_path, &path);
+    drop(victim);
+
+    let records = LedgerIndex::rebuild_from_journal(dir.path()).unwrap();
+    assert_eq!(records, 1);
+
+    // The replacement must not expose the victim shape the stale WAL
+    // describes, and the replayed journal rows must survive.
+    let j = Journal::open(dir.path()).unwrap();
+    let idx = LedgerIndex::open(dir.path(), &j).unwrap();
+    assert_eq!(idx.runs().unwrap().len(), 1);
+    let check = rusqlite::Connection::open(&path).unwrap();
+    let mut victim_shape = check
+        .prepare("SELECT name FROM sqlite_master WHERE name = 'victim'")
+        .unwrap();
+    assert!(
+        !victim_shape.exists([]).unwrap(),
+        "stale WAL must not contaminate the rebuilt index"
+    );
+}
+
 #[test]
 fn torn_append_is_dropped_not_guessed() {
     let dir = tempfile::tempdir().unwrap();
