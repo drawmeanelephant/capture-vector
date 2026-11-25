@@ -1150,6 +1150,10 @@ fn preflight_argv_is_what_boris_0_9_0_accepts() {
                 s(&["--html-dir", ".cv/publish/run-1/site"])
             ),
             ("check".into(), vec![]),
+            (
+                "proof".into(),
+                s(&["verify", "--html-dir", ".cv/publish/run-1/site"])
+            ),
             ("build".into(), s(&["--out", ".cv/publish/run-1/ir"])),
         ]
     );

@@ -1,5 +1,6 @@
 mod support;
 
+use cv_core::engine::ExitClass;
 use cv_ledger::journal::Entry;
 use cv_publish::plan::SealedPlan;
 use cv_publish::secrets::NoSecrets;
@@ -461,6 +462,7 @@ fn a_failed_deploy_check_blocks_the_grant_with_finding_detail() {
     let dir = tempfile::tempdir().unwrap();
     let mut eng = CapturedEngine::new(dir.path());
     eng.failed_check = true;
+    eng.verify_exit = ExitClass::ContentFailure;
     let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
     let out = p
         .preflight(
@@ -548,6 +550,10 @@ fn real_boris_broken_fragment_output_blocks_the_grant() {
     let dir = tempfile::tempdir().unwrap();
     let mut eng = CapturedEngine::new(dir.path());
     eng.fixture = "captures/happy-broken-fragment/dist/dist";
+    // Real Boris exits 1 (ContentFailure) for `proof verify` over this
+    // capture — probed against the pinned binary. The double reports that
+    // verdict; nothing about the proof bytes is hand-authored.
+    eng.verify_exit = ExitClass::ContentFailure;
     let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
     let out = p
         .preflight(
@@ -605,8 +611,13 @@ fn assert_blocked(eng: &CapturedEngine, dir: &std::path::Path, needle: &str) {
     );
 }
 
+/// Verdict semantics belong to Boris: an `incomplete` or `failed` check row
+/// is display detail, while `proof verify`'s exit is the deploy verdict.
+/// When verify exits ok the row alone must not block — warning-only output
+/// would otherwise be falsely refused. When verify fails the grant blocks
+/// regardless of how the rows are spelled.
 #[test]
-fn an_incomplete_check_status_blocks_the_grant() {
+fn the_verify_exit_is_the_verdict_not_check_rows() {
     let dir = tempfile::tempdir().unwrap();
     let mut eng = CapturedEngine::new(dir.path());
     mutate_checks(&mut eng, |idx| {
@@ -616,7 +627,24 @@ fn an_incomplete_check_status_blocks_the_grant() {
             }
         }
     });
-    assert_blocked(&eng, dir.path(), "rendered-html incomplete");
+    // verify exits ok (default): the row alone does not block.
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+    let out = p
+        .preflight(
+            &PreflightRequest { config: cfg() },
+            &Rules::ok(),
+            &mut ids("run"),
+        )
+        .unwrap();
+    assert!(
+        matches!(out, PreflightOutcome::Granted { .. }),
+        "verify-ok must grant even with an incomplete row: {out:?}"
+    );
+
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    eng.verify_exit = ExitClass::ContentFailure;
+    assert_blocked(&eng, dir.path(), "proof-verify");
 }
 
 #[test]

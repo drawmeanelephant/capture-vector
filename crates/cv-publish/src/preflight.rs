@@ -114,6 +114,10 @@ pub fn verbs(cfg: &TargetConfig, run: &StableId) -> Result<Vec<(&'static str, Ve
         ("build", c("build", &["--html-dir", &site])),
         ("validate", c("validate", &["--html-dir", &site])),
         ("check", c("check", &[])),
+        // Boris's own deploy verdict is authoritative: `failed` check rows
+        // can carry warnings Boris does not treat as deploy-blocking, so the
+        // verdict comes from verify's exit evidence, never reimplemented.
+        ("proof-verify", c("proof", &["verify", "--html-dir", &site])),
         ("ir", c("build", &["--out", &ir])),
     ])
 }

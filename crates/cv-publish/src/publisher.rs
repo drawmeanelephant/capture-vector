@@ -120,6 +120,51 @@ fn reserved_identities(site: &Path) -> std::collections::BTreeSet<(u64, u64)> {
 /// Boris's own deploy verdict. `proof verify` fails when a ran check
 /// records status `failed` — those are EngineDocumented deploy errors and
 /// must block the grant even though Audit projection is deferred. The
+/// Best-effort display detail from Boris's own findings when the verify
+/// verdict blocks: parsing here never decides the verdict, it only surfaces
+/// what Boris already recorded.
+fn proof_finding_detail(site: &Path) -> String {
+    let Ok(bytes) = std::fs::read(site.join("_boris/proof/checks.json")) else {
+        return String::new();
+    };
+    let Ok(file) = serde_json::from_slice::<ingest::ChecksFile>(&bytes) else {
+        return String::new();
+    };
+    let details: Vec<String> = file
+        .findings
+        .iter()
+        .filter(|f| f.get("severity").and_then(|v| v.as_str()) == Some("error"))
+        .map(|f| {
+            let code = f.get("code").and_then(|v| v.as_str()).unwrap_or("unknown");
+            let page = f
+                .get("subject")
+                .and_then(|s| s.get("id"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("?");
+            let output = f
+                .get("output_location")
+                .and_then(|o| o.get("path"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("?");
+            format!("{code} on {page} at {output}")
+        })
+        .collect();
+    let failed: Vec<&str> = file
+        .checks
+        .iter()
+        .filter(|c| c.ran && matches!(c.status.as_str(), "failed" | "incomplete"))
+        .map(|c| c.id.as_str())
+        .collect();
+    let mut out = String::new();
+    if !failed.is_empty() {
+        out.push_str(&format!(" — {}", failed.join(", ")));
+    }
+    if !details.is_empty() {
+        out.push_str(&format!(" ({})", details.join("; ")));
+    }
+    out
+}
+
 /// inventory digest inside checks.json must match the sealed artifacts.json
 /// bytes so proof evidence and the sealed inventory cannot diverge.
 fn evaluate_proof_checks(site: &Path, artifacts_sha: &str, blocks: &mut Vec<String>) {
@@ -201,41 +246,6 @@ fn evaluate_proof_checks(site: &Path, artifacts_sha: &str, blocks: &mut Vec<Stri
         blocks.push(format!(
             "proof checks: {} was eligible but did not run — deploy evidence incomplete",
             check.id
-        ));
-    }
-    for check in file
-        .checks
-        .iter()
-        .filter(|c| c.ran && matches!(c.status.as_str(), "failed" | "incomplete"))
-    {
-        let details: Vec<String> = file
-            .findings
-            .iter()
-            .filter(|f| f.get("severity").and_then(|v| v.as_str()) == Some("error"))
-            .map(|f| {
-                let code = f.get("code").and_then(|v| v.as_str()).unwrap_or("unknown");
-                let page = f
-                    .get("subject")
-                    .and_then(|s| s.get("id"))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("?");
-                let output = f
-                    .get("output_location")
-                    .and_then(|o| o.get("path"))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("?");
-                format!("{code} on {page} at {output}")
-            })
-            .collect();
-        blocks.push(format!(
-            "proof checks: {} {} — deploy blocked by Boris ({})",
-            check.id,
-            check.status,
-            if details.is_empty() {
-                "error-severity findings".to_string()
-            } else {
-                details.join("; ")
-            }
         ));
     }
 }
@@ -595,7 +605,19 @@ impl<'a> Publisher<'a> {
         for (step, verb) in verbs(cfg, &run)? {
             match self.engine.run(&verb, Box::new(|_| {})) {
                 Ok(ExitClass::Ok) => {}
-                Ok(x) => blocks.push(format!("{step}: {x:?}")),
+                Ok(x) => {
+                    let detail = if step == "proof-verify" {
+                        proof_finding_detail(&dir.join("site"))
+                    } else {
+                        String::new()
+                    };
+                    let verdict = if step == "proof-verify" {
+                        " — deploy blocked by Boris proof verify"
+                    } else {
+                        ""
+                    };
+                    blocks.push(format!("{step}: {x:?}{verdict}{detail}"));
+                }
                 Err(e) => blocks.push(format!("{step}: {e}")),
             }
             if self.source_digest()? != source_before {

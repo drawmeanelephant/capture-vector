@@ -281,6 +281,11 @@ pub struct CapturedEngine {
     pub multiply_linked: bool,
     /// Post-copy mutation hook for one-off proof-evidence regressions.
     pub post_build: Option<PostBuildHook>,
+    /// Exit class the double reports for `proof verify` — Boris's own
+    /// deploy verdict. Tests exercising a blocking verdict set this to a
+    /// non-Ok class; the knob simulates what real Boris would exit over the
+    /// copied capture, it is not hand-authored proof JSON.
+    pub verify_exit: ExitClass,
 }
 
 impl CapturedEngine {
@@ -301,6 +306,7 @@ impl CapturedEngine {
             hardlink_alias: false,
             multiply_linked: false,
             post_build: None,
+            verify_exit: ExitClass::Ok,
         }
     }
 
@@ -486,6 +492,8 @@ impl Engine for CapturedEngine {
                 .unwrap();
                 Ok(ExitClass::Ok)
             }
+            "proof" => Ok(self.verify_exit),
+            "proof" => Ok(self.verify_exit),
             _ => Ok(ExitClass::Ok),
         }
     }
