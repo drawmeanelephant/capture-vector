@@ -6,6 +6,8 @@ Two kinds, one contract each:
 |---|---|---|---|
 | Element-tree + layout JSON | `tree/<scene>.{tree,layout}.json` | **cross-OS** (Linux, macOS, Windows) | `cargo test -p cv-app --test goldens` — in-process `rune::Runtime`, no GPU |
 | PNG | `png/<scene>.png` | canonical rasterizer only: Linux + Lavapipe | `scripts/check-ui-png.sh` — `cv-app --scene <s> --snap` |
+| Editor tree + layout JSON | `editor/<scene>.{tree,layout}.json` | **cross-OS** | `cargo test -p cv-widgets --test editor editor_goldens` |
+| Editor PNG | `png/editor-<scene>.png` | canonical rasterizer only | `scripts/check-ui-png.sh` — `cv-app --editor --scene <s> --snap` |
 
 Scenes are named in `crates/cv-app/src/lib.rs` (`SCENES`): `canary`
 (StubEngine replays `fixtures/captures/happy/watch/session.ndjson`),
@@ -13,6 +15,12 @@ Scenes are named in `crates/cv-app/src/lib.rs` (`SCENES`): `canary`
 (light + reduced motion), and one per degraded state: `engine-absent`,
 `version-mismatch`, `watch-dead`, `store-corrupt`. Scripted input
 (`key:`, `click:`, `cmd:` steps) lives in `cv_widgets::harness::Harness`.
+
+Editor scenes are named in `crates/cv-app/src/editor_scene.rs`
+(`SCENES`): `broken-wikilink` (the captured page with its build's
+`EREFERENCEMISSING` problem) and `close` (the unsaved-edits close
+dialog). Bless their JSON with
+`CV_BLESS=1 cargo test -p cv-widgets --test editor editor_goldens`.
 
 Tree JSON is built from `Runtime::elements()` (layout + retained tree)
 and `Runtime::presented_pose`. It never reads GPU output, so it must be
@@ -56,7 +64,8 @@ Layout JSON (`<scene>.layout.json`) is still schema 1: keyed rects only.
    mismatch the ubuntu job uploads the `ui-png-lavapipe` artifact
    (`gh run download <run-id> -n ui-png-lavapipe -D target/ui-ci`).
    Review each changed scene, then copy `<scene>.png` over
-   `png/<scene>.png`; `effects.fx.png` is `png/effects.png`, and
+   `png/<scene>.png` (editor renders are already named
+   `editor-<scene>.png`); `effects.fx.png` is `png/effects.png`, and
    `canary.fx.png` is only checked against `png/canary.png`.
 4. Commit goldens in the same commit as the UI change, with one line per
    changed scene saying why.

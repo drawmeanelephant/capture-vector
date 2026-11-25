@@ -36,6 +36,23 @@ for s in "${SCENES[@]}"; do
   fi
 done
 
+# The editor window (`cv-app --editor`) has its own scenes; goldens are
+# prefixed `editor-` so they never collide with shell scene names.
+for s in broken-wikilink close; do
+  if ! ./target/debug/cv-app --editor --scene "$s" --snap "$OUT/editor-$s.png" >"$OUT/editor-$s.log" 2>&1; then
+    echo "check-ui-png: cv-app --editor --scene $s --snap failed:"
+    cat "$OUT/editor-$s.log"
+    exit 2
+  fi
+  if [ "${CV_BLESS:-}" = "1" ]; then
+    cp "$OUT/editor-$s.png" "$GOLD/editor-$s.png"
+    echo "blessed $GOLD/editor-$s.png"
+  elif ! ./target/debug/xtask png-diff "$GOLD/editor-$s.png" "$OUT/editor-$s.png" --tolerance 8 --max-ratio 0.002; then
+    echo "  actual: $OUT/editor-$s.png"
+    fail=1
+  fi
+done
+
 # Signature effects (issue #57) need the `effects` build. Lavapipe renders
 # them deterministically; the effects scene snaps 0.3 s in, while the
 # build glow is up. The canary is re-checked under that build too: with

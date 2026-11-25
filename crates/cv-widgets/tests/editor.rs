@@ -115,7 +115,9 @@ fn broken_wikilink_reports_line_goes_stale_on_typing_and_clears() {
     assert_eq!(rail[0].line, Some(5), "page.md:6 is 0-based line 5");
     assert_eq!(rail[0].freshness, Freshness::Fresh);
     assert!(rt.find("gutter-6").is_some());
-    assert!(texts(&rt).iter().any(|t| t == "EREFERENCEMISSING:6"));
+    let shown = texts(&rt);
+    assert!(shown.iter().any(|t| t == "EREFERENCEMISSING"), "{shown:?}");
+    assert!(shown.iter().any(|t| t.contains("page.md:6:")), "{shown:?}");
 
     // Click-to-span: the caret lands on line 6 of the file.
     click(&mut rt, "problem-0");
@@ -213,6 +215,28 @@ fn wikilink_completion_comes_from_captured_completion_json() {
     type_str(&mut rt, "[[gu");
     assert!(rt.find("completion").is_some());
     assert!(texts(&rt).iter().any(|t| t == "guide"));
+
+    // The popup hangs under the caret, not under the whole body.
+    let at = |key: &str| {
+        rt.elements()
+            .into_iter()
+            .find(|e| e.key.as_deref() == Some(key) && !e.exiting)
+            .unwrap_or_else(|| panic!("{key} not mounted"))
+            .target
+    };
+    let [cx, cy, _, ch] = at("completion-anchor");
+    let [px, py, ..] = at("completion");
+    let [_, by, _, bh] = at("editor-body");
+    assert!((px - cx).abs() < 1.0, "popup x {px} vs caret x {cx}");
+    assert!(
+        py >= cy + ch && py <= cy + ch + 8.0,
+        "popup y {py} vs caret {cy}+{ch}"
+    );
+    assert!(
+        py < by + bh * 0.5,
+        "popup sits near the caret line, not below the body"
+    );
+
     click(&mut rt, "complete-0");
     assert_eq!(rt.state.body.text, "See [[guide]]");
     assert!(rt.find("completion").is_none());
@@ -545,6 +569,19 @@ fn dirty_close_save_and_close_writes_then_closes() {
 fn dirty_close_keep_editing_stays_open_and_dirty() {
     let (ses, buf, mut rt, _dir) = dirty_closed_window();
     click(&mut rt, "editor-close-cancel");
+    assert_eq!(rt.shell_request, None);
+    assert!(ses.borrow().is_dirty(buf));
+    assert!(rt.find("editor-close-prompt").is_none());
+}
+
+#[test]
+fn dirty_close_escape_keeps_editing() {
+    let (ses, buf, mut rt, _dir) = dirty_closed_window();
+    rt.key(rune::KeyEvent {
+        key: rune::Key::Escape,
+        mods: Default::default(),
+    });
+    settle(&mut rt);
     assert_eq!(rt.shell_request, None);
     assert!(ses.borrow().is_dirty(buf));
     assert!(rt.find("editor-close-prompt").is_none());

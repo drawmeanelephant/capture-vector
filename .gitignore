@@ -13,6 +13,9 @@ spike/vendor/
 .vscode/
 *.iml
 
+# Golden mismatch renders, written next to the golden they failed.
+fixtures/ui/golden/**/*.actual.json
+
 # Runtime sidecars and logs.
 .cv/
 *.log

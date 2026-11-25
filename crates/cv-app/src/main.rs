@@ -1,6 +1,7 @@
 //! cv-app — composition root binary. Native window by default; rune's
 //! headless flags (`--scene`, `--tree`, `--snap`, `--script`) also apply.
 //! `--version` / `--build-info` print and exit without opening a window.
+//! `--editor` runs one editor window instead, over the editor scenes.
 
 fn main() {
     cv_app::logging::init_from_env();
@@ -24,5 +25,9 @@ fn main() {
             ("headless", serde_json::json!(headless)),
         ],
     );
+    if args.iter().any(|a| a == "--editor") {
+        cv_widgets::editor::host::run_scenes(cv_app::editor_scene::SCENES);
+        return;
+    }
     cv_widgets::app::run(cv_app::launch());
 }

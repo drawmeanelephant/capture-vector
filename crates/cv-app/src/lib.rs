@@ -5,6 +5,7 @@
 pub mod audit;
 pub mod build_info;
 pub mod editor;
+pub mod editor_scene;
 pub mod live;
 pub mod logging;
 pub mod publish;

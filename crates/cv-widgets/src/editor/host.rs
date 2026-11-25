@@ -83,6 +83,30 @@ fn closed(s: &mut EditorWindow, _tx: &mut Tx) {
     on_closed(s);
 }
 
+/// A named headless editor state: `cv-app --editor --scene <name>`.
+pub type Scene = (&'static str, fn(&mut EditorWindow));
+
+fn scene_setup(_s: &mut EditorWindow, w: Waker) {
+    set_waker(w);
+    if rune::is_headless() {
+        crate::keys::pin_keycaps(rune::KeyPlatform::Mac);
+    }
+}
+
+/// Run one editor window over `scenes`, for Rune's headless flags
+/// (`--scene`, `--tree`, `--snap`). Without a scene it shows the
+/// no-page state.
+pub fn run_scenes(scenes: &'static [Scene]) {
+    rune::App::new(AppSpec {
+        scenes,
+        setup: Some(scene_setup),
+        poll: Some(super::poll),
+        on_key: Some(super::on_key),
+        ..AppSpec::new("Capture Vector — editor", super::SIZE, init, super::view)
+    })
+    .run();
+}
+
 /// A window closed (title bar, shortcut, `Tx::close_window`). Over unsaved
 /// edits no other window shows, it is queued to reopen asking to confirm;
 /// otherwise it is queued as closed.

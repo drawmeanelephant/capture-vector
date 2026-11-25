@@ -3,7 +3,7 @@
 
 use crate::theme::kit;
 use cv_model::theme::Theme;
-use rune::{El, Icon, Tx};
+use rune::{El, Icon, Tx, row, text};
 use rune_kit::{Button, ButtonVariant, ControlSize, IconButton, IconButtonVariant};
 
 /// How loud a button is.
@@ -81,13 +81,69 @@ pub fn icon_button<S: 'static>(
     label: &str,
     on_press: impl Fn(&mut S) + 'static,
 ) -> El {
-    IconButton::new(icon)
+    icon_button_tx(t, key, icon, label, None, true, move |s: &mut S, _| {
+        on_press(s)
+    })
+}
+
+/// [`icon_button`] with an optional shortcut hint in its tooltip, which
+/// can be disabled: dimmed, unfocusable, with no handler.
+pub fn icon_button_tx<S: 'static>(
+    t: &Theme,
+    key: &str,
+    icon: &'static Icon,
+    label: &str,
+    chord: Option<&str>,
+    enabled: bool,
+    on_press: impl Fn(&mut S, &mut Tx) + 'static,
+) -> El {
+    let mut b = IconButton::new(icon)
         .variant(IconButtonVariant::GhostMuted)
         .control_size(ControlSize::Small)
         .label(label)
-        .help(label)
-        .on_press(on_press)
-        .build(&kit(t))
-        .key(key.to_string())
-        .press_scale(PRESS_SCALE)
+        .help(label);
+    if let Some(c) = chord {
+        b = b.shortcut(c);
+    }
+    let b = if enabled {
+        b.on_press_tx(on_press)
+    } else {
+        b.disabled(true)
+    };
+    let e = b.build(&kit(t)).key(key.to_string());
+    if enabled {
+        e.press_scale(PRESS_SCALE)
+    } else {
+        e
+    }
+}
+
+/// [`button_tx`] that shows its shortcut: the chord's keycaps after the
+/// label, also named in its tooltip and to assistive tech.
+pub fn button_keys_tx<S: 'static>(
+    t: &Theme,
+    key: &str,
+    label: &str,
+    v: Variant,
+    chord: &str,
+    enabled: bool,
+    on_press: impl Fn(&mut S, &mut Tx) + 'static,
+) -> El {
+    let caps = crate::keys::keycaps(chord).unwrap_or_default().join("");
+    let words = label.to_string();
+    let b = kit_button(label, v)
+        .shortcut(chord)
+        .label_with(move |font, ink| {
+            row()
+                .gap(6.0)
+                .center_y()
+                .child(text(words).key("label").font(font).color(ink))
+                .child(text(caps).key("keys").font(font).color(ink.alpha(0.7)))
+        });
+    let b = if enabled {
+        b.on_press_tx(on_press)
+    } else {
+        b.disabled(true)
+    };
+    finish(t, key, b, enabled)
 }
