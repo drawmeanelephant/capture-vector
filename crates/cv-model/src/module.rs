@@ -194,6 +194,19 @@ pub struct PageRecord {
     pub body: String,
     /// Rendered dist path, when the last build wrote one.
     pub output: Option<String>,
+    pub fields: FieldSource,
+}
+
+/// Where a page's display fields (id, title, parent, tags, relations)
+/// came from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
+pub enum FieldSource {
+    /// The Boris IR graph from the last IR build.
+    Boris,
+    /// Read from source frontmatter because no Boris IR covers the page
+    /// yet: a display guess that Boris may read differently.
+    #[default]
+    Source,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]

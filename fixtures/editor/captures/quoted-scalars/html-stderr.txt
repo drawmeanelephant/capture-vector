@@ -1,0 +1,5 @@
+  wrote dist/guides/double.html
+  wrote dist/home.html
+ok: wrote HTML for 1 target(s):
+  target default: out=dist layout=themes/boris/layouts/main.html rules=0
+  checks: 3/3 passed

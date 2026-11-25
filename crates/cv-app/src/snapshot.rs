@@ -3,14 +3,17 @@
 //! Boris artifact index. Live workspaces are read at boot and on resync,
 //! never per frame.
 //!
-//! Frontmatter is read for display only (title, parent, tags,
-//! relations); Boris diagnostics stay authoritative for what is valid.
+//! Display fields (id, title, parent, tags, relations) come from the
+//! Boris IR graph of the last IR build. Before one covers a page, its
+//! frontmatter is read as a marked guess (`FieldSource::Source`); Boris
+//! diagnostics stay authoritative for what is valid.
 
+use cv_contracts::graph::{Graph, Node};
 use cv_fixtures::{Manifest, corpus, fixtures_root};
-use cv_model::module::{OutputRecord, PageRecord, ProjectSnapshot};
+use cv_model::module::{FieldSource, OutputRecord, PageRecord, ProjectSnapshot};
 use cv_store::paths::{confined, confined_file, is_link};
 use serde_json::Value;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs::{self, File, Metadata, OpenOptions};
 use std::io::{self, Read};
 use std::path::{Component, Path, PathBuf};
@@ -139,14 +142,16 @@ fn split_frontmatter(raw: &str) -> Option<(&str, &str)> {
     None
 }
 
-/// One page record. Without an explicit `id` the path (sans extension)
-/// stands in, matching the `[[guides/x]]` links the corpora use.
+/// One page record guessed from source, marked `FieldSource::Source`.
+/// Without an explicit `id` the path (sans extension) stands in,
+/// matching the `[[guides/x]]` links the corpora use.
 pub fn page(path: &str, raw: &str) -> PageRecord {
     let (fm, body) = split_frontmatter(raw).unwrap_or(("", raw));
     let mut p = PageRecord {
         path: path.into(),
         id: strip_ext(path).into(),
         body: body.to_string(),
+        fields: FieldSource::Source,
         ..Default::default()
     };
     for (k, v) in fm.lines().filter_map(|l| l.split_once(':')) {
@@ -357,10 +362,58 @@ impl<'a> Scan<'a> {
     }
 }
 
+/// IR-mode builds write `graph.json` under `--out` (default `.boris`); a
+/// workspace built with `--out <html_dir>` keeps it there instead. The
+/// newer file is the last build's.
+fn ir_graph(root: &Path, html_dir: &str) -> Option<Graph> {
+    [Path::new(".boris"), Path::new(html_dir)]
+        .into_iter()
+        .map(|dir| dir.join("graph.json"))
+        .filter_map(|rel| {
+            let path = confined_file(root, &rel).ok()?;
+            let modified = fs::symlink_metadata(path).ok()?.modified().ok()?;
+            Some((modified, rel))
+        })
+        .max_by_key(|(modified, _)| *modified)
+        .and_then(|(_, rel)| workspace_json(root, &rel, MAX_INDEX_BYTES))
+        .and_then(|v| serde_json::from_value(v).ok())
+}
+
+/// Replace the frontmatter guess with what Boris reported for every page
+/// the graph covers. Pages it does not cover (added since the last IR
+/// build) keep their `FieldSource::Source` mark.
+fn apply_ir(pages: &mut [PageRecord], graph: &Graph) {
+    let by_path: HashMap<&str, &Node> = graph
+        .nodes
+        .iter()
+        .map(|n| (n.source_path.as_str(), n))
+        .collect();
+    for p in pages {
+        let Some(n) = by_path.get(p.path.as_str()) else {
+            continue;
+        };
+        p.id = n.id.clone();
+        p.title = n
+            .title
+            .clone()
+            .filter(|t| !t.is_empty())
+            .unwrap_or_else(|| n.id.clone());
+        p.parent = n.parent.clone();
+        p.tags = n.tags.clone();
+        p.relations = graph
+            .relations
+            .iter()
+            .filter(|r| r.from.kind == "page" && r.from.value == n.id)
+            .map(|r| (r.kind.clone(), r.to.value.clone()))
+            .collect();
+        p.fields = FieldSource::Boris;
+    }
+}
+
 /// Project snapshot from a real workspace: page sources under the
 /// content input, output records from the last build's proof pack
-/// (`<html_dir>/_boris/proof/artifacts.json`) when one exists.
-/// Unreadable or oversized files are omitted. The walk checks the tree
+/// (`<html_dir>/_boris/proof/artifacts.json`) when one exists, and
+/// display fields from the last IR graph (`ir_graph`). Unreadable or oversized files are omitted. The walk checks the tree
 /// as found; directory checks are not atomic against concurrent
 /// replacement, but a page open refuses a link, FIFO, or device swapped
 /// in after its type check.
@@ -374,6 +427,9 @@ pub fn workspace_snapshot(
     let index = workspace_root(root).and_then(|base| {
         if let Some(dir) = source_root(&base, Path::new(&input_at(&base))) {
             scan.walk(&dir, "", 0);
+        }
+        if let Some(graph) = ir_graph(&base, html_dir) {
+            apply_ir(&mut scan.pages, &graph);
         }
         workspace_json(
             &base,
@@ -469,6 +525,96 @@ mod tests {
         assert_eq!(snap.pages[2].title, "Home");
         assert_eq!(snap.pages[2].body, "Hello");
         assert_eq!(snap.pages[2].output.as_deref(), Some("index.html"));
+    }
+
+    /// Copies a captured editor-lane corpus into a fresh workspace,
+    /// with its captured IR graph at `ir_rel` when Boris wrote one.
+    fn captured_workspace(name: &str, ir_rel: &str) -> tempfile::TempDir {
+        let editor = fixtures_root().join("editor");
+        let manifest = Manifest::load(&editor.join("MANIFEST.toml"));
+        let temp = tempfile::tempdir().unwrap();
+        let src_prefix = format!("corpus-src/{name}/");
+        for (key, _) in manifest.pinned_files() {
+            if let Some(rel) = key.strip_prefix(&src_prefix) {
+                write(temp.path(), rel, fs::read(editor.join(key)).unwrap());
+            }
+        }
+        let key = format!("captures/{name}/graph.json");
+        if let Ok(bytes) = fs::read(editor.join(&key)) {
+            manifest.verify(&key, &bytes).unwrap();
+            write(temp.path(), ir_rel, bytes);
+        }
+        temp
+    }
+
+    fn by_path<'a>(snap: &'a ProjectSnapshot, path: &str) -> &'a PageRecord {
+        snap.pages.iter().find(|p| p.path == path).unwrap()
+    }
+
+    #[test]
+    fn quoted_scalars_display_as_boris_reports_them() {
+        let ws = captured_workspace("quoted-scalars", ".boris/graph.json");
+        let snap = workspace_snapshot(ws.path(), "dist", None, 1);
+
+        let home = by_path(&snap, "index.md");
+        assert_eq!(home.fields, FieldSource::Boris);
+        assert_eq!(home.id, "home");
+        assert_eq!(home.title, "Mini Site (English)");
+        assert_eq!(home.parent, None);
+        assert_eq!(home.tags, ["start", "quoted: yes"]);
+
+        let double = by_path(&snap, "guides/double.md");
+        assert_eq!(double.fields, FieldSource::Boris);
+        assert_eq!(double.id, "guides/double");
+        assert_eq!(double.title, "Double: quoted (title)");
+        assert_eq!(double.parent.as_deref(), Some("home"));
+        assert_eq!(
+            double.relations,
+            [("relates_to".to_string(), "home".to_string())]
+        );
+    }
+
+    #[test]
+    fn an_ir_graph_beside_the_html_dir_is_read_too() {
+        let ws = captured_workspace("quoted-scalars", "dist/graph.json");
+        let snap = workspace_snapshot(ws.path(), "dist", None, 1);
+        assert_eq!(by_path(&snap, "index.md").title, "Mini Site (English)");
+        assert_eq!(by_path(&snap, "index.md").fields, FieldSource::Boris);
+    }
+
+    #[test]
+    fn pages_without_boris_ir_are_marked_as_read_from_source() {
+        let ws = captured_workspace("quoted-scalars", ".boris/graph.json");
+        write(
+            ws.path(),
+            "content/guides/new.md",
+            "---\ntitle: \"Added after the build\"\n---\n",
+        );
+        let snap = workspace_snapshot(ws.path(), "dist", None, 1);
+        assert_eq!(by_path(&snap, "index.md").fields, FieldSource::Boris);
+        assert_eq!(by_path(&snap, "guides/new.md").fields, FieldSource::Source);
+
+        fs::remove_file(ws.path().join(".boris/graph.json")).unwrap();
+        let snap = workspace_snapshot(ws.path(), "dist", None, 2);
+        assert!(snap.pages.iter().all(|p| p.fields == FieldSource::Source));
+    }
+
+    /// Boris rejects single-quoted scalars, so it writes no IR for them and
+    /// the pages stay marked as a source guess.
+    #[test]
+    fn single_quoted_scalars_get_no_boris_ir_and_stay_marked() {
+        let captures = fixtures_root().join("editor/captures/single-quoted");
+        let stderr = fs::read_to_string(captures.join("ir-stderr.txt")).unwrap();
+        assert!(
+            stderr.contains("EFRONTMATTER: single.md:2:1: single-quoted values are not supported"),
+            "{stderr}"
+        );
+        assert!(!captures.join("graph.json").exists());
+
+        let ws = captured_workspace("single-quoted", ".boris/graph.json");
+        let snap = workspace_snapshot(ws.path(), "dist", None, 1);
+        assert_eq!(snap.pages.len(), 2);
+        assert!(snap.pages.iter().all(|p| p.fields == FieldSource::Source));
     }
 
     #[test]
