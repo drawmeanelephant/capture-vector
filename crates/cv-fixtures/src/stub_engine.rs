@@ -36,6 +36,9 @@ struct StubEmitter {
     sent: Mutex<Vec<EngineEvent>>,
 }
 
+/// The `--out` the IR captures were taken with (`cv_engine::verbs::IR_DIR`).
+pub const IR_CAPTURE_OUT: &str = ".cv/ir";
+
 /// `cv_engine::EngineError::WatchAlreadyLive` as it crosses the port.
 pub const WATCH_ALREADY_LIVE: &str = "a watch session is already live for this workspace";
 
@@ -306,10 +309,15 @@ impl Engine for StubEngine {
 
     fn run(&self, cmd: &Verb, mut sink: EventSink) -> cv_core::Result<ExitClass> {
         // Replay the corpus's captured exit code for the verb.
-        let verb_dir = match cmd {
-            Verb::Build => "build",
-            Verb::Validate => "validate",
-            Verb::Check => "check",
+        let (c, dir, is_build) = match cmd {
+            Verb::Build => (crate::corpus(&self.corpus), "build/", true),
+            Verb::Validate => (crate::corpus(&self.corpus), "validate/", false),
+            Verb::Check => (crate::corpus(&self.corpus), "check/", false),
+            // Captured with the output dir the live session uses; the
+            // input only names the root the capture already built.
+            Verb::Ir { out, .. } if out == IR_CAPTURE_OUT => {
+                (crate::ir_capture(&self.corpus), "", true)
+            }
             // No captured verb: the oracle must not replay a build's
             // bytes for a verb it never saw — it can't answer.
             other => {
@@ -318,19 +326,18 @@ impl Engine for StubEngine {
                 )));
             }
         };
-        let code: i32 = crate::corpus(&self.corpus)
-            .file_str(&format!("{verb_dir}/exit-code.txt"))
+        let code: i32 = c
+            .file_str(&format!("{dir}exit-code.txt"))
             .trim()
             .parse()
             .unwrap_or(3);
         let exit = ExitClass::from_code(code);
         // Build verbs report the one-shot build in watch vocabulary, as
         // `ProcessEngine` does: diagnostics come from captured stderr.
-        if verb_dir == "build" {
-            let c = crate::corpus(&self.corpus);
+        if is_build {
             let (stdout, stderr) = (
-                c.file_str("build/stdout.txt"),
-                c.file_str("build/stderr.txt"),
+                c.file_str(&format!("{dir}stdout.txt")),
+                c.file_str(&format!("{dir}stderr.txt")),
             );
             let build = self.next_build();
             let diagnostics: Vec<Diagnostic> = stderr

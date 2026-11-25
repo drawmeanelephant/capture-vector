@@ -9,6 +9,7 @@
 //! diagnostics stay authoritative for what is valid.
 
 use cv_contracts::graph::{Graph, Node};
+use cv_engine::verbs::IR_DIR;
 use cv_fixtures::{Manifest, corpus, fixtures_root};
 use cv_model::module::{FieldSource, OutputRecord, PageRecord, ProjectSnapshot};
 use cv_store::paths::{confined, confined_file, is_link};
@@ -17,6 +18,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs::{self, File, Metadata, OpenOptions};
 use std::io::{self, Read};
 use std::path::{Component, Path, PathBuf};
+use std::time::SystemTime;
 
 const ARTIFACTS: &str = "dist/dist/_boris/proof/artifacts.json";
 const SOURCE_EXT: &[&str] = &[".md", ".textile", ".cook"];
@@ -362,21 +364,27 @@ impl<'a> Scan<'a> {
     }
 }
 
-/// IR-mode builds write `graph.json` under `--out` (default `.boris`); a
-/// workspace built with `--out <html_dir>` keeps it there instead. The
-/// newer file is the last build's.
+/// IR-mode builds write `graph.json` under `--out`: the live session's
+/// own projection (`IR_DIR`), Boris's default `.boris`, or the HTML dir
+/// of a workspace built with `--out <html_dir>`. The newest file is the
+/// last build's; on a tie the earlier candidate wins, so the projection
+/// the live session keeps fresh is read first.
 fn ir_graph(root: &Path, html_dir: &str) -> Option<Graph> {
-    [Path::new(".boris"), Path::new(html_dir)]
-        .into_iter()
-        .map(|dir| dir.join("graph.json"))
-        .filter_map(|rel| {
-            let path = confined_file(root, &rel).ok()?;
-            let modified = fs::symlink_metadata(path).ok()?.modified().ok()?;
-            Some((modified, rel))
-        })
-        .max_by_key(|(modified, _)| *modified)
-        .and_then(|(_, rel)| workspace_json(root, &rel, MAX_INDEX_BYTES))
-        .and_then(|v| serde_json::from_value(v).ok())
+    let mut newest: Option<(SystemTime, PathBuf)> = None;
+    for dir in [IR_DIR, ".boris", html_dir] {
+        let rel = Path::new(dir).join("graph.json");
+        let Some(modified) = confined_file(root, &rel)
+            .ok()
+            .and_then(|path| fs::symlink_metadata(path).ok())
+            .and_then(|meta| meta.modified().ok())
+        else {
+            continue;
+        };
+        if newest.as_ref().is_none_or(|(at, _)| modified > *at) {
+            newest = Some((modified, rel));
+        }
+    }
+    workspace_json(root, &newest?.1, MAX_INDEX_BYTES).and_then(|v| serde_json::from_value(v).ok())
 }
 
 /// Replace the frontmatter guess with what Boris reported for every page
@@ -580,6 +588,36 @@ mod tests {
         let snap = workspace_snapshot(ws.path(), "dist", None, 1);
         assert_eq!(by_path(&snap, "index.md").title, "Mini Site (English)");
         assert_eq!(by_path(&snap, "index.md").fields, FieldSource::Boris);
+    }
+
+    fn set_mtime(root: &Path, rel: &str, at: SystemTime) {
+        File::options()
+            .write(true)
+            .open(root.join(rel))
+            .unwrap()
+            .set_modified(at)
+            .unwrap();
+    }
+
+    #[test]
+    fn the_live_ir_projection_is_read_first_and_a_newer_build_still_wins() {
+        let ws = captured_workspace("quoted-scalars", ".cv/ir/graph.json");
+        // A graph from another build that also covers `index.md`.
+        let other = cv_fixtures::ir_capture("happy").file("graph.json");
+        write(ws.path(), ".boris/graph.json", &other);
+        write(ws.path(), "dist/graph.json", &other);
+        let at = SystemTime::now() - std::time::Duration::from_secs(60);
+        for rel in [".cv/ir/graph.json", ".boris/graph.json", "dist/graph.json"] {
+            set_mtime(ws.path(), rel, at);
+        }
+        let title = |epoch| {
+            let snap = workspace_snapshot(ws.path(), "dist", None, epoch);
+            by_path(&snap, "index.md").title.clone()
+        };
+        assert_eq!(title(1), "Mini Site (English)");
+
+        set_mtime(ws.path(), "dist/graph.json", SystemTime::now());
+        assert_eq!(title(2), "My Boris Site");
     }
 
     #[test]

@@ -1,0 +1,5 @@
+boris: load  scanning content
+boris: roll  parsing 1 page(s)
+boris: ignite validating graph
+boris: content validation failed (1 error(s))
+error: EREFERENCEMISSING: page.md:6:20: wiki-link target "non-existent-page-target" not found in the page graph [Point the wiki-link at an existing page entity id, and if using #heading-id match a rendered heading id on that page]

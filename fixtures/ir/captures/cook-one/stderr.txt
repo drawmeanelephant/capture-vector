@@ -1,0 +1,2 @@
+boris: load  scanning content
+error: ECOOKLANG: content root mixes Cooklang and non-Cooklang page extensions, or uses the wrong explicit input mode [Pass --cooklang for a .cook-only tree, or drop --cooklang for Markdown input]

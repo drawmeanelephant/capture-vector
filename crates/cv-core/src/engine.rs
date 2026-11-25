@@ -58,9 +58,23 @@ pub enum Verb {
     Check,
     Plan,
     Graph,
-    Export { kind: ExportKind },
-    Publish { target: String },
-    Custom { name: String, args: Vec<String> },
+    Export {
+        kind: ExportKind,
+    },
+    /// Boris IR mode (`graph.json`, `completion.json`, …) into a
+    /// workspace-relative directory of its own, so it can run beside a
+    /// live watch. `input` is the content root the watch was given.
+    Ir {
+        out: String,
+        input: Option<String>,
+    },
+    Publish {
+        target: String,
+    },
+    Custom {
+        name: String,
+        args: Vec<String>,
+    },
 }
 
 impl Verb {
@@ -74,6 +88,7 @@ impl Verb {
             Self::Plan => "plan".into(),
             Self::Graph => "graph".into(),
             Self::Export { kind } => format!("export:{kind:?}").to_lowercase(),
+            Self::Ir { .. } => "ir".into(),
             Self::Publish { target } => format!("publish:{target}"),
             Self::Custom { name, .. } => name.clone(),
         }

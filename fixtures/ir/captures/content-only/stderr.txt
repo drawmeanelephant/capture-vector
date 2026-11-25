@@ -1,0 +1,6 @@
+boris: load  scanning content
+boris: roll  parsing 3 page(s)
+boris: ignite validating graph
+boris: content validation failed (2 error(s))
+error: EPARENTMISSING: content/guides/getting-started.md:3:1: parent "index" does not exist [Create the parent document or fix the parent id]
+error: EPARENTMISSING: content/guides/publishing.md:3:1: parent "index" does not exist [Create the parent document or fix the parent id]
