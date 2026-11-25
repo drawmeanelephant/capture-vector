@@ -118,7 +118,7 @@ fn pointer_and_keys_share_one_highlight() {
             .map(|n| n["key"].as_str().unwrap().to_string())
             .collect::<Vec<_>>()
     };
-    assert_eq!(lit(&h), [target.clone()]);
+    assert_eq!(lit(&h), vec![target.clone()]);
     h.script(&["key:down"]);
     assert_eq!(lit(&h).len(), 1, "one highlight after a key moves it");
     assert_ne!(lit(&h), [target]);
