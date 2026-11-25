@@ -39,6 +39,8 @@ class ClaimEvent:
     record: dict[str, Any]
     comment_id: int
     created_at: datetime
+    author_login: str
+    author_association: str
 
     @property
     def claim_id(self) -> str:
@@ -150,6 +152,8 @@ def parse_claim_events(comments: list[dict[str, Any]]) -> list[ClaimEvent]:
                 record=record,
                 comment_id=int(comment.get("id", 0)),
                 created_at=parse_time(str(comment.get("created_at"))),
+                author_login=str((comment.get("user") or {}).get("login", "")),
+                author_association=str(comment.get("author_association", "")),
             )
         )
     return sorted(events, key=lambda event: (event.created_at, event.comment_id))
@@ -159,14 +163,25 @@ def active_claims(events: list[ClaimEvent], now: datetime | None = None) -> list
     now = now or utc_now()
     latest: dict[str, ClaimEvent] = {}
     first_seen: dict[str, tuple[datetime, int]] = {}
+    claim_authors: dict[str, str] = {}
     released: set[str] = set()
+    maintainer_associations = {"OWNER", "MEMBER", "COLLABORATOR"}
     for event in events:
-        if event.event in {"claim", "heartbeat"} and event.claim_id not in released:
+        if event.claim_id in released:
+            continue
+        if event.event == "claim":
             first_seen.setdefault(event.claim_id, (event.created_at, event.comment_id))
+            claim_authors[event.claim_id] = event.author_login
             latest[event.claim_id] = event
+        elif event.event == "heartbeat":
+            if event.author_login == claim_authors.get(event.claim_id):
+                latest[event.claim_id] = event
         elif event.event == "release":
-            latest.pop(event.claim_id, None)
-            released.add(event.claim_id)
+            same_author = event.author_login == claim_authors.get(event.claim_id)
+            maintainer = event.author_association in maintainer_associations
+            if same_author or maintainer:
+                latest.pop(event.claim_id, None)
+                released.add(event.claim_id)
 
     active = []
     for event in latest.values():

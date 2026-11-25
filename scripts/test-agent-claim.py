@@ -19,11 +19,19 @@ sys.modules["agent_claim"] = agent_claim
 spec.loader.exec_module(agent_claim)
 
 
-def comment(comment_id: int, created_at: str, record: dict) -> dict:
+def comment(
+    comment_id: int,
+    created_at: str,
+    record: dict,
+    author_login: str = "agent-actor",
+    author_association: str = "CONTRIBUTOR",
+) -> dict:
     return {
         "id": comment_id,
         "created_at": created_at,
         "body": agent_claim.claim_body(record),
+        "user": {"login": author_login},
+        "author_association": author_association,
     }
 
 
@@ -101,6 +109,36 @@ class ClaimLedgerTests(unittest.TestCase):
 
         active = agent_claim.active_claims(events, agent_claim.parse_time("2026-01-01T01:00:00Z"))
         self.assertEqual([event.claim_id for event in active], ["claim-a", "claim-b"])
+
+    def test_non_author_cannot_heartbeat_or_release_another_agents_claim(self) -> None:
+        events = agent_claim.parse_claim_events(
+            [
+                comment(1, "2026-01-01T00:00:00Z", record("claim", "claim-a", "2026-01-01T04:00:00Z"), "agent-actor"),
+                comment(2, "2026-01-01T00:01:00Z", record("release", "claim-a", "2026-01-01T04:00:00Z"), "intruder"),
+                comment(3, "2026-01-01T00:02:00Z", record("heartbeat", "claim-a", "2026-01-01T05:00:00Z"), "intruder"),
+            ]
+        )
+
+        active = agent_claim.active_claims(events, agent_claim.parse_time("2026-01-01T01:00:00Z"))
+        self.assertEqual([event.claim_id for event in active], ["claim-a"])
+        self.assertEqual(active[0].record["expires_at"], "2026-01-01T04:00:00Z")
+
+    def test_maintainer_can_release_another_agents_claim(self) -> None:
+        events = agent_claim.parse_claim_events(
+            [
+                comment(1, "2026-01-01T00:00:00Z", record("claim", "claim-a", "2026-01-01T04:00:00Z"), "agent-actor"),
+                comment(
+                    2,
+                    "2026-01-01T00:01:00Z",
+                    record("release", "claim-a", "2026-01-01T04:00:00Z"),
+                    "maintainer",
+                    "OWNER",
+                ),
+            ]
+        )
+
+        active = agent_claim.active_claims(events, agent_claim.parse_time("2026-01-01T01:00:00Z"))
+        self.assertEqual(active, [])
 
     def test_malformed_and_non_claim_comments_are_ignored(self) -> None:
         comments = [

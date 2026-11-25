@@ -31,6 +31,11 @@ local database.
 8. **Maintainers can override.** A maintainer may release a stale or
    incorrect claim before expiry by posting a release event with the
    claim id and reason. Do not edit or delete claim history.
+9. **Only the claiming GitHub actor can extend or release a claim.**
+   Heartbeats and releases from other comment authors are ignored unless
+   the author is a repository owner, member, or collaborator. This keeps
+   random issue commenters from cancelling or extending someone else's
+   lease while preserving maintainer override.
 
 ## Commands
 
