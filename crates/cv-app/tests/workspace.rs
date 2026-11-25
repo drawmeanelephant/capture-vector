@@ -6,7 +6,9 @@
 use cv_app::{WorkspaceEnv, init, open_workspace};
 use cv_core::events::shell::DegradedReason;
 use cv_engine::locate::Locator;
+use cv_model::dialog::PickPurpose;
 use cv_model::module::RowModel;
+use cv_model::new_workspace;
 use cv_model::windows::Companion;
 use cv_model::workbench::{KeyInput, KeyPress, ShellRequest, Workbench};
 use cv_widgets::editor::{self, host};
@@ -17,6 +19,96 @@ use std::time::{Duration, Instant};
 
 const SHIM_SH: &str = include_str!("../../cv-engine/tests/fake-boris/boris");
 const SHIM_BAT: &str = include_str!("../../cv-engine/tests/fake-boris/boris.bat");
+
+#[test]
+fn new_workspace_from_an_archetype_creates_and_opens_the_workspace() {
+    let parent = tempfile::tempdir().unwrap();
+    let recent = tempfile::tempdir().unwrap();
+    let fake = Fake::new("happy", None);
+    fake.set(
+        "verbs/init/stderr.txt",
+        cv_fixtures::StubEngine::init_help().as_bytes(),
+    );
+    copy_tree(
+        &cv_fixtures::fixtures_root().join("captures/init/docs/tree"),
+        &fake.dir.path().join("verbs/init/tree"),
+    );
+    let env = fake.env(recent.path());
+    let mut wb = init();
+
+    cv_app::new_workspace::probe_archetypes(&mut wb, &env)
+        .expect("inventory worker")
+        .join()
+        .unwrap();
+    wb.drain();
+    let archetypes = wb.archetypes.as_ref().expect("archetypes located");
+    assert_eq!(archetypes.names.len(), 15);
+    assert_eq!(archetypes.names[archetypes.default], "docs");
+
+    wb.key(&KeyPress {
+        key: KeyInput::Command('n'),
+        shift: true,
+    });
+    assert_eq!(
+        wb.dialogs.open().map(|d| d.spec.id.as_str()),
+        Some(new_workspace::NEW)
+    );
+    wb.picked(
+        PickPurpose::DialogField {
+            dialog: new_workspace::NEW.into(),
+            field: 1,
+        },
+        Some(parent.path().to_path_buf()),
+    );
+    wb.dialog_field(2, None);
+    for c in "created-site".chars() {
+        wb.key(&KeyPress::new(KeyInput::Char(c)));
+    }
+    wb.dialog_act("create");
+    assert_eq!(
+        wb.dialogs.open().map(|d| d.spec.id.as_str()),
+        Some(new_workspace::CREATING),
+        "creation discloses progress"
+    );
+    let draft = match wb.requests.pop() {
+        Some(ShellRequest::CreateWorkspace(draft)) => draft,
+        other => panic!("unexpected request {other:?}"),
+    };
+    assert_eq!(draft.archetype, "docs");
+    assert_eq!(draft.parent, parent.path());
+    assert_eq!(draft.name, "created-site");
+
+    fake.set(
+        "verbs/init/stderr.txt",
+        cv_fixtures::StubEngine::init_report("docs").as_bytes(),
+    );
+    fake.set("verbs/init/exit-code.txt", b"0");
+    cv_app::new_workspace::create_workspace(&mut wb, draft, &env)
+        .expect("create worker")
+        .join()
+        .unwrap();
+    wb.drain();
+    let root = match wb.requests.pop() {
+        Some(ShellRequest::OpenWorkspace(root)) => root,
+        other => panic!("unexpected request {other:?}"),
+    };
+    assert_eq!(
+        root.file_name().and_then(|n| n.to_str()),
+        Some("created-site")
+    );
+    assert!(
+        root.join("content/index.md").is_file(),
+        "the docs starter materialized"
+    );
+
+    open(&mut wb, &root, &env);
+    assert_eq!(wb.workspace.as_deref(), Some(root.as_path()));
+    assert!(wb.dialogs.open().is_none(), "creation progress closed");
+    assert!(
+        module_len(&wb, "pages", None) >= 3,
+        "the opened starter has pages"
+    );
+}
 
 #[test]
 fn reopening_workspace_releases_and_reloads_the_findings_journal() {

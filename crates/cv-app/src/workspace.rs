@@ -39,6 +39,20 @@ pub fn resolve(arg: Option<PathBuf>, env: Option<PathBuf>, recent: &RecentList) 
         .or_else(|| recent.entries.iter().find(|p| p.is_dir()).cloned())
 }
 
+/// The user's home folder, when the platform environment discloses it.
+pub fn home_dir() -> Option<PathBuf> {
+    let var = |k: &str| {
+        std::env::var_os(k)
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from)
+    };
+    if cfg!(windows) {
+        var("USERPROFILE").or_else(|| var("HOME"))
+    } else {
+        var("HOME")
+    }
+}
+
 /// Per-user config dir for Capture Vector.
 pub fn config_dir() -> Option<PathBuf> {
     let var = |k: &str| {
