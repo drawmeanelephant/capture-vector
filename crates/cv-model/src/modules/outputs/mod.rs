@@ -288,7 +288,7 @@ impl Module for OutputsModule {
         self.by_path.get(key)?;
         Some(NounId {
             account: AccountId("local".into()),
-            kind: NounKind(noun_kind::OUTPUT.into()),
+            kind: NounKind::register(noun_kind::OUTPUT),
             stable: StableId(key.into()),
         })
     }

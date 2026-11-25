@@ -179,6 +179,14 @@ mod tests {
     }
 
     #[test]
+    fn fallback_decorated_compiler_does_not_read_as_a_version_mismatch() {
+        let mut state = AppState::default();
+        dispatch(&mut state, &started("boris/0.9.0 (cv one-shot fallback)"));
+        assert_eq!(state.degraded, None);
+        assert!(state.watch_live);
+    }
+
+    #[test]
     fn version_mismatch_clears_on_later_matching_session() {
         let mut state = AppState::default();
         dispatch(&mut state, &started("boris/0.8.2"));

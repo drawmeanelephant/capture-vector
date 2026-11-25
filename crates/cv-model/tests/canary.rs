@@ -7,10 +7,11 @@ use cv_core::id::StableId;
 use cv_core::store::{Namespace, Predicate, Store};
 use cv_fixtures::stub_engine::StubEngine;
 use cv_fixtures::stub_store::StubStore;
-use cv_model::module::{Registry, Slot};
+use cv_model::module::{PageRecord, ProjectSnapshot, Registry, Slot};
 use cv_model::windows::{CloseOutcome, PRIMARY};
-use cv_model::workbench::{JOURNAL, KeyInput, KeyPress, Workbench};
+use cv_model::workbench::{JOURNAL, KeyInput, KeyPress, ShellRequest, Workbench};
 use serde_json::Value;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -211,6 +212,45 @@ fn companion_window_and_dirty_close() {
         wb.close_window(PRIMARY, true),
         CloseOutcome::Closed(_)
     ));
+}
+
+/// Pages over one page, `guides/a.md`, selected.
+fn page_selected(workspace: Option<&str>) -> Workbench {
+    let mut wb = Workbench::new(Registry::with_all());
+    wb.load_snapshot(&ProjectSnapshot {
+        epoch: 1,
+        pages: vec![PageRecord {
+            path: "guides/a.md".into(),
+            id: "guides/a".into(),
+            title: "A".into(),
+            ..Default::default()
+        }],
+        ..Default::default()
+    });
+    wb.workspace = workspace.map(PathBuf::from);
+    wb.activate(wb.registry.index_of("pages").expect("pages registered"));
+    wb.select_key("guides/a.md");
+    wb
+}
+
+#[test]
+fn enter_on_a_workspace_page_asks_the_shell_to_edit_it() {
+    let mut wb = page_selected(Some("/ws"));
+    press(&mut wb, KeyInput::Enter);
+    assert_eq!(
+        wb.requests,
+        vec![ShellRequest::EditPage("guides/a.md".into())]
+    );
+    assert!(wb.windows.companions.is_empty(), "the editor opens it");
+}
+
+#[test]
+fn enter_on_a_page_without_a_workspace_opens_a_reading_companion() {
+    let mut wb = page_selected(None);
+    press(&mut wb, KeyInput::Enter);
+    assert!(wb.requests.is_empty());
+    assert_eq!(wb.windows.companions.len(), 1);
+    assert_eq!(wb.windows.companions[0].module, "pages");
 }
 
 #[test]

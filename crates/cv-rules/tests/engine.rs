@@ -1,4 +1,4 @@
-use cv_core::id::{AccountId, NounId, NounKind, StableId};
+use cv_core::id::{AccountId, NounId, NounKind, StableId, noun_kind};
 use cv_core::rules::{
     Archetype, ArtifactKind, AuthorityTier, CheckStatus, DedupKey, Evidence, Finding,
     FindingLifecycle, Severity, SlashPolicy, TargetDeployProfile,
@@ -281,7 +281,7 @@ fn noindex_leak_into_sitemap_blocks() {
 fn finding(tier: AuthorityTier, status: CheckStatus) -> Finding {
     let subject = NounId {
         account: AccountId("acct".into()),
-        kind: NounKind::new("page".into()),
+        kind: NounKind::register(noun_kind::PAGE),
         stable: StableId("p".into()),
     };
     Finding {

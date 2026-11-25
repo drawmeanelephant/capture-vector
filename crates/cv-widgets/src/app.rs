@@ -3,14 +3,11 @@
 
 use crate::editor;
 use crate::shell::view;
-use crate::theme::{color, font};
 use cv_model::module::ReadingModel;
 use cv_model::theme::Theme;
 use cv_model::windows::WindowId;
 use cv_model::workbench::{ShellRequest, Workbench};
-use rune::{
-    AppSpec, Cx, El, FileDialogOptions, Tx, Waker, WindowHandle, WindowSpec, col, row, text,
-};
+use rune::{AppSpec, Cx, El, FileDialogOptions, Tx, Waker, WindowHandle, WindowSpec};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, VecDeque};
 use std::path::PathBuf;
@@ -27,11 +24,14 @@ pub struct Launch {
     pub boot: fn(&mut Workbench),
     /// Open a workspace root (folder dialog answer, recent entry).
     pub open: fn(&mut Workbench, PathBuf),
+    /// Open a page (relative to the content input) in an editor window.
+    pub edit: fn(&mut Workbench, &str),
     pub scenes: &'static [Scene],
 }
 
 static BOOT: OnceLock<fn(&mut Workbench)> = OnceLock::new();
 static OPEN: OnceLock<fn(&mut Workbench, PathBuf)> = OnceLock::new();
+static EDIT: OnceLock<fn(&mut Workbench, &str)> = OnceLock::new();
 static WAKE: OnceLock<Waker> = OnceLock::new();
 static BOOTED: AtomicBool = AtomicBool::new(false);
 
@@ -44,11 +44,10 @@ thread_local! {
     static CLOSED: RefCell<Vec<WindowId>> = const { RefCell::new(Vec::new()) };
 }
 
-/// A companion window's own state: a pinned noun's reading model.
-/// L3 replaces the body with its editor; the host contract stays.
+/// A reading companion's own state: a pinned noun's reading model.
+/// Editable pages get an editor companion instead (`editor::host`).
 pub struct Companion {
     pub id: WindowId,
-    pub title: String,
     pub reading: ReadingModel,
     pub theme: Theme,
 }
@@ -58,7 +57,6 @@ fn companion_init() -> Companion {
         .with(|p| p.borrow_mut().pop_front())
         .unwrap_or(Companion {
             id: WindowId(u32::MAX),
-            title: String::new(),
             reading: ReadingModel::default(),
             theme: Theme::dark(),
         })
@@ -67,36 +65,7 @@ fn companion_init() -> Companion {
 pub fn companion_view(s: &Companion, cx: &mut Cx<Companion>) -> El {
     let t = &s.theme;
     crate::theme::motion_preference(cx, t);
-    let mut body = col()
-        .key("companion")
-        .w_full()
-        .h_full()
-        .padding(t.spacing.unit * 4.0)
-        .gap(t.spacing.unit * 1.5)
-        .fill(color(t.colors.bg))
-        .child(
-            text(s.title.clone())
-                .font(font(t.type_.title))
-                .color(color(t.colors.text)),
-        );
-    for l in &s.reading.lines {
-        let mut r = row().gap(t.spacing.unit * 2.0);
-        if let Some(lb) = &l.label {
-            r = r.child(
-                text(lb.clone())
-                    .font(font(t.type_.label))
-                    .color(color(t.colors.text_dim)),
-            );
-        }
-        body = body.child(
-            r.child(
-                text(l.text.clone())
-                    .font(font(t.type_.body))
-                    .color(color(t.colors.text)),
-            ),
-        );
-    }
-    body
+    crate::reading::frame(t, "companion", s.reading.clone()).w_full()
 }
 
 fn companion_closed(s: &mut Companion, _tx: &mut Tx) {
@@ -106,10 +75,21 @@ fn companion_closed(s: &mut Companion, _tx: &mut Tx) {
     }
 }
 
+/// Seconds since the first frame before which no companion window opens.
+/// A second wgpu surface created while the primary window is still warming
+/// up races it on software D3D12 (WARP): both surfaces initialize and draw,
+/// then the process dies in `d3d10warp.dll` (issue #31, 13/14 repro). With
+/// the open deferred past the settle the boot-time companion is stable.
+/// Only boot-time requests (CV_EDIT) ever wait on this; mid-run opens are
+/// long past it. `poll`'s clock starts at the first frame, so the wait is
+/// over once the primary surface has been rendering for this long.
+const COMPANION_STARTUP_SETTLE: f64 = 3.0;
+
 /// Reconcile native companion windows with `Workbench::windows`: retire
 /// records whose window the user closed, close windows whose record went,
-/// open windows for new records.
-fn sync_companions(s: &mut Workbench) -> bool {
+/// open windows for new records. `t` is the poll clock — seconds since the
+/// first frame; openings wait out [`COMPANION_STARTUP_SETTLE`].
+fn sync_companions(s: &mut Workbench, t: f64, tx: &mut Tx) -> bool {
     let mut closed: Vec<WindowId> = CLOSED.with(|c| std::mem::take(&mut *c.borrow_mut()));
     closed.extend(editor::host::take_closed());
     let mut changed = false;
@@ -131,8 +111,17 @@ fn sync_companions(s: &mut Workbench) -> bool {
             live
         })
     });
+    // While the settle keeps an opening waiting, ask for the next frame —
+    // an idle window may not poll again on its own, and the companion would
+    // never open.
+    let settling = t < COMPANION_STARTUP_SETTLE;
+    let mut deferred = false;
     for c in &s.windows.companions {
         if OPENED.with(|o| o.borrow().contains_key(&c.id)) {
+            continue;
+        }
+        if settling {
+            deferred = true;
             continue;
         }
         if c.module == editor::MODULE {
@@ -150,7 +139,6 @@ fn sync_companions(s: &mut Workbench) -> bool {
         PENDING.with(|p| {
             p.borrow_mut().push_back(Companion {
                 id: c.id,
-                title: c.title.clone(),
                 reading,
                 theme: s.theme.clone(),
             })
@@ -168,6 +156,13 @@ fn sync_companions(s: &mut Workbench) -> bool {
             .on_close(companion_closed),
         );
         OPENED.with(|o| o.borrow_mut().insert(c.id, handle));
+    }
+    if deferred {
+        // One wake just past the settle, not a per-frame redraw: the
+        // companion opens onto an idle primary surface, not one mid-draw.
+        tx.wake_after(std::time::Duration::from_secs_f64(
+            COMPANION_STARTUP_SETTLE - t + 0.05,
+        ));
     }
     editor::host::ingest_builds();
     editor::host::sync_dirty(&mut s.windows);
@@ -239,6 +234,10 @@ fn serve_requests(s: &mut Workbench, tx: &mut Tx) -> bool {
                 });
             }
             ShellRequest::OpenWorkspace(root) => open_workspace(s, root),
+            ShellRequest::EditPage(page) => match EDIT.get() {
+                Some(edit) => edit(s, &page),
+                None => s.status = "this build cannot edit pages".into(),
+            },
         }
     }
     changed
@@ -286,13 +285,14 @@ fn shutdown(s: &mut Workbench, _: &mut Tx) {
 fn poll(s: &mut Workbench, t: f64, tx: &mut Tx) -> bool {
     let changed = input_poll(s, t, tx);
     let served = serve_requests(s, tx);
-    sync_companions(s) || changed || served
+    sync_companions(s, t, tx) || changed || served
 }
 
 /// Boot the primary window (or a headless run, per rune's CLI flags).
 pub fn run(l: Launch) {
     let _ = BOOT.set(l.boot);
     let _ = OPEN.set(l.open);
+    let _ = EDIT.set(l.edit);
     // `rune::run` without the hooks: quitting must stop the engine watch.
     let app = rune::App::new(AppSpec {
         scenes: l.scenes,
@@ -313,4 +313,42 @@ pub fn run(l: Launch) {
             }
         })
         .run();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cv_model::module::ReadingLine;
+
+    #[test]
+    fn a_reading_companion_shows_its_whole_reading_model() {
+        let s = Companion {
+            id: WindowId(1),
+            reading: ReadingModel {
+                title: "Guide".into(),
+                lines: vec![ReadingLine {
+                    label: Some("tags".into()),
+                    text: "guides".into(),
+                    ..Default::default()
+                }],
+                breadcrumbs: vec!["Home".into(), "Guide".into()],
+                markdown: Some("Body text of the guide.".into()),
+            },
+            theme: Theme::dark(),
+        };
+        let env = rune::Env {
+            system_dark: true,
+            scale: 1.0,
+        };
+        let mut rt = rune::Runtime::new(s, companion_view, (560.0, 640.0), env);
+        rt.frame(0.0);
+        for key in ["companion", "crumb-0", "line-0", "sketch"] {
+            assert!(rt.find(key).is_some(), "no {key}");
+        }
+        let texts: Vec<String> = rt.elements().into_iter().filter_map(|e| e.text).collect();
+        assert!(
+            texts.iter().any(|t| t.contains("Body text of the guide.")),
+            "{texts:?}"
+        );
+    }
 }

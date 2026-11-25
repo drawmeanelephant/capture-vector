@@ -15,6 +15,10 @@ use std::path::{Path, PathBuf};
 /// Project-relative journal location.
 pub const JOURNAL_REL: &str = ".cv/ledger/ledger.jsonl";
 
+/// Single-writer lock beside the journal. Windows file locks are
+/// mandatory, so locking the journal itself would refuse every reader.
+const WRITER_LOCK_REL: &str = ".cv/ledger/ledger.lock";
+
 /// `.cv/ledger/` sidecar schema. v1 = [`Record`] lines in `ledger.jsonl`
 /// (+ the rebuildable index); v0 is the same shape, unstamped.
 pub const SIDECAR: Namespace = Namespace {
@@ -89,6 +93,76 @@ pub enum Entry {
     },
 }
 
+/// Committed records of a journal read without opening it for writing
+/// ([`read`], [`parse`]).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Committed {
+    pub records: Vec<Record>,
+    /// A final append without its newline: never committed. Readers
+    /// leave it on disk; the next [`Journal::open`] drops it.
+    pub torn_tail: Option<String>,
+}
+
+/// Committed records and the byte length they span. A committed line
+/// that does not decode, or breaks `seq` order, is corrupt.
+fn split(raw: &[u8]) -> Result<(Vec<Record>, usize)> {
+    let committed_len = raw.iter().rposition(|b| *b == b'\n').map_or(0, |i| i + 1);
+    let mut records = Vec::new();
+    for (i, line) in raw[..committed_len].split(|b| *b == b'\n').enumerate() {
+        if line.is_empty() {
+            continue;
+        }
+        let rec: Record = serde_json::from_slice(line).map_err(|e| LedgerError::Corrupt {
+            line: i + 1,
+            msg: e.to_string(),
+        })?;
+        if rec.seq != records.len() as u64 {
+            return Err(LedgerError::Corrupt {
+                line: i + 1,
+                msg: format!("seq {} out of order", rec.seq),
+            });
+        }
+        records.push(rec);
+    }
+    Ok((records, committed_len))
+}
+
+fn torn(raw: &[u8], committed_len: usize) -> Option<String> {
+    (committed_len < raw.len()).then(|| String::from_utf8_lossy(&raw[committed_len..]).into_owned())
+}
+
+/// Decode journal bytes by the rules [`Journal::open`] applies.
+pub fn parse(raw: &[u8]) -> Result<Committed> {
+    let (records, committed_len) = split(raw)?;
+    Ok(Committed {
+        records,
+        torn_tail: torn(raw, committed_len),
+    })
+}
+
+/// Read a project's journal for display. Nothing is created, stamped,
+/// locked or truncated, so a live writer is never disturbed. `Ok(None)`:
+/// the project has no journal yet. A symlinked path, a newer or garbled
+/// schema stamp, or a corrupt committed line is an error.
+pub fn read(project_root: &Path) -> Result<Option<Committed>> {
+    let path = cv_store::paths::confined_file(project_root, Path::new(JOURNAL_REL))?;
+    if let Some(found) = sidecar::read_version(project_root, &SIDECAR)?
+        && found > SIDECAR.current
+    {
+        return Err(sidecar::SidecarError::TooNew {
+            namespace: SIDECAR.name,
+            found,
+            supported: SIDECAR.current,
+        }
+        .into());
+    }
+    match std::fs::read(&path) {
+        Ok(raw) => parse(&raw).map(Some),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(e.into()),
+    }
+}
+
 /// Make a freshly created journal's directory entries durable (Unix;
 /// Windows has no directory handle to flush).
 fn sync_dirs(project_root: &Path, path: &Path) -> Result<()> {
@@ -111,6 +185,7 @@ fn sync_dirs(project_root: &Path, path: &Path) -> Result<()> {
 pub struct Journal {
     path: PathBuf,
     file: File,
+    _writer: File,
     records: Vec<Record>,
     torn_tail: Option<String>,
 }
@@ -132,6 +207,17 @@ impl Journal {
         if let Some(dir) = path.parent() {
             std::fs::create_dir_all(dir)?;
         }
+        // Single writer per project: a second writer would reuse `seq`.
+        // Locked before the journal is read.
+        let writer_path = cv_store::paths::confined_file(project_root, Path::new(WRITER_LOCK_REL))?;
+        let writer = OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(false)
+            .open(&writer_path)?;
+        cv_store::lock::try_lock_settled(&writer)
+            .map_err(|e| LedgerError::Locked(format!("{writer_path:?}: {e}")))?;
         let created = !path.exists();
         let mut file = OpenOptions::new()
             .create(true)
@@ -139,36 +225,14 @@ impl Journal {
             .write(true)
             .truncate(false)
             .open(&path)?;
-        // Single writer per project: a second writer would reuse `seq`.
-        // Locked before reading; all I/O goes through this one handle.
-        cv_store::lock::try_lock_settled(&file)
-            .map_err(|e| LedgerError::Locked(format!("{path:?}: {e}")))?;
         if created {
             file.sync_all()?;
             sync_dirs(project_root, &path)?;
         }
         let mut raw = Vec::new();
         file.read_to_end(&mut raw)?;
-        let committed_len = raw.iter().rposition(|b| *b == b'\n').map_or(0, |i| i + 1);
-        let torn_tail = (committed_len < raw.len())
-            .then(|| String::from_utf8_lossy(&raw[committed_len..]).into_owned());
-        let mut records = Vec::new();
-        for (i, line) in raw[..committed_len].split(|b| *b == b'\n').enumerate() {
-            if line.is_empty() {
-                continue;
-            }
-            let rec: Record = serde_json::from_slice(line).map_err(|e| LedgerError::Corrupt {
-                line: i + 1,
-                msg: e.to_string(),
-            })?;
-            if rec.seq != records.len() as u64 {
-                return Err(LedgerError::Corrupt {
-                    line: i + 1,
-                    msg: format!("seq {} out of order", rec.seq),
-                });
-            }
-            records.push(rec);
-        }
+        let (records, committed_len) = split(&raw)?;
+        let torn_tail = torn(&raw, committed_len);
         if torn_tail.is_some() {
             file.set_len(committed_len as u64)?;
             file.sync_all()?;
@@ -177,6 +241,7 @@ impl Journal {
         Ok(Self {
             path,
             file,
+            _writer: writer,
             records,
             torn_tail,
         })

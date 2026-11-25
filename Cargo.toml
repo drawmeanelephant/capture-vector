@@ -67,6 +67,7 @@ cv-contracts = { path = "crates/cv-contracts" }
 cv-fixtures = { path = "crates/cv-fixtures" }
 cv-engine = { path = "crates/cv-engine" }
 cv-ledger = { path = "crates/cv-ledger" }
+cv-publish = { path = "crates/cv-publish" }
 cv-notes = { path = "crates/cv-notes" }
 cv-rules = { path = "crates/cv-rules" }
 cv-store = { path = "crates/cv-store" }

@@ -257,6 +257,11 @@ pub trait Module {
     fn link(&self, _key: &str) -> Option<Link> {
         None
     }
+    /// The page source a row edits, relative to the content input; its
+    /// companion is then the editor. `None`: a reading companion.
+    fn source(&self, _key: &str) -> Option<String> {
+        None
+    }
     /// Count shown on the module's rail entry (e.g. open findings).
     fn badge(&self) -> Option<u64> {
         None

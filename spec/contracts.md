@@ -11,10 +11,12 @@ never our imagination.
 ```rust
 pub struct NounId { pub account: AccountId, pub kind: NounKind,
                     pub stable: StableId }     // StableId NEVER a fs path
-pub struct NounKind(pub String);               // branded open string
+pub struct NounKind(String);                   // private field: mint only
+                                               // via NounKind::register
 pub mod noun_kind { pub const PAGE: &str = "page"; pub const FINDING: &str
     = "finding"; pub const PLAN: &str = "plan"; pub const RECEIPT: &str
-    = "receipt"; pub const NOTE: &str = "note"; pub const OUTPUT: &str = "output"; }
+    = "receipt"; pub const NOTE: &str = "note"; pub const OUTPUT: &str = "output";
+    pub const ALL: &[&str] = &[ .. ]; }        // closed minting set
 pub struct Selection { pub account: AccountId, pub mailbox: String,
                        pub noun: Option<NounId> }
 ```

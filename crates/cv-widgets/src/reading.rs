@@ -41,6 +41,24 @@ pub(crate) fn pane(s: &Workbench) -> El {
     }
 }
 
+/// A reading model as the pane draws it; reading companions share the
+/// surface under their own key.
+pub(crate) fn frame(t: &Theme, key: &str, model: ReadingModel) -> El {
+    col()
+        .key(key.to_string())
+        .grow(1.0)
+        .min_w(0.0)
+        .h_full()
+        .min_h(0.0)
+        .fill(color(t.colors.pane))
+        .child(
+            pane_scroll("reading-scroll")
+                .scroll_edge_fade(16.0)
+                .child(head(t, &model))
+                .child(content(t, model)),
+        )
+}
+
 fn head(t: &Theme, m: &ReadingModel) -> El {
     let mut head = pane_header(t, "reading-head", t.colors.pane)
         .px(t.spacing.unit * 4.0)

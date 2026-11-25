@@ -193,9 +193,7 @@
     },
     {
       "fill": "#08090cff",
-      "help": "Not registered in this build",
       "key": "rail-publish",
-      "label": "not registered",
       "opacity": 1.0,
       "path": "shell/body/rail/rail-publish",
       "radius": 6.0,
@@ -307,7 +305,8 @@
         80.0,
         48.3
       ],
-      "role": "tab"
+      "role": "tab",
+      "selected": true
     },
     {
       "opacity": 1.0,
@@ -727,7 +726,8 @@
         164.0,
         23.0
       ],
-      "role": "treeitem"
+      "role": "treeitem",
+      "selected": true
     },
     {
       "color": "#e6e9efff",
@@ -815,7 +815,8 @@
         320.0,
         22.0
       ],
-      "role": "listitem"
+      "role": "listitem",
+      "selected": true
     },
     {
       "fill": "#ff3d71ff",

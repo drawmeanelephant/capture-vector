@@ -41,6 +41,11 @@ const TREE_SCENES: &[&str] = &[
     "audit",
     "audit-detail",
     "audit-degraded",
+    "publish",
+    "publish-detail",
+    "publish-unknown",
+    "publish-empty",
+    "publish-degraded",
     "effects",
 ];
 
@@ -113,6 +118,72 @@ fn virtualized_5k_pages_mount_bounded_rows() {
         "selected row {row:?} visible in viewport {port:?}"
     );
     assert!(mounted(&h) < 200);
+}
+
+/// Keys starting with `prefix` whose tree node reports `selected`.
+fn selected(h: &Harness, prefix: &str) -> Vec<String> {
+    h.tree()["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|n| n["selected"] == true)
+        .filter_map(|n| n["key"].as_str())
+        .filter(|k| k.starts_with(prefix))
+        .map(str::to_string)
+        .collect()
+}
+
+#[test]
+fn only_the_active_rail_tab_reports_selected_in_the_tree() {
+    let mut h = scene("canary");
+    assert_eq!(selected(&h, "rail-"), ["rail-demo"]);
+    h.script(&["click:rail-pages"]);
+    assert_eq!(selected(&h, "rail-"), ["rail-pages"]);
+}
+
+#[test]
+fn active_rail_tab_is_selected_in_the_accessibility_tree() {
+    let h = scene("canary");
+    let tree = h.rt.accessibility_tree();
+    let tabs: Vec<(&str, Option<bool>)> = tree
+        .nodes
+        .iter()
+        .filter_map(|(_, n)| Some((n.author_id()?, n.is_selected())))
+        .filter(|(k, _)| k.starts_with("rail-") && !k.ends_with("-badge"))
+        .collect();
+    assert!(
+        tabs.len() > 1,
+        "rail tabs in the accessibility tree: {tabs:?}"
+    );
+    for (key, sel) in tabs {
+        if key == "rail-demo" {
+            assert_eq!(sel, Some(true), "{key}");
+        } else {
+            assert_ne!(sel, Some(true), "{key}");
+        }
+    }
+}
+
+#[test]
+fn selected_nav_item_and_list_row_report_selected_in_the_tree() {
+    let h = scene("pages-5k");
+    assert_eq!(selected(&h, "nav-"), ["nav-pages"]);
+    let row = format!("row-{}", h.state().selected_key().unwrap());
+    assert_eq!(selected(&h, "row-"), [row]);
+}
+
+#[test]
+fn palette_cursor_option_reports_selected_in_the_tree() {
+    let h = scene("palette");
+    let first = h.tree()["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|n| n["key"].as_str())
+        .find(|k| k.starts_with("cmd-"))
+        .expect("palette lists a command")
+        .to_string();
+    assert_eq!(selected(&h, "cmd-"), [first]);
 }
 
 #[test]

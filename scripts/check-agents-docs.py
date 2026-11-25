@@ -18,6 +18,14 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCS = [
     "AGENTS.md",
     "README.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "docs/README.md",
+    "docs/user-guide.md",
+    "docs/agent-claims.md",
+    "docs/architecture-overview.md",
+    "docs/TRIAGE.md",
+    "docs/PACKAGING.md",
     "docs/runbooks/desktop-app.md",
     "docs/tech-debt.md",
 ]
@@ -36,8 +44,14 @@ REQUIRED = [
     "spec/contracts.md",
     "spec/GAMEPLAN.md",
     "spike/FINDINGS.md",
+    "docs/README.md",
+    "docs/user-guide.md",
+    "docs/agent-claims.md",
+    "docs/architecture-overview.md",
     "docs/runbooks/desktop-app.md",
     "docs/tech-debt.md",
+    "scripts/agent-claim.py",
+    "scripts/test-agent-claim.py",
     "scripts/fetch-rune.sh",
     "scripts/dev.sh",
     "scripts/demo.sh",
@@ -56,6 +70,8 @@ REQUIRED = [
 ]
 
 EXECUTABLE = [
+    "scripts/agent-claim.py",
+    "scripts/test-agent-claim.py",
     "scripts/fetch-rune.sh",
     "scripts/dev.sh",
     "scripts/demo.sh",

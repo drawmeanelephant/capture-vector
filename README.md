@@ -12,6 +12,19 @@ normative work order is [`spec/PROMPT-v3.md`](spec/PROMPT-v3.md); the full
 spec kit lives in [`spec/`](spec/README.md). Packaging and release:
 [`docs/PACKAGING.md`](docs/PACKAGING.md).
 
+## What works today
+
+- Browse Pages, Outputs, Audit, Research, and Activity in one native
+  Outlook-style shell.
+- Edit source pages in companion windows with undo, completion, and
+  conflict-aware workspace-contained saves.
+- Run engine-backed builds/watch sessions when pinned Boris is present;
+  absent/mismatched/dead engine states are disclosed instead of hidden.
+- Verify the shell headlessly through element-tree/layout JSON goldens.
+
+Still ahead: signed installers, Windows proof, and the fully wired publish
+module. The user-facing guide is [`docs/user-guide.md`](docs/user-guide.md).
+
 ## Prerequisites
 
 - Rust 1.99.1 — [`rust-toolchain.toml`](rust-toolchain.toml) pins it;
@@ -122,10 +135,27 @@ Runbooks live in [`docs/runbooks/desktop-app.md`](docs/runbooks/desktop-app.md).
 | `scripts/` | Setup, fixture capture, goldens, hooks |
 | `xtask/` | Codegen, parity, release helpers |
 
+## Documentation
+
+Start at [`docs/README.md`](docs/README.md). The short map:
+
+- using the app: [`docs/user-guide.md`](docs/user-guide.md)
+- troubleshooting: [`docs/runbooks/desktop-app.md`](docs/runbooks/desktop-app.md)
+- packaging/release: [`docs/PACKAGING.md`](docs/PACKAGING.md)
+- contributing: [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- parallel agent coordination: [`docs/agent-claims.md`](docs/agent-claims.md)
+- architecture overview: [`docs/architecture-overview.md`](docs/architecture-overview.md)
+- normative design: [`spec/README.md`](spec/README.md)
+
 ## Contributing
 
 Read [`AGENTS.md`](AGENTS.md) first. Install the local quality hooks with
-`./scripts/install-hooks.sh`. CI runs `cargo test --workspace`,
-`cargo fmt --check`, `cargo clippy -D warnings`, and `cargo-deny`.
+`./scripts/install-hooks.sh`. Before implementing a GitHub issue, claim it
+with `python3 scripts/agent-claim.py claim <issue>` as described in
+[`docs/agent-claims.md`](docs/agent-claims.md); the issue comment ledger is
+what keeps parallel agents from duplicating work.
+
+CI runs `cargo test --workspace`, `cargo fmt --check`,
+`cargo clippy -D warnings`, and `cargo-deny`.
 
 Created in [T3 Code](https://t3.codes).

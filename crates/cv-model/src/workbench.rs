@@ -129,6 +129,8 @@ impl Inbox {
 pub enum ShellRequest {
     PickWorkspace,
     OpenWorkspace(PathBuf),
+    /// Open a page (relative to the content input) in an editor window.
+    EditPage(String),
 }
 
 /// Toolkit-neutral key input; `cv-widgets` maps rune keys onto it.
@@ -574,6 +576,11 @@ impl Workbench {
             CommandSpec::new("shell.follow", "Open linked noun").chord("mod+o"),
             CommandSpec::new("shell.workspace.open", "Open workspace…").chord("mod+shift+o"),
         ];
+        // Offered only while the banner it backs is up; a live watch
+        // needs no restart and the palette stays honest.
+        if self.app.degraded == Some(DegradedReason::WatchDead) {
+            out.push(CommandSpec::new("watch.restart", "Restart watch"));
+        }
         for (i, p) in self.recent.iter().enumerate() {
             out.push(CommandSpec::new(
                 format!("shell.workspace.recent.{i}"),
@@ -628,6 +635,13 @@ impl Workbench {
             }
             "shell.degraded.dismiss" => self.apply(Intent::Recover),
             "shell.follow" => self.follow_link(),
+            // Reopening the workspace is the restart: `open_workspace`
+            // stops the dead handle and respawns the engine boot thread,
+            // and the next `WatchSessionStarted` clears `WatchDead`.
+            "watch.restart" => match &self.workspace {
+                Some(p) => self.requests.push(ShellRequest::OpenWorkspace(p.clone())),
+                None => self.status = "no workspace open".into(),
+            },
             "shell.workspace.open" => self.requests.push(ShellRequest::PickWorkspace),
             // Reopening the open workspace starts a new watch and rearms recovery.
             "shell.watch.restart" => match self.workspace.clone() {
@@ -686,6 +700,12 @@ impl Workbench {
                 let Some(m) = self.registry.get(self.active) else {
                     return;
                 };
+                // Only a workspace's pages are edited: the fixture demo
+                // reads the checkout's own corpora.
+                if let Some(page) = m.source(&key).filter(|_| self.workspace.is_some()) {
+                    self.requests.push(ShellRequest::EditPage(page));
+                    return;
+                }
                 let title = m.reading(&key).title;
                 let module = m.spec().id;
                 self.windows.open_companion(module, &key, &title);
@@ -785,5 +805,39 @@ impl Drop for Workbench {
     fn drop(&mut self) {
         close(&self.snapshot);
         self.stop_watch();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn watch_restart_is_offered_only_while_the_watch_is_dead() {
+        let mut wb = Workbench::new(Registry::with_all());
+        assert!(wb.commands().iter().all(|c| c.id != "watch.restart"));
+        wb.disclose(DegradedReason::WatchDead);
+        assert!(wb.commands().iter().any(|c| c.id == "watch.restart"));
+        wb.apply(Intent::Recover);
+        assert!(wb.commands().iter().all(|c| c.id != "watch.restart"));
+    }
+
+    #[test]
+    fn watch_restart_reopens_the_workspace() {
+        let mut wb = Workbench::new(Registry::with_all());
+        wb.workspace = Some(PathBuf::from("/ws"));
+        wb.run_command("watch.restart");
+        assert_eq!(
+            wb.requests,
+            vec![ShellRequest::OpenWorkspace(PathBuf::from("/ws"))]
+        );
+    }
+
+    #[test]
+    fn watch_restart_without_a_workspace_only_notes_the_status() {
+        let mut wb = Workbench::new(Registry::with_all());
+        wb.run_command("watch.restart");
+        assert!(wb.requests.is_empty());
+        assert_eq!(wb.status, "no workspace open");
     }
 }

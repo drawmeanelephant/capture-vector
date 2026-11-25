@@ -8,6 +8,7 @@ pub mod cascade;
 pub mod command;
 pub mod module;
 pub mod modules;
+pub mod noun_views;
 pub mod theme;
 pub mod windows;
 pub mod workbench;

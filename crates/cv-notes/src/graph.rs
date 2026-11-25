@@ -29,7 +29,7 @@ impl Target {
     }
     pub fn from_noun(n: &NounId) -> Option<Self> {
         let s = n.stable.clone();
-        match n.kind.0.as_str() {
+        match n.kind.as_str() {
             cv_core::id::noun_kind::NOTE => Some(Target::Note(s)),
             cv_core::id::noun_kind::PAGE => Some(Target::Page(s)),
             cv_core::id::noun_kind::FINDING => Some(Target::Finding(s)),

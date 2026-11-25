@@ -111,6 +111,7 @@ fn option(s: &Workbench, i: usize, c: &CommandSpec) -> El {
     let mut r = row()
         .key(format!("cmd-{}", c.id))
         .role("option")
+        .focus_selected(sel)
         .label(c.title.clone())
         .w_full()
         .px(t.spacing.unit * 1.5)
