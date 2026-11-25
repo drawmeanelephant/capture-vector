@@ -41,6 +41,32 @@ fn schema(what: &str, got: u32) -> Result<()> {
     }
 }
 
+/// Boris's strict inventory parser requires the `format_version` key present
+/// on every artifact record: null is the legal legacy shape, a non-empty
+/// string is a versioned format, and a missing key is invalid. serde treats
+/// `Option` fields as implicitly optional, so presence is enforced on the
+/// raw value before typed decoding.
+fn require_format_version_keys(bytes: &[u8]) -> Result<()> {
+    let Ok(value) = serde_json::from_slice::<serde_json::Value>(bytes) else {
+        return Ok(()); // malformed JSON fails at the typed parse below
+    };
+    let Some(records) = value.get("artifacts").and_then(|a| a.as_array()) else {
+        return Ok(());
+    };
+    for record in records {
+        if record
+            .as_object()
+            .is_some_and(|o| !o.contains_key("format_version"))
+        {
+            let path = record.get("path").and_then(|p| p.as_str()).unwrap_or("?");
+            return Err(LedgerError::Proof(format!(
+                "artifacts.json: {path} is missing the required format_version key"
+            )));
+        }
+    }
+    Ok(())
+}
+
 /// Parse proof JSON bytes (any may be absent — an absent file yields no
 /// nouns, never invented ones).
 pub fn from_bytes(
@@ -52,6 +78,7 @@ pub fn from_bytes(
     let bad = |what: &str, e: serde_json::Error| LedgerError::Proof(format!("{what}: {e}"));
     let mut out = ProofNouns::default();
     if let Some(b) = artifacts {
+        require_format_version_keys(b)?;
         let idx: ArtifactIndex = serde_json::from_slice(b).map_err(|e| bad("artifacts.json", e))?;
         schema("artifacts.json", idx.schema_version)?;
         for a in idx.artifacts {
@@ -134,6 +161,7 @@ pub fn artifact_inventory(out_dir: &Path) -> Result<Option<ArtifactIndex>> {
     let Some(bytes) = read(&dir, "artifacts.json")? else {
         return Ok(None);
     };
+    require_format_version_keys(&bytes)?;
     let idx: ArtifactIndex = serde_json::from_slice(&bytes)
         .map_err(|e| LedgerError::Proof(format!("artifacts.json: {e}")))?;
     if idx.format != "boris-publication-artifacts" {
@@ -198,6 +226,31 @@ fn validate_artifact_contract(idx: &ArtifactIndex) -> Result<()> {
                 "artifacts.json: {} has unknown status {:?}",
                 a.path, a.status
             )));
+        }
+        if let Some(version) = &a.format_version
+            && version.is_empty()
+        {
+            return Err(LedgerError::Proof(format!(
+                "artifacts.json: {} format_version is an empty string",
+                a.path
+            )));
+        }
+        if let Some(dimensions) = &a.dimensions {
+            let object = dimensions.as_object();
+            let valid = object.is_some_and(|o| {
+                o.len() == 2
+                    && ["width", "height"].iter().all(|key| {
+                        o.get(*key)
+                            .and_then(|v| v.as_u64())
+                            .is_some_and(|n| n > 0 && n <= u64::from(u32::MAX))
+                    })
+            });
+            if !valid {
+                return Err(LedgerError::Proof(format!(
+                    "artifacts.json: {} dimensions is not a width/height object of positive integers",
+                    a.path
+                )));
+            }
         }
         if let Some(prev) = prev
             && prev > a.path.as_str()

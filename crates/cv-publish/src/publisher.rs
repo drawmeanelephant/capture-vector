@@ -138,15 +138,36 @@ fn evaluate_proof_checks(site: &Path, artifacts_sha: &str, blocks: &mut Vec<Stri
             return;
         }
     };
-    if let Some(inv) = &file.artifact_inventory
-        && inv.sha256 != artifacts_sha
-    {
+    if file.target != DEFAULT_HTML_TARGET {
         blocks.push(format!(
-            "proof checks: artifact-inventory digest {} does not match the sealed artifacts.json",
-            inv.sha256
+            "proof checks: target {} is not {DEFAULT_HTML_TARGET}",
+            file.target
         ));
     }
-    for check in file.checks.iter().filter(|c| c.ran && c.status == "failed") {
+    match &file.artifact_inventory {
+        None => blocks.push(
+            "proof checks: artifact-inventory descriptor missing — evidence binding unverifiable"
+                .to_string(),
+        ),
+        Some(inv) if inv.sha256 != artifacts_sha => {
+            blocks.push(format!(
+                "proof checks: artifact-inventory digest {} does not match the sealed artifacts.json",
+                inv.sha256
+            ));
+        }
+        _ => {}
+    }
+    for check in file.checks.iter().filter(|c| c.eligible && !c.ran) {
+        blocks.push(format!(
+            "proof checks: {} was eligible but did not run — deploy evidence incomplete",
+            check.id
+        ));
+    }
+    for check in file
+        .checks
+        .iter()
+        .filter(|c| c.ran && matches!(c.status.as_str(), "failed" | "incomplete"))
+    {
         let details: Vec<String> = file
             .findings
             .iter()
@@ -167,8 +188,9 @@ fn evaluate_proof_checks(site: &Path, artifacts_sha: &str, blocks: &mut Vec<Stri
             })
             .collect();
         blocks.push(format!(
-            "proof checks: {} failed — deploy blocked by Boris ({})",
+            "proof checks: {} {} — deploy blocked by Boris ({})",
             check.id,
+            check.status,
             if details.is_empty() {
                 "error-severity findings".to_string()
             } else {

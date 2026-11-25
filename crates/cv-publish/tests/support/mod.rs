@@ -150,6 +150,7 @@ impl Engine for FakeEngine {
                                 "status": "committed",
                                 "bytes": body.len(),
                                 "sha256": format!("{:x}", Sha256::digest(body.as_bytes())),
+                                "format_version": null,
                             })
                         })
                         .collect();
@@ -260,6 +261,9 @@ fn copy_tree(from: &Path, to: &Path) {
 
 /// Engine backed by the pinned real Boris happy capture. Tests can damage
 /// that captured output explicitly, but no proof JSON is hand-authored here.
+/// Post-copy mutation hook for one-off proof-evidence regressions.
+pub type PostBuildHook = Box<dyn Fn(&Path) + Send>;
+
 pub struct CapturedEngine {
     pub root: PathBuf,
     pub fixture: &'static str,
@@ -275,6 +279,8 @@ pub struct CapturedEngine {
     pub cache_record: bool,
     pub hardlink_alias: bool,
     pub multiply_linked: bool,
+    /// Post-copy mutation hook for one-off proof-evidence regressions.
+    pub post_build: Option<PostBuildHook>,
 }
 
 impl CapturedEngine {
@@ -294,6 +300,7 @@ impl CapturedEngine {
             cache_record: false,
             hardlink_alias: false,
             multiply_linked: false,
+            post_build: None,
         }
     }
 
@@ -463,6 +470,9 @@ impl Engine for CapturedEngine {
                     sorted.sort_by(|a, b| a["path"].as_str().cmp(&b["path"].as_str()));
                     idx["artifacts"] = serde_json::json!(sorted);
                     std::fs::write(&path, serde_json::to_vec_pretty(&idx).unwrap()).unwrap();
+                }
+                if let Some(hook) = &self.post_build {
+                    hook(&out);
                 }
                 Ok(ExitClass::Ok)
             }

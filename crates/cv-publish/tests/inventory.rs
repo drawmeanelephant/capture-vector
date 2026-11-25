@@ -538,3 +538,160 @@ fn a_noncanonical_digest_shape_fails_at_the_root_cause() {
         "no misleading cascade: {blocks:?}"
     );
 }
+
+/// Real pinned capture: Boris builds the broken-fragment corpus green but
+/// records a deploy-blocking rendered-html failure. This is the exact shape
+/// the reviewer reproduced — preflight must refuse the grant and surface
+/// Boris's finding detail.
+#[test]
+fn real_boris_broken_fragment_output_blocks_the_grant() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    eng.fixture = "captures/happy-broken-fragment/dist/dist";
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+    let out = p
+        .preflight(
+            &PreflightRequest { config: cfg() },
+            &Rules::ok(),
+            &mut ids("run"),
+        )
+        .unwrap();
+    let PreflightOutcome::Blocked { blocks, .. } = out else {
+        panic!("real deploy-blocking proof evidence must block: {out:?}")
+    };
+    assert!(
+        blocks.iter().any(|b| b.contains("rendered-html")
+            && b.contains("HTML_FRAGMENT_MISSING")
+            && b.contains("index")),
+        "{blocks:?}"
+    );
+}
+
+fn mutate_checks(eng: &mut CapturedEngine, f: impl Fn(&mut serde_json::Value) + Send + 'static) {
+    eng.post_build = Some(Box::new(move |out: &std::path::Path| {
+        let path = out.join("_boris/proof/checks.json");
+        let mut idx: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        f(&mut idx);
+        std::fs::write(&path, serde_json::to_vec_pretty(&idx).unwrap()).unwrap();
+    }));
+}
+
+fn mutate_artifacts(eng: &mut CapturedEngine, f: impl Fn(&mut serde_json::Value) + Send + 'static) {
+    eng.post_build = Some(Box::new(move |out: &std::path::Path| {
+        let path = out.join("_boris/proof/artifacts.json");
+        let mut idx: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        f(&mut idx);
+        std::fs::write(&path, serde_json::to_vec_pretty(&idx).unwrap()).unwrap();
+    }));
+}
+
+fn assert_blocked(eng: &CapturedEngine, dir: &std::path::Path, needle: &str) {
+    let mut p = Publisher::open(dir, eng, &CLOCK, &NoSecrets).unwrap();
+    let out = p
+        .preflight(
+            &PreflightRequest { config: cfg() },
+            &Rules::ok(),
+            &mut ids("run"),
+        )
+        .unwrap();
+    let PreflightOutcome::Blocked { blocks, .. } = out else {
+        panic!("{needle}: expected a durable preflight block, got {out:?}")
+    };
+    assert!(
+        blocks.iter().any(|b| b.contains(needle)),
+        "{needle}: not surfaced in {blocks:?}"
+    );
+}
+
+#[test]
+fn an_incomplete_check_status_blocks_the_grant() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    mutate_checks(&mut eng, |idx| {
+        for c in idx["checks"].as_array_mut().unwrap() {
+            if c["id"].as_str() == Some("rendered-html") {
+                c["status"] = serde_json::json!("incomplete");
+            }
+        }
+    });
+    assert_blocked(&eng, dir.path(), "rendered-html incomplete");
+}
+
+#[test]
+fn an_eligible_check_that_did_not_run_blocks_the_grant() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    mutate_checks(&mut eng, |idx| {
+        for c in idx["checks"].as_array_mut().unwrap() {
+            if c["id"].as_str() == Some("rendered-html") {
+                c["ran"] = serde_json::json!(false);
+            }
+        }
+    });
+    assert_blocked(&eng, dir.path(), "eligible but did not run");
+}
+
+#[test]
+fn a_missing_inventory_descriptor_in_checks_blocks_the_grant() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    mutate_checks(&mut eng, |idx| {
+        idx.as_object_mut().unwrap().remove("artifact_inventory");
+    });
+    assert_blocked(&eng, dir.path(), "artifact-inventory descriptor missing");
+}
+
+#[test]
+fn a_wrong_scope_checks_target_blocks_the_grant() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    mutate_checks(&mut eng, |idx| {
+        idx["target"] = serde_json::json!("github-pages");
+    });
+    assert_blocked(&eng, dir.path(), "proof checks: target");
+}
+
+#[test]
+fn a_missing_format_version_key_blocks_at_the_root_cause() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    mutate_artifacts(&mut eng, |idx| {
+        idx["artifacts"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("format_version");
+    });
+    assert_blocked(&eng, dir.path(), "missing the required format_version key");
+}
+
+#[test]
+fn an_unknown_record_key_is_rejected_at_the_root_cause() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    mutate_artifacts(&mut eng, |idx| {
+        idx["artifacts"][0]["surprise"] = serde_json::json!(true);
+    });
+    assert_blocked(&eng, dir.path(), "unknown field");
+}
+
+#[test]
+fn malformed_dimensions_are_rejected_at_the_root_cause() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    mutate_artifacts(&mut eng, |idx| {
+        idx["artifacts"][0]["dimensions"] = serde_json::json!({"width": 0, "height": 100});
+    });
+    assert_blocked(&eng, dir.path(), "dimensions");
+}
+
+#[test]
+fn an_empty_format_version_string_is_rejected() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    mutate_artifacts(&mut eng, |idx| {
+        idx["artifacts"][0]["format_version"] = serde_json::json!("");
+    });
+    assert_blocked(&eng, dir.path(), "empty string");
+}

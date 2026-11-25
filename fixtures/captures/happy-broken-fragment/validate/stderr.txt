@@ -1,0 +1,2 @@
+warning: EFRAGMENTMISSING: index.html:56: href="guides/getting-started.html#does-not-exist" resolves to a published page, but its #fragment matches no rendered id there [update the fragment, or point the reference at an anchor the page emits]
+ok: validation passed for 1 target(s)
