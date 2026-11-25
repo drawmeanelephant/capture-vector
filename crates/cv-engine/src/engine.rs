@@ -2,6 +2,7 @@
 
 use crate::emit::Emitter;
 use crate::error::{EngineError, Result};
+use crate::exit::ExitOutcome;
 use crate::fallback::{self, FallbackStart, build_event};
 use crate::locate::{EngineIdentity, Locator, PINNED, Pin};
 use crate::probe::{CapabilityReport, PROBE_TIMEOUT, WatchMode, probe};
@@ -15,7 +16,7 @@ use cv_core::engine::{
     Engine, EngineCaps, EngineInfo, EventSink, ExitClass, Fingerprint, MoveOutcome, PageDraft,
     PageMove, RemoveOutcome, Verb, WatchHandle, WriteOutcome,
 };
-use cv_core::events::engine::{BuildPhase, EngineEvent};
+use cv_core::events::engine::{BuildPhase, EngineEvent, VerbReport};
 use cv_core::events::{BuildId, Cursor};
 use cv_core::id::WorkspaceId;
 use cv_core::rules::ArtifactSet;
@@ -154,7 +155,18 @@ impl ProcessEngine {
         sink: EventSink,
         cancel: &CancelToken,
     ) -> Result<ExitClass> {
-        self.run_cancellable_caused(verb, sink, cancel, None)
+        self.run_cancellable_caused(verb, sink, cancel, None, false)
+    }
+
+    /// `Engine::run_reported` with cancellation: as `run_cancellable`,
+    /// but the terminal envelope is `VerbReported`.
+    pub fn run_reported_cancellable(
+        &self,
+        verb: &Verb,
+        sink: EventSink,
+        cancel: &CancelToken,
+    ) -> Result<ExitClass> {
+        self.run_cancellable_caused(verb, sink, cancel, None, true)
     }
 
     fn run_cancellable_caused(
@@ -163,8 +175,9 @@ impl ProcessEngine {
         mut sink: EventSink,
         cancel: &CancelToken,
         cause: Option<&cv_core::events::EventId>,
+        report: bool,
     ) -> Result<ExitClass> {
-        match self.run_cancellable_inner(verb, &mut sink, cancel, cause) {
+        match self.run_cancellable_inner(verb, &mut sink, cancel, cause, report) {
             Ok(exit) => Ok(exit),
             Err(e) => {
                 self.emitter.emit_caused(
@@ -188,6 +201,7 @@ impl ProcessEngine {
         sink: &mut EventSink,
         cancel: &CancelToken,
         cause: Option<&cv_core::events::EventId>,
+        report: bool,
     ) -> Result<ExitClass> {
         let staged = crate::ir::staged_verb(verb)?;
         if staged.is_some() {
@@ -210,22 +224,33 @@ impl ProcessEngine {
         }
         let n = self.runs.fetch_add(1, Ordering::SeqCst) + 1;
         let build = BuildId(format!("{}:r{n}", self.emitter.session().0));
-        let is_build = matches!(argv(verb)?.first().map(String::as_str), Some("build"));
-        if is_build {
+        let args = argv(verb)?;
+        if args.first().map(String::as_str) == Some("build") {
             let ev = build_event(&out, BuildPhase::Initial, &build);
             self.emitter
                 .emit_caused(sink, None, Some(build.clone()), ev, cause);
         }
-        self.emitter.emit_caused(
-            sink,
-            None,
-            Some(build),
+        let terminal = if report {
+            EngineEvent::VerbReported(VerbReport {
+                verb: verb_name(verb),
+                argv: args,
+                exit,
+                code: match out.outcome {
+                    ExitOutcome::Exited { code } => Some(code),
+                    _ => None,
+                },
+                duration_ms: out.duration_ms,
+                stdout: VerbReport::bounded_stdout(&out.stdout),
+                stderr: out.stderr,
+            })
+        } else {
             EngineEvent::VerbFinished {
                 verb: verb_name(verb),
                 exit,
-            },
-            cause,
-        );
+            }
+        };
+        self.emitter
+            .emit_caused(sink, None, Some(build), terminal, cause);
         Ok(exit)
     }
 
@@ -320,7 +345,16 @@ impl Engine for ProcessEngine {
         sink: EventSink,
         cause: Option<&cv_core::events::EventId>,
     ) -> cv_core::Result<ExitClass> {
-        Ok(self.run_cancellable_caused(cmd, sink, &CancelToken::new(), cause)?)
+        Ok(self.run_cancellable_caused(cmd, sink, &CancelToken::new(), cause, false)?)
+    }
+
+    fn run_reported(
+        &self,
+        cmd: &Verb,
+        sink: EventSink,
+        cancel: &cv_core::engine::CancelToken,
+    ) -> cv_core::Result<ExitClass> {
+        Ok(self.run_reported_cancellable(cmd, sink, cancel)?)
     }
 
     fn write_content(

@@ -1,0 +1,2 @@
+error: --sitemap / --sitemap-path require --site-url (try --help)
+usage: boris <command> [options] (run boris --help for the full option list)

@@ -5,12 +5,12 @@
 use cv_contracts::watch::{Phase, WatchDiagnostic, WatchEvent};
 use cv_core::diagnostic::{Diagnostic, Severity, Span, StderrDiagnostic};
 use cv_core::engine::{
-    Engine, EngineCaps, EngineInfo, EventSink, ExitClass, Fingerprint, PageDraft, Verb,
-    WatchHandle, WriteOutcome,
+    CancelToken, Engine, EngineCaps, EngineInfo, EventSink, ExitClass, ExportKind, Fingerprint,
+    PageDraft, Verb, WatchHandle, WriteOutcome,
 };
 use cv_core::events::{
     BuildId, Cursor, Envelope, EventId, SessionId, SnapshotEpoch,
-    engine::{BuildPhase, EngineEvent, WatchEndReason, WatchExit},
+    engine::{BuildPhase, EngineEvent, VerbReport, WatchEndReason, WatchExit},
 };
 use cv_core::id::WorkspaceId;
 use cv_core::rules::ArtifactSet;
@@ -307,6 +307,64 @@ impl StubEngine {
     }
 }
 
+/// The `verbs/<corpus>/` capture directory a reported verb replays.
+pub fn verb_capture_key(verb: &Verb) -> Option<String> {
+    Some(match verb {
+        Verb::Build => "build".into(),
+        Verb::Validate => "validate".into(),
+        Verb::Check => "check".into(),
+        Verb::Plan => "plan".into(),
+        Verb::Graph => "graph".into(),
+        Verb::Impact { id } => format!("impact/{id}"),
+        Verb::Export { kind } => format!(
+            "export-{}",
+            match kind {
+                ExportKind::Out => "out",
+                ExportKind::Rag => "rag",
+                ExportKind::Context => "context",
+                ExportKind::Llms => "llms",
+                ExportKind::Rss => "rss",
+                ExportKind::Sitemap => "sitemap",
+            }
+        ),
+        _ => return None,
+    })
+}
+
+/// The one-shot build in watch vocabulary, as `ProcessEngine` reports
+/// it: diagnostics come from captured stderr.
+fn one_shot_build(exit: ExitClass, stdout: &str, stderr: &str, build: &BuildId) -> EngineEvent {
+    let diagnostics: Vec<Diagnostic> = stderr
+        .lines()
+        .filter_map(StderrDiagnostic::parse)
+        .map(|d| Diagnostic {
+            build_version: Some(build.clone()),
+            ..Diagnostic::from(&d)
+        })
+        .collect();
+    if exit == ExitClass::Ok {
+        EngineEvent::BuildFinished {
+            phase: BuildPhase::Initial,
+            pages_written: stdout
+                .lines()
+                .chain(stderr.lines())
+                .filter(|l| l.starts_with("  wrote ") && l.ends_with(".html"))
+                .count() as u64,
+            diagnostics: diagnostics
+                .into_iter()
+                .filter(|d| d.severity != Severity::Error)
+                .collect(),
+            duration_ms: 0,
+        }
+    } else {
+        EngineEvent::BuildFailed {
+            phase: BuildPhase::Initial,
+            diagnostics,
+            recoverable: exit == ExitClass::ContentFailure,
+        }
+    }
+}
+
 /// Replay `boris init <dir> --type <archetype>`: a target that is not
 /// empty gets the captured refusal; otherwise the captured starter tree is
 /// written into `dir` (used as given — the stub has no workspace).
@@ -426,43 +484,13 @@ impl Engine for StubEngine {
             .parse()
             .unwrap_or(3);
         let exit = ExitClass::from_code(code);
-        // Build verbs report the one-shot build in watch vocabulary, as
-        // `ProcessEngine` does: diagnostics come from captured stderr.
         if is_build {
-            let (stdout, stderr) = (
-                c.file_str(&format!("{dir}stdout.txt")),
-                c.file_str(&format!("{dir}stderr.txt")),
+            let ev = one_shot_build(
+                exit,
+                &c.file_str(&format!("{dir}stdout.txt")),
+                &c.file_str(&format!("{dir}stderr.txt")),
+                &self.next_build(),
             );
-            let build = self.next_build();
-            let diagnostics: Vec<Diagnostic> = stderr
-                .lines()
-                .filter_map(StderrDiagnostic::parse)
-                .map(|d| Diagnostic {
-                    build_version: Some(build.clone()),
-                    ..Diagnostic::from(&d)
-                })
-                .collect();
-            let ev = if exit == ExitClass::Ok {
-                EngineEvent::BuildFinished {
-                    phase: BuildPhase::Initial,
-                    pages_written: stdout
-                        .lines()
-                        .chain(stderr.lines())
-                        .filter(|l| l.starts_with("  wrote ") && l.ends_with(".html"))
-                        .count() as u64,
-                    diagnostics: diagnostics
-                        .into_iter()
-                        .filter(|d| d.severity != Severity::Error)
-                        .collect(),
-                    duration_ms: 0,
-                }
-            } else {
-                EngineEvent::BuildFailed {
-                    phase: BuildPhase::Initial,
-                    diagnostics,
-                    recoverable: exit == ExitClass::ContentFailure,
-                }
-            };
             self.emitter.emit_caused(&mut sink, ev, cause);
         }
         self.emitter.emit_caused(
@@ -472,6 +500,48 @@ impl Engine for StubEngine {
                 exit,
             },
             cause,
+        );
+        Ok(exit)
+    }
+
+    /// Replays `verbs/<corpus>/<key>/`: the argv it was captured with, its
+    /// exit code and output. No wall clock: `duration_ms` is 0.
+    fn run_reported(
+        &self,
+        cmd: &Verb,
+        mut sink: EventSink,
+        _cancel: &CancelToken,
+    ) -> cv_core::Result<ExitClass> {
+        let c = crate::corpus(crate::VERBS);
+        let dir = verb_capture_key(cmd)
+            .map(|k| format!("{}/{k}/", self.corpus))
+            .filter(|d| !c.pinned_under(d).is_empty())
+            .ok_or_else(|| {
+                cv_core::Error::Engine(format!(
+                    "stub engine has no {} capture of verb {cmd:?}",
+                    self.corpus
+                ))
+            })?;
+        let file = |f: &str| c.file_str(&format!("{dir}{f}"));
+        let argv: Vec<String> = file("argv.txt").lines().map(String::from).collect();
+        let code: i32 = file("exit-code.txt").trim().parse().unwrap_or(3);
+        let exit = ExitClass::from_code(code);
+        let (stdout, stderr) = (file("stdout.txt"), file("stderr.txt"));
+        if argv.first().map(String::as_str) == Some("build") {
+            let ev = one_shot_build(exit, &stdout, &stderr, &self.next_build());
+            self.emit(&mut sink, ev);
+        }
+        self.emit(
+            &mut sink,
+            EngineEvent::VerbReported(VerbReport {
+                verb: cmd.name(),
+                argv,
+                exit,
+                code: Some(code),
+                duration_ms: 0,
+                stdout: VerbReport::bounded_stdout(&stdout),
+                stderr,
+            }),
         );
         Ok(exit)
     }

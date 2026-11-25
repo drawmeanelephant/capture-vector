@@ -9,8 +9,8 @@
 use crate::EngineError;
 use crate::verbs::{is_mutating, own_out_dir, writes_html};
 use cv_core::engine::{
-    Engine, EventSink, ExitClass, Fingerprint, MoveOutcome, PageDraft, PageMove, RemoveOutcome,
-    Verb, WatchHandle, WriteOutcome,
+    CancelToken, Engine, EventSink, ExitClass, Fingerprint, MoveOutcome, PageDraft, PageMove,
+    RemoveOutcome, Verb, WatchHandle, WriteOutcome,
 };
 use cv_core::events::{EventId, SessionId};
 use cv_core::rules::ArtifactSet;
@@ -128,6 +128,25 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         sink: EventSink,
         cause: Option<&EventId>,
     ) -> cv_core::Result<RunReport> {
+        self.dispatch(verb, |e, v| e.run_caused(v, sink, cause))
+    }
+
+    /// A user-requested run (`Engine::run_reported`) under the same seat
+    /// rules as `run`: a build stops the watch or is redirected.
+    pub fn run_reported(
+        &self,
+        verb: &Verb,
+        sink: EventSink,
+        cancel: &CancelToken,
+    ) -> cv_core::Result<RunReport> {
+        self.dispatch(verb, |e, v| e.run_reported(v, sink, cancel))
+    }
+
+    fn dispatch(
+        &self,
+        verb: &Verb,
+        run: impl FnOnce(&E, &Verb) -> cv_core::Result<ExitClass>,
+    ) -> cv_core::Result<RunReport> {
         let own = own_out_dir(verb);
         if let Some(dir) = &own
             && !clear_of_seat(dir, &self.seat)
@@ -141,7 +160,7 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         }
         if !is_mutating(verb) {
             let _r = self.rw.read().unwrap();
-            let exit = self.engine.run_caused(verb, sink, cause)?;
+            let exit = run(&self.engine, verb)?;
             return Ok(RunReport {
                 exit,
                 stopped_watch: None,
@@ -172,7 +191,7 @@ impl<E: Engine + Sync> EngineScheduler<E> {
                 }
             }
         }
-        let exit = self.engine.run_caused(&verb, sink, cause)?;
+        let exit = run(&self.engine, &verb)?;
         Ok(RunReport {
             exit,
             stopped_watch,
@@ -361,6 +380,21 @@ mod tests {
                 args: vec!["--html-dir".into(), ".cv/out/1".into()]
             }
         );
+    }
+
+    #[test]
+    fn a_reported_build_takes_the_seat_like_any_build() {
+        let p = Arc::new(Probe::default());
+        let s = EngineScheduler::new(Arc::new(Fake(p.clone())), SeatPolicy::StopWatch);
+        s.start_watch(noop()).unwrap();
+        let cancel = CancelToken::new();
+        let r = s
+            .run_reported(&Verb::Impact { id: "index".into() }, noop(), &cancel)
+            .unwrap();
+        assert_eq!(r.stopped_watch, None, "a read leaves the watch alone");
+        let r = s.run_reported(&Verb::Build, noop(), &cancel).unwrap();
+        assert_eq!(r.stopped_watch, Some(SessionId("w".into())));
+        assert_eq!(p.watch_stops.load(Ordering::SeqCst), 1);
     }
 
     fn ir(out: &str) -> Verb {

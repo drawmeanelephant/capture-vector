@@ -84,6 +84,11 @@ pub enum Verb {
     Check,
     Plan,
     Graph,
+    /// `boris impact <id>`: the read-only transitive impact of one page,
+    /// named by its graph id.
+    Impact {
+        id: String,
+    },
     Export {
         kind: ExportKind,
     },
@@ -119,6 +124,7 @@ impl Verb {
             Self::Check => "check".into(),
             Self::Plan => "plan".into(),
             Self::Graph => "graph".into(),
+            Self::Impact { .. } => "impact".into(),
             Self::Export { kind } => format!("export:{kind:?}").to_lowercase(),
             Self::Ir { .. } => "ir".into(),
             Self::Publish { target } => format!("publish:{target}"),
@@ -241,6 +247,19 @@ pub trait Engine: Send {
         sink: EventSink,
         cause: Option<&EventId>,
     ) -> crate::Result<ExitClass>;
+    /// A user-requested run whose outcome is the evidence itself: the
+    /// terminal envelope is `EngineEvent::VerbReported` (argv, exit code,
+    /// duration, output) instead of `VerbFinished`, and `cancel` stops the
+    /// child. The default is an engine that cannot report: plain `run`.
+    fn run_reported(
+        &self,
+        cmd: &Verb,
+        sink: EventSink,
+        cancel: &CancelToken,
+    ) -> crate::Result<ExitClass> {
+        let _ = cancel;
+        self.run(cmd, sink)
+    }
     fn write_content(
         &self,
         draft: &PageDraft,
@@ -287,5 +306,19 @@ mod tests {
         assert_eq!(ExitClass::from_code(2), ExitClass::UsageError);
         assert_eq!(ExitClass::from_code(3), ExitClass::IoFailure);
         assert_eq!(ExitClass::from_code(137), ExitClass::IoFailure);
+    }
+
+    #[test]
+    fn a_reported_stdout_is_cut_under_the_cap_on_a_char_boundary() {
+        use crate::events::engine::VerbReport;
+        let small = "graph TD\n";
+        assert_eq!(VerbReport::bounded_stdout(small), small);
+        let big = "é".repeat(VerbReport::STDOUT_CAP);
+        let cut = VerbReport::bounded_stdout(&big);
+        assert!(cut.len() < big.len());
+        assert!(cut.ends_with(&format!(
+            "… {} more bytes not kept",
+            big.len() - VerbReport::STDOUT_CAP
+        )));
     }
 }
