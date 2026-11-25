@@ -170,9 +170,10 @@ only canonical on the Linux Lavapipe configuration.
 ## Platform status
 
 - macOS is the primary development platform.
-- Linux has real-window evidence. Common BMP CJK text has a bundled
-  fallback font; rare ideograph extensions and GPU behavior still have
-  open edges.
+- Linux has real-window evidence. A bundled fallback covers common
+  Japanese, Chinese and Korean text, but not U+9FA6..U+9FFF, nearly all
+  CJK Extension A, any Extension B, some kana, or regional `locl` glyph
+  variants; those gaps and GPU behavior still have open edges.
 - Windows is explicitly unproven unless a linked issue/test says
   otherwise.
 
