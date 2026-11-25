@@ -3,7 +3,7 @@
 //! `*Model` data only — no lane logic, no IO.
 
 use crate::diagnostic;
-use crate::theme::{self, Level, Size, Styled, color, font};
+use crate::theme::{self, Size, Styled, color, font};
 use crate::{controls, fx, icons};
 use cv_core::events::shell::DegradedReason;
 use cv_model::module::{Chip, ReadingModel, RowModel, Slot, Tone};
@@ -780,65 +780,6 @@ fn toasts(s: &Workbench) -> Option<El> {
     toast = toast.on_close(|s: &mut Workbench| s.status.clear());
     Some(ToastRegion::new().toast(toast.build(&k)).build(&k))
 }
-fn palette(s: &Workbench, width: f32) -> El {
-    let t = &s.theme;
-    let cmds = s.commands();
-    let hits = s.palette.visible(&cmds);
-    let left = ((width - t.spacing.palette_w) / 2.0).max(0.0);
-    let mut list = col().key("palette-list").w_full().gap(1.0);
-    for (i, c) in hits.iter().enumerate() {
-        let sel = i == s.palette.cursor;
-        let id = c.id.clone();
-        list = list.child(
-            row()
-                .key(format!("cmd-{}", c.id))
-                .role("option")
-                .w_full()
-                .px(t.spacing.unit * 2.0)
-                .h(t.spacing.row_h)
-                .items_center()
-                .fill(color(if sel { t.colors.accent } else { t.colors.pane }))
-                .on_press(move |s: &mut Workbench| {
-                    s.palette.close();
-                    s.run_command(&id);
-                })
-                .child(
-                    text(c.title.clone())
-                        .font(font(t.type_.body))
-                        .color(color(if sel {
-                            t.colors.accent_text
-                        } else {
-                            t.colors.text
-                        })),
-                )
-                .child(spacer())
-                .child(label(t, c.chord.clone().unwrap_or_default())),
-        );
-    }
-    col()
-        .key("palette")
-        .role("dialog")
-        .absolute(left, 48.0)
-        .w(t.spacing.palette_w)
-        .padding(t.spacing.unit * 2.0)
-        .gap(t.spacing.unit * 2.0)
-        .fill(color(t.colors.pane))
-        .border(1.0, color(t.colors.accent))
-        .rounded(t, Size::Md)
-        .elevated(t, Level::Overlay)
-        .child(
-            text(format!("> {}", s.palette.query))
-                .key("palette-query")
-                .font(font(t.type_.mono))
-                .color(color(t.colors.text)),
-        )
-        .child(list)
-        .child(label(
-            t,
-            format!("{} of {} commands", hits.len(), cmds.len()),
-        ))
-}
-
 /// The shell view (rune `view` fn).
 pub fn view(s: &Workbench, cx: &mut Cx<Workbench>) -> El {
     let t = &s.theme;
@@ -867,7 +808,9 @@ pub fn view(s: &Workbench, cx: &mut Cx<Workbench>) -> El {
     }
     if s.palette.open {
         let w = cx.layout_size("shell").map(|[w, _]| w).unwrap_or(1280.0);
-        root = root.child(palette(s, w));
+        root = root
+            .child(crate::palette::scrim(s))
+            .child(crate::palette::panel(s, w));
     }
     root
 }

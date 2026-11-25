@@ -184,6 +184,9 @@ fn setup(s: &mut Workbench, w: Waker) {
     // Headless exports have no `on_ready` unless `--realtime`; they render
     // the booted state, as before.
     let realtime = std::env::args().any(|a| a == "--realtime");
+    if rune::is_headless() {
+        crate::keys::pin_keycaps(rune::KeyPlatform::Mac);
+    }
     if rune::is_headless() && !realtime && !BOOTED.swap(true, Ordering::Relaxed) {
         run_boot(s);
     }
@@ -269,7 +272,7 @@ pub(crate) fn input_poll(s: &mut Workbench, _t: f64, _tx: &mut Tx) -> bool {
 
 /// Palette commands and chords can queue requests; serve them now so a
 /// dialog opens on this keypress's frame.
-fn on_key(s: &mut Workbench, ev: &rune::KeyEvent, tx: &mut Tx) -> bool {
+pub(crate) fn on_key(s: &mut Workbench, ev: &rune::KeyEvent, tx: &mut Tx) -> bool {
     let used = input_on_key(s, ev, tx);
     serve_requests(s, tx) || used
 }

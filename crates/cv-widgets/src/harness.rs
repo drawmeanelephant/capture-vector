@@ -35,6 +35,7 @@ impl Harness {
         // What the CLI's headless runs (and so the PNG gate) report, so trees
         // and renders lay out the same macOS titlebar.
         rt.set_titlebar_inset(rune::Chrome::DEFAULT.titlebar_inset());
+        keys::pin_keycaps(rune::KeyPlatform::Mac);
         let mut h = Self { rt };
         h.settle();
         h
