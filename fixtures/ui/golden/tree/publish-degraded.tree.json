@@ -539,6 +539,94 @@
       "text": "Demo"
     },
     {
+      "opacity": 1.0,
+      "path": "shell/body/rail/#7",
+      "rect": [
+        4.0,
+        405.8,
+        80.0,
+        290.3
+      ],
+      "role": "group"
+    },
+    {
+      "key": "rail-group-utilities",
+      "label": "Utilities",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-group-utilities",
+      "rect": [
+        4.0,
+        700.0,
+        80.0,
+        17.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-group-utilities/#0",
+      "rect": [
+        12.0,
+        704.0,
+        64.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Utilities"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-migrate",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        721.8,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#0",
+      "rect": [
+        12.0,
+        727.8,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-migrate-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#0/rail-migrate-icon",
+      "rect": [
+        12.0,
+        727.8,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#1",
+      "rect": [
+        12.0,
+        747.8,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Migrate"
+    },
+    {
       "fill": "#0e1014ff",
       "key": "nav",
       "opacity": 1.0,

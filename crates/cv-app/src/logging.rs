@@ -9,11 +9,11 @@
 //! ```
 //!
 //! Fields whose key looks like a secret (`secret`, `password`, `token`,
-//! `nsec`, …; `cv_core::redact`) are dropped before serialization, so a careless call site
-//! cannot leak a credential. Never log argv values, environment values, or
-//! page bodies.
+//! `nsec`, …; `cv_core::redact`) are dropped before serialization at any
+//! depth, so a careless call site cannot leak a credential. Never log
+//! argv values, environment values, or page bodies.
 
-use cv_core::redact::is_secret_key;
+use cv_core::redact::{drop_secret_keys, is_secret_key};
 use serde_json::{Map, Value};
 use std::io::Write;
 use std::path::PathBuf;
@@ -155,7 +155,11 @@ fn render(level: Level, event: &str, fields: &[(&str, Value)], now_ms: u64) -> S
     object.insert("event".into(), Value::from(event));
     for (key, value) in fields {
         if !is_secret_key(key) {
-            object.insert((*key).to_string(), value.clone());
+            // An innocent field name can still carry a nested object or
+            // array with secret-shaped keys inside it.
+            let mut value = value.clone();
+            drop_secret_keys(&mut value);
+            object.insert((*key).to_string(), value);
         }
     }
     let mut line = serde_json::to_string(&Value::Object(object))
@@ -209,5 +213,31 @@ mod tests {
         assert_eq!(value["page"], json!("index.md"));
         assert!(value.get("api_key").is_none());
         assert!(value.get("password").is_none());
+    }
+
+    #[test]
+    fn render_scrubs_secret_keys_inside_nested_values() {
+        let line = render(
+            Level::Info,
+            "engine_event",
+            &[(
+                "detail",
+                json!({
+                    "outer": { "clientPrivateKey": "leak", "note": "kept" },
+                    "list": [{ "password": "leak", "ok": 1 }],
+                    "publicKey": "not-secret",
+                }),
+            )],
+            42,
+        );
+        let value: Value = serde_json::from_str(line.trim()).expect("valid JSON");
+        assert_eq!(
+            value["detail"],
+            json!({
+                "outer": { "note": "kept" },
+                "list": [{ "ok": 1 }],
+                "publicKey": "not-secret",
+            })
+        );
     }
 }

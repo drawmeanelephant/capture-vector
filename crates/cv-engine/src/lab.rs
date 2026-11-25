@@ -10,7 +10,7 @@ use crate::exit::ExitOutcome;
 use crate::locate::{Locator, env_opt_in, sibling_checkout_dirs};
 use crate::proc::{CancelToken, boris_command, run_captured};
 use cv_core::engine::EngineSource;
-pub use modes::{InputKind, InputSpec, MODES, ModeSpec, mode};
+pub use modes::{Family, InputKind, InputSpec, MODES, ModeSpec, mode};
 use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
 use std::path::{Component, Path, PathBuf};
