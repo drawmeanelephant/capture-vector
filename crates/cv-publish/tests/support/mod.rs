@@ -248,6 +248,7 @@ pub struct CapturedEngine {
     pub malformed_proof: bool,
     pub proof_payload_entry: bool,
     pub duplicate_entry: bool,
+    pub case_collision_entry: bool,
 }
 
 impl CapturedEngine {
@@ -259,6 +260,7 @@ impl CapturedEngine {
             malformed_proof: false,
             proof_payload_entry: false,
             duplicate_entry: false,
+            case_collision_entry: false,
         }
     }
 
@@ -313,6 +315,17 @@ impl Engine for CapturedEngine {
                     let mut idx: serde_json::Value =
                         serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
                     let entry = idx["artifacts"][0].clone();
+                    idx["artifacts"].as_array_mut().unwrap().push(entry);
+                    std::fs::write(&path, serde_json::to_vec_pretty(&idx).unwrap()).unwrap();
+                }
+                if self.case_collision_entry {
+                    let path = out.join("_boris/proof/artifacts.json");
+                    let mut idx: serde_json::Value =
+                        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+                    let mut entry = idx["artifacts"][0].clone();
+                    entry["path"] = serde_json::json!(
+                        idx["artifacts"][0]["path"].as_str().unwrap().to_uppercase()
+                    );
                     idx["artifacts"].as_array_mut().unwrap().push(entry);
                     std::fs::write(&path, serde_json::to_vec_pretty(&idx).unwrap()).unwrap();
                 }

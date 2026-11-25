@@ -263,3 +263,28 @@ fn an_unreadable_output_inventory_is_a_durable_preflight_block() {
         "the block must be durable"
     );
 }
+
+/// Artifact paths differing only by case collide on the case-insensitive
+/// filesystems copy-to-folder targets. They are rejected before sealing,
+/// not left to exact-match deployment failure.
+#[test]
+fn case_colliding_artifact_paths_block_the_grant() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    eng.case_collision_entry = true;
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+    let out = p
+        .preflight(
+            &PreflightRequest { config: cfg() },
+            &Rules::ok(),
+            &mut ids("run"),
+        )
+        .unwrap();
+    let PreflightOutcome::Blocked { blocks, .. } = out else {
+        panic!("case-colliding artifact paths must block: {out:?}")
+    };
+    assert!(
+        blocks.iter().any(|b| b.contains("case-collides with")),
+        "{blocks:?}"
+    );
+}

@@ -79,6 +79,7 @@ fn evaluate_proof_inventory(
         return (files, kinds, false);
     }
     let mut seen = std::collections::BTreeSet::new();
+    let mut casefolded = std::collections::BTreeMap::new();
     for artifact in &idx.artifacts {
         let normalized = artifact
             .path
@@ -97,6 +98,15 @@ fn evaluate_proof_inventory(
             blocks.push(format!(
                 "proof artifacts: duplicate artifact path {}",
                 artifact.path
+            ));
+            continue;
+        }
+        if let Some(other) = casefolded.insert(artifact.path.to_lowercase(), artifact.path.clone())
+            && other != artifact.path
+        {
+            blocks.push(format!(
+                "proof artifacts: {} case-collides with {} on case-insensitive filesystems",
+                artifact.path, other
             ));
             continue;
         }
@@ -167,8 +177,12 @@ fn deployable_inventory(site: &Path) -> Result<Vec<PlanFile>> {
     }
     let mut files = Vec::new();
     let mut seen = std::collections::BTreeSet::new();
+    let mut casefolded = std::collections::BTreeSet::new();
     for artifact in &idx.artifacts {
         if artifact.path.starts_with("_boris/proof/") || !seen.insert(artifact.path.clone()) {
+            return Err(PublishError::SealBroken(vec!["artifact_set"]));
+        }
+        if !casefolded.insert(artifact.path.to_lowercase()) {
             return Err(PublishError::SealBroken(vec!["artifact_set"]));
         }
         if artifact.status != "committed" {
