@@ -557,7 +557,7 @@ impl PublishModule {
         for b in &r.blocks {
             let text = match actions::audit_finding(b) {
                 Some((code, subject)) => {
-                    format!("{code} on {subject} · blocking ruleset finding, reveal it in Audit")
+                    format!("{code} on {subject} · blocking ruleset finding")
                 }
                 None => b.clone(),
             };
@@ -954,19 +954,14 @@ impl Module for PublishModule {
     }
 
     fn link(&self, key: &str) -> Option<Link> {
-        let Some(Item::Run(i)) = self.by_key.get(key) else {
+        let Some(Item::Run(_i)) = self.by_key.get(key) else {
             return None;
         };
-        let key = self.runs[*i]
-            .blocks
-            .iter()
-            .find(|b| actions::audit_finding(b).is_some())?
-            .strip_prefix(actions::RULESET_BLOCK)?;
-        Some(Link {
-            module: crate::modules::audit::ID,
-            key: key.to_string(),
-            label: "Reveal blocking finding in Audit".into(),
-        })
+        // Preflight evaluates the sealed deploy artifact set, which ordinary
+        // Audit does not currently retain as rows. Until those findings are
+        // projected into Audit, offering a reveal link would be false.
+        let _ = key;
+        None
     }
 
     fn attr_rows(&self) -> Vec<NounAttrRow> {

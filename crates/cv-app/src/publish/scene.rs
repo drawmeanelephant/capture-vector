@@ -148,7 +148,7 @@ impl DeliveryAdapter for LostOutcome {
 }
 
 pub(super) fn config(target: Target, adapter: &str, destination: &str) -> TargetConfig {
-    TargetConfig::default_html(target, "https://example.test/", adapter, destination)
+    TargetConfig::default_html(target, "", adapter, destination)
 }
 
 pub(super) fn open<'a>(root: &Path, engine: &'a CapturedBuild) -> Publisher<'a> {

@@ -630,15 +630,17 @@ fn a_grant_is_discarded_only_through_a_danger_confirm() {
 }
 
 #[test]
-fn a_blocking_ruleset_finding_links_into_audit() {
+fn a_blocking_ruleset_finding_is_not_linked_into_an_absent_audit_row() {
     let key = format!("A11Y-HTML-LANG|page:index|{}", Hash([7; 32]).to_hex());
     let mut l = ledger();
     let mut blocked = run("run-5", "static-dist", Phase::PreflightBlocked);
     blocked.blocks = vec![format!("ruleset: {key}"), "check: ContentFailure".into()];
     l.runs.push(blocked);
     let (m, _) = scripted(l);
-    let link = m.link("run-5").unwrap();
-    assert_eq!((link.module, link.key.as_str()), ("audit", key.as_str()));
+    assert!(
+        m.link("run-5").is_none(),
+        "publish must not reveal a row Audit does not contain"
+    );
     let r = m.reading("run-5");
     assert!(
         r.lines

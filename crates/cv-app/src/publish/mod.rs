@@ -215,7 +215,11 @@ fn run_record(id: &str, v: &RunView) -> RunRecord {
             Ok(c) => {
                 r.settings = Some(TargetSettings {
                     profile: c.profile.unwrap_or_else(|| "default HTML target".into()),
-                    base_url: c.deploy.base_url,
+                    base_url: if c.deploy.base_url.is_empty() {
+                        "unhosted local copy".into()
+                    } else {
+                        c.deploy.base_url
+                    },
                     verified: c.verified,
                 })
             }

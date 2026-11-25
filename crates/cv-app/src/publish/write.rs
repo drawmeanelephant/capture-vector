@@ -24,8 +24,9 @@ use std::path::Path;
 pub const ACTOR: &str = "local";
 /// Project-relative folder a static-dist run is copied into.
 pub const STATIC_DIST_FOLDER: &str = "publish/static-dist";
-/// A folder copy has no host; the deploy profile still needs a base.
-const LOCAL_BASE_URL: &str = "http://localhost/";
+/// A folder copy has no host; an empty base URL is explicit rather than
+/// a fictional localhost deployment.
+const LOCAL_BASE_URL: &str = "";
 
 /// The configuration a new preflight for `target` seals, if its delivery
 /// is wired.
@@ -57,7 +58,10 @@ impl Ruleset for AuditRules {
         self.0.hash()
     }
     fn evaluate(&self, artifacts: &PreflightArtifacts<'_>) -> RulesetVerdict {
-        let mut set = cv_rules::ArtifactSet::builder().deploy(artifacts.config.deploy.clone());
+        let mut set = cv_rules::ArtifactSet::builder();
+        if !artifacts.config.deploy.base_url.is_empty() {
+            set = set.deploy(artifacts.config.deploy.clone());
+        }
         let mut unreadable = Vec::new();
         let mut ir = None;
         if let Some(path) = artifacts.ir_graph {
@@ -380,15 +384,32 @@ captured = "2026-11-23"
         let d = tempfile::tempdir().unwrap();
         std::fs::write(d.path().join("index.html"), "<h1>t</h1>").unwrap();
         let files = cv_publish::plan::inventory(d.path()).unwrap();
+        let static_dist = delivery_config(Target::StaticDist).unwrap();
         let v = AuditRules::shipped().evaluate(&PreflightArtifacts {
             site: d.path(),
             files: &files,
             ir_graph: None,
-            config: &delivery_config(Target::StaticDist).unwrap(),
+            config: &static_dist,
+        });
+        assert!(
+            !v.blocking.iter().any(|b| b.starts_with("TGT-ROBOTS-TXT|")),
+            "unhosted static-dist must not invent a robots requirement: {v:?}"
+        );
+        let hosted = TargetConfig::default_html(
+            Target::GithubPages,
+            "https://example.test/",
+            COPY_TO_FOLDER,
+            "deployed",
+        );
+        let v = AuditRules::shipped().evaluate(&PreflightArtifacts {
+            site: d.path(),
+            files: &files,
+            ir_graph: None,
+            config: &hosted,
         });
         assert!(
             v.blocking.iter().any(|b| b.starts_with("TGT-ROBOTS-TXT|")),
-            "missing robots.txt must reach the blocking target rule: {v:?}"
+            "missing robots.txt must reach the blocking target rule for a hosted profile: {v:?}"
         );
     }
 

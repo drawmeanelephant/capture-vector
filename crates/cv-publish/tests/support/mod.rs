@@ -15,6 +15,7 @@ use cv_publish::adapters::{
 use cv_publish::plan::SealedPlan;
 use cv_publish::preflight::PreflightArtifacts;
 use cv_publish::{Observation, PreflightOutcome, Ruleset, RulesetVerdict, Target, TargetConfig};
+use sha2::{Digest, Sha256};
 use std::cell::Cell;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -29,6 +30,9 @@ pub struct FakeEngine {
     /// When set, the HTML build plants a proof inventory derived from the
     /// pinned happy capture with only its target field tampered to this value.
     pub proof_target: Option<String>,
+    pub omit_proof: bool,
+    pub malformed_proof: bool,
+    pub mutate_source_on_ir: bool,
     pub verbs: Mutex<Vec<Verb>>,
 }
 
@@ -47,6 +51,9 @@ impl FakeEngine {
                 ("context/index.md", "ctx"),
             ],
             proof_target: None,
+            omit_proof: false,
+            malformed_proof: false,
+            mutate_source_on_ir: false,
             verbs: Mutex::new(vec![]),
         }
     }
@@ -104,28 +111,85 @@ impl Engine for FakeEngine {
                     std::fs::write(f, body).unwrap();
                 }
                 std::fs::write(site.join("robots.txt"), "User-agent: *\n").unwrap();
-                if let Some(target) = &self.proof_target {
+                let proof = site.join("_boris/proof");
+                if !self.omit_proof {
+                    std::fs::create_dir_all(&proof).unwrap();
+                }
+                if self.malformed_proof {
+                    std::fs::write(proof.join("artifacts.json"), b"not json").unwrap();
+                } else if self.omit_proof {
+                } else if let Some(target) = &self.proof_target {
                     let captured = String::from_utf8(
                         cv_fixtures::corpus("happy").file("dist/dist/_boris/proof/artifacts.json"),
                     )
                     .unwrap();
-                    assert!(captured.contains("\"target\": \"default\""));
                     let tampered = captured.replace(
                         "\"target\": \"default\"",
                         &format!("\"target\": \"{target}\""),
                     );
-                    let proof = site.join("_boris/proof");
-                    std::fs::create_dir_all(&proof).unwrap();
                     std::fs::write(proof.join("artifacts.json"), tampered).unwrap();
+                } else {
+                    let artifacts: Vec<_> = self
+                        .pages
+                        .iter()
+                        .map(|(path, body)| {
+                            serde_json::json!({
+                                "path": path,
+                                "kind": if path.ends_with(".html") { "html-page" } else { "machine-export" },
+                                "producer": "fake-engine",
+                                "required": true,
+                                "status": "committed",
+                                "bytes": body.len(),
+                                "sha256": format!("{:x}", Sha256::digest(body.as_bytes())),
+                            })
+                        })
+                        .collect();
+                    let index = serde_json::json!({
+                        "format": "boris-publication-artifacts",
+                        "schema_version": 1,
+                        "target": "default",
+                        "artifacts": artifacts,
+                    });
+                    std::fs::write(
+                        proof.join("artifacts.json"),
+                        serde_json::to_vec_pretty(&index).unwrap(),
+                    )
+                    .unwrap();
                 }
                 Ok(ExitClass::Ok)
             }
             Verb::Custom { name, args } if name == "build" && args.iter().any(|a| a == "--out") => {
                 let dir = self.root.join(arg(args, "--out"));
                 std::fs::create_dir_all(&dir).unwrap();
+                let mut nodes: Vec<_> = self
+                    .pages
+                    .iter()
+                    .filter(|(path, _)| path.ends_with(".html"))
+                    .map(|(path, _)| {
+                        let id = path.strip_suffix(".html").unwrap();
+                        serde_json::json!({
+                            "id": id,
+                            "sourcePath": format!("{id}.md"),
+                            "role": if id == "index" { "trunk" } else { "satellite" },
+                        })
+                    })
+                    .collect();
+                if self.mutate_source_on_ir {
+                    std::fs::write(self.root.join("content/injected.md"), "# injected\n").unwrap();
+                    nodes.push(serde_json::json!({
+                        "id": "injected",
+                        "sourcePath": "injected.md",
+                        "role": "satellite",
+                    }));
+                }
                 std::fs::write(
                     dir.join("graph.json"),
-                    cv_fixtures::ir_capture("happy").file("graph.json"),
+                    serde_json::to_vec_pretty(&serde_json::json!({
+                        "schemaVersion": 1,
+                        "nodes": nodes,
+                        "edges": [],
+                    }))
+                    .unwrap(),
                 )
                 .unwrap();
                 Ok(ExitClass::Ok)
@@ -143,6 +207,108 @@ impl Engine for FakeEngine {
         self.run(cmd, sink)
     }
 
+    fn write_content(
+        &self,
+        _: &PageDraft,
+        _: Option<Fingerprint>,
+    ) -> cv_core::Result<WriteOutcome> {
+        Err(cv_core::Error::Engine("unused".into()))
+    }
+}
+
+fn copy_tree(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).unwrap();
+    for entry in std::fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let dst = to.join(entry.file_name());
+        if entry.file_type().unwrap().is_dir() {
+            copy_tree(&entry.path(), &dst);
+        } else {
+            std::fs::copy(entry.path(), dst).unwrap();
+        }
+    }
+}
+
+/// Engine backed by the pinned real Boris happy capture. Tests can damage
+/// that captured output explicitly, but no proof JSON is hand-authored here.
+pub struct CapturedEngine {
+    pub root: PathBuf,
+    pub omit_proof: bool,
+    pub malformed_proof: bool,
+}
+
+impl CapturedEngine {
+    pub fn new(root: &Path) -> Self {
+        Self {
+            root: root.into(),
+            omit_proof: false,
+            malformed_proof: false,
+        }
+    }
+}
+
+impl Engine for CapturedEngine {
+    fn locate(&self) -> cv_core::Result<EngineInfo> {
+        Ok(EngineInfo {
+            version: "boris/0.9.0".into(),
+            vcs_revision: Some("66efcfb".into()),
+            caps: self.capabilities(),
+        })
+    }
+    fn capabilities(&self) -> EngineCaps {
+        EngineCaps {
+            watch: false,
+            serve: false,
+            authoring: false,
+            writes: false,
+        }
+    }
+    fn snapshot(&self) -> cv_core::Result<ArtifactSet> {
+        Err(cv_core::Error::Engine("unused".into()))
+    }
+    fn watch(&self, _: EventSink) -> cv_core::Result<Box<dyn WatchHandle>> {
+        Err(cv_core::Error::Engine("unused".into()))
+    }
+    fn run(&self, cmd: &Verb, _: EventSink) -> cv_core::Result<ExitClass> {
+        let Verb::Custom { name, args } = cmd else {
+            return Ok(ExitClass::Ok);
+        };
+        match name.as_str() {
+            "build" if args.iter().any(|a| a == "--html-dir") => {
+                let out = self.root.join(arg(args, "--html-dir"));
+                copy_tree(
+                    &cv_fixtures::fixtures_root().join("captures/happy/dist/dist"),
+                    &out,
+                );
+                if self.omit_proof {
+                    let _ = std::fs::remove_file(out.join("_boris/proof/artifacts.json"));
+                }
+                if self.malformed_proof {
+                    std::fs::write(out.join("_boris/proof/artifacts.json"), b"not json").unwrap();
+                }
+                Ok(ExitClass::Ok)
+            }
+            "build" if args.iter().any(|a| a == "--out") => {
+                let dir = self.root.join(arg(args, "--out"));
+                std::fs::create_dir_all(&dir).unwrap();
+                std::fs::write(
+                    dir.join("graph.json"),
+                    cv_fixtures::ir_capture("happy").file("graph.json"),
+                )
+                .unwrap();
+                Ok(ExitClass::Ok)
+            }
+            _ => Ok(ExitClass::Ok),
+        }
+    }
+    fn run_caused(
+        &self,
+        cmd: &Verb,
+        sink: EventSink,
+        _: Option<&cv_core::events::EventId>,
+    ) -> cv_core::Result<ExitClass> {
+        self.run(cmd, sink)
+    }
     fn write_content(
         &self,
         _: &PageDraft,

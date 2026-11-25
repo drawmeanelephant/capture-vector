@@ -74,6 +74,10 @@ pub trait DeliveryAdapter {
 }
 
 /// Copy the sealed bytes into a folder (staged `*.tmp` + rename).
+///
+/// Delivery is an overlay, not managed synchronization: paths in the sealed
+/// plan are replaced with their sealed bytes, while unmanaged files — including
+/// stale output from an earlier plan — are preserved and never deleted.
 pub struct CopyToFolder {
     root: PathBuf,
 }

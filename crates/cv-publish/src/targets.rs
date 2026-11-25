@@ -94,7 +94,7 @@ impl Target {
         let (trailing_slash, expects_robots_txt) = match self {
             // Pages serves `dir/index.html` and redirects to `dir/`.
             Self::GithubPages => (SlashPolicy::Always, true),
-            Self::StaticDist => (SlashPolicy::Either, true),
+            Self::StaticDist => (SlashPolicy::Either, false),
             Self::StandardSite | Self::NostrNip23 => (SlashPolicy::Either, false),
         };
         TargetDeployProfile {
@@ -104,10 +104,12 @@ impl Target {
         }
     }
 
-    /// Machine exports that must ship with an HTML-hosting target,
+    /// Machine exports required by a genuinely hosted target contract,
     /// keyed by output-relative path (a trailing `/` means a directory).
+    /// Static-dist is only an unhosted copy of Boris's default output and
+    /// therefore declares none.
     pub fn default_exports(self) -> Vec<(ExportKind, String)> {
-        if !self.hosts_html() {
+        if self != Self::GithubPages {
             return vec![];
         }
         vec![

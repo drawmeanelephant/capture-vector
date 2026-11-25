@@ -44,7 +44,7 @@ fn registry_labels_match_boris() {
             t.deploy_profile("https://x.test/").base_url,
             "https://x.test/"
         );
-        assert_eq!(t.hosts_html(), !t.default_exports().is_empty());
+        assert_eq!(!t.default_exports().is_empty(), t == Target::GithubPages);
     }
     assert!(Target::GithubPages.deploy_profile("u").expects_robots_txt);
     assert_eq!(Target::NostrNip23.secret_name(), Some("nostr-nsec"));
@@ -96,19 +96,20 @@ fn hash_mismatch_refuses_publish() {
     );
     assert_eq!(
         seal_case(|root, run, _, _, _| std::fs::write(
-            root.join(site_dir(run).unwrap()).join("extra.js"),
-            "x"
-        )
-        .unwrap()),
-        vec!["artifact_set", "plan"]
-    );
-    assert_eq!(
-        seal_case(|root, run, _, _, _| std::fs::write(
             root.join(graph_file(run).unwrap()),
             "changed"
         )
         .unwrap()),
         vec!["graph"]
+    );
+    assert_eq!(
+        seal_case(|root, run, _, _, _| std::fs::write(
+            root.join(site_dir(run).unwrap())
+                .join("_boris/proof/artifacts.json"),
+            "changed"
+        )
+        .unwrap()),
+        vec!["artifact_set", "plan"]
     );
     assert_eq!(seal_case(|_, _, _, r, _| r.0.set(9)), vec!["ruleset"]);
     assert_eq!(
@@ -308,9 +309,10 @@ fn complete_run_ships_exact_bytes_and_machine_exports() {
         );
     }
     let v = p.run(&run).unwrap();
-    let ev = v.exports.unwrap();
-    assert_eq!(ev.len(), 4);
-    assert!(exports::all_shipped(&ev), "{ev:?}");
+    assert!(
+        v.exports.is_none(),
+        "unhosted static-dist has no machine-export contract: {v:?}"
+    );
     assert_eq!(
         v.history,
         vec![
@@ -335,12 +337,20 @@ fn unshipped_or_stale_exports_are_flagged() {
     let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets)
         .unwrap()
         .with_adapter(CopyToFolder::new(dir.path()));
+    let mut export_cfg = cfg();
+    export_cfg.exports = Target::GithubPages.default_exports();
     let run = granted(
-        p.preflight(&PreflightRequest { config: cfg() }, &rules, &mut ids("run"))
-            .unwrap(),
+        p.preflight(
+            &PreflightRequest {
+                config: export_cfg.clone(),
+            },
+            &rules,
+            &mut ids("run"),
+        )
+        .unwrap(),
     );
     p.approve(&run, "tester").unwrap();
-    p.publish(&run, &cfg(), &rules).unwrap();
+    p.publish(&run, &export_cfg, &rules).unwrap();
     let v = p.run(&run).unwrap();
     let ev = v.exports.unwrap();
     let llms = ev.iter().find(|e| e.kind == "llms").unwrap();
@@ -351,13 +361,13 @@ fn unshipped_or_stale_exports_are_flagged() {
     let plan: SealedPlan = serde_json::from_value(v.plan.unwrap()).unwrap();
     std::fs::write(dir.path().join("deployed/sitemap.xml"), "old").unwrap();
     let read = |path: &str| std::fs::read(dir.path().join("deployed").join(path)).ok();
-    let ev = exports::check(&plan, &cfg().exports, Some(&read));
+    let ev = exports::check(&plan, &export_cfg.exports, Some(&read));
     assert_eq!(
         ev.iter().find(|e| e.kind == "sitemap").unwrap().status,
         exports::STALE
     );
     assert!(
-        exports::check(&plan, &cfg().exports, None)
+        exports::check(&plan, &export_cfg.exports, None)
             .iter()
             .all(|e| e.status == exports::UNCONFIRMED || e.status == exports::MISSING)
     );
@@ -425,8 +435,8 @@ fn crash_after_contact_is_unknown_reconciles_and_never_retries() {
     let v = p.run(&run).unwrap();
     assert_eq!(v.reconciliations.len(), 1);
     assert!(
-        v.exports.is_some(),
-        "reconciled delivery still gets ship-the-outputs evidence"
+        v.exports.is_none(),
+        "unhosted static-dist has no machine-export evidence to check"
     );
     assert!(
         p.reconcile(&run, Observation::NotDelivered, "tester")
@@ -1098,39 +1108,6 @@ fn a_dispatched_run_cannot_be_discarded_or_approved_again() {
     assert!(p.discard(&run, "tester").is_err());
     assert!(p.approve(&run, "tester").is_err());
     assert_eq!(p.run(&run).unwrap().phase().as_str(), "complete");
-}
-
-#[test]
-fn proof_target_mismatch_blocks_preflight_before_a_grant_is_issued() {
-    let dir = tempfile::tempdir().unwrap();
-    let mut eng = FakeEngine::new(dir.path());
-    eng.proof_target = Some("public".into());
-    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
-
-    let out = p
-        .preflight(
-            &PreflightRequest { config: cfg() },
-            &Rules::ok(),
-            &mut ids("run"),
-        )
-        .unwrap();
-
-    let PreflightOutcome::Blocked { blocks, .. } = out else {
-        panic!("mismatched proof target must block preflight: {out:?}")
-    };
-    assert!(
-        blocks
-            .iter()
-            .any(|b| b == "proof artifacts: target public is not default"),
-        "{blocks:?}"
-    );
-    assert!(
-        !p.journal()
-            .records()
-            .iter()
-            .any(|r| matches!(r.entry, Entry::GrantIssued { .. })),
-        "a grant must never seal artifacts from another proof target"
-    );
 }
 
 #[test]

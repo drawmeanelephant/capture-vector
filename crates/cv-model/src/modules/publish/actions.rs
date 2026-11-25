@@ -120,7 +120,7 @@ pub(super) fn next_step(m: &PublishModule, r: &RunRecord) -> Result<String, Stri
     }
     match r.phase {
         Phase::PreflightBlocked if r.blocks.iter().any(|b| audit_finding(b).is_some()) => Err(
-            "fix the blocking findings (reveal them in Audit), then preflight again".into(),
+            "fix the blocking findings, then preflight again".into(),
         ),
         Phase::PreflightBlocked => Err("fix what blocked preflight, then preflight again".into()),
         Phase::Granted => deliverable(m, r).map(|_| {

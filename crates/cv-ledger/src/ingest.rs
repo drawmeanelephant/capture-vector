@@ -125,9 +125,9 @@ pub fn from_bytes(
 
 /// The target named by the proof artifact inventory under a built output
 /// tree. `None` means Boris did not produce an inventory. The mirror validates
-/// both the inventory's format identity and schema version before trusting its
-/// target field.
-pub fn artifact_inventory_target(out_dir: &Path) -> Result<Option<String>> {
+/// both the inventory's format identity and schema version before trusting
+/// anything inside it.
+pub fn artifact_inventory(out_dir: &Path) -> Result<Option<ArtifactIndex>> {
     let dir = out_dir.join(PROOF_DIR);
     let Some(bytes) = read(&dir, "artifacts.json")? else {
         return Ok(None);
@@ -141,7 +141,7 @@ pub fn artifact_inventory_target(out_dir: &Path) -> Result<Option<String>> {
         )));
     }
     schema("artifacts.json", idx.schema_version)?;
-    Ok(Some(idx.target))
+    Ok(Some(idx))
 }
 
 /// Read the proof pack under a built output tree.
