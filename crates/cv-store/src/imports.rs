@@ -125,7 +125,7 @@ pub fn input(flag: &str, path: &str) -> RecordedInput {
     }
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
+pub fn sha256_hex(bytes: &[u8]) -> String {
     Sha256::digest(bytes)
         .iter()
         .map(|b| format!("{b:02x}"))
@@ -530,6 +530,125 @@ pub fn scan_adoptions(root: &Path) -> Result<Vec<AdoptionRecord>, Error> {
     }
     out.sort_by(|a, b| a.run_id.cmp(&b.run_id));
     Ok(out)
+}
+
+/// `adoption-pending.json` in a run directory: the crash-recovery unit of
+/// an in-progress adoption. It is written before the first content byte
+/// lands and deleted only after the adoption sidecar and run record are
+/// durable. Its presence means a previous attempt was interrupted: a
+/// retry with the same target shape resumes byte-identical files instead
+/// of refusing them as collisions, while any different bytes still refuse.
+pub const PENDING: &str = "adoption-pending.json";
+pub const PENDING_FORMAT: &str = "cv-import-adoption-pending";
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PendingFile {
+    /// Workspace-relative staged-write target, `/`-separated.
+    pub target: String,
+    pub sha256: String,
+    pub bytes: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PendingAdoption {
+    pub format: String,
+    pub schema_version: u32,
+    pub run_id: String,
+    /// `new` or `existing`.
+    pub target: String,
+    pub content_input: String,
+    pub content_subfolder: Option<String>,
+    pub files: Vec<PendingFile>,
+}
+
+impl PendingAdoption {
+    pub fn new(
+        run_id: impl Into<String>,
+        target: impl Into<String>,
+        content_input: impl Into<String>,
+    ) -> Self {
+        Self {
+            format: PENDING_FORMAT.into(),
+            schema_version: SCHEMA_VERSION,
+            run_id: run_id.into(),
+            target: target.into(),
+            content_input: content_input.into(),
+            content_subfolder: None,
+            files: Vec::new(),
+        }
+    }
+
+    /// True when a retry names the same target shape; any other shape is a
+    /// different operation that must not resume this one.
+    pub fn matches(&self, target: &str, content_input: &str, subfolder: Option<&str>) -> bool {
+        self.target == target
+            && self.content_input == content_input
+            && self.content_subfolder.as_deref() == subfolder
+    }
+}
+
+/// Write the recovery unit atomically inside the run directory.
+pub fn write_pending(root: &Path, rec: &PendingAdoption) -> Result<PathBuf, Error> {
+    let dir = run_dir(root, &rec.run_id)?;
+    refuse_symlinks(&[&root.join(".cv"), &root.join(DIR), &dir])?;
+    sidecar::ensure(root, &SCHEMA).map_err(Error::Schema)?;
+    std::fs::create_dir_all(&dir)?;
+    let mut bytes = serde_json::to_vec_pretty(rec).map_err(Error::Json)?;
+    bytes.push(b'\n');
+    let path = dir.join(PENDING);
+    write_json_atomic(&path, &bytes)?;
+    Ok(path)
+}
+
+/// The interrupted adoption recorded for `run`, if one is durable and
+/// decodable. An undecodable or foreign journal is an error, never a
+/// silent fresh start: resuming over unknown partial state could mix two
+/// different target shapes. Errors are strings like [`read_record`]'s.
+pub fn read_pending(root: &Path, run: &str) -> Result<Option<PendingAdoption>, String> {
+    let dir = run_dir(root, run).map_err(|e| e.to_string())?;
+    let path = dir.join(PENDING);
+    if is_symlink(&path).map_err(|e| e.to_string())? {
+        return Err(format!("{PENDING} is a symlink"));
+    }
+    let bytes = match std::fs::read(&path) {
+        Ok(b) => b,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(format!("{PENDING}: {e}")),
+    };
+    #[derive(Deserialize)]
+    struct Header {
+        format: String,
+        schema_version: u64,
+    }
+    let h: Header =
+        serde_json::from_slice(&bytes).map_err(|e| format!("{PENDING} is not valid: {e}"))?;
+    if h.format != PENDING_FORMAT {
+        return Err(format!(
+            "{PENDING} format {:?} is not {PENDING_FORMAT}",
+            h.format
+        ));
+    }
+    if h.schema_version != u64::from(SCHEMA_VERSION) {
+        return Err(format!(
+            "{PENDING} schema_version {} is not supported (this build reads {SCHEMA_VERSION})",
+            h.schema_version
+        ));
+    }
+    serde_json::from_slice(&bytes)
+        .map(Some)
+        .map_err(|e| format!("{PENDING} is not valid: {e}"))
+}
+
+/// Delete the recovery unit after the adoption it covers is durable.
+pub fn clear_pending(root: &Path, run: &str) -> Result<(), Error> {
+    let dir = run_dir(root, run)?;
+    let path = dir.join(PENDING);
+    refuse_symlinks(&[&root.join(".cv"), &root.join(DIR), &dir, &path])?;
+    match std::fs::remove_file(&path) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e.into()),
+    }
 }
 
 #[cfg(test)]

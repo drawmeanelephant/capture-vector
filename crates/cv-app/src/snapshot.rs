@@ -438,13 +438,19 @@ fn apply_ir(pages: &mut [PageRecord], graph: &Graph) {
 }
 
 /// Attach migration provenance from `.cv/imports/*/adoption.json` to the
-/// pages it names. Missing or undecodable sidecars leave pages unmarked;
-/// the Migrate mailbox is where that damage is disclosed.
+/// pages it names. Association is by stable identity — the lab's entity
+/// id, which the output pages carry as their explicit Boris `id` — so it
+/// survives the file being renamed or moved inside the workspace. A page
+/// whose id the user edits away is a different page and drops the link;
+/// a different page moved onto an adopted page's old path must never
+/// inherit it, so there is deliberately no path fallback. Missing or
+/// undecodable sidecars leave pages unmarked; the Migrate mailbox is
+/// where that damage is disclosed.
 fn apply_imports(root: &Path, pages: &mut [PageRecord]) {
     let Ok(adoptions) = cv_store::imports::scan_adoptions(root) else {
         return;
     };
-    let mut by_path: HashMap<&str, (String, String)> = HashMap::new();
+    let mut by_entity: HashMap<&str, (String, String)> = HashMap::new();
     for a in &adoptions {
         for page in &a.pages {
             let source = page.source.clone().unwrap_or_else(|| {
@@ -453,13 +459,11 @@ fn apply_imports(root: &Path, pages: &mut [PageRecord]) {
                     .map(|i| i.path.clone())
                     .unwrap_or_else(|| a.run_id.clone())
             });
-            by_path.insert(page.path.as_str(), (a.mode.clone(), source));
+            by_entity.insert(page.entity_id.as_str(), (a.mode.clone(), source));
         }
     }
     for p in pages.iter_mut() {
-        if let Some(found) = by_path.get(p.path.as_str()) {
-            p.imported_from = Some(found.clone());
-        }
+        p.imported_from = by_entity.get(p.id.as_str()).cloned();
     }
 }
 
@@ -1099,6 +1103,73 @@ mod tests {
         assert_eq!(
             read_swapped(root.join("page.md"), checked).as_deref(),
             Some("Body")
+        );
+    }
+    /// Blocker-3 probe: provenance is keyed by the stable entity id, so
+    /// it survives the file being renamed — and a different page moved
+    /// onto the adopted page's old path must not inherit it.
+    #[test]
+    fn provenance_survives_rename_and_never_follows_the_path() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        write(
+            root,
+            "content/posts/old-name.md",
+            "---\nid: \"en/posts/hello-world\"\ntitle: Hello\n---\nBody",
+        );
+        let mut rec = cv_store::imports::AdoptionRecord::new("run-1", "hugo", 0, "ws", "existing");
+        rec.pages.push(cv_store::imports::AdoptedPage {
+            entity_id: "en/posts/hello-world".into(),
+            path: "posts/old-name.md".into(),
+            source: Some("hugo-export/post/hello-world.md".into()),
+        });
+        cv_store::imports::write_adoption(root, &rec).unwrap();
+
+        let snap = workspace_snapshot(root, "dist", None, 1);
+        let page = snap
+            .pages
+            .iter()
+            .find(|p| p.path == "posts/old-name.md")
+            .unwrap();
+        assert_eq!(
+            page.imported_from,
+            Some(("hugo".into(), "hugo-export/post/hello-world.md".into())),
+            "provenance attaches by stable id before the rename"
+        );
+
+        // Rename the file; the explicit Boris id travels with the bytes.
+        fs::create_dir_all(root.join("content/essays")).unwrap();
+        fs::rename(
+            root.join("content/posts/old-name.md"),
+            root.join("content/essays/new-name.md"),
+        )
+        .unwrap();
+        // A different page squats on the vacated path.
+        write(
+            root,
+            "content/posts/old-name.md",
+            "---\ntitle: Unrelated\n---\nOther",
+        );
+
+        let snap = workspace_snapshot(root, "dist", None, 2);
+        let moved = snap
+            .pages
+            .iter()
+            .find(|p| p.path == "essays/new-name.md")
+            .unwrap();
+        assert_eq!(
+            moved.imported_from,
+            Some(("hugo".into(), "hugo-export/post/hello-world.md".into())),
+            "the same stable id keeps its provenance across the move"
+        );
+        let squatter = snap
+            .pages
+            .iter()
+            .find(|p| p.path == "posts/old-name.md")
+            .unwrap();
+        assert_eq!(
+            squatter.imported_from, None,
+            "a different page at the old path must not inherit provenance"
         );
     }
 }

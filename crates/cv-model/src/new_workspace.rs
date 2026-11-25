@@ -239,9 +239,25 @@ impl Workbench {
             return;
         }
         self.new_parent = Some(draft.parent.clone());
+        let creation = WorkspaceCreation::new(draft);
+        self.create_cancel = Some(creation.cancel.clone());
+        self.dialogs.push(
+            DialogSpec::new(
+                CREATING,
+                "Adopting into a new workspace",
+                DialogKind::Progress(Progress {
+                    label: format!(
+                        "boris init {} --type {}, then the migration content",
+                        creation.draft.name, creation.draft.archetype
+                    ),
+                    permille: None,
+                }),
+            )
+            .cancel("Cancel"),
+        );
         self.apply(Intent::AdoptRun(AdoptionRequest {
             run_id,
-            target: AdoptionTarget::NewWorkspace(draft),
+            target: AdoptionTarget::NewWorkspace(creation),
         }));
     }
 
@@ -304,6 +320,8 @@ impl Workbench {
             ShellNotice::Archetypes(a) => self.archetypes = a,
             ShellNotice::Adopted { run_id, result } => match result {
                 Ok(report) if report.new_workspace => {
+                    self.create_cancel = None;
+                    self.dialogs.close(CREATING);
                     self.status = format!(
                         "adopted {run_id}: {} file(s), validate {}, build {}",
                         report.files_written, report.validate, report.build
@@ -318,7 +336,11 @@ impl Workbench {
                     );
                     self.run_command(crate::modules::migrate::REFRESH);
                 }
-                Err(e) => self.status = format!("adoption of {run_id} refused: {e}"),
+                Err(e) => {
+                    self.create_cancel = None;
+                    self.dialogs.close(CREATING);
+                    self.status = format!("adoption of {run_id} refused: {e}");
+                }
             },
             ShellNotice::Created { creation, result } => {
                 let cancelled = creation.cancel.is_cancelled();

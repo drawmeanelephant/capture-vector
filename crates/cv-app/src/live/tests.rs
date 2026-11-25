@@ -814,3 +814,126 @@ fn slot_engine_refuses_while_absent() {
     assert!(e.run(&Verb::Build, Box::new(|_| {})).is_err());
     assert!(!e.capabilities().watch && !e.capabilities().writes);
 }
+
+/// Blocker-1 probe: the adoption gate's contract. A build through the
+/// StopWatch scheduler stops the live watch; the gate must end with the
+/// watch restored, never silently dead.
+#[cfg(unix)]
+#[test]
+fn a_seat_taking_gate_restores_the_watch_it_stopped() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let root = tempfile::tempdir().unwrap();
+    let bin = root.path().join("boris");
+    std::fs::write(
+        &bin,
+        r#"#!/bin/sh
+case "$1" in
+watch) echo '{"event":"hello","watch_events_schema":1,"compiler":"boris/0.9.0"}' >&2; sleep 30;;
+validate) exit 0;;
+build) exit 0;;
+*) exit 2;;
+esac
+"#,
+    )
+    .unwrap();
+    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+    let wb = Workbench::new(Registry::with_all());
+    let delivery = test_delivery(root.path(), WatchMode::Native, &wb);
+    let sched = Arc::new(EngineScheduler::new(
+        delivery.engine.clone(),
+        SeatPolicy::StopWatch,
+    ));
+    let slot = EngineSlot::default();
+    let _ = slot.sched.set(sched.clone());
+    let _ = slot.verbs.set(VerbRoute {
+        delivery: delivery.clone(),
+        warning: None,
+    });
+
+    let session = sched.start_watch(Box::new(|_| {})).unwrap();
+    let watching = sched.watch_session();
+    assert_eq!(watching.as_ref(), Some(&session));
+
+    // What the adoption worker's gate does: validate then build through
+    // the scheduler. The build takes the seat and stops the watch.
+    let cancel = cv_core::engine::CancelToken::new();
+    let run =
+        |verb: Verb, sink: EventSink| sched.run_reported(&verb, sink, &cancel).map(|r| r.exit);
+    let sink = || Box::new(|_: Envelope| {}) as EventSink;
+    let (validate, build) = cv_engine::adopt::validate_then_build(&run, &sink).expect("gate runs");
+    assert_eq!(validate, ExitClass::Ok);
+    assert_eq!(build, Some(ExitClass::Ok));
+    assert_eq!(
+        sched.watch_session(),
+        None,
+        "the build takes the watch's seat under StopWatch"
+    );
+
+    // The worker's completion path restores it.
+    slot.restore_watch(watching, "adoption gate".into());
+    let deadline = std::time::Instant::now() + Duration::from_secs(3);
+    while sched.watch_session().is_none() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the watch is live again after the gate"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let restarted = sched.watch_session().unwrap();
+    assert_ne!(
+        restarted,
+        session.clone(),
+        "a replacement session, not the corpse"
+    );
+    assert!(sched.stop_watch_session(&restarted));
+    drop(wb);
+}
+
+/// The matching negative: a gate that leaves the watch untouched has
+/// nothing to restore and must not spawn a duplicate session.
+#[cfg(unix)]
+#[test]
+fn restore_watch_is_a_noop_when_the_watch_survived() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let root = tempfile::tempdir().unwrap();
+    let bin = root.path().join("boris");
+    std::fs::write(
+        &bin,
+        r#"#!/bin/sh
+case "$1" in
+watch) echo '{"event":"hello","watch_events_schema":1,"compiler":"boris/0.9.0"}' >&2; sleep 30;;
+validate) exit 0;;
+*) exit 2;;
+esac
+"#,
+    )
+    .unwrap();
+    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+    let wb = Workbench::new(Registry::with_all());
+    let delivery = test_delivery(root.path(), WatchMode::Native, &wb);
+    let sched = Arc::new(EngineScheduler::new(
+        delivery.engine.clone(),
+        SeatPolicy::StopWatch,
+    ));
+    let slot = EngineSlot::default();
+    let _ = slot.sched.set(sched.clone());
+    let _ = slot.verbs.set(VerbRoute {
+        delivery: delivery.clone(),
+        warning: None,
+    });
+
+    let session = sched.start_watch(Box::new(|_| {})).unwrap();
+    let watching = sched.watch_session();
+    slot.restore_watch(watching, "no-op".into());
+    assert_eq!(
+        sched.watch_session(),
+        Some(session.clone()),
+        "validate never touched the seat; the same session must survive"
+    );
+    assert!(sched.stop_watch_session(&session));
+    drop(wb);
+}

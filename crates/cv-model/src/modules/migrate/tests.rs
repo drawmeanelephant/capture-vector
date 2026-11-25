@@ -268,6 +268,28 @@ fn answering_existing_collects_a_subfolder_and_emits_the_request() {
         "{retry:?}"
     );
 
+    // An absolute path is refused, never silently rewritten to a
+    // relative one — the form must come back with an error instead of
+    // emitting the request.
+    for absolute in ["/abs/tree", "\\abs\\tree", " leading-space"] {
+        let mut abs = answer();
+        abs.context = form.context.clone();
+        abs.action = Some("adopt".into());
+        abs.values.insert(
+            "subfolder".into(),
+            crate::dialog::Value::Text(absolute.into()),
+        );
+        let retry = m.answer(ADOPT_EXISTING, &abs);
+        assert!(
+            matches!(retry.first(), Some(Intent::Dialog(_))),
+            "{absolute:?} must be refused in the form, got {retry:?}"
+        );
+        assert!(
+            !retry.iter().any(|i| matches!(i, Intent::AdoptRun(_))),
+            "{absolute:?} must never reach the writer"
+        );
+    }
+
     let mut ok = answer();
     ok.context = form.context.clone();
     ok.action = Some("adopt".into());

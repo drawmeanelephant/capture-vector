@@ -248,6 +248,16 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         })
     }
 
+    /// Run one logical mutation batch under the writer lock, so a
+    /// multi-write operation (migration adoption) is atomic against page
+    /// edits, moves, builds, and watch starts instead of interleaving
+    /// per file. The closure must not call back into the scheduler —
+    /// the lock is not reentrant and doing so deadlocks.
+    pub fn mutation_batch<R>(&self, f: impl FnOnce() -> R) -> R {
+        let _w = self.rw.write().unwrap();
+        f()
+    }
+
     pub fn write_content(
         &self,
         draft: &PageDraft,
@@ -394,6 +404,54 @@ mod tests {
 
     fn noop() -> EventSink {
         Box::new(|_| {})
+    }
+
+    /// Blocker-2 probe: an adoption-style multi-file batch holds the
+    /// writer lock for its whole duration, so a concurrent mutating verb
+    /// can never interleave between two of its writes.
+    #[test]
+    fn mutation_batch_is_serialized_against_verb_writes() {
+        let p = Arc::new(Probe::default());
+        let s = Arc::new(EngineScheduler::new(
+            Arc::new(Fake(p.clone())),
+            SeatPolicy::StopWatch,
+        ));
+
+        let batch_probe = p.clone();
+        let batch_sched = s.clone();
+        let batch = std::thread::spawn(move || {
+            batch_sched.mutation_batch(|| {
+                // Three slow writes inside one batch, each indistinguishable
+                // from engine writes as far as the overlap detector cares.
+                for _ in 0..3 {
+                    let now = batch_probe.active_writes.fetch_add(1, Ordering::SeqCst) + 1;
+                    batch_probe.max_writes.fetch_max(now, Ordering::SeqCst);
+                    std::thread::sleep(Duration::from_millis(50));
+                    if batch_probe.active_writes.load(Ordering::SeqCst) > 1 {
+                        batch_probe.overlap_violation.store(true, Ordering::SeqCst);
+                    }
+                    batch_probe.active_writes.fetch_sub(1, Ordering::SeqCst);
+                }
+            });
+        });
+        std::thread::sleep(Duration::from_millis(10));
+        let mut verbs = vec![];
+        for _ in 0..2 {
+            let s = s.clone();
+            verbs.push(std::thread::spawn(move || {
+                s.run(&Verb::Build, noop()).unwrap();
+            }));
+        }
+
+        batch.join().unwrap();
+        for v in verbs {
+            v.join().unwrap();
+        }
+        assert!(
+            !p.overlap_violation.load(Ordering::SeqCst),
+            "a verb write interleaved with the in-flight mutation batch"
+        );
+        assert_eq!(p.max_writes.load(Ordering::SeqCst), 1);
     }
 
     #[test]

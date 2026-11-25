@@ -790,12 +790,13 @@ impl MigrateModule {
         let Some(run_id) = a.context.clone() else {
             return vec![Intent::Status("adoption lost its run context".into())];
         };
-        let subfolder = a
-            .text("subfolder")
-            .unwrap_or_default()
-            .trim()
-            .trim_matches('/');
-        let bad = subfolder.is_empty()
+        let typed = a.text("subfolder").unwrap_or_default();
+        // Trailing slashes are the same folder; leading ones make it
+        // absolute and must be refused, never silently rewritten.
+        let subfolder = typed.trim_end_matches('/');
+        let bad = typed != typed.trim()
+            || typed.starts_with(['/', '\\'])
+            || subfolder.is_empty()
             || subfolder.split('/').any(|part| {
                 part.is_empty()
                     || part == "."

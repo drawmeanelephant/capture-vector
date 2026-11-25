@@ -2,12 +2,12 @@
 //! to the shell/composition root. The data is plain and path-shaped;
 //! validation and writes happen behind cv-engine/cv-store.
 
-use crate::new_workspace::NewWorkspace;
+use crate::new_workspace::WorkspaceCreation;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AdoptionTarget {
-    NewWorkspace(NewWorkspace),
+    NewWorkspace(WorkspaceCreation),
     ExistingWorkspace { subfolder: String },
 }
 

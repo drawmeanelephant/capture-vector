@@ -63,6 +63,39 @@ impl EngineSlot {
         }
     }
 
+    /// A sink wired like the live session's own: cursor-tracked,
+    /// editor-tee'd, and queuing disk-truth resyncs on build results —
+    /// never a raw inbox channel that would skip those invariants.
+    /// `None` while the engine has not passed its gate.
+    pub fn live_sink(&self) -> Option<EventSink> {
+        let route = self.verbs.get()?;
+        Some(route.delivery.resync_sink(|deliver, env| deliver(env)))
+    }
+
+    /// Restart the workspace watch when the verb batch that ran after
+    /// `before` stopped it — the same contract the palette's verb route
+    /// honors (`SeatPolicy::StopWatch` means the caller restarts).
+    /// Compares sessions rather than trusting a report, because an error
+    /// path can lose `stopped_watch`. A no-op when the watch survived,
+    /// was never live, or the engine slot is not booted.
+    pub fn restore_watch(&self, before: Option<SessionId>, outcome: String) {
+        let (Some(sched), Some(route)) = (self.sched.get().cloned(), self.verbs.get().cloned())
+        else {
+            return;
+        };
+        let Some(stopped) = before.filter(|_| sched.watch_session().is_none()) else {
+            return;
+        };
+        if route.delivery.inbox.send(Inbound::WatchStopped(stopped)) {
+            start_workspace_watch(
+                sched.clone(),
+                route.delivery.clone(),
+                route.warning.clone(),
+                Some(format!("{outcome} · watch resumed")),
+            );
+        }
+    }
+
     /// Run a palette verb through the scheduler on a worker. Its events
     /// (the terminal `VerbReported`/`VerbFailed` included) reach the
     /// workbench like any engine envelope. A build that took the watch's

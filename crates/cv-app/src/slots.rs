@@ -20,6 +20,16 @@ pub fn register_slot(root: &Path, slot: &EngineSlot) {
         .insert(root.to_path_buf(), slot.clone());
 }
 
+/// The workspace's engine slot (scheduler, resync, verb delivery) as
+/// registered at open time, whether or not boot has finished.
+pub fn slot_for(root: &Path) -> Option<EngineSlot> {
+    slots()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get(root)
+        .cloned()
+}
+
 /// The workspace's scheduler once its engine has passed the gate; `None`
 /// while booting or when the gate failed (disclosed in Doctor).
 pub fn scheduler_for(root: &Path) -> Option<Arc<Scheduler>> {

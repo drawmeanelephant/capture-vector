@@ -305,29 +305,55 @@ impl std::fmt::Display for Collision {
     }
 }
 
+/// True when the target already holds exactly the bytes adoption would
+/// write. Length is checked before content so large mismatches cost nothing.
+fn bytes_identical(target: &Path, source: &Path) -> bool {
+    let (Ok(t), Ok(s)) = (std::fs::read(target), std::fs::read(source)) else {
+        return false;
+    };
+    t == s
+}
+
 /// Refuse every path and id overlap before the first write. `existing_ids`
 /// is the composition root's current Boris-view of the target workspace
 /// (`id` → content-input-relative path); adoption itself never parses
 /// Boris frontmatter.
+///
+/// `resume` changes path semantics only: with a durable recovery journal,
+/// a target holding exactly the incoming bytes is evidence of the
+/// interrupted attempt's own staged write and is skipped, while different
+/// bytes can only be foreign data and still refuse. Without the journal,
+/// every existing target path is a collision — even byte-identical ones,
+/// because nothing distinguishes them from the user's own pre-existing
+/// content. Returns the files that still need copying in resume mode.
 pub fn collisions(
     target_root: &Path,
     src: &AdoptionSource,
     planned: &[PlannedFile],
     existing_ids: &BTreeMap<String, String>,
-) -> Result<(), AdoptError> {
+    resume: bool,
+) -> Result<Vec<bool>, AdoptError> {
     let mut out = Vec::new();
     let mut incoming_ids = BTreeSet::new();
+    let mut needs_copy = Vec::new();
     for p in planned {
-        if confined_file(target_root, Path::new(&p.target))
+        let exists = confined_file(target_root, Path::new(&p.target))
             .ok()
-            .is_some_and(|path| std::fs::symlink_metadata(path).is_ok())
-        {
-            out.push(Collision {
-                kind: CollisionKind::Path,
-                incoming: p.display.clone(),
-                existing: p.target.clone(),
-            });
+            .is_some_and(|path| std::fs::symlink_metadata(&path).is_ok());
+        let mut copy = true;
+        if exists {
+            let target = target_root.join(&p.target);
+            if resume && bytes_identical(&target, &p.source) {
+                copy = false;
+            } else {
+                out.push(Collision {
+                    kind: CollisionKind::Path,
+                    incoming: p.display.clone(),
+                    existing: p.target.clone(),
+                });
+            }
         }
+        needs_copy.push(copy);
     }
     for page in &src.pages {
         if !incoming_ids.insert(page.entity_id.clone()) {
@@ -338,11 +364,19 @@ pub fn collisions(
             });
         }
         if let Some(existing) = existing_ids.get(&page.entity_id) {
-            out.push(Collision {
-                kind: CollisionKind::Id,
-                incoming: page.entity_id.clone(),
-                existing: existing.clone(),
-            });
+            // An owner at one of the adoption's own planned paths is the
+            // path preflight's case, not an id collision: fresh attempts
+            // already refuse it as a path collision, and in resume mode it
+            // is the interrupted attempt's own partial output — refusing
+            // it here too would make every real-world retry self-refusing.
+            let own = planned.iter().any(|pl| pl.display == *existing);
+            if !own {
+                out.push(Collision {
+                    kind: CollisionKind::Id,
+                    incoming: page.entity_id.clone(),
+                    existing: existing.clone(),
+                });
+            }
         }
     }
     out.sort_by(|a, b| {
@@ -352,17 +386,28 @@ pub fn collisions(
     });
     out.dedup();
     if out.is_empty() {
-        Ok(())
+        Ok(needs_copy)
     } else {
         Err(AdoptError::Collisions(out))
     }
 }
 
 /// Copy planned files byte-for-byte with `expected=None` staged writes.
-/// A race after preflight stops the adoption instead of overwriting.
-pub fn copy_content(target_root: &Path, planned: &[PlannedFile]) -> Result<usize, AdoptError> {
+/// `needs_copy[i] == false` skips `planned[i]` (a verified resume skip);
+/// every written file still refuses a surprise predecessor instead of
+/// overwriting it. Returns `(written, skipped)`.
+pub fn copy_content(
+    target_root: &Path,
+    planned: &[PlannedFile],
+    needs_copy: &[bool],
+) -> Result<(usize, usize), AdoptError> {
     let mut written = 0;
-    for p in planned {
+    let mut skipped = 0;
+    for (p, needed) in planned.iter().zip(needs_copy) {
+        if !needed {
+            skipped += 1;
+            continue;
+        }
         let bytes = std::fs::read(&p.source)?;
         match write::write_staged(target_root, &p.target, &bytes, None)? {
             WriteOutcome::Written { .. } => written += 1,
@@ -374,7 +419,7 @@ pub fn copy_content(target_root: &Path, planned: &[PlannedFile]) -> Result<usize
             }
         }
     }
-    Ok(written)
+    Ok((written, skipped))
 }
 
 /// Replace the freshly initialized starter's content directory. This is
@@ -534,4 +579,103 @@ pub fn validate_then_build(
     }
     let build = run(Verb::Build, sink())?;
     Ok((validate, Some(build)))
+}
+
+/// What one committed adoption transaction produced.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TxReport {
+    pub planned: usize,
+    pub written: usize,
+    /// Resume-skipped because the interrupted attempt had already landed
+    /// exactly these bytes.
+    pub resumed: usize,
+    pub provenance_copied: usize,
+}
+
+/// One crash-aware adoption transaction: preflight, journal, content,
+/// provenance, sidecars, journal cleanup — in that order, so an
+/// interruption at any point is either fully before the first write or
+/// resumable by re-running the same request.
+///
+/// Crash semantics:
+/// - before the journal is durable there is nothing to resume and nothing
+///   was written, so a retry is a fresh attempt;
+/// - with the journal durable, a retry of the same target shape treats
+///   byte-identical targets as already-written (staged writes are atomic
+///   per file, so identical bytes can only be the interrupted attempt's
+///   own completed writes) and still refuses any different bytes;
+/// - a retry naming a different target shape refuses instead of mixing
+///   two operations' partial state;
+/// - provenance copies and the adoption/run records are inside the unit:
+///   they are re-run idempotently on resume and the journal is deleted
+///   only after they are durable.
+///
+/// Concurrency: this function performs no scheduler calls, so the caller
+/// can — and the live workspace worker must — run the whole transaction
+/// inside `EngineScheduler::mutation_batch`, serializing preflight and
+/// every write against page edits, moves, builds, and watch starts.
+pub fn transact(
+    target_root: &Path,
+    src: &AdoptionSource,
+    content_input: &str,
+    merge_subfolder: Option<&str>,
+    target_kind: &str,
+    existing_ids: &BTreeMap<String, String>,
+    at_ms: i64,
+) -> Result<TxReport, AdoptError> {
+    let subfolder_name = match merge_subfolder {
+        Some(raw) => Some(subfolder(raw)?),
+        None => None,
+    };
+    let planned = plan(src, content_input, merge_subfolder)?;
+    let pending = store::read_pending(target_root, &src.run_id).map_err(AdoptError::Report)?;
+    let input_norm = content_input.trim().trim_matches('/');
+    let resume = match &pending {
+        None => false,
+        Some(p) if p.matches(target_kind, input_norm, subfolder_name.as_deref()) => true,
+        Some(p) => {
+            return Err(AdoptError::Run(format!(
+                "an interrupted adoption of {} into this workspace names {} below {:?} as '{}';                  complete that retry first or remove {}",
+                src.run_id,
+                p.content_subfolder.as_deref().unwrap_or("the content root"),
+                p.content_input,
+                p.target,
+                store::PENDING
+            )));
+        }
+    };
+    let needs_copy = collisions(target_root, src, &planned, existing_ids, resume)?;
+
+    // The recovery unit lands before the first content byte. Hashes are
+    // of the candidate source bytes: the journal is evidence of what the
+    // operation meant to write, and resume compares live bytes anyway.
+    let mut journal = store::PendingAdoption::new(&src.run_id, target_kind, input_norm);
+    journal.content_subfolder = subfolder_name.clone();
+    for p in &planned {
+        let bytes = std::fs::read(&p.source)?;
+        journal.files.push(store::PendingFile {
+            target: p.target.clone(),
+            sha256: store::sha256_hex(&bytes),
+            bytes: bytes.len() as u64,
+        });
+    }
+    store::write_pending(target_root, &journal)?;
+
+    let (written, skipped) = copy_content(target_root, &planned, &needs_copy)?;
+    let provenance = copy_provenance(src, target_root)?;
+    record_adoption(
+        src,
+        target_root,
+        at_ms,
+        target_kind,
+        subfolder_name.as_deref(),
+        &planned,
+    )?;
+    store::clear_pending(target_root, &src.run_id)?;
+    Ok(TxReport {
+        planned: planned.len(),
+        written,
+        resumed: skipped,
+        provenance_copied: provenance,
+    })
 }
