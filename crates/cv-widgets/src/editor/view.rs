@@ -126,7 +126,7 @@ fn header(s: &EditorWindow, lights: f32) -> El {
         "editor-undo",
         &icons::UNDO_2,
         "Undo",
-        "cmd+z",
+        "mod+z",
         s.can_undo(),
         |s: &mut EditorWindow| {
             s.undo();
@@ -137,7 +137,7 @@ fn header(s: &EditorWindow, lights: f32) -> El {
         "editor-redo",
         &icons::REDO_2,
         "Redo",
-        "cmd+shift+z",
+        "mod+shift+z",
         s.can_redo(),
         |s: &mut EditorWindow| {
             s.redo();

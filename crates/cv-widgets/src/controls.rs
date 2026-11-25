@@ -44,6 +44,16 @@ fn finish(key: &str, e: El, enabled: bool) -> El {
     }
 }
 
+/// The tooltip and assistive-technology hint for a command's `chord`.
+/// Rune Kit's own `shortcut` formats keys for the build target, which
+/// headless runs cannot pin to one platform.
+fn with_chord(e: El, label: &str, chord: &str) -> El {
+    match crate::keys::chord_label(chord) {
+        Some(keys) => e.help(format!("{label}  {keys}")).shortcut_hint(keys),
+        None => e,
+    }
+}
+
 /// A compact text button. `key` is the element key tests click.
 pub fn button<S: 'static>(
     t: &Theme,
@@ -90,7 +100,7 @@ pub fn command_button<S: 'static>(
     on_press: impl Fn(&mut S, &mut Tx) + 'static,
 ) -> El {
     let k = kit(t);
-    let mut b = kit_button(label, v).shortcut(chord.replace("mod", "cmd"));
+    let mut b = kit_button(label, v);
     if let Some(caps) = crate::keys::keycaps(chord) {
         let (name, caps_kit) = (label.to_string(), k.clone());
         b = b.label_with(move |font, ink| {
@@ -112,7 +122,7 @@ pub fn command_button<S: 'static>(
     } else {
         b.disabled(true)
     };
-    finish(key, b.build(&k), enabled)
+    finish(key, with_chord(b.build(&k), label, chord), enabled)
 }
 
 fn kit_icon_button(icon: &'static Icon, label: &str) -> IconButton {
@@ -136,22 +146,22 @@ pub fn icon_button<S: 'static>(
     finish(key, b.build(&kit(t)), true)
 }
 
-/// [`icon_button`] for a command with a shortcut hint (`"cmd+z"`) that can
-/// be disabled: dimmed, unfocusable, with no handler.
+/// [`icon_button`] for a command with a shortcut (`"mod+z"`) in its
+/// tooltip, which can be disabled: dimmed, unfocusable, with no handler.
 pub fn icon_command<S: 'static>(
     t: &Theme,
     key: &str,
     icon: &'static Icon,
     label: &str,
-    shortcut: &str,
+    chord: &str,
     enabled: bool,
     on_press: impl Fn(&mut S) + 'static,
 ) -> El {
-    let b = kit_icon_button(icon, label).shortcut(shortcut);
+    let b = kit_icon_button(icon, label);
     let b = if enabled {
         b.on_press(on_press)
     } else {
         b.disabled(true)
     };
-    finish(key, b.build(&kit(t)), enabled)
+    finish(key, with_chord(b.build(&kit(t)), label, chord), enabled)
 }
