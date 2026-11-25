@@ -279,6 +279,69 @@ fn ordinary_open_rebuilds_when_foreign_metadata_looks_valid_but_debris_exists() 
 }
 
 #[test]
+fn ordinary_open_rebuilds_when_the_fts_tokenizer_is_foreign() {
+    let ws = tempfile::tempdir().unwrap();
+    research::copy_corpus("promoted", ws.path());
+    let (mut r, _) = open(ws.path());
+    let id = r
+        .capture(
+            Capture::Idea {
+                text: "tokenizer contract probe".into(),
+            },
+            Some("tokenizer probe"),
+        )
+        .unwrap();
+    drop(r);
+
+    let index = cv_store::paths::project_index_dir(ws.path(), "research")
+        .unwrap()
+        .join(disk::INDEX);
+    let lines: i64 = rusqlite::Connection::open(&index)
+        .unwrap()
+        .query_row(
+            "SELECT journal_lines FROM cv_index_meta WHERE namespace = 'research.notes'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    // Correct metadata, correct column list, no extra tables — but a
+    // foreign tokenizer configuration: porter stemming matches nothing
+    // the unicode61 contract indexes, so search silently goes empty.
+    let victim_dir = tempfile::tempdir().unwrap();
+    let victim_path = victim_dir.path().join("victim.sqlite");
+    let victim = rusqlite::Connection::open(&victim_path).unwrap();
+    victim
+        .execute_batch(
+            "PRAGMA journal_mode=WAL;
+             CREATE TABLE cv_index_meta(namespace TEXT PRIMARY KEY, schema INTEGER NOT NULL, journal_lines INTEGER NOT NULL);
+             CREATE VIRTUAL TABLE research_notes_fts USING fts5(note UNINDEXED, title, body, tags, tokenize='porter unicode61');",
+        )
+        .unwrap();
+    victim
+        .execute(
+            "INSERT INTO cv_index_meta VALUES ('research.notes', 1, ?1)",
+            rusqlite::params![lines],
+        )
+        .unwrap();
+    for suffix in ["", "-wal"] {
+        let mut from = victim_path.as_os_str().to_os_string();
+        from.push(suffix);
+        let mut to = index.as_os_str().to_os_string();
+        to.push(suffix);
+        std::fs::copy(&from, &to).unwrap();
+    }
+    drop(victim);
+
+    let clock = || Box::new(FixedClock(cv_core::sys::Timestamp(1_700_000_000_000)));
+    let (r, rep) = disk::open(ws.path(), AccountId("local".into()), clock()).unwrap();
+    assert!(
+        rep.index_rebuilt,
+        "foreign tokenizer configuration must trigger a rebuild"
+    );
+    assert_eq!(r.port.search("tokenizer contract"), Some(vec![id]));
+}
+
+#[test]
 fn ordinary_open_rebuilds_through_a_clean_replacement_when_contaminated() {
     let ws = tempfile::tempdir().unwrap();
     research::copy_corpus("promoted", ws.path());

@@ -234,6 +234,49 @@ fn ordinary_ledger_open_rebuilds_when_metadata_looks_valid_but_columns_are_forei
 }
 
 #[test]
+fn ordinary_ledger_open_rebuilds_when_foreign_views_exist() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut j = Journal::open(dir.path()).unwrap();
+    state(&mut j, RunState::Dispatching);
+    let idx = LedgerIndex::open(dir.path(), &j).unwrap();
+    let path = idx.path().to_path_buf();
+    assert_eq!(idx.runs().unwrap().len(), 1);
+    drop(idx);
+
+    // Correct tables and metadata, but a foreign view object: schema
+    // validation inspects every object type, not just tables.
+    let victim_dir = tempfile::tempdir().unwrap();
+    let victim_path = victim_dir.path().join("victim.sqlite");
+    let victim = rusqlite::Connection::open(&victim_path).unwrap();
+    victim
+        .execute_batch(
+            "PRAGMA journal_mode=WAL;
+             CREATE TABLE meta (k TEXT PRIMARY KEY, v INTEGER NOT NULL);
+             INSERT INTO meta VALUES ('index_schema', 1);
+             INSERT INTO meta VALUES ('journal_len', 1);
+             CREATE TABLE runs (run TEXT NOT NULL, target TEXT NOT NULL, phase TEXT NOT NULL);
+             CREATE TABLE nouns (
+               kind TEXT NOT NULL, id TEXT NOT NULL, run TEXT NOT NULL, target TEXT NOT NULL,
+               json TEXT NOT NULL, PRIMARY KEY (kind, id));
+             CREATE VIEW victim_view AS SELECT 1 AS x;",
+        )
+        .unwrap();
+    copy_sidecar_set(&victim_path, &path);
+    drop(victim);
+
+    let idx = LedgerIndex::open(dir.path(), &j).unwrap();
+    assert_eq!(idx.runs().unwrap().len(), 1);
+    let check = rusqlite::Connection::open(&path).unwrap();
+    let mut victim_shape = check
+        .prepare("SELECT name FROM sqlite_master WHERE name = 'victim_view'")
+        .unwrap();
+    assert!(
+        !victim_shape.exists([]).unwrap(),
+        "foreign views must not survive an ordinary-open rebuild"
+    );
+}
+
+#[test]
 fn ordinary_ledger_open_rebuilds_through_a_clean_replacement_when_contaminated() {
     let dir = tempfile::tempdir().unwrap();
     let mut j = Journal::open(dir.path()).unwrap();

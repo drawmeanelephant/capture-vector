@@ -124,6 +124,15 @@ impl Jsonl {
     }
 }
 
+/// Whitespace/case-normalized DDL for contract comparison: producers
+/// cannot hide foreign options in formatting differences.
+fn normalize_ddl(sql: &str) -> String {
+    sql.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_ascii_lowercase()
+}
+
 /// Rebuildable FTS5 projection of the notes journal. A rebuild installs
 /// a brand-new file by rename, so the writer lock owner must close its
 /// handle before rebuilding and re-open it after — exactly what
@@ -170,6 +179,14 @@ impl FtsIndex {
             "research_notes_fts_docsize",
             "research_notes_fts_idx",
         ];
+        // Every object must be an owned table: foreign views, triggers
+        // or indexes are debris however valid the tables look.
+        let mut st = conn.prepare(
+            "SELECT name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' AND type != 'table'",
+        )?;
+        if st.exists([])? {
+            return Ok(false);
+        }
         let mut st = conn.prepare(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
         )?;
@@ -187,10 +204,14 @@ impl FtsIndex {
             [],
             |r| r.get(0),
         )?;
-        if !fts_sql
-            .to_ascii_uppercase()
-            .starts_with("CREATE VIRTUAL TABLE")
-        {
+        // The full DDL contract, not just the shape: a foreign tokenizer
+        // or content option (`tokenize='porter …'`, external content)
+        // changes what search matches while columns and metadata look
+        // correct. Compare whitespace/case-normalized text so producers
+        // cannot hide options in formatting.
+        const EXPECTED_FTS_DDL: &str = "CREATE VIRTUAL TABLE research_notes_fts
+             USING fts5(note UNINDEXED, title, body, tags)";
+        if normalize_ddl(&fts_sql) != normalize_ddl(EXPECTED_FTS_DDL) {
             return Ok(false);
         }
         Ok(

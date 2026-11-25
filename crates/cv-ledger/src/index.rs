@@ -82,6 +82,14 @@ impl LedgerIndex {
     /// the file cannot be trusted however fresh its metadata counters
     /// look.
     fn owned_schema_valid(conn: &Connection) -> Result<bool> {
+        // Every object must be an owned table: foreign views, triggers
+        // or indexes are debris however valid the tables look.
+        let mut st = conn.prepare(
+            "SELECT name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' AND type != 'table'",
+        )?;
+        if st.exists([])? {
+            return Ok(false);
+        }
         let mut st = conn.prepare(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
         )?;

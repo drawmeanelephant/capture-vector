@@ -12,19 +12,45 @@ fn is_separator(c: char) -> bool {
     matches!(c, '-' | '_' | '.' | '/' | '\\') || c.is_whitespace()
 }
 
-/// Split a key into words across camelCase, digit and separator
-/// boundaries, lowercased. `clientPrivateKey` and `client-private-key`
-/// both parse to `[client, private, key]`; an all-caps run with no
-/// boundary information (`PRIVATEKEY`) stays one fused word.
-fn key_words(key: &str) -> Vec<String> {
+/// How a word joins the previous one. The distinction decides whether
+/// `public` and `key` form one terminal compound: a camelCase hump is
+/// inside a single identifier, while explicit separators decompose into
+/// distinct words or path components.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Join {
+    /// First word, or the boundary is not yet decided.
+    Start,
+    /// camelCase hump: no separator character at all (`publicKey`).
+    Hump,
+    /// `-`, `_`, `.` or whitespace: separate words, but not proof of a
+    /// directory-style path decomposition on every producer.
+    Soft,
+    /// `/` or `\\`: unambiguous path-component boundary.
+    Component,
+}
+
+/// Split a key into lowercase words across camelCase, digit and
+/// separator boundaries, keeping how each word joins the previous one.
+/// `clientPrivateKey` and `client-private-key` both parse to
+/// `[client, private, key]`; an all-caps run with no boundary
+/// information (`PRIVATEKEY`) stays one fused word.
+fn key_words(key: &str) -> Vec<(String, Join)> {
     let chars: Vec<char> = key.chars().collect();
-    let mut words = Vec::new();
+    let mut words: Vec<(String, Join)> = Vec::new();
     let mut cur = String::new();
+    let mut join = Join::Start;
     let mut last: Option<char> = None;
     for (i, &c) in chars.iter().enumerate() {
         if is_separator(c) {
             if !cur.is_empty() {
-                words.push(std::mem::take(&mut cur));
+                words.push((std::mem::take(&mut cur), join));
+            }
+            // The first separator after a word decides the join: in
+            // `a/.b` the component boundary dominates the dot.
+            if matches!(c, '/' | '\\') {
+                join = Join::Component;
+            } else if join != Join::Component {
+                join = Join::Soft;
             }
             last = None;
             continue;
@@ -38,14 +64,15 @@ fn key_words(key: &str) -> Vec<String> {
                 || (p.is_ascii_uppercase() && next_lower))
                 && !cur.is_empty()
             {
-                words.push(std::mem::take(&mut cur));
+                words.push((std::mem::take(&mut cur), join));
+                join = Join::Hump;
             }
         }
         cur.push(c.to_ascii_lowercase());
         last = Some(c);
     }
     if !cur.is_empty() {
-        words.push(cur);
+        words.push((cur, join));
     }
     words
 }
@@ -77,16 +104,20 @@ pub fn is_secret_key(key: &str) -> bool {
     // `publicKey` stays innocent. The fused contiguous case is already
     // caught above; this catches `private` followed by `key`/`keys`
     // with intervening words such as `signing`. A `key` immediately
-    // preceded by `public` names public-key material — `private/publicKey`
-    // flattened paths are a private namespace, not a credential — so the
-    // pair does not match there.
+    // preceded by `public` through a camelCase hump names public-key
+    // material — the terminal `publicKey` compound — so the pair does
+    // not match there. Any explicit separator between `public` and
+    // `key` decomposes them into distinct words or path components
+    // (`private/public/key`, `private/public-key`, `private/public
+    // keys`), where the private-namespace reading wins.
     let words = key_words(key);
-    words.iter().enumerate().any(|(i, w)| {
+    words.iter().enumerate().any(|(i, (w, _))| {
         w == "private"
-            && words[i + 1..]
-                .iter()
-                .enumerate()
-                .any(|(off, w)| (w == "key" || w == "keys") && words[i + off] != "public")
+            && (i + 1..words.len()).any(|j| {
+                let (wj, join) = &words[j];
+                (wj == "key" || wj == "keys")
+                    && !(words[j - 1].0 == "public" && *join == Join::Hump)
+            })
     })
 }
 
@@ -208,13 +239,44 @@ mod tests {
         for key in [
             "private/publicKey",
             "private.publicKey",
-            "private public key",
+            "private/docs/publicKey",
         ] {
             assert!(!is_secret_key(key), "{key}");
         }
+        // Whitespace and dots decompose `public` and `key` into separate
+        // components: not a public-key compound.
+        assert!(is_secret_key("private public key"));
+        assert!(is_secret_key("private.public.key"));
         for key in ["privateKeyId", "privateKeyFingerprint"] {
             assert!(is_secret_key(key), "{key}");
         }
+    }
+
+    #[test]
+    fn decomposed_public_key_paths_do_not_smuggle_private_material() {
+        // Exact abuse forms from the post-`11ed919` verification: `public`
+        // and `key` split into separate components by `/`, `\\`, `.` or
+        // whitespace are not a public-key compound — the exemption applies
+        // only to the camelCase-fused terminal `publicKey`.
+        for key in [
+            "private/public/key",
+            "private/public keys",
+            "private/public.key",
+            "private/public-key",
+            "private\\public\\key",
+        ] {
+            assert!(is_secret_key(key), "{key}");
+        }
+        for key in [
+            "publicKey",
+            "clientPublicKey",
+            "nested.publicKey",
+            "private/publicKey",
+            "private/docs/publicKey",
+        ] {
+            assert!(!is_secret_key(key), "{key}");
+        }
+        assert!(is_secret_key("nested/public/privateKey"));
     }
 
     #[test]
