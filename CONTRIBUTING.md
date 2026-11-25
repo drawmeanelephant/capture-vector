@@ -26,6 +26,15 @@ cargo build --workspace
 ./scripts/demo.sh            # launches against a throwaway corpus
 ```
 
+## Picking up an issue
+
+Claim implementation work before writing code; parallel agents use the
+issue comment ledger to avoid duplicating each other. Run
+`python3 scripts/agent-claim.py status <issue>` and then
+`python3 scripts/agent-claim.py claim <issue> --agent <unique-name>` when
+it is free. The full lease, race, heartbeat, and release rules are in
+[`docs/agent-claims.md`](docs/agent-claims.md).
+
 ## Before you open a PR
 
 - `cargo test --workspace --locked`

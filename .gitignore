@@ -17,5 +17,9 @@ spike/vendor/
 .cv/
 *.log
 
+# Python tooling noise.
+__pycache__/
+*.pyc
+
 # Windows/macOS noise.
 Thumbs.db

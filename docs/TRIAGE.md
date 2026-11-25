@@ -20,6 +20,10 @@ Every triaged issue carries **one priority** and usually one area:
 | `area: security` | Secrets, scanning, supply chain |
 | `area: docs` | Docs, runbooks, AGENTS.md |
 | `needs-info` | Waiting on the reporter for grounding evidence |
+| `agent: claimed` | Convenience mirror of an active issue-agent lease |
+
+`agent: claimed` is not authoritative. The structured issue comment ledger
+in `docs/agent-claims.md` is; stale labels are corrected from the ledger.
 
 ## Grounding checklist
 
@@ -52,4 +56,6 @@ guessing. Ask for what is missing and apply `needs-info`:
 - Sizing: if a fix needs a spec change or spans lanes, say so in a
   comment and link the spec section — do not silently expand scope.
 
-When grounding arrives, remove `needs-info` and set the priority.
+When grounding arrives, remove `needs-info` and set the priority. Before
+anyone implements the issue, they must use the claim protocol in
+`docs/agent-claims.md`; triage labels do not reserve work.
