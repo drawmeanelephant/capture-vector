@@ -2,14 +2,18 @@
 //! read-only verbs run in parallel, at most one watch session exists, and
 //! a live watch holds the HTML output (`dist/`) writer seat: a build that
 //! would write there either stops the watch first or is redirected to a
-//! separate `--html-dir`, per `SeatPolicy`.
+//! separate `--html-dir`, per `SeatPolicy`. A verb with its own output
+//! dir (IR mode, `--out`) runs beside the watch, and is refused if that
+//! dir is or nests with the seat.
 
-use crate::verbs::{is_mutating, writes_html};
+use crate::EngineError;
+use crate::verbs::{is_mutating, own_out_dir, writes_html};
 use cv_core::engine::{
     Engine, EventSink, ExitClass, Fingerprint, PageDraft, Verb, WatchHandle, WriteOutcome,
 };
 use cv_core::events::SessionId;
 use cv_core::rules::ArtifactSet;
+use std::path::{Component, Path};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 
@@ -28,13 +32,36 @@ pub struct RunReport {
     pub exit: ExitClass,
     /// The watch session this run stopped, if any.
     pub stopped_watch: Option<SessionId>,
-    /// Where an isolated build wrote, if redirected.
+    /// Where a build wrote instead of the seat: its own output dir, or
+    /// the isolated dir it was redirected to.
     pub out_dir: Option<String>,
+}
+
+/// Is `dir` a workspace-relative path that neither is, contains, nor
+/// sits inside `seat`? Components compare case-insensitively, since
+/// `Dist` is `dist` on the default macOS and Windows file systems.
+fn clear_of_seat(dir: &str, seat: &str) -> bool {
+    fn parts(p: &str) -> Option<Vec<String>> {
+        Path::new(p)
+            .components()
+            .filter(|c| *c != Component::CurDir)
+            .map(|c| match c {
+                Component::Normal(n) => Some(n.to_string_lossy().to_lowercase()),
+                _ => None,
+            })
+            .collect()
+    }
+    let (Some(dir), Some(seat)) = (parts(dir), parts(seat)) else {
+        return false;
+    };
+    !dir.is_empty() && !dir.starts_with(&seat) && !seat.starts_with(&dir)
 }
 
 pub struct EngineScheduler<E: Engine + Sync> {
     engine: Arc<E>,
     policy: SeatPolicy,
+    /// The HTML output tree a live watch writes (Boris default `dist`).
+    seat: String,
     rw: RwLock<()>,
     watch: Mutex<Option<Box<dyn WatchHandle>>>,
     isolated: AtomicU64,
@@ -45,10 +72,17 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         Self {
             engine,
             policy,
+            seat: "dist".into(),
             rw: RwLock::new(()),
             watch: Mutex::new(None),
             isolated: AtomicU64::new(0),
         }
+    }
+
+    /// Name the watch's HTML output tree when it is not `dist`.
+    pub fn with_seat(mut self, html_dir: impl Into<String>) -> Self {
+        self.seat = html_dir.into();
+        self
     }
 
     pub fn engine(&self) -> &Arc<E> {
@@ -84,6 +118,17 @@ impl<E: Engine + Sync> EngineScheduler<E> {
     }
 
     pub fn run(&self, verb: &Verb, sink: EventSink) -> cv_core::Result<RunReport> {
+        let own = own_out_dir(verb);
+        if let Some(dir) = &own
+            && !clear_of_seat(dir, &self.seat)
+        {
+            return Err(EngineError::Refused(format!(
+                "{} must write a workspace-relative dir clear of the watch's HTML output {:?}, not {dir:?}",
+                verb.name(),
+                self.seat
+            ))
+            .into());
+        }
         if !is_mutating(verb) {
             let _r = self.rw.read().unwrap();
             let exit = self.engine.run(verb, sink)?;
@@ -95,7 +140,7 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         }
         let _w = self.rw.write().unwrap();
         let mut stopped_watch = None;
-        let mut out_dir = None;
+        let mut out_dir = own;
         let mut verb = verb.clone();
         let seat_held = self.watch.lock().unwrap().is_some();
         if seat_held && writes_html(&verb) {
@@ -285,5 +330,65 @@ mod tests {
                 args: vec!["--html-dir".into(), ".cv/out/1".into()]
             }
         );
+    }
+
+    fn ir(out: &str) -> Verb {
+        Verb::Ir {
+            out: out.into(),
+            input: None,
+        }
+    }
+
+    #[test]
+    fn an_ir_projection_runs_beside_the_watch_under_either_policy() {
+        for policy in [
+            SeatPolicy::StopWatch,
+            SeatPolicy::SeparateOutDir(".cv/out".into()),
+        ] {
+            let p = Arc::new(Probe::default());
+            let s = EngineScheduler::new(Arc::new(Fake(p.clone())), policy.clone());
+            s.start_watch(noop()).unwrap();
+            let r = s.run(&ir(crate::verbs::IR_DIR), noop()).unwrap();
+            assert_eq!(r.stopped_watch, None, "{policy:?}");
+            assert_eq!(r.out_dir.as_deref(), Some(".cv/ir"), "{policy:?}");
+            assert_eq!(p.watch_stops.load(Ordering::SeqCst), 0, "{policy:?}");
+            assert_eq!(s.watch_session(), Some(SessionId("w".into())));
+            // Passed through as is, not redirected to an isolated --html-dir.
+            assert_eq!(p.verbs.lock().unwrap().as_slice(), [ir(".cv/ir")]);
+        }
+    }
+
+    #[test]
+    fn an_own_output_verb_is_refused_the_watch_seat() {
+        let p = Arc::new(Probe::default());
+        let s = EngineScheduler::new(Arc::new(Fake(p.clone())), SeatPolicy::StopWatch);
+        s.start_watch(noop()).unwrap();
+        let custom = |out: &str| Verb::Custom {
+            name: "build".into(),
+            args: vec!["--out".into(), out.into()],
+        };
+        for verb in [
+            ir("dist"),
+            ir("./dist/"),
+            ir("Dist"),
+            ir("dist/ir"),
+            ir("."),
+            ir(""),
+            ir("../elsewhere"),
+            ir("/abs/ir"),
+            custom("dist"),
+        ] {
+            let err = s.run(&verb, noop()).unwrap_err();
+            assert!(err.to_string().contains("clear of"), "{verb:?}: {err}");
+        }
+        assert!(p.verbs.lock().unwrap().is_empty(), "nothing reached Boris");
+        assert_eq!(p.watch_stops.load(Ordering::SeqCst), 0);
+
+        // The seat is the configured HTML dir, not a hard-coded name.
+        let p = Arc::new(Probe::default());
+        let s = EngineScheduler::new(Arc::new(Fake(p.clone())), SeatPolicy::StopWatch)
+            .with_seat("site");
+        assert!(s.run(&ir("site/ir"), noop()).is_err());
+        assert!(s.run(&ir("dist"), noop()).is_ok());
     }
 }

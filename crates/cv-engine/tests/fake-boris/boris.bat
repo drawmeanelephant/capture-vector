@@ -39,6 +39,8 @@ goto verb
 
 :verb
 set "V=%~1"
+rem IR mode (build --out DIR) replays its own capture when one is loaded.
+if "%~2"=="--out" if exist "%D%verbs\%V%-out\" set "V=%V%-out"
 if not exist "%D%verbs\%V%\" goto usage
 if exist "%D%verbs\%V%\stdout.txt" type "%D%verbs\%V%\stdout.txt"
 if exist "%D%verbs\%V%\stderr.txt" type "%D%verbs\%V%\stderr.txt" 1>&2

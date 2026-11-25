@@ -1,0 +1,6 @@
+boris: load  scanning content
+boris: roll  parsing 45 page(s)
+boris: ignite validating graph
+boris: ignite emitting IR → .cv/ir
+boris: reset done (45 page(s))
+ok: wrote IR under .cv/ir (45 page(s))

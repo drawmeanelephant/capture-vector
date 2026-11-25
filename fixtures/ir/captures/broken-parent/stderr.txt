@@ -1,0 +1,5 @@
+boris: load  scanning content
+boris: roll  parsing 1 page(s)
+boris: ignite validating graph
+boris: content validation failed (1 error(s))
+error: EPARENTMISSING: orphan.md:3:1: parent "does-not-exist" does not exist [Create the parent document or fix the parent id]
