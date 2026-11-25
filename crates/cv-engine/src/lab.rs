@@ -21,6 +21,8 @@ pub const ENV_OVERRIDE: &str = "CV_MIGRATION_LAB_BIN";
 /// Opt-in for the sibling-checkout candidate (`1` enables it).
 pub const ENV_SIBLING: &str = "CV_MIGRATION_LAB_SIBLING";
 const CHECKOUT: &str = "boris-migration-lab";
+const STAGE_SUFFIX: &str = ".boris-migration-lab-stage";
+const BACKUP_SUFFIX: &str = ".boris-migration-lab-prev";
 
 /// The one lab pin (mirrors `fixtures/MANIFEST.toml` `[migration_lab]`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -261,8 +263,16 @@ impl LabRun {
         }
 
         let (out, cwd) = canonical_out(&self.out)?;
+        let output_roots = [
+            out.clone(),
+            publication_sibling(&out, STAGE_SUFFIX),
+            publication_sibling(&out, BACKUP_SUFFIX),
+        ];
         for (flag, input) in &inputs {
-            if out.starts_with(input) || input.starts_with(&out) {
+            if output_roots
+                .iter()
+                .any(|protected| paths_overlap(protected, input))
+            {
                 return Err(LabError::Overlap {
                     flag,
                     input: input.clone(),
@@ -282,6 +292,16 @@ impl LabRun {
             cwd,
         })
     }
+}
+
+fn publication_sibling(path: &Path, suffix: &str) -> PathBuf {
+    let mut sibling = path.as_os_str().to_os_string();
+    sibling.push(suffix);
+    PathBuf::from(sibling)
+}
+
+fn paths_overlap(a: &Path, b: &Path) -> bool {
+    a.starts_with(b) || b.starts_with(a)
 }
 
 fn flag_value(flag: &str, path: &Path) -> OsString {
@@ -586,6 +606,42 @@ mod tests {
                 .prepare()
                 .is_ok()
         );
+    }
+
+    #[test]
+    fn publication_stage_and_backup_siblings_may_not_overlap_inputs() {
+        let (_t, root) = scratch();
+        let out = root.join("out");
+        let media = root.join("media");
+        std::fs::create_dir(&media).unwrap();
+
+        for suffix in [".boris-migration-lab-stage", ".boris-migration-lab-prev"] {
+            let sibling = root.join(format!("out{suffix}"));
+            let descendant = sibling.join("site");
+            std::fs::create_dir_all(&descendant).unwrap();
+            for input in [sibling.clone(), descendant] {
+                assert!(
+                    matches!(
+                        jekyll(vec![("--root", input.clone())], out.clone()).prepare(),
+                        Err(LabError::Overlap { flag: "--root", .. })
+                    ),
+                    "{input:?}"
+                );
+            }
+
+            let wxr = sibling.join("nested").join("export.xml");
+            std::fs::create_dir_all(wxr.parent().unwrap()).unwrap();
+            std::fs::write(&wxr, b"<rss/>").unwrap();
+            let run = LabRun {
+                mode: mode("wordpress").unwrap(),
+                inputs: vec![("--wxr".into(), wxr), ("--media".into(), media.clone())],
+                out: out.clone(),
+            };
+            assert!(
+                matches!(run.prepare(), Err(LabError::Overlap { flag: "--wxr", .. })),
+                "{suffix}"
+            );
+        }
     }
 
     #[test]
