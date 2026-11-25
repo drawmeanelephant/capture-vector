@@ -58,8 +58,22 @@ impl StubEmitter {
         self.emit_in(sink, None, payload);
     }
 
+    fn emit_caused(&self, sink: &mut EventSink, payload: EngineEvent, cause: Option<&EventId>) {
+        self.emit_in_caused(sink, None, payload, cause);
+    }
+
     /// With `only_in`, drop the event once the session has rotated away.
     fn emit_in(&self, sink: &mut EventSink, only_in: Option<&SessionId>, payload: EngineEvent) {
+        self.emit_in_caused(sink, only_in, payload, None);
+    }
+
+    fn emit_in_caused(
+        &self,
+        sink: &mut EventSink,
+        only_in: Option<&SessionId>,
+        payload: EngineEvent,
+        cause: Option<&EventId>,
+    ) {
         let (cursor, id) = {
             let mut c = self.cursor.lock().unwrap_or_else(|e| e.into_inner());
             if only_in.is_some_and(|s| *s != c.0) {
@@ -77,6 +91,7 @@ impl StubEmitter {
             (cursor, self.minted.fetch_add(1, Ordering::SeqCst))
         };
         sink(Envelope {
+            cause: cause.cloned(),
             workspace: WorkspaceId("stub".into()),
             snapshot_epoch: SnapshotEpoch(0),
             build_id: Some(BuildId(format!("stub-build-{id}"))),
@@ -365,15 +380,25 @@ impl Engine for StubEngine {
         Ok(self.start_replay(sink))
     }
 
-    fn run(&self, cmd: &Verb, mut sink: EventSink) -> cv_core::Result<ExitClass> {
+    fn run(&self, cmd: &Verb, sink: EventSink) -> cv_core::Result<ExitClass> {
+        self.run_caused(cmd, sink, None)
+    }
+
+    fn run_caused(
+        &self,
+        cmd: &Verb,
+        mut sink: EventSink,
+        cause: Option<&EventId>,
+    ) -> cv_core::Result<ExitClass> {
         if let Verb::Init { dir, archetype } = cmd {
             let exit = init(std::path::Path::new(dir), archetype)?;
-            self.emit(
+            self.emitter.emit_caused(
                 &mut sink,
                 EngineEvent::VerbFinished {
                     verb: cmd.name(),
                     exit,
                 },
+                cause,
             );
             return Ok(exit);
         }
@@ -438,7 +463,7 @@ impl Engine for StubEngine {
                     recoverable: exit == ExitClass::ContentFailure,
                 }
             };
-            self.emit(&mut sink, ev);
+            self.emitter.emit_caused(&mut sink, ev, cause);
         }
         self.emit(
             &mut sink,

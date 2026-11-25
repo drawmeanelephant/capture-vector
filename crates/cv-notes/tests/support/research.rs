@@ -64,6 +64,14 @@ impl Engine for StagedStub {
     fn run(&self, cmd: &Verb, sink: EventSink) -> cv_core::Result<ExitClass> {
         self.stub.run(cmd, sink)
     }
+    fn run_caused(
+        &self,
+        cmd: &Verb,
+        sink: EventSink,
+        cause: Option<&cv_core::events::EventId>,
+    ) -> cv_core::Result<ExitClass> {
+        self.stub.run_caused(cmd, sink, cause)
+    }
     fn write_content(
         &self,
         draft: &PageDraft,

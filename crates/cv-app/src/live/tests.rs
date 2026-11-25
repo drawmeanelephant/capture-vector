@@ -48,6 +48,7 @@ fn test_delivery(root: &Path, mode: WatchMode, wb: &Workbench) -> LiveDelivery {
 
 fn build(seq: u64, payload: EngineEvent) -> Envelope {
     Envelope {
+        cause: None,
         workspace: WorkspaceId("recovery-test".into()),
         snapshot_epoch: SnapshotEpoch(1),
         build_id: Some(BuildId(format!("build-{seq}"))),
@@ -98,7 +99,9 @@ fn native_watch_spends_only_one_attempt_after_forwarding_undocumented_failures()
     let mut wb = Workbench::new(Registry::with_all());
     let delivery = test_delivery(root.path(), WatchMode::Native, &wb);
     let (tx, rx) = std::sync::mpsc::channel();
-    let mut sink = delivery.watch_sink(WatchMode::Native, None, move |id| tx.send(id).unwrap());
+    let mut sink = delivery.watch_sink(WatchMode::Native, None, move |id, _cause| {
+        tx.send(id).unwrap()
+    });
 
     sink(build(
         1,
@@ -174,7 +177,7 @@ fn projection_and_watch_share_cursor_gap_duplicate_and_replay_rules() {
     let mut watch = delivery.watch_sink_with_tracker(
         WatchMode::Native,
         None,
-        |_| panic!("no fatal watch build in this stream"),
+        |_, _| panic!("no fatal watch build in this stream"),
         tracker,
     );
     let result = |seq| {
@@ -215,7 +218,7 @@ fn polling_watch_discloses_failures_without_retrying_and_clears_on_success() {
     let root = tempfile::tempdir().unwrap();
     let mut wb = Workbench::new(Registry::with_all());
     let delivery = test_delivery(root.path(), WatchMode::OneShotFallback, &wb);
-    let mut sink = delivery.watch_sink(WatchMode::OneShotFallback, None, |_| {
+    let mut sink = delivery.watch_sink(WatchMode::OneShotFallback, None, |_, _| {
         panic!("polling already runs one-shot builds")
     });
     let mut hello = build(
@@ -493,7 +496,6 @@ fn activity_rows(wb: &Workbench) -> Vec<String> {
         .collect()
 }
 
-#[cfg(unix)]
 fn finished(seq: u64) -> Envelope {
     build(
         seq,
@@ -515,7 +517,7 @@ fn a_burst_of_watch_builds_runs_one_ir_projection_and_pages_show_boris_fields() 
         delivery.engine.clone(),
         SeatPolicy::StopWatch,
     ));
-    let mut sink = delivery.watch_pipeline(WatchMode::Native, Arc::downgrade(&sched), |_| {
+    let mut sink = delivery.watch_pipeline(WatchMode::Native, Arc::downgrade(&sched), |_, _| {
         panic!("a green build never recovers")
     });
     for seq in 0..8 {
@@ -575,7 +577,7 @@ fn a_failed_html_build_still_gets_boris_fields_from_the_ir_projection() {
         delivery.engine.clone(),
         SeatPolicy::StopWatch,
     ));
-    let mut sink = delivery.watch_pipeline(WatchMode::Native, Arc::downgrade(&sched), |_| {
+    let mut sink = delivery.watch_pipeline(WatchMode::Native, Arc::downgrade(&sched), |_, _| {
         panic!("a located failure does not recover")
     });
     sink(layout_failed(0));
@@ -599,7 +601,7 @@ fn a_failed_ir_projection_is_disclosed_after_a_red_watch_build_and_pages_keep_th
         delivery.engine.clone(),
         SeatPolicy::StopWatch,
     ));
-    let mut sink = delivery.watch_pipeline(WatchMode::Native, Arc::downgrade(&sched), |_| {
+    let mut sink = delivery.watch_pipeline(WatchMode::Native, Arc::downgrade(&sched), |_, _| {
         panic!("a failed projection is not a failed watch")
     });
     sink(layout_failed(0));
@@ -630,7 +632,7 @@ fn a_failed_ir_projection_keeps_the_previous_boris_graph_and_discloses_it() {
         delivery.engine.clone(),
         SeatPolicy::StopWatch,
     ));
-    let mut sink = delivery.watch_pipeline(WatchMode::Native, Arc::downgrade(&sched), |_| {
+    let mut sink = delivery.watch_pipeline(WatchMode::Native, Arc::downgrade(&sched), |_, _| {
         panic!("a green build never recovers")
     });
     sink(finished(0));

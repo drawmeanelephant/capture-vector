@@ -15,7 +15,7 @@ use cv_core::engine::{
 };
 use cv_core::events::engine::EngineEvent;
 use cv_core::events::shell::DegradedReason;
-use cv_core::events::{AppEvent, Envelope, SessionId};
+use cv_core::events::{AppEvent, Envelope, EventId, SessionId};
 use cv_core::rules::ArtifactSet;
 use cv_engine::cursor::{CursorTracker, Observation};
 use cv_engine::probe::WatchMode;
@@ -75,7 +75,21 @@ impl Engine for SlotEngine {
         ))
     }
     fn run(&self, cmd: &Verb, sink: EventSink) -> cv_core::Result<ExitClass> {
-        Ok(self.0.get().ok_or_else(absent)?.run(cmd, sink)?.exit)
+        self.run_caused(cmd, sink, None)
+    }
+
+    fn run_caused(
+        &self,
+        cmd: &Verb,
+        sink: EventSink,
+        cause: Option<&cv_core::events::EventId>,
+    ) -> cv_core::Result<ExitClass> {
+        Ok(self
+            .0
+            .get()
+            .ok_or_else(absent)?
+            .run_caused(cmd, sink, cause)?
+            .exit)
     }
     fn write_content(
         &self,
@@ -399,12 +413,12 @@ impl LiveDelivery {
         &self,
         mode: WatchMode,
         ir: Option<IrProjection>,
-        recover: impl FnOnce(SessionId) + Send + 'static,
+        recovery: impl FnOnce(SessionId, EventId) + Send + 'static,
     ) -> EventSink {
         self.watch_sink_with_tracker(
             mode,
             ir,
-            recover,
+            recovery,
             Arc::new(Mutex::new(CursorTracker::new())),
         )
     }
@@ -413,10 +427,10 @@ impl LiveDelivery {
         &self,
         mode: WatchMode,
         ir: Option<IrProjection>,
-        recover: impl FnOnce(SessionId) + Send + 'static,
+        recovery: impl FnOnce(SessionId, EventId) + Send + 'static,
         tracker: Arc<Mutex<CursorTracker>>,
     ) -> EventSink {
-        let mut recover = Some(recover);
+        let mut recovery = Some(recovery);
         let mut polling_failure = false;
         let inbox = self.inbox.clone();
         self.resync_sink_with_tracker(tracker, move |deliver, env| {
@@ -436,13 +450,13 @@ impl LiveDelivery {
             if let (Some(ir), Some(_)) = (&ir, build_result) {
                 ir.request();
             }
-            let session = fatal.then(|| env.cursor.session.clone());
+            let recovery_cause = fatal.then(|| (env.cursor.session.clone(), env.event_id.clone()));
             deliver(env);
-            if let Some(session) = session {
+            if let Some((session, cause)) = recovery_cause {
                 match mode {
                     WatchMode::Native => {
-                        if let Some(recover) = recover.take() {
-                            recover(session);
+                        if let Some(recover) = recovery.take() {
+                            recover(session, cause);
                         }
                     }
                     WatchMode::OneShotFallback if !polling_failure => {
@@ -463,17 +477,18 @@ impl LiveDelivery {
         &self,
         mode: WatchMode,
         sched: Weak<Scheduler>,
-        recover: impl FnOnce(SessionId) + Send + 'static,
+        recovery: impl FnOnce(SessionId, EventId) + Send + 'static,
     ) -> EventSink {
         let tracker = Arc::new(Mutex::new(CursorTracker::new()));
         let ir = self.ir_projector(sched, tracker.clone());
-        self.watch_sink_with_tracker(mode, ir, recover, tracker)
+        self.watch_sink_with_tracker(mode, ir, recovery, tracker)
     }
 }
 
 fn recover_build(
     sched: &Scheduler,
     session: SessionId,
+    cause: &EventId,
     delivery: &LiveDelivery,
     warning: &Option<String>,
     notice: &Option<String>,
@@ -493,9 +508,10 @@ fn recover_build(
         None => trying,
     }));
     // Route output to the UI, never back through the watch recovery sink.
-    let result = sched.run(
+    let result = sched.run_caused(
         &Verb::Build,
         delivery.resync_sink(|deliver, env| deliver(env)),
+        Some(cause),
     );
     let (reason, status) = match result {
         Ok(r) if r.exit == ExitClass::Ok => (
@@ -598,7 +614,7 @@ fn start_workspace_watch(
     let recover_delivery = delivery.clone();
     let recover_warning = warning.clone();
     let recover_notice = notice.clone();
-    let sink = delivery.watch_pipeline(mode, Arc::downgrade(&sched), move |session| {
+    let sink = delivery.watch_pipeline(mode, Arc::downgrade(&sched), move |session, cause| {
         std::thread::spawn(move || {
             // A fatal initial build can arrive before `start_watch`
             // returns. Publish the watch handle/status before retiring it.
@@ -608,6 +624,7 @@ fn start_workspace_watch(
                 recover_build(
                     &sched,
                     session,
+                    &cause,
                     &recover_delivery,
                     &recover_warning,
                     &recover_notice,

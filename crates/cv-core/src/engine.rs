@@ -2,7 +2,7 @@
 //! `std::process::Command` owner; consumers see this trait and fixtures
 //! (`StubEngine`) only.
 
-use crate::events::Envelope;
+use crate::events::{Envelope, EventId};
 use crate::sys::{Hash, Timestamp};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -194,6 +194,16 @@ pub trait Engine: Send {
     fn snapshot(&self) -> crate::Result<crate::rules::ArtifactSet>;
     fn watch(&self, sink: EventSink) -> crate::Result<Box<dyn WatchHandle>>;
     fn run(&self, cmd: &Verb, sink: EventSink) -> crate::Result<ExitClass>;
+
+    /// `run` with an explicit causal link to the event that prompted it.
+    /// Implementations that emit one-shot envelopes must mint that link
+    /// into them so replay observes the same causality as live delivery.
+    fn run_caused(
+        &self,
+        cmd: &Verb,
+        sink: EventSink,
+        cause: Option<&EventId>,
+    ) -> crate::Result<ExitClass>;
     fn write_content(
         &self,
         draft: &PageDraft,

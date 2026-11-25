@@ -11,7 +11,7 @@ use crate::verbs::{is_mutating, own_out_dir, writes_html};
 use cv_core::engine::{
     Engine, EventSink, ExitClass, Fingerprint, PageDraft, Verb, WatchHandle, WriteOutcome,
 };
-use cv_core::events::SessionId;
+use cv_core::events::{EventId, SessionId};
 use cv_core::rules::ArtifactSet;
 use std::path::{Component, Path};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -118,6 +118,15 @@ impl<E: Engine + Sync> EngineScheduler<E> {
     }
 
     pub fn run(&self, verb: &Verb, sink: EventSink) -> cv_core::Result<RunReport> {
+        self.run_caused(verb, sink, None)
+    }
+
+    pub fn run_caused(
+        &self,
+        verb: &Verb,
+        sink: EventSink,
+        cause: Option<&EventId>,
+    ) -> cv_core::Result<RunReport> {
         let own = own_out_dir(verb);
         if let Some(dir) = &own
             && !clear_of_seat(dir, &self.seat)
@@ -131,7 +140,7 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         }
         if !is_mutating(verb) {
             let _r = self.rw.read().unwrap();
-            let exit = self.engine.run(verb, sink)?;
+            let exit = self.engine.run_caused(verb, sink, cause)?;
             return Ok(RunReport {
                 exit,
                 stopped_watch: None,
@@ -162,7 +171,7 @@ impl<E: Engine + Sync> EngineScheduler<E> {
                 }
             }
         }
-        let exit = self.engine.run(&verb, sink)?;
+        let exit = self.engine.run_caused(&verb, sink, cause)?;
         Ok(RunReport {
             exit,
             stopped_watch,
@@ -250,6 +259,14 @@ mod tests {
             }
             mine.fetch_sub(1, Ordering::SeqCst);
             Ok(ExitClass::Ok)
+        }
+        fn run_caused(
+            &self,
+            cmd: &Verb,
+            sink: EventSink,
+            _: Option<&EventId>,
+        ) -> cv_core::Result<ExitClass> {
+            self.run(cmd, sink)
         }
         fn write_content(
             &self,

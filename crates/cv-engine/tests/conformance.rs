@@ -8,7 +8,7 @@ mod common;
 use common::{FakeBoris, collector, payloads, wait_until};
 use cv_core::engine::{Engine, ExitClass, Verb};
 use cv_core::events::engine::EngineEvent;
-use cv_core::events::{AppEvent, Envelope};
+use cv_core::events::{AppEvent, Envelope, EventId};
 use cv_engine::EngineError;
 use cv_engine::probe::WatchMode;
 use cv_engine::proc::CancelToken;
@@ -287,6 +287,30 @@ fn ir_projection_equals_across_engines() {
             fake.read("argv.log")
         );
     }
+}
+
+#[test]
+fn caused_one_shot_events_are_minted_and_replayed_with_their_cause() {
+    let fake = FakeBoris::corpus("happy");
+    let engine = fake.engine();
+    let cause = EventId("fatal-watch-event".into());
+    let (sink, got) = collector();
+    let exit = engine.run_caused(&Verb::Build, sink, Some(&cause)).unwrap();
+    assert_eq!(exit, ExitClass::Ok);
+    let envs = got.lock().unwrap();
+    assert_eq!(envs.len(), 2);
+    assert!(envs.iter().all(|e| e.cause.as_ref() == Some(&cause)));
+
+    // The replay ring stores the minted envelope, not a later sink-side
+    // mutation: a consumer that catches up sees the same causal fact.
+    let after_first = envs[0].cursor.clone();
+    let resume = engine.resume(&after_first);
+    drop(envs);
+    let cv_engine::ring::Resume::Replay(replayed) = resume else {
+        panic!("same-session replay must be available");
+    };
+    assert_eq!(replayed.len(), 1);
+    assert_eq!(replayed[0].cause.as_ref(), Some(&cause));
 }
 
 /// The projection never takes the watch's seat: the live watch child

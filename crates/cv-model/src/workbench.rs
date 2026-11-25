@@ -449,6 +449,7 @@ impl Workbench {
     fn degraded_envelope(&mut self, reason: DegradedReason) -> Envelope {
         self.local_seq += 1;
         Envelope {
+            cause: None,
             workspace: WorkspaceId("local".into()),
             snapshot_epoch: SnapshotEpoch(self.app.snapshot_epoch),
             build_id: None,

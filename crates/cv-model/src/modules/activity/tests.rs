@@ -5,6 +5,7 @@ use cv_core::id::WorkspaceId;
 
 pub(crate) fn env(n: u64, payload: EngineEvent) -> Envelope {
     Envelope {
+        cause: None,
         workspace: WorkspaceId("t".into()),
         snapshot_epoch: SnapshotEpoch(0),
         build_id: Some(BuildId(format!("b{n}"))),

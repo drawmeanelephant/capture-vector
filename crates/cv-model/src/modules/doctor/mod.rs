@@ -27,7 +27,7 @@ use cv_core::diagnostic::{Diagnostic, Severity};
 use cv_core::engine::{EngineSource, ExitClass};
 use cv_core::events::engine::{BuildPhase, EngineEvent, WatchEndReason, WatchExit};
 use cv_core::events::shell::{DegradedReason, ShellEvent};
-use cv_core::events::{AppEvent, Cursor, Envelope};
+use cv_core::events::{AppEvent, Cursor, Envelope, EventId};
 use std::cell::RefCell;
 
 pub const ID: &str = "doctor";
@@ -65,6 +65,7 @@ pub struct Fatal {
     pub from_followup: bool,
     session: String,
     seq: u64,
+    event: EventId,
     followup_armed: bool,
 }
 
@@ -122,20 +123,19 @@ impl WatchLog {
                             && f.diagnostics.is_empty()
                             && !f.from_followup
                         {
-                            // A native fatal watch has now ended. Subsequent
-                            // one-shot build outcomes are recovery candidates,
-                            // but only a following `build` verb completion may
-                            // graft their diagnostics onto this fatal failure.
+                            // A native fatal watch has now ended. Only
+                            // envelopes explicitly caused by this fatal event
+                            // may complete the diagnostic recovery attempt.
                             f.followup_armed = true;
                         }
                     }
                     EngineEvent::VerbFinished { verb, exit } => {
                         self.last_verb = Some((verb.clone(), *exit));
-                        self.close_followup(verb);
+                        self.close_followup(verb, env);
                     }
-                    EngineEvent::VerbFailed { verb, .. } => self.close_followup(verb),
+                    EngineEvent::VerbFailed { verb, .. } => self.close_followup(verb, env),
                     EngineEvent::BuildFinished { diagnostics, .. } => {
-                        if self.followup_open(&env.cursor) {
+                        if self.followup_open(env) {
                             self.followup = Some(Followup {
                                 diagnostics: diagnostics.clone(),
                             });
@@ -146,7 +146,7 @@ impl WatchLog {
                         diagnostics,
                         recoverable,
                     } => {
-                        if self.followup_open(&env.cursor) {
+                        if self.followup_open(env) {
                             self.followup = Some(Followup {
                                 diagnostics: diagnostics.clone(),
                             });
@@ -157,6 +157,7 @@ impl WatchLog {
                                 from_followup: false,
                                 session: env.cursor.session.0.clone(),
                                 seq: env.cursor.seq,
+                                event: env.event_id.clone(),
                                 followup_armed: false,
                             });
                         }
@@ -179,25 +180,36 @@ impl WatchLog {
         }
     }
 
-    fn followup_open(&self, cursor: &Cursor) -> bool {
+    /// Recovery candidates must carry an explicit causal link back to
+    /// the fatal envelope. Same-session order alone is not evidence: IR
+    /// projections and publish preflight builds share the watch cursor
+    /// session and can complete in this window.
+    fn followup_open(&self, env: &Envelope) -> bool {
         self.fatal.as_ref().is_some_and(|f| {
             f.followup_armed
-                && f.session == cursor.session.0
-                && f.seq < cursor.seq
+                && f.session == env.cursor.session.0
+                && f.seq < env.cursor.seq
                 && f.diagnostics.is_empty()
                 && !f.from_followup
+                && env.cause.as_ref() == Some(&f.event)
         })
     }
 
-    /// Pair a one-shot build outcome with the verb that produced it. Only
-    /// the recovery `build` closes the window and may supply diagnostics;
-    /// an `ir` projection in the same session is related output, not the
-    /// recovery probe, so it must not be grafted onto the fatal watch failure.
-    fn close_followup(&mut self, verb: &str) {
-        let followup = self.followup.take();
-        if verb != "build" {
+    /// Pair the caused one-shot build outcome with its completing verb.
+    /// Uncaused `build`, `ir`, publish-preflight, or other same-session
+    /// verb events neither supply diagnostics nor close the recovery window.
+    fn close_followup(&mut self, verb: &str, env: &Envelope) {
+        if verb != "build" || env.cause.is_none() {
             return;
         }
+        let caused = self
+            .fatal
+            .as_ref()
+            .is_some_and(|f| env.cause.as_ref() == Some(&f.event));
+        if !caused {
+            return;
+        }
+        let followup = self.followup.take();
         if let Some(f) = &mut self.fatal {
             if let Some(followup) = followup
                 && !followup.diagnostics.is_empty()

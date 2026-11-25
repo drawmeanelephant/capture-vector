@@ -106,6 +106,7 @@ fn snapshot(epoch: u64, paths: &[&str]) -> Inbound {
 
 fn built(seq: u64) -> Inbound {
     Inbound::Envelope(Envelope {
+        cause: None,
         workspace: WorkspaceId("t".into()),
         snapshot_epoch: SnapshotEpoch(0),
         build_id: Some(BuildId(format!("b{seq}"))),

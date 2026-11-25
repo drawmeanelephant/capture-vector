@@ -104,6 +104,17 @@ impl Emitter {
         build_id: Option<BuildId>,
         payload: EngineEvent,
     ) -> bool {
+        self.emit_caused(sink, only_in, build_id, payload, None)
+    }
+
+    pub fn emit_caused(
+        &self,
+        sink: &mut EventSink,
+        only_in: Option<&SessionId>,
+        build_id: Option<BuildId>,
+        payload: EngineEvent,
+        cause: Option<&EventId>,
+    ) -> bool {
         let (env, order) = {
             let mut s = self.state.lock().unwrap();
             if only_in.is_some_and(|sid| *sid != s.session) {
@@ -122,6 +133,7 @@ impl Emitter {
                     seq,
                 },
                 event_id: EventId(format!("{}:{seq}", s.session.0)),
+                cause: cause.cloned(),
                 payload: AppEvent::Engine(payload),
             };
             // Recorded under the lock so ring order == seq order.

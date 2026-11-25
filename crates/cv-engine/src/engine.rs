@@ -151,13 +151,23 @@ impl ProcessEngine {
     pub fn run_cancellable(
         &self,
         verb: &Verb,
-        mut sink: EventSink,
+        sink: EventSink,
         cancel: &CancelToken,
     ) -> Result<ExitClass> {
-        match self.run_cancellable_inner(verb, &mut sink, cancel) {
+        self.run_cancellable_caused(verb, sink, cancel, None)
+    }
+
+    fn run_cancellable_caused(
+        &self,
+        verb: &Verb,
+        mut sink: EventSink,
+        cancel: &CancelToken,
+        cause: Option<&cv_core::events::EventId>,
+    ) -> Result<ExitClass> {
+        match self.run_cancellable_inner(verb, &mut sink, cancel, cause) {
             Ok(exit) => Ok(exit),
             Err(e) => {
-                self.emitter.emit(
+                self.emitter.emit_caused(
                     &mut sink,
                     None,
                     None,
@@ -165,6 +175,7 @@ impl ProcessEngine {
                         verb: verb_name(verb),
                         error: e.to_string(),
                     },
+                    cause,
                 );
                 Err(e)
             }
@@ -176,6 +187,7 @@ impl ProcessEngine {
         verb: &Verb,
         sink: &mut EventSink,
         cancel: &CancelToken,
+        cause: Option<&cv_core::events::EventId>,
     ) -> Result<ExitClass> {
         let staged = crate::ir::staged_verb(verb)?;
         if staged.is_some() {
@@ -201,9 +213,10 @@ impl ProcessEngine {
         let is_build = matches!(argv(verb)?.first().map(String::as_str), Some("build"));
         if is_build {
             let ev = build_event(&out, BuildPhase::Initial, &build);
-            self.emitter.emit(sink, None, Some(build.clone()), ev);
+            self.emitter
+                .emit_caused(sink, None, Some(build.clone()), ev, cause);
         }
-        self.emitter.emit(
+        self.emitter.emit_caused(
             sink,
             None,
             Some(build),
@@ -211,6 +224,7 @@ impl ProcessEngine {
                 verb: verb_name(verb),
                 exit,
             },
+            cause,
         );
         Ok(exit)
     }
@@ -297,7 +311,16 @@ impl Engine for ProcessEngine {
     }
 
     fn run(&self, cmd: &Verb, sink: EventSink) -> cv_core::Result<ExitClass> {
-        Ok(self.run_cancellable(cmd, sink, &CancelToken::new())?)
+        self.run_caused(cmd, sink, None)
+    }
+
+    fn run_caused(
+        &self,
+        cmd: &Verb,
+        sink: EventSink,
+        cause: Option<&cv_core::events::EventId>,
+    ) -> cv_core::Result<ExitClass> {
+        Ok(self.run_cancellable_caused(cmd, sink, &CancelToken::new(), cause)?)
     }
 
     fn write_content(
