@@ -6,11 +6,10 @@
 //!
 //! Only path-valued flags are listed, and only canonical mode names (no
 //! aliases). Left out on purpose: the developer-only `astro-import-plan` /
-//! `astro-import-apply` (non-path ids, `--destination` instead of `--out`),
-//! `filed-scan` (absent from `--help`), and options that are not input
-//! paths or that make the lab run another binary (`--gate`,
-//! `--relation-kinds`, `--relation-map`, `--locale`, `--max-pages`,
-//! `--boris`).
+//! `astro-import-apply` (non-path ids, `--destination` instead of `--out`)
+//! and options that are not input paths or that make the lab run another
+//! binary (`--gate`, `--relation-kinds`, `--relation-map`, `--locale`,
+//! `--max-pages`, `--boris`).
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InputKind {
@@ -103,6 +102,7 @@ pub const MODES: &[ModeSpec] = &[
         name: "filed",
         inputs: &[dir("--filed-root")],
     },
+    root("filed-scan"),
     root("starlight"),
     root("asset-filename"),
     root("theme-archaeology"),
@@ -163,14 +163,15 @@ mod tests {
 
     #[test]
     fn developer_only_and_unlisted_modes_are_not_runnable() {
-        for name in [
-            "astro-import-plan",
-            "astro-import-apply",
-            "filed-scan",
-            "jekyll-emit",
-        ] {
+        for name in ["astro-import-plan", "astro-import-apply", "jekyll-emit"] {
             assert!(mode(name).is_none(), "{name}");
         }
         assert_eq!(mode("jekyll").unwrap().inputs, ROOT);
+    }
+
+    #[test]
+    fn filed_scan_is_a_canonical_read_only_scan_mode() {
+        let m = mode("filed-scan").unwrap();
+        assert_eq!(m.inputs, ROOT);
     }
 }

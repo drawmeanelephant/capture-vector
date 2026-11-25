@@ -155,6 +155,34 @@ fn the_lab_receives_canonical_paths_and_runs_beside_its_output() {
 }
 
 #[test]
+fn publication_rerun_into_existing_output_runs_from_output_parent() {
+    let fake = FakeLab::new(PINNED.tool_id);
+    std::fs::create_dir_all(fake.dir.path().join("replay")).unwrap();
+    fake.set(
+        "replay/.boris-migration-lab-output",
+        "format=boris-migration-lab-output\nowner=boris-jekyll-migration-lab\nschema_version=1\n",
+    );
+    let id = fake.identity();
+    let ws = linked();
+    let out = ws.real.join("publication");
+
+    for _ in 0..2 {
+        let done = lab::run(
+            &id,
+            &jekyll(&ws.real.join("site"), out.clone()),
+            &CancelToken::new(),
+        )
+        .unwrap();
+        assert_eq!(done.exit, LabExit::Ok);
+    }
+
+    assert_eq!(
+        fake.read("cwd.log").unwrap().trim(),
+        ws.real.to_str().unwrap()
+    );
+}
+
+#[test]
 fn exit_codes_map_and_stderr_is_kept_verbatim() {
     let fake = FakeLab::new(PINNED.tool_id);
     let id = fake.identity();

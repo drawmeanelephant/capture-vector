@@ -147,6 +147,12 @@ fn read_output_tree(dir: &Path) -> BTreeMap<String, Vec<u8>> {
     files
 }
 
+fn publication_sibling(out: &Path, suffix: &str) -> std::path::PathBuf {
+    let mut path = out.as_os_str().to_os_string();
+    path.push(suffix);
+    std::path::PathBuf::from(path)
+}
+
 #[test]
 fn publication_backed_stub_replaces_an_owned_output_and_drops_stale_files() {
     let captured = lab_capture("jekyll").transcript();
@@ -201,6 +207,86 @@ fn publication_backed_stub_refuses_another_mode_owned_output() {
         std::fs::read(out.join(".boris-migration-lab-output")).unwrap(),
         *hugo_marker
     );
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+#[test]
+fn publication_backed_stub_refuses_an_unowned_stage_before_mutation() {
+    let root = test_dir("unowned-stage");
+    let out = root.join("out");
+    StubLab::new().run("jekyll", &out).unwrap();
+    let before = read_output_tree(&out);
+    let stage = publication_sibling(&out, ".boris-migration-lab-stage");
+    std::fs::create_dir_all(&stage).unwrap();
+    std::fs::write(stage.join("stale.txt"), b"stale").unwrap();
+
+    let err = match StubLab::new().run("jekyll", &out) {
+        Ok(_) => panic!("unowned stage replayed"),
+        Err(err) => err,
+    };
+
+    assert!(matches!(err, StubLabError::StageNotOwned(_)), "{err}");
+    assert_eq!(read_output_tree(&out), before);
+    assert_eq!(std::fs::read(stage.join("stale.txt")).unwrap(), b"stale");
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+#[test]
+fn publication_backed_stub_cleans_an_owned_stage_before_replay() {
+    let captured = lab_capture("jekyll").transcript();
+    let marker = captured.out[".boris-migration-lab-output"].clone();
+    let root = test_dir("owned-stage");
+    let out = root.join("out");
+    StubLab::new().run("jekyll", &out).unwrap();
+    let stage = publication_sibling(&out, ".boris-migration-lab-stage");
+    std::fs::create_dir_all(&stage).unwrap();
+    std::fs::write(stage.join(".boris-migration-lab-output"), marker).unwrap();
+    std::fs::write(stage.join("stale.txt"), b"stale").unwrap();
+
+    StubLab::new().run("jekyll", &out).unwrap();
+
+    assert!(!stage.exists());
+    assert_eq!(read_output_tree(&out), captured.out);
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+#[test]
+fn publication_backed_stub_refuses_an_unowned_backup_before_mutation() {
+    let root = test_dir("unowned-backup");
+    let out = root.join("out");
+    StubLab::new().run("jekyll", &out).unwrap();
+    let before = read_output_tree(&out);
+    let backup = publication_sibling(&out, ".boris-migration-lab-prev");
+    std::fs::create_dir_all(&backup).unwrap();
+    std::fs::write(backup.join("stale.txt"), b"stale").unwrap();
+
+    let err = match StubLab::new().run("jekyll", &out) {
+        Ok(_) => panic!("unowned backup replayed"),
+        Err(err) => err,
+    };
+
+    assert!(matches!(err, StubLabError::BackupNotOwned(_)), "{err}");
+    assert_eq!(read_output_tree(&out), before);
+    assert_eq!(std::fs::read(backup.join("stale.txt")).unwrap(), b"stale");
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+#[test]
+fn publication_backed_stub_cleans_an_owned_backup_before_replay() {
+    let captured = lab_capture("jekyll").transcript();
+    let marker = captured.out[".boris-migration-lab-output"].clone();
+    let root = test_dir("owned-backup");
+    let out = root.join("out");
+    StubLab::new().run("jekyll", &out).unwrap();
+    let backup = publication_sibling(&out, ".boris-migration-lab-prev");
+    std::fs::create_dir_all(&backup).unwrap();
+    std::fs::write(backup.join(".boris-migration-lab-output"), marker).unwrap();
+    std::fs::write(backup.join("stale.txt"), b"stale").unwrap();
+
+    StubLab::new().run("jekyll", &out).unwrap();
+
+    assert!(!backup.exists());
+    assert_eq!(read_output_tree(&out), captured.out);
     std::fs::remove_dir_all(&root).unwrap();
 }
 
