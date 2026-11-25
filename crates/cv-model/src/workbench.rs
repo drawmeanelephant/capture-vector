@@ -6,6 +6,7 @@
 use crate::app_state::AppState;
 use crate::cascade;
 use crate::command::{CommandSpec, Intent, Palette};
+use crate::dialog::{Dialogs, FileFilter, PickPurpose, SecretPort};
 use crate::module::{Link, ProjectSnapshot, Registry, RowModel};
 use crate::theme::{Mode, Theme};
 use crate::windows::{CloseOutcome, PRIMARY, WindowId, Windows};
@@ -128,6 +129,14 @@ impl Inbox {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ShellRequest {
     PickWorkspace,
+    /// Native file picker; the answer lands in `Workbench::picked`.
+    PickFile {
+        filters: Vec<FileFilter>,
+        purpose: PickPurpose,
+    },
+    PickFolder {
+        purpose: PickPurpose,
+    },
     OpenWorkspace(PathBuf),
     /// Open a page (relative to the content input) in an editor window.
     EditPage(String),
@@ -168,6 +177,8 @@ pub struct Workbench {
     pub nav: Vec<Option<String>>,
     pub windows: Windows,
     pub palette: Palette,
+    /// The open modal dialog and the ones queued behind it.
+    pub dialogs: Dialogs,
     pub inspector_open: bool,
     /// Inspector sections whose open state the user flipped from the
     /// default (open when it has items), by title.
@@ -191,6 +202,7 @@ pub struct Workbench {
     snapshot: Slot,
     waker: Arc<Mutex<Option<Waker>>>,
     store: Option<Box<dyn Store>>,
+    pub(crate) secrets: Option<Box<dyn SecretPort>>,
     watch: Option<Box<dyn WatchHandle>>,
     local_seq: u64,
 }
@@ -210,6 +222,7 @@ impl Workbench {
             nav,
             windows: Windows::new(),
             palette: Palette::default(),
+            dialogs: Dialogs::default(),
             inspector_open: true,
             sections_flipped: BTreeSet::new(),
             debug_windows: false,
@@ -224,6 +237,7 @@ impl Workbench {
             snapshot: Slot::default(),
             waker: Arc::new(Mutex::new(None)),
             store: None,
+            secrets: None,
             watch: None,
             local_seq: 0,
         }
@@ -231,6 +245,12 @@ impl Workbench {
 
     pub fn with_store(mut self, store: Box<dyn Store>) -> Self {
         self.store = Some(store);
+        self
+    }
+
+    /// Where `Secret` dialogs store what was typed.
+    pub fn with_secrets(mut self, secrets: Box<dyn SecretPort>) -> Self {
+        self.secrets = Some(secrets);
         self
     }
 
@@ -281,6 +301,8 @@ impl Workbench {
         self.seen.clear();
         self.unjournaled.clear();
         self.palette = Palette::default();
+        // Their askers were just replaced.
+        self.dialogs.clear();
     }
 
     /// Drain pending envelopes. Returns true when visible state changed.
@@ -503,7 +525,7 @@ impl Workbench {
 
     /// After a module mutates its list, keep the selected key selected at
     /// its new index, or clear the selection when the key left the list.
-    fn revalidate_selection(&mut self) {
+    pub(crate) fn revalidate_selection(&mut self) {
         let Some((i, key)) = self.windows.primary.row.clone() else {
             return;
         };
@@ -581,6 +603,12 @@ impl Workbench {
         if self.app.degraded == Some(DegradedReason::WatchDead) {
             out.push(CommandSpec::new("watch.restart", "Restart watch"));
         }
+        if !self.recent.is_empty() {
+            out.push(CommandSpec::new(
+                crate::dialog::RECENT,
+                "Open recent workspace…",
+            ));
+        }
         for (i, p) in self.recent.iter().enumerate() {
             out.push(CommandSpec::new(
                 format!("shell.workspace.recent.{i}"),
@@ -643,6 +671,7 @@ impl Workbench {
                 None => self.status = "no workspace open".into(),
             },
             "shell.workspace.open" => self.requests.push(ShellRequest::PickWorkspace),
+            crate::dialog::RECENT => self.choose_recent(),
             // Reopening the open workspace starts a new watch and rearms recovery.
             "shell.watch.restart" => match self.workspace.clone() {
                 Some(root) => self.requests.push(ShellRequest::OpenWorkspace(root)),
@@ -729,6 +758,11 @@ impl Workbench {
                     self.status = format!("{key} is not in {module}");
                 }
             }
+            Intent::Dialog(spec) => self.dialogs.push(*spec),
+            Intent::CloseDialog(id) => self.dialogs.close(&id),
+            Intent::Pick { id, pick } => self
+                .requests
+                .push(crate::dialog::pick_request(pick, PickPurpose::Command(id))),
         }
     }
 
@@ -744,6 +778,9 @@ impl Workbench {
 
     /// Keyboard-first shell keymap. Returns true when consumed.
     pub fn key(&mut self, k: &KeyPress) -> bool {
+        if self.dialogs.is_open() {
+            return self.dialog_key(k);
+        }
         if self.palette.open {
             return self.palette_key(k);
         }

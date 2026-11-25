@@ -46,6 +46,12 @@ const TREE_SCENES: &[&str] = &[
     "publish-unknown",
     "publish-empty",
     "publish-degraded",
+    "dialog-confirm",
+    "dialog-prompt",
+    "dialog-form",
+    "dialog-choose",
+    "dialog-secret",
+    "dialog-progress",
     "effects",
     "engine-absent-toast",
 ];

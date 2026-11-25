@@ -1,6 +1,7 @@
 //! Command palette — verbs live here, not in the rail. Lanes contribute
 //! `CommandSpec`s; the shell adds its own `shell.*` verbs.
 
+use crate::dialog::{DialogSpec, Pick};
 use cv_core::events::shell::DegradedReason;
 use serde::Serialize;
 
@@ -27,6 +28,12 @@ impl CommandSpec {
     }
 }
 
+impl Intent {
+    pub fn dialog(spec: DialogSpec) -> Self {
+        Self::Dialog(Box::new(spec))
+    }
+}
+
 /// What a module asks the shell to do. Modules emit intents; the shell
 /// performs them (UI never spawns, reads stores, or imports lanes).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -42,6 +49,17 @@ pub enum Intent {
     Reveal {
         module: String,
         key: String,
+    },
+    /// Show a modal dialog (queued behind an open one); its answer comes
+    /// back as the spec's `<module>.<verb>` through `Module::answer`.
+    Dialog(Box<DialogSpec>),
+    /// Withdraw dialog `id`, open or queued, without an answer.
+    CloseDialog(String),
+    /// Ask the native picker for a path, answered to `id` under
+    /// `dialog::PATH`.
+    Pick {
+        id: String,
+        pick: Pick,
     },
 }
 

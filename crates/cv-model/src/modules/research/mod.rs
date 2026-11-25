@@ -5,6 +5,7 @@
 mod filter;
 
 use crate::command::{CommandSpec, Intent};
+use crate::dialog::{ActionTone, DialogAnswer, DialogKind, DialogSpec, Field};
 use crate::module::{
     Chip, InspectorModel, Module, ModuleSpec, NavItem, NavModel, ReadingLine, ReadingModel,
     Registry, RowModel, Slot, Tone,
@@ -405,39 +406,93 @@ impl Module for ResearchModule {
     fn select(&mut self, key: Option<&str>) {
         self.focus = key.map(|k| StableId(k.into()));
     }
+
+    fn answer(&mut self, command: &str, a: &DialogAnswer) -> Vec<Intent> {
+        if a.action.is_none() {
+            return Vec::new();
+        }
+        let msg = match command {
+            CAPTURE => {
+                let text = a.text("text").unwrap_or_default().trim().to_string();
+                if text.is_empty() {
+                    return vec![Intent::dialog(
+                        capture_prompt("").error("Type the idea, or press Escape to cancel."),
+                    )];
+                }
+                match self.session.capture(Capture::Idea { text }, None) {
+                    Ok(id) => format!("captured {} to inbox", id.0),
+                    Err(e) => format!("research: {e}"),
+                }
+            }
+            ARCHIVE => {
+                let Some(id) = a.context.clone().map(StableId) else {
+                    return Vec::new();
+                };
+                match self.session.archive(&id) {
+                    Ok(_) => format!("archived {}", id.0),
+                    Err(e) => format!("research: {e}"),
+                }
+            }
+            filter::BUILD => match self.filter.answer(a, &mut self.session) {
+                Ok(msg) => msg,
+                Err(e) => return vec![Intent::dialog(self.filter.form(Some(a), Some(e)))],
+            },
+            _ => format!("unknown answer {command}"),
+        };
+        vec![Intent::Status(msg)]
+    }
+}
+
+const CAPTURE: &str = "research.capture.idea";
+const ARCHIVE: &str = "research.triage.archive";
+
+fn capture_prompt(text: &str) -> DialogSpec {
+    DialogSpec::new(
+        CAPTURE,
+        "Capture idea",
+        DialogKind::Prompt(
+            Field::text("text", "Idea", text)
+                .placeholder("What is the idea?")
+                .hint("It lands in the inbox; triage it later."),
+        ),
+    )
+    .cancel("Cancel")
+    .action("capture", "Capture", ActionTone::Primary)
 }
 
 impl ResearchModule {
     fn dispatch(&mut self, command: &str) -> Vec<Intent> {
         let verb = command.strip_prefix("research.").unwrap_or(command);
+        if verb == "filter.build" {
+            return vec![Intent::dialog(self.filter.form(None, None))];
+        }
         if let Some(f) = verb.strip_prefix("filter.") {
             let msg = self.filter.run(f, &mut self.session);
             return vec![Intent::Status(msg)];
         }
         match verb {
-            "capture.idea" => {
-                let n = self.nb().len() + 1;
-                let r = self.session.capture(
-                    Capture::Idea {
-                        text: format!("Idea {n}"),
-                    },
-                    None,
-                );
-                vec![Intent::Status(match r {
-                    Ok(id) => format!("captured {} to inbox", id.0),
-                    Err(e) => format!("research: {e}"),
-                })]
-            }
+            "capture.idea" => vec![Intent::dialog(capture_prompt(""))],
             "triage.file" => self.with_target(|m, id| {
                 let nb = m.nb().note(&id).and_then(|n| n.tags.iter().next().cloned());
                 let nb = nb.unwrap_or_else(|| "unsorted".into());
                 m.session.file(&id, &nb).map_err(|e| e.to_string())?;
                 Ok(format!("filed {} → {nb}", id.0))
             }),
-            "triage.archive" => self.with_target(|m, id| {
-                m.session.archive(&id).map_err(|e| e.to_string())?;
-                Ok(format!("archived {}", id.0))
-            }),
+            "triage.archive" => {
+                let Some(id) = self.target() else {
+                    return vec![Intent::Status("research: no note selected".into())];
+                };
+                let title = self.title_of(&id);
+                vec![Intent::dialog(
+                    DialogSpec::new(ARCHIVE, "Archive note?", DialogKind::Confirm)
+                        .body(format!(
+                            "“{title}” leaves the inbox. It stays in All notes and in the journal."
+                        ))
+                        .context(id.0)
+                        .cancel("Cancel")
+                        .action("archive", "Archive", ActionTone::Primary),
+                )]
+            }
             "link.recent" => self.with_target(|m, id| {
                 let other = m
                     .nb()

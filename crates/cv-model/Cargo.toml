@@ -11,6 +11,7 @@ cv-notes.workspace = true
 cv-rules.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+zeroize.workspace = true
 
 [dev-dependencies]
 cv-fixtures.workspace = true
