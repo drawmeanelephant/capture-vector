@@ -695,3 +695,53 @@ fn an_empty_format_version_string_is_rejected() {
     });
     assert_blocked(&eng, dir.path(), "empty string");
 }
+
+#[test]
+fn an_unknown_check_status_blocks_fail_closed() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    mutate_checks(&mut eng, |idx| {
+        idx["checks"][1]["status"] = serde_json::json!("surprise-pass");
+    });
+    assert_blocked(&eng, dir.path(), "unknown status");
+}
+
+#[test]
+fn a_wrong_checks_format_is_rejected() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    mutate_checks(&mut eng, |idx| {
+        idx["format"] = serde_json::json!("not-boris-checks");
+    });
+    assert_blocked(&eng, dir.path(), "not boris-publication-checks");
+}
+
+#[test]
+fn malformed_coverage_blocks_fail_closed() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    mutate_checks(&mut eng, |idx| {
+        idx["checks"][0]["coverage"] = serde_json::json!("sort-of-complete");
+    });
+    assert_blocked(&eng, dir.path(), "unknown coverage");
+}
+
+#[test]
+fn a_semantically_inconsistent_check_row_blocks() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    mutate_checks(&mut eng, |idx| {
+        idx["checks"][0]["eligible"] = serde_json::json!(false);
+    });
+    assert_blocked(&eng, dir.path(), "not eligible but ran");
+}
+
+#[test]
+fn unknown_artifact_semantics_fail_at_the_root_cause() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = CapturedEngine::new(dir.path());
+    mutate_artifacts(&mut eng, |idx| {
+        idx["artifacts"][0]["semantics"] = serde_json::json!("bogus-semantics");
+    });
+    assert_blocked(&eng, dir.path(), "unknown semantics");
+}

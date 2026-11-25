@@ -104,6 +104,24 @@ pub(crate) fn host_relative(path: &str) -> Result<&Path> {
                         "invalid relative publish path: {path:?}"
                     )));
                 }
+                // Windows host grammar: a colon inside any component spells a
+                // drive or ADS stream separator there, never a payload name —
+                // writing it forks the file identity (`guides/a` + stream
+                // `b.html`) so inventory and bytes diverge. Unix hosts treat
+                // the same bytes as an ordinary confined filename, and
+                // Windows-invalid characters (`<>"|?*`) are refused on the
+                // host that cannot write them. No cross-platform parity is
+                // claimed: validity is per-host by construction.
+                #[cfg(windows)]
+                if seg
+                    .as_encoded_bytes()
+                    .iter()
+                    .any(|b| matches!(b, b':' | b'<' | b'>' | b'"' | b'|' | b'?' | b'*'))
+                {
+                    return Err(PublishError::Refused(format!(
+                        "invalid windows publish path: {path:?}"
+                    )));
+                }
                 count += 1;
             }
             _ => {

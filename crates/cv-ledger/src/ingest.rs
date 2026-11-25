@@ -235,6 +235,14 @@ fn validate_artifact_contract(idx: &ArtifactIndex) -> Result<()> {
                 a.path
             )));
         }
+        if let Some(semantics) = &a.semantics
+            && !matches!(semantics.as_str(), "static" | "content-reference")
+        {
+            return Err(LedgerError::Proof(format!(
+                "artifacts.json: {} has unknown semantics {:?}",
+                a.path, semantics
+            )));
+        }
         if let Some(dimensions) = &a.dimensions {
             let object = dimensions.as_object();
             let valid = object.is_some_and(|o| {

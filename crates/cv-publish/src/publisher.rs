@@ -138,6 +138,46 @@ fn evaluate_proof_checks(site: &Path, artifacts_sha: &str, blocks: &mut Vec<Stri
             return;
         }
     };
+    if file.format != "boris-publication-checks" {
+        blocks.push(format!(
+            "proof checks: format {:?} is not boris-publication-checks",
+            file.format
+        ));
+    }
+    if file.schema_version != 1 {
+        blocks.push(format!(
+            "proof checks: schema_version {} is not 1",
+            file.schema_version
+        ));
+    }
+    for check in &file.checks {
+        if !matches!(
+            check.status.as_str(),
+            "passed" | "failed" | "incomplete" | "not-applicable"
+        ) {
+            blocks.push(format!(
+                "proof checks: {} has unknown status {:?} — deploy evidence untrusted",
+                check.id, check.status
+            ));
+        }
+        if let Some(coverage) = &check.coverage
+            && !matches!(
+                coverage.as_str(),
+                "complete" | "incomplete" | "not-applicable"
+            )
+        {
+            blocks.push(format!(
+                "proof checks: {} has unknown coverage {:?} — deploy evidence untrusted",
+                check.id, coverage
+            ));
+        }
+        if !check.eligible && check.ran {
+            blocks.push(format!(
+                "proof checks: {} is not eligible but ran — deploy evidence inconsistent",
+                check.id
+            ));
+        }
+    }
     if file.target != DEFAULT_HTML_TARGET {
         blocks.push(format!(
             "proof checks: target {} is not {DEFAULT_HTML_TARGET}",
