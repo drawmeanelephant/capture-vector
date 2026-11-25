@@ -14,7 +14,12 @@ use rune::{El, col, row, text};
 /// and code chips, the location (both ends kept), the message and the
 /// build that reported it.
 pub fn card(t: &Theme, d: &Diagnostic, n: usize) -> El {
-    let tn = severity_tone(d.severity);
+    card_in(t, d, n, severity_tone(d.severity))
+}
+
+/// [`card`] tinted `tn` instead of its severity: the editor draws a
+/// diagnostic from before the latest edits in `Tone::Dim`.
+pub fn card_in(t: &Theme, d: &Diagnostic, n: usize, tn: Tone) -> El {
     let fg = tone_token(t, tn);
     let r = radius(t, Size::Md);
     let build = d

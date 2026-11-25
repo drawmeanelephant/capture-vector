@@ -1,0 +1,1506 @@
+{
+  "nodes": [
+    {
+      "key": "kit-root",
+      "opacity": 1.0,
+      "path": "kit-root",
+      "rect": [
+        0.0,
+        0.0,
+        1100.0,
+        760.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "editor",
+      "opacity": 1.0,
+      "path": "kit-root/editor",
+      "rect": [
+        0.0,
+        0.0,
+        1100.0,
+        760.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "editor-header",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-header",
+      "rect": [
+        0.0,
+        0.0,
+        1100.0,
+        48.0
+      ],
+      "role": "toolbar"
+    },
+    {
+      "key": "leading",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-header/leading",
+      "rect": [
+        12.0,
+        15.9,
+        94.2,
+        16.3
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "editor-path",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-header/leading/editor-path",
+      "rect": [
+        12.0,
+        15.9,
+        32.1,
+        16.3
+      ],
+      "role": "text",
+      "text": "p.md"
+    },
+    {
+      "fill": "#ffb0202e",
+      "key": "editor-dirty",
+      "label": "Unsaved edits",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-header/leading/editor-dirty",
+      "radius": 999.0,
+      "rect": [
+        48.1,
+        17.1,
+        58.1,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#ffb020ff",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-header/leading/editor-dirty/#0",
+      "rect": [
+        54.1,
+        17.1,
+        46.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "Unsaved"
+    },
+    {
+      "key": "spacer",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-header/spacer",
+      "rect": [
+        114.2,
+        24.0,
+        830.0,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "trailing",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-header/trailing",
+      "rect": [
+        952.2,
+        14.0,
+        135.8,
+        20.0
+      ],
+      "role": "group"
+    },
+    {
+      "help": "Undo  ⌘Z",
+      "key": "editor-undo",
+      "label": "Undo",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-header/trailing/editor-undo",
+      "radius": 4.0,
+      "rect": [
+        952.2,
+        14.0,
+        20.0,
+        20.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "icon",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-header/trailing/editor-undo/icon",
+      "rect": [
+        954.2,
+        16.0,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "help": "Redo  ⇧⌘Z",
+      "key": "editor-redo",
+      "label": "Redo",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-header/trailing/editor-redo",
+      "radius": 4.0,
+      "rect": [
+        976.2,
+        14.0,
+        20.0,
+        20.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "icon",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-header/trailing/editor-redo/icon",
+      "rect": [
+        978.2,
+        16.0,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "fill": "#00d1ffff",
+      "help": "Save  ⌘S",
+      "key": "editor-save",
+      "label": "Save",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-header/trailing/editor-save",
+      "radius": 4.0,
+      "rect": [
+        1000.2,
+        14.0,
+        87.8,
+        20.0
+      ],
+      "role": "button",
+      "shadows": [
+        [
+          0.0,
+          1.0,
+          1.5,
+          0.0,
+          "#0000004d",
+          false
+        ]
+      ]
+    },
+    {
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-header/trailing/editor-save/#0",
+      "rect": [
+        1010.2,
+        17.0,
+        67.8,
+        14.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#001018ff",
+      "key": "label",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-header/trailing/editor-save/#0/label",
+      "rect": [
+        1010.2,
+        18.0,
+        25.8,
+        12.0
+      ],
+      "role": "text",
+      "text": "Save"
+    },
+    {
+      "key": "keys",
+      "label": "⌘ S",
+      "opacity": 0.8,
+      "path": "kit-root/editor/editor-header/trailing/editor-save/#0/keys",
+      "rect": [
+        1042.0,
+        17.0,
+        36.0,
+        14.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "key0",
+      "opacity": 0.8,
+      "path": "kit-root/editor/editor-header/trailing/editor-save/#0/keys/key0",
+      "radius": 2.0,
+      "rect": [
+        1042.0,
+        17.0,
+        18.9,
+        14.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#797b81ff",
+      "opacity": 0.8,
+      "path": "kit-root/editor/editor-header/trailing/editor-save/#0/keys/key0/#0",
+      "rect": [
+        1046.0,
+        18.5,
+        10.9,
+        11.0
+      ],
+      "role": "text",
+      "text": "⌘"
+    },
+    {
+      "key": "key1",
+      "opacity": 0.8,
+      "path": "kit-root/editor/editor-header/trailing/editor-save/#0/keys/key1",
+      "radius": 2.0,
+      "rect": [
+        1062.9,
+        17.0,
+        15.1,
+        14.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#797b81ff",
+      "opacity": 0.8,
+      "path": "kit-root/editor/editor-header/trailing/editor-save/#0/keys/key1/#0",
+      "rect": [
+        1066.9,
+        18.5,
+        7.1,
+        11.0
+      ],
+      "role": "text",
+      "text": "S"
+    },
+    {
+      "key": "editor-panes",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes",
+      "rect": [
+        0.0,
+        48.0,
+        1100.0,
+        712.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "editor-main",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main",
+      "rect": [
+        12.0,
+        60.0,
+        684.0,
+        688.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "editor-form",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form",
+      "rect": [
+        12.0,
+        60.0,
+        684.0,
+        326.0
+      ],
+      "role": "group"
+    },
+    {
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#0",
+      "rect": [
+        12.0,
+        60.0,
+        684.0,
+        26.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "fm-label-id",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#0/fm-label-id",
+      "rect": [
+        12.0,
+        66.1,
+        96.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "id"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "fm-box-id",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#0/fm-box-id",
+      "radius": 4.0,
+      "rect": [
+        116.0,
+        60.0,
+        372.0,
+        26.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "fm-id",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#0/fm-box-id/fm-id",
+      "rect": [
+        122.0,
+        65.5,
+        360.0,
+        15.0
+      ],
+      "role": "textbox",
+      "text": ""
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#0/#2",
+      "rect": [
+        496.0,
+        66.1,
+        200.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "entity id (defaults to the path)"
+    },
+    {
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#1",
+      "rect": [
+        12.0,
+        90.0,
+        684.0,
+        26.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "fm-label-title",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#1/fm-label-title",
+      "rect": [
+        12.0,
+        96.1,
+        96.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "title"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "fm-box-title",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#1/fm-box-title",
+      "radius": 4.0,
+      "rect": [
+        116.0,
+        90.0,
+        372.0,
+        26.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "fm-title",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#1/fm-box-title/fm-title",
+      "rect": [
+        122.0,
+        95.5,
+        360.0,
+        15.0
+      ],
+      "role": "textbox",
+      "text": ""
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#1/#2",
+      "rect": [
+        496.0,
+        96.1,
+        200.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "one line"
+    },
+    {
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#2",
+      "rect": [
+        12.0,
+        120.0,
+        684.0,
+        26.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "fm-label-parent",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#2/fm-label-parent",
+      "rect": [
+        12.0,
+        126.1,
+        96.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "parent"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "fm-box-parent",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#2/fm-box-parent",
+      "radius": 4.0,
+      "rect": [
+        116.0,
+        120.0,
+        372.0,
+        26.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "fm-parent",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#2/fm-box-parent/fm-parent",
+      "rect": [
+        122.0,
+        125.5,
+        360.0,
+        15.0
+      ],
+      "role": "textbox",
+      "text": ""
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "parent page id — makes this a Satellite",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#2/#2",
+      "rect": [
+        496.0,
+        126.1,
+        200.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "parent page id — makes this a Satellite"
+    },
+    {
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#3",
+      "rect": [
+        12.0,
+        150.0,
+        684.0,
+        26.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "fm-label-status",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#3/fm-label-status",
+      "rect": [
+        12.0,
+        156.1,
+        96.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "status"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "fm-box-status",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#3/fm-box-status",
+      "radius": 4.0,
+      "rect": [
+        116.0,
+        150.0,
+        372.0,
+        26.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "fm-status",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#3/fm-box-status/fm-status",
+      "rect": [
+        122.0,
+        155.5,
+        360.0,
+        15.0
+      ],
+      "role": "textbox",
+      "text": ""
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#3/#2",
+      "rect": [
+        496.0,
+        156.1,
+        200.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "draft | published | archived"
+    },
+    {
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#4",
+      "rect": [
+        12.0,
+        180.0,
+        684.0,
+        26.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "fm-label-tags",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#4/fm-label-tags",
+      "rect": [
+        12.0,
+        186.1,
+        96.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "tags"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "fm-box-tags",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#4/fm-box-tags",
+      "radius": 4.0,
+      "rect": [
+        116.0,
+        180.0,
+        372.0,
+        26.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "fm-tags",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#4/fm-box-tags/fm-tags",
+      "rect": [
+        122.0,
+        185.5,
+        360.0,
+        15.0
+      ],
+      "role": "textbox",
+      "text": ""
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#4/#2",
+      "rect": [
+        496.0,
+        186.1,
+        200.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "[a, b]"
+    },
+    {
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#5",
+      "rect": [
+        12.0,
+        210.0,
+        684.0,
+        26.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "fm-label-relations",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#5/fm-label-relations",
+      "rect": [
+        12.0,
+        216.1,
+        96.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "relations"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "fm-box-relations",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#5/fm-box-relations",
+      "radius": 4.0,
+      "rect": [
+        116.0,
+        210.0,
+        372.0,
+        26.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "fm-relations",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#5/fm-box-relations/fm-relations",
+      "rect": [
+        122.0,
+        215.5,
+        360.0,
+        15.0
+      ],
+      "role": "textbox",
+      "text": ""
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#5/#2",
+      "rect": [
+        496.0,
+        216.1,
+        200.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "[kind=target, …]"
+    },
+    {
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#6",
+      "rect": [
+        12.0,
+        240.0,
+        684.0,
+        26.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "fm-label-published_at",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#6/fm-label-published_at",
+      "rect": [
+        12.0,
+        246.1,
+        96.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "published_at"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "fm-box-published_at",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#6/fm-box-published_at",
+      "radius": 4.0,
+      "rect": [
+        116.0,
+        240.0,
+        372.0,
+        26.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "fm-published_at",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#6/fm-box-published_at/fm-published_at",
+      "rect": [
+        122.0,
+        245.5,
+        360.0,
+        15.0
+      ],
+      "role": "textbox",
+      "text": ""
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "YYYY-MM-DDTHH:MM:SSZ (needs summary)",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#6/#2",
+      "rect": [
+        496.0,
+        246.1,
+        200.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "YYYY-MM-DDTHH:MM:SSZ (needs summary)"
+    },
+    {
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#7",
+      "rect": [
+        12.0,
+        270.0,
+        684.0,
+        26.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "fm-label-summary",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#7/fm-label-summary",
+      "rect": [
+        12.0,
+        276.1,
+        96.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "summary"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "fm-box-summary",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#7/fm-box-summary",
+      "radius": 4.0,
+      "rect": [
+        116.0,
+        270.0,
+        372.0,
+        26.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "fm-summary",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#7/fm-box-summary/fm-summary",
+      "rect": [
+        122.0,
+        275.5,
+        360.0,
+        15.0
+      ],
+      "role": "textbox",
+      "text": ""
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#7/#2",
+      "rect": [
+        496.0,
+        276.1,
+        200.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "one line"
+    },
+    {
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#8",
+      "rect": [
+        12.0,
+        300.0,
+        684.0,
+        26.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "fm-label-servings",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#8/fm-label-servings",
+      "rect": [
+        12.0,
+        306.1,
+        96.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "servings"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "fm-box-servings",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#8/fm-box-servings",
+      "radius": 4.0,
+      "rect": [
+        116.0,
+        300.0,
+        372.0,
+        26.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "fm-servings",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#8/fm-box-servings/fm-servings",
+      "rect": [
+        122.0,
+        305.5,
+        360.0,
+        15.0
+      ],
+      "role": "textbox",
+      "text": ""
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#8/#2",
+      "rect": [
+        496.0,
+        306.1,
+        200.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Cooklang count, e.g. 4 people"
+    },
+    {
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#9",
+      "rect": [
+        12.0,
+        330.0,
+        684.0,
+        26.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "fm-label-serves",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#9/fm-label-serves",
+      "rect": [
+        12.0,
+        336.1,
+        96.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "serves"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "fm-box-serves",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#9/fm-box-serves",
+      "radius": 4.0,
+      "rect": [
+        116.0,
+        330.0,
+        372.0,
+        26.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "fm-serves",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#9/fm-box-serves/fm-serves",
+      "rect": [
+        122.0,
+        335.5,
+        360.0,
+        15.0
+      ],
+      "role": "textbox",
+      "text": ""
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#9/#2",
+      "rect": [
+        496.0,
+        336.1,
+        200.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Cooklang alias of servings"
+    },
+    {
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#10",
+      "rect": [
+        12.0,
+        360.0,
+        684.0,
+        26.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "fm-label-yield",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#10/fm-label-yield",
+      "rect": [
+        12.0,
+        366.1,
+        96.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "yield"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "fm-box-yield",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#10/fm-box-yield",
+      "radius": 4.0,
+      "rect": [
+        116.0,
+        360.0,
+        372.0,
+        26.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "fm-yield",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#10/fm-box-yield/fm-yield",
+      "rect": [
+        122.0,
+        365.5,
+        360.0,
+        15.0
+      ],
+      "role": "textbox",
+      "text": ""
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/editor-form/#10/#2",
+      "rect": [
+        496.0,
+        366.1,
+        200.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Cooklang alias of servings"
+    },
+    {
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/#1",
+      "rect": [
+        12.0,
+        394.0,
+        684.0,
+        354.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "editor-gutter",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/#1/editor-gutter",
+      "rect": [
+        12.0,
+        394.0,
+        56.0,
+        354.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "editor-body",
+      "label": "Markdown body",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-main/#1/editor-body",
+      "rect": [
+        72.0,
+        394.0,
+        624.0,
+        354.0
+      ],
+      "role": "textbox",
+      "text": "one two\n"
+    },
+    {
+      "key": "editor-side",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-side",
+      "rect": [
+        708.0,
+        60.0,
+        380.0,
+        688.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "problems",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-side/problems",
+      "rect": [
+        708.0,
+        60.0,
+        380.0,
+        33.5
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-side/problems/#0",
+      "rect": [
+        708.0,
+        60.0,
+        380.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Problems"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "problems-empty",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-side/problems/problems-empty",
+      "rect": [
+        708.0,
+        79.8,
+        380.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "No problems from the last build"
+    },
+    {
+      "key": "draft-sketch",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-side/draft-sketch",
+      "rect": [
+        708.0,
+        105.5,
+        380.0,
+        642.5
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#ffb020ff",
+      "key": "sketch-label",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-side/draft-sketch/sketch-label",
+      "rect": [
+        708.0,
+        105.5,
+        380.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Draft sketch — advisory"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "sketch-disclaimer",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-side/draft-sketch/sketch-disclaimer",
+      "rect": [
+        708.0,
+        123.3,
+        380.0,
+        27.5
+      ],
+      "role": "text",
+      "text": "Not Boris output. The next build is authoritative; see the site in your browser via `boris watch --serve`."
+    },
+    {
+      "key": "sketch-body",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-side/draft-sketch/sketch-body",
+      "rect": [
+        708.0,
+        154.8,
+        380.0,
+        593.3
+      ],
+      "role": "group"
+    },
+    {
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-side/draft-sketch/sketch-body/#0",
+      "rect": [
+        708.0,
+        154.8,
+        380.0,
+        20.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "b0",
+      "opacity": 1.0,
+      "path": "kit-root/editor/editor-panes/editor-side/draft-sketch/sketch-body/#0/b0",
+      "rect": [
+        708.0,
+        154.8,
+        380.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "one two"
+    },
+    {
+      "fill": "#00000099",
+      "key": "editor-close-scrim",
+      "opacity": 1.0,
+      "path": "kit-root/editor-close-scrim",
+      "rect": [
+        0.0,
+        0.0,
+        1100.0,
+        760.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "editor-close-layer",
+      "opacity": 1.0,
+      "path": "kit-root/editor-close-layer",
+      "rect": [
+        0.0,
+        0.0,
+        1100.0,
+        760.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "editor-close-dialog",
+      "label": "Close with unsaved edits?",
+      "opacity": 1.0,
+      "path": "kit-root/editor-close-layer/editor-close-dialog",
+      "radius": 6.0,
+      "rect": [
+        330.0,
+        314.0,
+        440.0,
+        132.0
+      ],
+      "role": "dialog",
+      "shadows": [
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          "#262b35ff",
+          false
+        ],
+        [
+          0.0,
+          12.0,
+          32.0,
+          0.0,
+          "#000000a6",
+          false
+        ]
+      ]
+    },
+    {
+      "key": "header",
+      "opacity": 1.0,
+      "path": "kit-root/editor-close-layer/editor-close-dialog/header",
+      "rect": [
+        330.0,
+        314.0,
+        440.0,
+        96.0
+      ],
+      "role": "group"
+    },
+    {
+      "opacity": 1.0,
+      "path": "kit-root/editor-close-layer/editor-close-dialog/header/#0",
+      "rect": [
+        346.0,
+        330.0,
+        390.0,
+        64.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "kit-root/editor-close-layer/editor-close-dialog/header/#0/#0",
+      "rect": [
+        346.0,
+        330.0,
+        390.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "Close with unsaved edits?"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "kit-root/editor-close-layer/editor-close-dialog/header/#0/#1",
+      "rect": [
+        346.0,
+        354.0,
+        390.0,
+        40.0
+      ],
+      "role": "text",
+      "text": "This page has unsaved edits. Save them, discard them, or keep editing."
+    },
+    {
+      "focused": true,
+      "key": "close",
+      "label": "Close",
+      "opacity": 1.0,
+      "path": "kit-root/editor-close-layer/editor-close-dialog/header/close",
+      "radius": 6.0,
+      "rect": [
+        736.0,
+        328.0,
+        20.0,
+        20.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "icon",
+      "opacity": 1.0,
+      "path": "kit-root/editor-close-layer/editor-close-dialog/header/close/icon",
+      "rect": [
+        738.0,
+        330.0,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "key": "body",
+      "opacity": 1.0,
+      "path": "kit-root/editor-close-layer/editor-close-dialog/body",
+      "rect": [
+        330.0,
+        410.0,
+        440.0,
+        36.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "editor-close-prompt",
+      "opacity": 1.0,
+      "path": "kit-root/editor-close-layer/editor-close-dialog/body/editor-close-prompt",
+      "rect": [
+        330.0,
+        410.0,
+        440.0,
+        36.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#17191dff",
+      "key": "editor-close-discard",
+      "label": "Discard and close",
+      "opacity": 1.0,
+      "path": "kit-root/editor-close-layer/editor-close-dialog/body/editor-close-prompt/editor-close-discard",
+      "radius": 4.0,
+      "rect": [
+        346.0,
+        410.0,
+        113.9,
+        20.0
+      ],
+      "role": "button",
+      "shadows": [
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.5,
+          "#262b35ff",
+          false
+        ],
+        [
+          0.0,
+          1.0,
+          1.5,
+          0.0,
+          "#0000004d",
+          false
+        ]
+      ]
+    },
+    {
+      "color": "#ff3d71ff",
+      "key": "label",
+      "opacity": 1.0,
+      "path": "kit-root/editor-close-layer/editor-close-dialog/body/editor-close-prompt/editor-close-discard/label",
+      "rect": [
+        356.0,
+        414.0,
+        93.9,
+        12.0
+      ],
+      "role": "text",
+      "text": "Discard and close"
+    },
+    {
+      "opacity": 1.0,
+      "path": "kit-root/editor-close-layer/editor-close-dialog/body/editor-close-prompt/#1",
+      "rect": [
+        467.9,
+        420.0,
+        84.9,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "editor-close-cancel",
+      "label": "Keep editing",
+      "opacity": 1.0,
+      "path": "kit-root/editor-close-layer/editor-close-dialog/body/editor-close-prompt/editor-close-cancel",
+      "radius": 4.0,
+      "rect": [
+        560.8,
+        410.0,
+        85.8,
+        20.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "label",
+      "opacity": 1.0,
+      "path": "kit-root/editor-close-layer/editor-close-dialog/body/editor-close-prompt/editor-close-cancel/label",
+      "rect": [
+        570.8,
+        414.0,
+        65.8,
+        12.0
+      ],
+      "role": "text",
+      "text": "Keep editing"
+    },
+    {
+      "fill": "#00d1ffff",
+      "key": "editor-close-save",
+      "label": "Save and close",
+      "opacity": 1.0,
+      "path": "kit-root/editor-close-layer/editor-close-dialog/body/editor-close-prompt/editor-close-save",
+      "radius": 4.0,
+      "rect": [
+        654.6,
+        410.0,
+        99.4,
+        20.0
+      ],
+      "role": "button",
+      "shadows": [
+        [
+          0.0,
+          1.0,
+          1.5,
+          0.0,
+          "#0000004d",
+          false
+        ]
+      ]
+    },
+    {
+      "color": "#001018ff",
+      "key": "label",
+      "opacity": 1.0,
+      "path": "kit-root/editor-close-layer/editor-close-dialog/body/editor-close-prompt/editor-close-save/label",
+      "rect": [
+        664.6,
+        414.0,
+        79.4,
+        12.0
+      ],
+      "role": "text",
+      "text": "Save and close"
+    }
+  ],
+  "schema": 2
+}

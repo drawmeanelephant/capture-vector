@@ -24,5 +24,13 @@ fn main() {
             ("headless", serde_json::json!(headless)),
         ],
     );
+    let scene = args
+        .iter()
+        .position(|a| a == "--scene")
+        .and_then(|i| args.get(i + 1));
+    if scene.is_some_and(|s| cv_app::editor::SCENES.iter().any(|(n, _)| n == s)) {
+        cv_widgets::editor::run_scenes(cv_app::editor::SCENES);
+        return;
+    }
     cv_widgets::app::run(cv_app::launch());
 }
