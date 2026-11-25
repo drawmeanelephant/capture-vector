@@ -83,7 +83,7 @@
       "rect": [
         75.5,
         24.0,
-        870.6,
+        878.8,
         0.0
       ],
       "role": "group"
@@ -93,9 +93,9 @@
       "opacity": 1.0,
       "path": "kit-root/editor/editor-header/trailing",
       "rect": [
-        954.1,
+        962.2,
         14.0,
-        133.9,
+        125.8,
         20.0
       ],
       "role": "group"
@@ -108,7 +108,7 @@
       "path": "kit-root/editor/editor-header/trailing/editor-undo",
       "radius": 4.0,
       "rect": [
-        954.1,
+        962.2,
         14.0,
         20.0,
         20.0
@@ -121,7 +121,7 @@
       "opacity": 1.0,
       "path": "kit-root/editor/editor-header/trailing/editor-undo/icon",
       "rect": [
-        956.1,
+        964.2,
         16.0,
         16.0,
         16.0
@@ -136,7 +136,7 @@
       "path": "kit-root/editor/editor-header/trailing/editor-redo",
       "radius": 4.0,
       "rect": [
-        978.1,
+        986.2,
         14.0,
         20.0,
         20.0
@@ -149,7 +149,7 @@
       "opacity": 1.0,
       "path": "kit-root/editor/editor-header/trailing/editor-redo/icon",
       "rect": [
-        980.1,
+        988.2,
         16.0,
         16.0,
         16.0
@@ -160,7 +160,7 @@
       "opacity": 1.0,
       "path": "kit-root/editor/editor-header/trailing/#2",
       "rect": [
-        1002.1,
+        1010.2,
         24.0,
         4.0,
         0.0
@@ -176,9 +176,9 @@
       "path": "kit-root/editor/editor-header/trailing/editor-save",
       "radius": 4.0,
       "rect": [
-        1010.1,
+        1018.2,
         14.0,
-        77.9,
+        69.8,
         20.0
       ],
       "role": "button",
@@ -197,9 +197,9 @@
       "opacity": 1.0,
       "path": "kit-root/editor/editor-header/trailing/editor-save/#0",
       "rect": [
-        1020.1,
+        1028.2,
         18.0,
-        57.9,
+        49.8,
         12.0
       ],
       "role": "group"
@@ -210,7 +210,7 @@
       "opacity": 1.0,
       "path": "kit-root/editor/editor-header/trailing/editor-save/#0/label",
       "rect": [
-        1020.1,
+        1028.2,
         18.0,
         25.8,
         12.0
@@ -224,13 +224,13 @@
       "opacity": 1.0,
       "path": "kit-root/editor/editor-header/trailing/editor-save/#0/keys",
       "rect": [
-        1051.9,
+        1060.0,
         18.0,
-        26.1,
+        18.0,
         12.0
       ],
       "role": "text",
-      "text": "CtrlS"
+      "text": "⌘S"
     },
     {
       "key": "editor-content",

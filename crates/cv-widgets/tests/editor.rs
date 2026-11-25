@@ -28,6 +28,9 @@ fn session() -> Rc<RefCell<EditorSession>> {
 }
 
 fn window(ses: &Rc<RefCell<EditorSession>>, id: u32, buf: BufferId) -> Runtime<EditorWindow> {
+    // macOS keycaps on every OS, as the shell harness and editor PNG scenes
+    // draw them, so the goldens' Save button has one width.
+    cv_widgets::keys::pin_keycaps(rune::KeyPlatform::Mac);
     editor::runtime(EditorWindow::new(
         WindowId(id),
         ses.clone(),
