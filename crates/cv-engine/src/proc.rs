@@ -451,7 +451,11 @@ mod tests {
                     .unwrap_or_else(|e| format!("{e}"))
             );
             // The writer is killed rather than left blocked on a full pipe.
-            assert!(start.elapsed() < Duration::from_secs(10));
+            // The bound only exists to catch a deadlock, so it is generous:
+            // PowerShell cold-start CLR warmup costs seconds per spawn on
+            // Windows CI runners, and a loaded shared runner stretched the
+            // healthy kill path past the old 10 s bound (PR #151, windows-latest).
+            assert!(start.elapsed() < Duration::from_secs(30));
         }
     }
 
