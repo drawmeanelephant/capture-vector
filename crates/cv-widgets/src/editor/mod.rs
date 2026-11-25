@@ -502,6 +502,7 @@ pub fn runtime(w: EditorWindow) -> Runtime<EditorWindow> {
         system_dark: w.theme.mode == cv_model::theme::Mode::Dark,
         scale: 1.0,
     };
+    crate::keys::pin_keycaps(rune::KeyPlatform::Mac);
     let mut rt = Runtime::new(w, view, SIZE, env);
     rt.poll = Some(poll);
     rt.on_key = Some(on_key);
