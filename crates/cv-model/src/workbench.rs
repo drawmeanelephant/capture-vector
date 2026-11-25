@@ -132,6 +132,8 @@ pub enum ShellRequest {
     OpenWorkspace(PathBuf),
     /// Open a page (relative to the content input) in an editor window.
     EditPage(String),
+    /// Put text on the system clipboard.
+    Copy(String),
 }
 
 /// Toolkit-neutral key input; `cv-widgets` maps rune keys onto it.
@@ -576,6 +578,7 @@ impl Workbench {
             CommandSpec::new("shell.watch.restart", "Restart watch (reopen workspace)"),
             CommandSpec::new("shell.follow", "Open linked noun").chord("mod+o"),
             CommandSpec::new("shell.workspace.open", "Open workspace…").chord("mod+shift+o"),
+            CommandSpec::new("shell.doctor", "Open Doctor"),
         ];
         // Offered only while the banner it backs is up; a live watch
         // needs no restart and the palette stays honest.
@@ -599,6 +602,10 @@ impl Workbench {
         }
         for (i, m) in self.registry.iter().enumerate() {
             let s = m.spec();
+            if s.slot == crate::module::Slot::Utility {
+                out.extend(m.commands());
+                continue;
+            }
             let mut c =
                 CommandSpec::new(format!("shell.goto.{}", s.id), format!("Go to {}", s.title));
             if i < 9 {
@@ -646,6 +653,7 @@ impl Workbench {
             "shell.degraded.dismiss" => self.apply(Intent::Recover),
             "shell.degraded.reveal" => self.reveal_degraded_cause(),
             "shell.follow" => self.follow_link(),
+            "shell.doctor" => self.open_doctor(),
             // Reopening the workspace is the restart: `open_workspace`
             // stops the dead handle and respawns the engine boot thread,
             // and the next `WatchSessionStarted` clears `WatchDead`.
@@ -733,6 +741,7 @@ impl Workbench {
             Intent::Recover => self.app.degraded = None,
             Intent::Status(s) => self.status = s,
             Intent::MarkDirty => self.windows.set_dirty(PRIMARY, true),
+            Intent::Copy(text) => self.requests.push(ShellRequest::Copy(text)),
             Intent::OpenCompanion { key } => {
                 let Some(m) = self.registry.get(self.active) else {
                     return;
@@ -766,6 +775,20 @@ impl Workbench {
                     self.status = format!("{key} is not in {module}");
                 }
             }
+        }
+    }
+
+    /// Show the Doctor with its first row selected, so the reading pane
+    /// opens on the engine verdict.
+    pub fn open_doctor(&mut self) {
+        match self.registry.index_of(crate::modules::doctor::ID) {
+            Some(i) => {
+                self.activate(i);
+                if self.selected_key().is_none() {
+                    self.select_row(0);
+                }
+            }
+            None => self.status = "Doctor is not registered in this build".into(),
         }
     }
 

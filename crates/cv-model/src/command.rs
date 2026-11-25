@@ -43,6 +43,8 @@ pub enum Intent {
         module: String,
         key: String,
     },
+    /// Put `text` on the system clipboard.
+    Copy(String),
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]

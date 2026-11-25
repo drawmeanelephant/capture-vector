@@ -238,6 +238,7 @@ fn serve_requests(s: &mut Workbench, tx: &mut Tx) -> bool {
                 Some(edit) => edit(s, &page),
                 None => s.status = "this build cannot edit pages".into(),
             },
+            ShellRequest::Copy(text) => tx.copy(text),
         }
     }
     changed

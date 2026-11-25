@@ -14,6 +14,19 @@ pub const VCS_REVISION: &str = match option_env!("CV_BUILD_VCS") {
     None => "",
 };
 
+const TOOLCHAIN_FILE: &str = include_str!("../../../rust-toolchain.toml");
+
+/// The Rust toolchain the checkout pins (`rust-toolchain.toml`'s
+/// `channel`), read at compile time.
+pub fn toolchain() -> &'static str {
+    TOOLCHAIN_FILE
+        .lines()
+        .find_map(|l| l.trim().strip_prefix("channel"))
+        .and_then(|v| v.trim().strip_prefix('='))
+        .map(|v| v.trim().trim_matches('"'))
+        .unwrap_or("unknown")
+}
+
 pub fn version_line() -> String {
     format!("cv-app/{VERSION}")
 }
@@ -64,6 +77,13 @@ mod tests {
         assert_eq!(v["enginePin"]["vcsRevision"], "66efcfb");
         assert_eq!(v["engine"]["error"], "no boris");
         assert_eq!(v["vcsRevision"], VCS_REVISION);
+    }
+
+    #[test]
+    fn toolchain_is_the_pinned_channel() {
+        let t = toolchain();
+        assert!(t.split('.').count() == 3, "{t}");
+        assert!(TOOLCHAIN_FILE.contains(&format!("channel = \"{t}\"")));
     }
 
     #[test]

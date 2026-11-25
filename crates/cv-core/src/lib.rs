@@ -25,6 +25,7 @@ pub mod engine;
 pub mod events;
 pub mod id;
 pub mod publish;
+pub mod redact;
 pub mod rules;
 pub mod store;
 pub mod sys;

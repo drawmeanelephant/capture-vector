@@ -9,10 +9,11 @@
 //! ```
 //!
 //! Fields whose key looks like a secret (`secret`, `password`, `token`,
-//! `nsec`, …) are dropped before serialization, so a careless call site
+//! `nsec`, …; `cv_core::redact`) are dropped before serialization, so a careless call site
 //! cannot leak a credential. Never log argv values, environment values, or
 //! page bodies.
 
+use cv_core::redact::is_secret_key;
 use serde_json::{Map, Value};
 use std::io::Write;
 use std::path::PathBuf;
@@ -73,6 +74,25 @@ pub fn init_from_env() {
         .map(|v| Sink::File(PathBuf::from(v)))
         .unwrap_or(Sink::Stderr);
     let _ = LOGGER.set(Logger { max, sink });
+}
+
+/// What logging is configured to do, for Doctor: the level and whether
+/// lines go to stderr or a file. The file path is an environment value
+/// and is never reported.
+pub fn describe() -> String {
+    match LOGGER.get() {
+        Some(Logger {
+            max: Some(max),
+            sink,
+        }) => {
+            let to = match sink {
+                Sink::Stderr => "stderr",
+                Sink::File(_) => "file",
+            };
+            format!("{} → {to}", max.as_str())
+        }
+        _ => "off".into(),
+    }
 }
 
 pub fn error(event: &str, fields: &[(&str, Value)]) {
@@ -144,20 +164,6 @@ fn render(level: Level, event: &str, fields: &[(&str, Value)], now_ms: u64) -> S
     line
 }
 
-fn is_secret_key(key: &str) -> bool {
-    let key = key.to_ascii_lowercase();
-    key.contains("secret")
-        || key.contains("password")
-        || key.contains("passphrase")
-        || key.contains("token")
-        || key.contains("nsec")
-        || key.contains("api_key")
-        || key.contains("apikey")
-        || key.contains("credential")
-        || key.starts_with("private_key")
-        || key == "authorization"
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -179,24 +185,6 @@ mod tests {
         assert!(should_log(Some(Level::Info), Level::Info));
         assert!(!should_log(Some(Level::Info), Level::Debug));
         assert!(!should_log(None, Level::Error));
-    }
-
-    #[test]
-    fn secret_keys_are_recognized() {
-        for key in [
-            "secret",
-            "api_key",
-            "CV_NOSTR_NSEC",
-            "password",
-            "access_token",
-            "private_key",
-            "authorization",
-        ] {
-            assert!(is_secret_key(key), "{key}");
-        }
-        for key in ["page", "root", "status", "key", "count"] {
-            assert!(!is_secret_key(key), "{key}");
-        }
     }
 
     #[test]

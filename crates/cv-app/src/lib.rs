@@ -4,6 +4,7 @@
 
 pub mod audit;
 pub mod build_info;
+pub mod doctor;
 pub mod editor;
 pub mod live;
 pub mod logging;
@@ -17,6 +18,7 @@ use cv_core::events::shell::DegradedReason;
 use cv_fixtures::stub_engine::StubEngine;
 use cv_fixtures::stub_store::StubStore;
 use cv_model::module::{ProjectSnapshot, Registry};
+use cv_model::modules::doctor::{EngineState, LockHolder};
 use cv_model::theme::Mode;
 use cv_model::workbench::Workbench;
 use cv_widgets::app::{Launch, Scene};
@@ -36,6 +38,7 @@ pub fn init() -> Workbench {
 fn init_with(publish: Box<dyn cv_model::modules::publish::PublishPort>) -> Workbench {
     cv_model::modules::audit::install(Box::new(audit::DiskPort::ephemeral()));
     cv_model::modules::publish::install(publish);
+    doctor::install(None);
     Workbench::new(Registry::with_all()).with_store(Box::new(StubStore::new()))
 }
 
@@ -167,8 +170,10 @@ pub fn open_workspace(
         cv_core::id::AccountId("local".into()),
         Box::new(SystemClock),
     );
+    let mut opened = doctor::StoreOpen::default();
     let research_err = match research {
         Ok((r, report)) => {
+            opened.research.lock = Some(LockHolder::ThisWindow);
             let input = snapshot::content_input(&root);
             // Promotion writes under the input; one that resolves outside
             // the workspace (a symlink) gets no writer, so promotion
@@ -186,21 +191,32 @@ pub fn open_workspace(
             let bad = report.notes.undecodable + report.provenance.undecodable;
             (bad > 0).then(|| format!("research journal skipped {bad} undecodable line(s)"))
         }
-        Err(e) => Some(format!("research notes not persisted: {e}")),
+        Err(e) => {
+            if matches!(e, cv_notes::disk::DiskError::Locked(_)) {
+                opened.research.lock = Some(LockHolder::OtherProcess);
+            }
+            opened.research.error = Some(e.to_string());
+            Some(format!("research notes not persisted: {e}"))
+        }
     };
     let audit_err = match audit::DiskPort::open(&root) {
         Ok(p) => {
             cv_model::modules::audit::install(Box::new(p));
+            opened.audit.lock = Some(LockHolder::ThisWindow);
             None
         }
         Err(e) => {
             cv_model::modules::audit::install(Box::new(audit::DiskPort::ephemeral()));
+            opened.audit.error = Some(e.to_string());
             Some(e.to_string())
         }
     };
     let publish = publish::DiskPort::open(&root);
     let publish_err = publish_warning(&publish);
+    opened.ledger.error = publish.error().map(str::to_string);
     cv_model::modules::publish::install(Box::new(publish));
+    let feed = doctor::install(Some(&root));
+    feed.update(|f| f.store = doctor::store(&root, &opened));
     wb.reset_project(workspace_registry());
     wb.workspace = Some(root.clone());
     show(wb, "pages");
@@ -227,6 +243,10 @@ pub fn open_workspace(
     if let Some(l) = &env.locator {
         cfg.locator = l.clone();
     }
+    feed.update(|f| {
+        f.engine = EngineState::Locating;
+        f.candidates = doctor::candidates(&cfg.locator);
+    });
     // A bare corpus (no profile) must name its input to boris.
     let input = snapshot::content_input(&root);
     if !root.join("boris.json").is_file() && input != "." {
@@ -237,6 +257,7 @@ pub fn open_workspace(
         slot,
         inbox: wb.inbox(),
         warning,
+        doctor: feed,
     })
 }
 
@@ -309,6 +330,7 @@ fn open_native(wb: &mut Workbench, root: PathBuf) {
 pub fn open_corpus(wb: &mut Workbench, corpus: &str) -> StubEngine {
     wb.load_snapshot(&snapshot::corpus_snapshot(corpus));
     let engine = StubEngine::new(corpus);
+    cv_model::modules::doctor::installed().update(|f| f.engine = doctor::fixture(corpus, &engine));
     attach_engine(wb, &engine);
     engine
 }
@@ -557,6 +579,10 @@ pub const SCENES: &[Scene] = &[
     ("publish-degraded", publish::scene::degraded),
     ("effects", effects),
     ("content-only", content_only),
+    ("doctor", doctor::scene::healthy),
+    ("doctor-engine-absent", doctor::scene::engine_absent),
+    ("doctor-version-mismatch", doctor::scene::version_mismatch),
+    ("doctor-watch-dead", doctor::scene::watch_dead),
 ];
 
 pub fn launch() -> Launch {

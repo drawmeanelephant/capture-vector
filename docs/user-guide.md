@@ -114,6 +114,12 @@ degraded state as a crash:
 - `watch dead` means the watch subprocess ended and the UI is disclosing
   that fact.
 
+The Doctor shows the facts behind each one. Click the engine chip in the
+status bar, or run **Open Doctor** from the palette. Its sections cover
+the engine (binary, how it was found, version and build info against the
+pin, the search order), the capability probe, the watch session, the
+`.cv/` store's schema stamps and locks, and this app build.
+
 The runbook has the diagnostic flow for each: `docs/runbooks/desktop-app.md`.
 
 ## Logging and support bundles
@@ -127,6 +133,12 @@ CV_LOG=debug CV_LOG_FILE=/tmp/cv.log cargo run -p cv-app -- --project /path/to/w
 Keys that look secret (`token`, `password`, `secret`, `nsec`, and similar)
 are dropped by the logger, but page bodies and local paths can still be
 sensitive. Read logs before attaching them to an issue.
+
+**Copy Doctor support bundle** (palette) copies a JSON report of the
+Doctor's sections. It leaves out page bodies, the engine's absolute
+paths, environment values, and secret-looking fields, and replaces the
+workspace root and home directory with `<workspace>` and `~`. Read it
+before attaching it to an issue.
 
 For UI problems, include the headless element tree:
 
@@ -150,7 +162,8 @@ capability evidence ledger.
 
 ## Troubleshooting
 
-Start with `docs/runbooks/desktop-app.md`. The short version:
+Open the Doctor first (the engine chip, or **Open Doctor** in the
+palette), then `docs/runbooks/desktop-app.md`. The short version:
 
 ```sh
 rustc --version

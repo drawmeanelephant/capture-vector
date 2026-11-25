@@ -19,6 +19,7 @@ use cv_engine::cursor::{CursorTracker, Observation};
 use cv_engine::probe::WatchMode;
 use cv_engine::{EngineConfig, EngineError, EngineScheduler, ProcessEngine, SeatPolicy};
 use cv_model::cascade::WANT_ENGINE;
+use cv_model::modules::doctor::{EngineState, Feed};
 use cv_model::workbench::{Inbound, Inbox};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -141,6 +142,9 @@ pub struct EngineBoot {
     /// A disclosure the boot outcome must not hide (research storage
     /// failed): kept in the status line and re-disclosed last.
     pub warning: Option<String>,
+    /// Doctor's facts: the gate and probe outcome land here before the
+    /// status send that wakes the UI.
+    pub doctor: Feed,
 }
 
 /// Final status + any degraded state; a carried warning stays visible.
@@ -177,12 +181,18 @@ pub fn spawn(b: EngineBoot) -> Option<JoinHandle<()>> {
     let inbox = b.inbox.clone();
     let warning = b.warning.clone();
     let root = b.cfg.root.clone();
+    let doctor = b.doctor.clone();
     match std::thread::Builder::new()
         .name("cv-engine-boot".into())
         .spawn(move || run(b))
     {
         Ok(handle) => Some(handle),
         Err(e) => {
+            doctor.update(|f| {
+                f.engine = EngineState::Failed {
+                    error: format!("engine boot thread failed to start: {e}"),
+                }
+            });
             boot_thread_failed(&inbox, &warning, &root, &e);
             None
         }
@@ -360,6 +370,7 @@ fn run(b: EngineBoot) {
         slot,
         inbox,
         warning,
+        doctor,
     } = b;
     let root: PathBuf = cfg.root.clone();
     let epoch = Arc::new(AtomicU64::new(1));
@@ -373,8 +384,15 @@ fn run(b: EngineBoot) {
         return;
     }
     let engine = match ProcessEngine::start(cfg) {
-        Ok(e) => Arc::new(e),
+        Ok(e) => {
+            doctor.update(|f| {
+                f.engine = crate::doctor::located(e.identity());
+                f.probe = Some(crate::doctor::probe(e.report()));
+            });
+            Arc::new(e)
+        }
         Err(e) => {
+            doctor.update(|f| f.engine = crate::doctor::engine_state(&e));
             let status = format!("{}: {e}", root.display());
             finish(&inbox, &warning, Some(degraded_reason(&e)), status);
             return;
