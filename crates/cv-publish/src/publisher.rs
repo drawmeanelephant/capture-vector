@@ -4,7 +4,8 @@
 use crate::adapters::{COPY_TO_FOLDER, Delivered, Delivery, DeliveryAdapter, copy_destination};
 use crate::plan::{SealedPlan, hash_json, inventory, load_sealed, sha256};
 use crate::preflight::{
-    PreflightOutcome, PreflightRequest, Ruleset, graph_file, run_dir, site_dir, verbs,
+    PreflightArtifacts, PreflightOutcome, PreflightRequest, Ruleset, graph_file, run_dir, site_dir,
+    verbs,
 };
 use crate::secrets::SecretBackend;
 use crate::targets::TargetConfig;
@@ -117,7 +118,9 @@ impl<'a> Publisher<'a> {
         let stuck: Vec<_> = self
             .runs()
             .into_iter()
-            .filter(|(_, v)| v.state == Some(RunState::Dispatching))
+            .filter(|(_, v)| {
+                v.state == Some(RunState::Dispatching) || v.delivery_contact_uncertain()
+            })
             .map(|(id, _)| id)
             .collect();
         for run in &stuck {
@@ -145,27 +148,31 @@ impl<'a> Publisher<'a> {
         validate_destination(&cfg.adapter, &cfg.destination)?;
         let seed = ids.next();
         run_dir(&seed)?;
-        // An IdGen can restart when the app restarts. The durable sequence
-        // distinguishes later sessions without sacrificing deterministic IDs.
-        let run = StableId(format!("{}-{}", seed.0, self.journal.records().len()));
-        let run_rel = run_dir(&run)?;
-        if self.run(&run).is_some() {
-            return Err(PublishError::Refused("publish run already recorded".into()));
-        }
         let target = cfg.target.id().to_string();
         let publish = confined(&self.root, Path::new(".cv/publish"))?;
         std::fs::create_dir_all(&publish)?;
-        let dir = confined(&self.root, Path::new(&run_rel))?;
-        // Never replace an existing run directory: it may be the only
-        // evidence of an earlier, possibly unresolved, run.
-        match std::fs::create_dir(&dir) {
-            Err(e) if e.kind() == ErrorKind::AlreadyExists => {
-                return Err(PublishError::Refused(
-                    "publish run directory already exists".into(),
-                ));
+        // An IdGen can restart when the app restarts, and a crash before the
+        // first journal append can leave an orphan run directory behind. Pick
+        // the first durable-sequence id unused in both the journal and the
+        // filesystem; existing directories are evidence and are never reused.
+        let mut nonce = self.journal.records().len() as u64;
+        let (run, _run_rel, dir) = loop {
+            let candidate = StableId(format!("{}-{}", seed.0, nonce));
+            let rel = run_dir(&candidate)?;
+            let dir = confined(&self.root, Path::new(&rel))?;
+            let occupied = match std::fs::symlink_metadata(&dir) {
+                Ok(_) => true,
+                Err(e) if e.kind() == ErrorKind::NotFound => false,
+                Err(e) => return Err(e.into()),
+            };
+            if self.run(&candidate).is_none() && !occupied {
+                std::fs::create_dir(&dir)?;
+                break (candidate, rel, dir);
             }
-            result => result?,
-        }
+            nonce = nonce
+                .checked_add(1)
+                .ok_or_else(|| PublishError::Refused("publish run id sequence exhausted".into()))?;
+        };
         let site_rel = site_dir(&run)?;
         std::fs::create_dir(dir.join("site"))?;
 
@@ -191,7 +198,12 @@ impl<'a> Publisher<'a> {
         }
         let mut advisory = Vec::new();
         if blocks.is_empty() {
-            let verdict = ruleset.evaluate(&site, &files);
+            let verdict = ruleset.evaluate(&PreflightArtifacts {
+                site: &site,
+                files: &files,
+                ir_graph: Some(confined_file(&self.root, Path::new(&graph_file(&run)?))?.as_path()),
+                config: cfg,
+            });
             blocks.extend(
                 verdict
                     .blocking
@@ -407,22 +419,35 @@ impl<'a> Publisher<'a> {
                 format!("run {other} on this target is unresolved; reconcile it first"),
             ));
         }
-        let plan: SealedPlan = serde_json::from_value(plan)?;
-        validate_plan(run, &plan)?;
-        validate_destination(&cfg.adapter, &cfg.destination)?;
-        let site = confined(&self.root, Path::new(&plan.site))?;
-        let broken = self.broken_seals(&v, &grant, &plan, cfg, ruleset, &site)?;
-        if !broken.is_empty() {
-            let _ = self.refuse(run, format!("seal broken: {}", broken.join(", ")));
-            return Err(PublishError::SealBroken(broken));
-        }
-        if !self.adapters.contains_key(&cfg.adapter) {
-            return Err(self.refuse(run, format!("no delivery adapter '{}'", cfg.adapter)));
-        }
-        let files = match load_sealed(&site, &plan) {
-            Ok(f) => f,
+        let verified = (|| {
+            let plan: SealedPlan = serde_json::from_value(plan)?;
+            validate_plan(run, &plan)?;
+            validate_destination(&cfg.adapter, &cfg.destination)?;
+            let site = confined(&self.root, Path::new(&plan.site))?;
+            let broken = self.broken_seals(&v, &grant, &plan, cfg, ruleset, &site)?;
+            if !broken.is_empty() {
+                return Err(PublishError::SealBroken(broken));
+            }
+            if !self.adapters.contains_key(&cfg.adapter) {
+                return Err(PublishError::Refused(format!(
+                    "no delivery adapter '{}'",
+                    cfg.adapter
+                )));
+            }
+            let files = load_sealed(&site, &plan)?;
+            Ok::<(SealedPlan, PathBuf, Vec<(crate::PlanFile, Vec<u8>)>), PublishError>((
+                plan, site, files,
+            ))
+        })();
+        let (plan, site, files) = match verified {
+            Ok(v) => v,
             Err(e) => {
-                let _ = self.refuse(run, e.to_string());
+                // Seal verification is part of the publish decision. Even an
+                // I/O or confinement failure must leave durable evidence; a
+                // bare error would otherwise look exactly like a run that was
+                // never attempted after a restart.
+                let reason = refusal_reason(&e);
+                let _ = self.refuse(run, reason);
                 return Err(e);
             }
         };
@@ -546,6 +571,14 @@ impl<'a> Publisher<'a> {
         };
         let by = format!("probe:{}", cfg.adapter);
         self.reconcile(run, obs, &by).map(Some)
+    }
+}
+
+fn refusal_reason(e: &PublishError) -> String {
+    match e {
+        PublishError::Refused(s) => s.clone(),
+        PublishError::SealBroken(b) => format!("seal broken: {}", b.join(", ")),
+        e => e.to_string(),
     }
 }
 

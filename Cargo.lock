@@ -827,6 +827,7 @@ name = "cv-publish"
 version = "0.0.0"
 dependencies = [
  "cv-core",
+ "cv-fixtures",
  "cv-ledger",
  "cv-rules",
  "cv-store",

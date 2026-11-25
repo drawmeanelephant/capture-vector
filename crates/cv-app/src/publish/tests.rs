@@ -92,7 +92,7 @@ fn delivered_run_carries_its_plan_settings_and_evidence() {
     );
     assert!(plan.files > 0 && plan.bytes > 0);
     let s = r.settings.as_ref().unwrap();
-    assert_eq!(s.profile, "boris.json");
+    assert_eq!(s.profile, "default HTML target");
     assert_eq!(s.base_url, "https://example.test/");
     assert!(!s.verified);
     assert_eq!(r.grant.as_ref().unwrap().boris_version, "boris/0.9.0");

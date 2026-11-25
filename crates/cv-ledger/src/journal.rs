@@ -19,13 +19,20 @@ pub const JOURNAL_REL: &str = ".cv/ledger/ledger.jsonl";
 /// mandatory, so locking the journal itself would refuse every reader.
 pub const WRITER_LOCK_REL: &str = ".cv/ledger/ledger.lock";
 
-/// `.cv/ledger/` sidecar schema. v1 = [`Record`] lines in `ledger.jsonl`
-/// (+ the rebuildable index); v0 is the same shape, unstamped.
+/// `.cv/ledger/` sidecar schema. v1 = the original [`Record`] vocabulary;
+/// v2 adds publish advisory/discard records. Both are the same line-oriented
+/// container, so migration only advances the stamp after the versioned shape
+/// is acknowledged.
+pub const LEDGER_V2_PUBLISH_ENTRIES: sidecar::Migration = sidecar::Migration {
+    from: 1,
+    run: |_| Ok(()),
+};
+
 pub const SIDECAR: Namespace = Namespace {
     name: "ledger",
     dir: ".cv/ledger",
-    current: 1,
-    migrations: &[sidecar::ADOPT_UNSTAMPED],
+    current: 2,
+    migrations: &[sidecar::ADOPT_UNSTAMPED, LEDGER_V2_PUBLISH_ENTRIES],
 };
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

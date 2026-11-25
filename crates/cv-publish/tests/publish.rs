@@ -12,7 +12,7 @@ use cv_publish::adapters::{
 };
 use cv_publish::exports;
 use cv_publish::plan::{PlanFile, SealedPlan, load_sealed};
-use cv_publish::preflight::{graph_file, run_dir, site_dir};
+use cv_publish::preflight::{PreflightArtifacts, graph_file, run_dir, site_dir};
 use cv_publish::secrets::{MockKeychain, NoSecrets, Secret, SecretBackend, StdinSecret};
 use cv_publish::{
     Observation, PreflightOutcome, PreflightRequest, PublishError, Publisher, Ruleset,
@@ -144,7 +144,7 @@ fn restarting_the_id_generator_preserves_the_old_run_evidence() {
 }
 
 #[test]
-fn preflight_refuses_to_replace_an_existing_run_directory() {
+fn preflight_preserves_an_existing_run_directory_and_uses_the_next_id() {
     let dir = tempfile::tempdir().unwrap();
     let eng = FakeEngine::new(dir.path());
     let mut publisher = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
@@ -157,13 +157,16 @@ fn preflight_refuses_to_replace_an_existing_run_directory() {
     let evidence = existing.join("evidence.txt");
     std::fs::write(&evidence, "preserve").unwrap();
 
-    let out = publisher.preflight(
-        &PreflightRequest { config: cfg() },
-        &Rules::ok(),
-        &mut ids("run"),
+    let run = granted(
+        publisher
+            .preflight(
+                &PreflightRequest { config: cfg() },
+                &Rules::ok(),
+                &mut ids("run"),
+            )
+            .unwrap(),
     );
-    assert!(matches!(out, Err(PublishError::Refused(_))));
-    assert!(eng.verbs().is_empty());
+    assert_ne!(run, first);
     assert_eq!(std::fs::read_to_string(evidence).unwrap(), "preserve");
 }
 
@@ -272,6 +275,7 @@ fn preflight_blocks_on_check_or_ruleset() {
     for v in eng.verbs() {
         if let Verb::Custom { name, args } = v
             && name == "build"
+            && args.iter().any(|a| a == "--html-dir")
         {
             assert!(arg(&args, "--html-dir").starts_with(".cv/publish/"));
         }
@@ -465,6 +469,120 @@ fn transport_failure_classifies_by_contact() {
     }
 }
 
+#[test]
+fn committed_delivery_without_dispatching_recovers_unknown_and_suppresses_retry() {
+    let dir = tempfile::tempdir().unwrap();
+    let eng = FakeEngine::new(dir.path());
+    let rules = Rules::ok();
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets)
+        .unwrap()
+        .with_adapter(flaky(dir.path()));
+    let run = granted(
+        p.preflight(&PreflightRequest { config: cfg() }, &rules, &mut ids("run"))
+            .unwrap(),
+    );
+    p.approve(&run, "tester").unwrap();
+    let grant = p.run(&run).unwrap().grant.unwrap();
+    let plan_hash = grant.plan_hash;
+    drop(p);
+
+    // A crash can commit the pre-contact Delivery evidence but die before
+    // the separate Dispatching record. That evidence alone must mean the
+    // transport may have been contacted.
+    let mut journal = cv_ledger::Journal::open(dir.path()).unwrap();
+    journal
+        .append(
+            CLOCK.0,
+            Entry::Delivery(cv_ledger::nouns::DeliveryNoun {
+                id: cv_ledger::nouns::derive_id("dlv", &[&run.0, COPY_TO_FOLDER]),
+                run: run.clone(),
+                target: Target::StaticDist.id().into(),
+                adapter: COPY_TO_FOLDER.into(),
+                plan_hash,
+                files: 2,
+                bytes: 10,
+            }),
+        )
+        .unwrap();
+    drop(journal);
+
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets)
+        .unwrap()
+        .with_adapter(flaky(dir.path()));
+    let v = p.run(&run).unwrap();
+    assert_eq!(v.state, Some(RunState::Unknown));
+    assert!(v.was_dispatched());
+    assert!(
+        matches!(p.publish(&run, &cfg(), &rules), Err(PublishError::Refused(r)) if r.contains("never retried"))
+    );
+    assert!(
+        !dir.path().join("deployed").exists(),
+        "delivery evidence without a terminal state must never be retried"
+    );
+}
+
+#[test]
+fn an_orphan_run_directory_makes_preflight_choose_the_next_unused_id() {
+    let dir = tempfile::tempdir().unwrap();
+    let orphan = dir
+        .path()
+        .join(run_dir(&StableId("run-000000-0".into())).unwrap());
+    std::fs::create_dir_all(&orphan).unwrap();
+    std::fs::write(orphan.join("evidence.txt"), "preserve").unwrap();
+    let eng = FakeEngine::new(dir.path());
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+
+    let run = granted(
+        p.preflight(
+            &PreflightRequest { config: cfg() },
+            &Rules::ok(),
+            &mut ids("run"),
+        )
+        .unwrap(),
+    );
+
+    assert_ne!(run, StableId("run-000000-0".into()));
+    assert_eq!(
+        std::fs::read_to_string(orphan.join("evidence.txt")).unwrap(),
+        "preserve"
+    );
+    assert!(dir.path().join(site_dir(&run).unwrap()).is_dir());
+}
+
+#[cfg(unix)]
+#[test]
+fn a_symlinked_sealed_site_is_a_durable_refusal() {
+    let dir = tempfile::tempdir().unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    let eng = FakeEngine::new(dir.path());
+    let rules = Rules::ok();
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets)
+        .unwrap()
+        .with_adapter(CopyToFolder::new(dir.path()));
+    let run = granted(
+        p.preflight(&PreflightRequest { config: cfg() }, &rules, &mut ids("run"))
+            .unwrap(),
+    );
+    p.approve(&run, "tester").unwrap();
+    let site = dir.path().join(site_dir(&run).unwrap());
+    std::fs::remove_dir_all(&site).unwrap();
+    std::os::unix::fs::symlink(outside.path(), &site).unwrap();
+
+    let err = p.publish(&run, &cfg(), &rules).unwrap_err();
+    assert!(
+        matches!(
+            err,
+            PublishError::Refused(_) | PublishError::SealBroken(_) | PublishError::Io(_)
+        ),
+        "{err:?}"
+    );
+    assert!(
+        !p.run(&run).unwrap().refusals.is_empty(),
+        "the failed seal verification must be durable evidence"
+    );
+    assert!(!dir.path().join("deployed").exists());
+}
+
 // ── adapters ─────────────────────────────────────────────────────────
 
 #[test]
@@ -472,9 +590,8 @@ fn run_command_goes_through_the_engine_port() {
     let dir = tempfile::tempdir().unwrap();
     let eng = FakeEngine::new(dir.path());
     let rules = Rules::ok();
-    let c = TargetConfig::new(
+    let c = TargetConfig::default_html(
         Target::NostrNip23,
-        "boris.json",
         "https://example.test/",
         RUN_COMMAND,
         "relays",
@@ -505,7 +622,7 @@ fn run_command_goes_through_the_engine_port() {
         })
         .unwrap();
     assert_eq!(arg(&publish, "--target"), "nostr-nip23");
-    assert_eq!(arg(&publish, "--profile"), "boris.json");
+    assert!(!publish.iter().any(|a| a == "--profile"));
     assert!(
         Path::new(arg(&publish, "--html-dir")).ends_with(format!(".cv/publish/{}/site", run.0)),
         "engine is pointed at the sealed site, not a target id alone"
@@ -548,9 +665,8 @@ fn http_run(status: u16, keychain: &MockKeychain) -> (tempfile::TempDir, MockHtt
     {
         let eng = FakeEngine::new(dir.path());
         let rules = Rules::ok();
-        let mut c = TargetConfig::new(
+        let mut c = TargetConfig::default_html(
             Target::GithubPages,
-            "boris.json",
             "https://example.test/",
             HTTP_POST,
             "https://indexnow.test/ping",
@@ -823,10 +939,10 @@ impl Ruleset for RealRules {
     fn hash(&self) -> Hash {
         self.0.hash()
     }
-    fn evaluate(&self, site: &Path, files: &[PlanFile]) -> RulesetVerdict {
+    fn evaluate(&self, artifacts: &PreflightArtifacts<'_>) -> RulesetVerdict {
         let mut set = cv_rules::ArtifactSet::builder();
-        for f in files.iter().filter(|f| f.path.ends_with(".html")) {
-            let bytes = std::fs::read(site.join(&f.path)).unwrap();
+        for f in artifacts.files.iter().filter(|f| f.path.ends_with(".html")) {
+            let bytes = std::fs::read(artifacts.site.join(&f.path)).unwrap();
             set = set.page(cv_rules::HtmlPage::parse(None, &f.path, &bytes).unwrap());
         }
         let report = cv_rules::eval(&set.build(), &self.0);
@@ -864,7 +980,12 @@ fn heuristic_only_ruleset_cannot_block_preflight_or_publish() {
             sha256: Hash([0; 32]),
         })
         .collect();
-    let v = heuristic.evaluate(&site, &files);
+    let v = heuristic.evaluate(&PreflightArtifacts {
+        site: &site,
+        files: &files,
+        ir_graph: None,
+        config: &cfg(),
+    });
     assert_eq!(
         v.advisory.len(),
         2,
@@ -995,9 +1116,12 @@ fn preflight_argv_is_what_boris_0_9_0_accepts() {
         argv,
         [
             ("build".into(), s(&["--html-dir", ".cv/publish/run-1/site"])),
-            ("validate".into(), s(&["--profile", "boris.json"])),
+            (
+                "validate".into(),
+                s(&["--html-dir", ".cv/publish/run-1/site"])
+            ),
             ("check".into(), vec![]),
-            ("graph".into(), s(&["--out", ".cv/publish/run-1/graph.mmd"])),
+            ("build".into(), s(&["--out", ".cv/publish/run-1/ir"])),
         ]
     );
 }

@@ -169,8 +169,31 @@ impl DeliveryAdapter for CopyToFolder {
             if let Some(dp) = dest.parent() {
                 parents.insert(dp.to_path_buf());
             }
-            for dir in &parents {
-                std::fs::File::open(dir)
+            // A rename is durable only after its containing directory is
+            // fsynced, and a newly created directory is durable only after
+            // every ancestor link is durable. Flush the complete used chain
+            // deepest-first up to the project root. Windows has no directory
+            // fsync equivalent on this path; there the terminal journal record
+            // can acknowledge renames before the directory entries themselves
+            // are guaranteed durable.
+            let mut chain = std::collections::BTreeSet::new();
+            for dir in parents {
+                let mut cur = Some(dir.as_path());
+                while let Some(d) = cur {
+                    if !d.starts_with(&self.root) {
+                        break;
+                    }
+                    chain.insert(d.to_path_buf());
+                    if d == self.root {
+                        break;
+                    }
+                    cur = d.parent();
+                }
+            }
+            let mut chain: Vec<_> = chain.into_iter().collect();
+            chain.sort_by_key(|p| std::cmp::Reverse(p.components().count()));
+            for dir in chain {
+                std::fs::File::open(&dir)
                     .and_then(|d| d.sync_all())
                     .map_err(|e| TransportFailure::after_contact(format!("fsync {dir:?}: {e}")))?;
             }
@@ -220,16 +243,16 @@ pub struct RunCommand {
 impl Default for RunCommand {
     fn default() -> Self {
         Self {
-            verb: |cfg, site| Verb::Custom {
-                name: "publish".into(),
-                args: vec![
-                    "--target".into(),
-                    cfg.target.id().into(),
-                    "--profile".into(),
-                    cfg.profile.clone(),
-                    "--html-dir".into(),
-                    site.to_string_lossy().into_owned(),
-                ],
+            verb: |cfg, site| {
+                let mut args = vec!["--target".into(), cfg.target.id().into()];
+                if let Some(profile) = &cfg.profile {
+                    args.extend(["--profile".into(), profile.clone()]);
+                }
+                args.extend(["--html-dir".into(), site.to_string_lossy().into_owned()]);
+                Verb::Custom {
+                    name: "publish".into(),
+                    args,
+                }
             },
         }
     }

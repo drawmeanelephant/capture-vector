@@ -214,7 +214,7 @@ fn run_record(id: &str, v: &RunView) -> RunRecord {
         match serde_json::from_value::<TargetConfig>(c.clone()) {
             Ok(c) => {
                 r.settings = Some(TargetSettings {
-                    profile: c.profile,
+                    profile: c.profile.unwrap_or_else(|| "default HTML target".into()),
                     base_url: c.deploy.base_url,
                     verified: c.verified,
                 })

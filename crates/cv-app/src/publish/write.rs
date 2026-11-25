@@ -5,13 +5,14 @@
 //! unconfigured until #185 decides the v1 adapters.
 
 use cv_core::engine::Engine;
+use cv_core::engine::ExportKind;
 use cv_core::id::StableId;
 use cv_core::publish::{RunState, RunStatus};
-use cv_core::rules::{AuthorityTier, CheckStatus};
+use cv_core::rules::{ArtifactKind, AuthorityTier, CheckStatus};
 use cv_core::sys::{Clock, Hash, IdGen};
 use cv_model::modules::publish::{Done, Observed};
 use cv_publish::adapters::{COPY_TO_FOLDER, CopyToFolder};
-use cv_publish::plan::PlanFile;
+use cv_publish::preflight::PreflightArtifacts;
 use cv_publish::secrets::NoSecrets;
 use cv_publish::{
     Observation, PreflightOutcome, PreflightRequest, PublishError, Publisher, Ruleset,
@@ -23,8 +24,6 @@ use std::path::Path;
 pub const ACTOR: &str = "local";
 /// Project-relative folder a static-dist run is copied into.
 pub const STATIC_DIST_FOLDER: &str = "publish/static-dist";
-/// Boris profile the preflight build validates.
-pub const PROFILE: &str = "boris.json";
 /// A folder copy has no host; the deploy profile still needs a base.
 const LOCAL_BASE_URL: &str = "http://localhost/";
 
@@ -32,9 +31,8 @@ const LOCAL_BASE_URL: &str = "http://localhost/";
 /// is wired.
 pub fn delivery_config(target: Target) -> Option<TargetConfig> {
     match target {
-        Target::StaticDist => Some(TargetConfig::new(
+        Target::StaticDist => Some(TargetConfig::default_html(
             target,
-            PROFILE,
             LOCAL_BASE_URL,
             COPY_TO_FOLDER,
             STATIC_DIST_FOLDER,
@@ -50,7 +48,7 @@ pub struct AuditRules(cv_rules::Ruleset);
 
 impl AuditRules {
     pub fn shipped() -> Self {
-        Self(cv_model::modules::audit::default_ruleset())
+        Self(cv_rules::Ruleset::v1())
     }
 }
 
@@ -58,19 +56,96 @@ impl Ruleset for AuditRules {
     fn hash(&self) -> Hash {
         self.0.hash()
     }
-    fn evaluate(&self, site: &Path, files: &[PlanFile]) -> RulesetVerdict {
-        let mut set = cv_rules::ArtifactSet::builder();
+    fn evaluate(&self, artifacts: &PreflightArtifacts<'_>) -> RulesetVerdict {
+        let mut set = cv_rules::ArtifactSet::builder().deploy(artifacts.config.deploy.clone());
         let mut unreadable = Vec::new();
-        for f in files.iter().filter(|f| f.path.ends_with(".html")) {
-            match std::fs::read(site.join(&f.path))
+        let mut ir = None;
+        if let Some(path) = artifacts.ir_graph {
+            match std::fs::read(path)
                 .map_err(|e| e.to_string())
                 .and_then(|b| {
-                    cv_rules::HtmlPage::parse(None, &f.path, &b).map_err(|e| e.to_string())
+                    cv_rules::IrGraph::from_json("ir/graph.json", &b).map_err(|e| e.to_string())
                 }) {
-                Ok(p) => set = set.page(p),
-                Err(e) => unreadable.push(format!("{}: {e}", f.path)),
+                Ok(g) => ir = Some(g),
+                Err(e) => unreadable.push(format!("ir/graph.json: {e}")),
             }
         }
+        if let Some(g) = ir {
+            set = set.ir(g.clone());
+            for f in artifacts.files.iter().filter(|f| f.path.ends_with(".html")) {
+                let entity = g
+                    .nodes
+                    .iter()
+                    .find(|n| f.path == format!("{}.html", n.id))
+                    .map(|n| n.id.as_str());
+                match std::fs::read(artifacts.site.join(&f.path))
+                    .map_err(|e| e.to_string())
+                    .and_then(|b| {
+                        cv_rules::HtmlPage::parse(entity, &f.path, &b).map_err(|e| e.to_string())
+                    }) {
+                    Ok(p) => set = set.page(p),
+                    Err(e) => unreadable.push(format!("{}: {e}", f.path)),
+                }
+            }
+        } else {
+            set = set.missing(ArtifactKind::Ir);
+            for f in artifacts.files.iter().filter(|f| f.path.ends_with(".html")) {
+                match std::fs::read(artifacts.site.join(&f.path))
+                    .map_err(|e| e.to_string())
+                    .and_then(|b| {
+                        cv_rules::HtmlPage::parse(None, &f.path, &b).map_err(|e| e.to_string())
+                    }) {
+                    Ok(p) => set = set.page(p),
+                    Err(e) => unreadable.push(format!("{}: {e}", f.path)),
+                }
+            }
+        }
+
+        let export_kind = |k: ExportKind| match k {
+            ExportKind::Sitemap => Some(ArtifactKind::Sitemap),
+            ExportKind::Rss => Some(ArtifactKind::Rss),
+            ExportKind::Llms => Some(ArtifactKind::Llms),
+            ExportKind::Context => Some(ArtifactKind::ContextBundle),
+            ExportKind::Rag => Some(ArtifactKind::Rag),
+            ExportKind::Out => None,
+        };
+        let parse_export = |kind: ArtifactKind, path: &str, bytes: &[u8]| match kind {
+            ArtifactKind::Sitemap => cv_rules::Export::sitemap_xml(path, bytes),
+            ArtifactKind::Rss => cv_rules::Export::rss_xml(path, bytes),
+            ArtifactKind::Llms => cv_rules::Export::llms_txt(path, bytes),
+            ArtifactKind::Rag => cv_rules::Export::rag_catalog_jsonl(path, bytes),
+            ArtifactKind::ContextBundle => cv_rules::Export::context_bundle_jsonl(path, bytes),
+            ArtifactKind::Ir | ArtifactKind::Html | ArtifactKind::RobotsTxt => unreachable!(),
+        };
+        for (engine_kind, declared) in &artifacts.config.exports {
+            let Some(kind) = export_kind(*engine_kind) else {
+                continue;
+            };
+            let rel = if declared.ends_with('/') {
+                format!("{declared}catalog.jsonl")
+            } else {
+                declared.clone()
+            };
+            match std::fs::read(artifacts.site.join(&rel)) {
+                Ok(bytes) => match parse_export(kind, &rel, &bytes) {
+                    Ok(e) => set = set.export(e),
+                    Err(_) => set = set.missing(kind),
+                },
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => set = set.not_emitted(kind),
+                Err(_) => set = set.missing(kind),
+            }
+        }
+        match std::fs::read(artifacts.site.join("robots.txt")) {
+            Ok(bytes) => match cv_rules::Export::robots_txt("robots.txt", &bytes) {
+                Ok(e) => set = set.export(e),
+                Err(_) => set = set.missing(ArtifactKind::RobotsTxt),
+            },
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                set = set.not_emitted(ArtifactKind::RobotsTxt)
+            }
+            Err(_) => set = set.missing(ArtifactKind::RobotsTxt),
+        }
+
         let report = cv_rules::eval(&set.build(), &self.0);
         let mut v = RulesetVerdict::default();
         for af in report
@@ -268,8 +343,20 @@ captured = "2026-11-23"
     fn verdict(rules: &AuditRules) -> RulesetVerdict {
         let d = tempfile::tempdir().unwrap();
         std::fs::write(d.path().join("index.html"), "<h1>t</h1>").unwrap();
+        let ir = d.path().join("ir");
+        std::fs::create_dir(&ir).unwrap();
+        std::fs::write(
+            ir.join("graph.json"),
+            cv_fixtures::ir_capture("happy").file("graph.json"),
+        )
+        .unwrap();
         let files = cv_publish::plan::inventory(d.path()).unwrap();
-        rules.evaluate(d.path(), &files)
+        rules.evaluate(&PreflightArtifacts {
+            site: d.path(),
+            files: &files,
+            ir_graph: Some(ir.join("graph.json").as_path()),
+            config: &delivery_config(Target::StaticDist).unwrap(),
+        })
     }
 
     #[test]
@@ -277,7 +364,7 @@ captured = "2026-11-23"
         let v = verdict(&one_failing_rule("NormativeSpec"));
         assert_eq!(v.blocking.len(), 1, "{v:?}");
         let (code, subject) = parse_key_id(&v.blocking[0]).expect("an Audit key");
-        assert_eq!((code, subject), ("GATE-H2", "index.html"));
+        assert_eq!((code, subject), ("GATE-H2", "index"));
         assert!(v.advisory.is_empty());
     }
 
@@ -285,7 +372,24 @@ captured = "2026-11-23"
     fn heuristic_findings_are_advisory_only() {
         let v = verdict(&one_failing_rule("Heuristic"));
         assert!(v.blocking.is_empty(), "{v:?}");
-        assert_eq!(v.advisory, ["GATE-H2 on index.html · heuristic"]);
+        assert_eq!(v.advisory, ["GATE-H2 on index · heuristic"]);
+    }
+
+    #[test]
+    fn publication_preflight_evaluates_target_rules_against_the_deploy_contract() {
+        let d = tempfile::tempdir().unwrap();
+        std::fs::write(d.path().join("index.html"), "<h1>t</h1>").unwrap();
+        let files = cv_publish::plan::inventory(d.path()).unwrap();
+        let v = AuditRules::shipped().evaluate(&PreflightArtifacts {
+            site: d.path(),
+            files: &files,
+            ir_graph: None,
+            config: &delivery_config(Target::StaticDist).unwrap(),
+        });
+        assert!(
+            v.blocking.iter().any(|b| b.starts_with("TGT-ROBOTS-TXT|")),
+            "missing robots.txt must reach the blocking target rule: {v:?}"
+        );
     }
 
     #[test]

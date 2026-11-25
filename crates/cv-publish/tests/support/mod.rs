@@ -12,7 +12,8 @@ use cv_core::sys::{FixedClock, Hash, SeqIdGen, Timestamp};
 use cv_publish::adapters::{
     COPY_TO_FOLDER, CopyToFolder, Delivered, Delivery, DeliveryAdapter, TransportFailure,
 };
-use cv_publish::plan::{PlanFile, SealedPlan};
+use cv_publish::plan::SealedPlan;
+use cv_publish::preflight::PreflightArtifacts;
 use cv_publish::{Observation, PreflightOutcome, Ruleset, RulesetVerdict, Target, TargetConfig};
 use std::cell::Cell;
 use std::path::{Path, PathBuf};
@@ -89,17 +90,26 @@ impl Engine for FakeEngine {
     fn run(&self, cmd: &Verb, _: EventSink) -> cv_core::Result<ExitClass> {
         self.verbs.lock().unwrap().push(cmd.clone());
         match cmd {
-            Verb::Custom { name, args } if name == "build" => {
+            Verb::Custom { name, args }
+                if name == "build" && args.iter().any(|a| a == "--html-dir") =>
+            {
                 let site = self.root.join(arg(args, "--html-dir"));
                 for (p, body) in &self.pages {
                     let f = site.join(p);
                     std::fs::create_dir_all(f.parent().unwrap()).unwrap();
                     std::fs::write(f, body).unwrap();
                 }
+                std::fs::write(site.join("robots.txt"), "User-agent: *\n").unwrap();
                 Ok(ExitClass::Ok)
             }
-            Verb::Custom { name, args } if name == "graph" => {
-                std::fs::write(self.root.join(arg(args, "--out")), "graph TD; a-->b").unwrap();
+            Verb::Custom { name, args } if name == "build" && args.iter().any(|a| a == "--out") => {
+                let dir = self.root.join(arg(args, "--out"));
+                std::fs::create_dir_all(&dir).unwrap();
+                std::fs::write(
+                    dir.join("graph.json"),
+                    cv_fixtures::ir_capture("happy").file("graph.json"),
+                )
+                .unwrap();
                 Ok(ExitClass::Ok)
             }
             Verb::Custom { name, .. } if name == "check" => Ok(self.check_exit),
@@ -127,7 +137,7 @@ impl Ruleset for Rules {
     fn hash(&self) -> Hash {
         Hash([self.0.get(); 32])
     }
-    fn evaluate(&self, _: &Path, _: &[PlanFile]) -> RulesetVerdict {
+    fn evaluate(&self, _: &PreflightArtifacts<'_>) -> RulesetVerdict {
         RulesetVerdict {
             blocking: self.1.clone(),
             advisory: vec!["heuristic: meta description short".into()],
@@ -183,9 +193,8 @@ pub fn flaky(root: &Path) -> Flaky {
 }
 
 pub fn cfg() -> TargetConfig {
-    TargetConfig::new(
+    TargetConfig::default_html(
         Target::StaticDist,
-        "boris.json",
         "https://example.test/",
         COPY_TO_FOLDER,
         "deployed",

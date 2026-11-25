@@ -121,8 +121,10 @@ impl Target {
 pub struct TargetConfig {
     pub target: Target,
     pub verified: bool,
-    /// Boris publication profile driving the build.
-    pub profile: String,
+    /// Boris publication profile driving the build. `None` is explicit:
+    /// this target is Boris's synthetic `default` HTML target, not a named
+    /// publication profile pretending to be one.
+    pub profile: Option<String>,
     pub deploy: TargetDeployProfile,
     /// Delivery adapter id + its destination (project-relative folder
     /// outside `.cv/`, URL, …).
@@ -142,7 +144,22 @@ impl TargetConfig {
         Self {
             target,
             verified: target.verified(),
-            profile: profile.into(),
+            profile: Some(profile.into()),
+            deploy: target.deploy_profile(base_url),
+            adapter: adapter.into(),
+            destination: destination.into(),
+            exports: target.default_exports(),
+        }
+    }
+
+    /// The synthetic Boris `default` HTML target. Static-dist means exactly
+    /// this target: it is not a publication profile target and must never
+    /// validate or seal proof artifacts from a different named target.
+    pub fn default_html(target: Target, base_url: &str, adapter: &str, destination: &str) -> Self {
+        Self {
+            target,
+            verified: target.verified(),
+            profile: None,
             deploy: target.deploy_profile(base_url),
             adapter: adapter.into(),
             destination: destination.into(),

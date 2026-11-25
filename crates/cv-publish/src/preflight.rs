@@ -18,7 +18,19 @@ use std::path::Path;
 pub trait Ruleset {
     /// Identity of the ruleset configuration (`ruleset_hash`).
     fn hash(&self) -> Hash;
-    fn evaluate(&self, site: &Path, files: &[PlanFile]) -> RulesetVerdict;
+    fn evaluate(&self, artifacts: &PreflightArtifacts<'_>) -> RulesetVerdict;
+}
+
+/// Everything publication rules may evaluate, all produced by the same
+/// preflight run and sealed before delivery.
+pub struct PreflightArtifacts<'a> {
+    pub site: &'a Path,
+    pub files: &'a [PlanFile],
+    /// Boris's own IR `graph.json` projection for this preflight, when the
+    /// engine produced it. Entity identity comes from here, never from
+    /// string-repairing output routes.
+    pub ir_graph: Option<&'a Path>,
+    pub config: &'a TargetConfig,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -64,26 +76,40 @@ pub fn site_dir(run: &StableId) -> Result<String> {
     Ok(format!("{}/site", run_dir(run)?))
 }
 
+pub fn ir_dir(run: &StableId) -> Result<String> {
+    Ok(format!("{}/ir", run_dir(run)?))
+}
+
 pub fn graph_file(run: &StableId) -> Result<String> {
-    Ok(format!("{}/graph.mmd", run_dir(run)?))
+    Ok(format!("{}/graph.json", ir_dir(run)?))
 }
 
 /// The engine verbs preflight issues, in order. Argv is mapped by
-/// cv-engine; nothing here carries a secret. Boris 0.9.0 refuses
-/// `--profile` beside an output override and `check` beside
-/// `--html-dir`, so the build names only its output dir and `check`
-/// reads the source graph; `validate` alone checks the profile.
+/// cv-engine; nothing here carries a secret.
+///
+/// Static-dist is explicitly Boris's synthetic `default` HTML target:
+/// `build --html-dir SITE` and `validate --html-dir SITE` name the same
+/// target configuration, so validation, proof artifacts and the seal all
+/// describe the bytes actually built. Named publication profiles cannot be
+/// redirected into a private output directory by Boris 0.9.0; refusing them
+/// is honest where pretending otherwise would seal a different proof target.
 pub fn verbs(cfg: &TargetConfig, run: &StableId) -> Result<Vec<(&'static str, Verb)>> {
+    if cfg.profile.is_some() {
+        return Err(PublishError::Refused(
+            "publication-profile preflight cannot redirect Boris 0.9.0 into a private run dir"
+                .into(),
+        ));
+    }
     let c = |name: &str, args: &[&str]| Verb::Custom {
         name: name.into(),
         args: args.iter().map(|s| s.to_string()).collect(),
     };
     let site = site_dir(run)?;
-    let graph = graph_file(run)?;
+    let ir = ir_dir(run)?;
     Ok(vec![
         ("build", c("build", &["--html-dir", &site])),
-        ("validate", c("validate", &["--profile", &cfg.profile])),
+        ("validate", c("validate", &["--html-dir", &site])),
         ("check", c("check", &[])),
-        ("graph", c("graph", &["--out", &graph])),
+        ("ir", c("build", &["--out", &ir])),
     ])
 }

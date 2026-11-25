@@ -17,7 +17,6 @@ use cv_model::workbench::Workbench;
 use cv_publish::adapters::{
     COPY_TO_FOLDER, CopyToFolder, Delivered, Delivery, DeliveryAdapter, HTTP_POST, TransportFailure,
 };
-use cv_publish::plan::PlanFile;
 use cv_publish::secrets::NoSecrets;
 use cv_publish::{
     PreflightOutcome, PreflightRequest, Publisher, Ruleset, RulesetVerdict, Target, TargetConfig,
@@ -87,13 +86,19 @@ impl Engine for CapturedBuild {
             return Ok(ExitClass::Ok);
         };
         match name.as_str() {
-            "build" => {
+            "build" if args.iter().any(|a| a == "--html-dir") => {
                 let dist = cv_fixtures::fixtures_root().join("captures/happy/dist/dist");
                 copy_tree(&dist, &self.root.join(flag(args, "--html-dir")?)).map_err(io)?;
                 Ok(ExitClass::Ok)
             }
-            "graph" => {
-                std::fs::write(self.root.join(flag(args, "--out")?), GRAPH).map_err(io)?;
+            "build" if args.iter().any(|a| a == "--out") => {
+                let dir = self.root.join(flag(args, "--out")?);
+                std::fs::create_dir_all(&dir).map_err(io)?;
+                std::fs::write(
+                    dir.join("graph.json"),
+                    cv_fixtures::ir_capture("happy").file("graph.json"),
+                )
+                .map_err(io)?;
                 Ok(ExitClass::Ok)
             }
             "check" => Ok(self.check),
@@ -115,7 +120,7 @@ impl Ruleset for SceneRules {
     fn hash(&self) -> Hash {
         Hash([0x5c; 32])
     }
-    fn evaluate(&self, _: &Path, _: &[PlanFile]) -> RulesetVerdict {
+    fn evaluate(&self, _: &cv_publish::preflight::PreflightArtifacts<'_>) -> RulesetVerdict {
         RulesetVerdict::default()
     }
 }
@@ -135,13 +140,7 @@ impl DeliveryAdapter for LostOutcome {
 }
 
 pub(super) fn config(target: Target, adapter: &str, destination: &str) -> TargetConfig {
-    TargetConfig::new(
-        target,
-        "boris.json",
-        "https://example.test/",
-        adapter,
-        destination,
-    )
+    TargetConfig::default_html(target, "https://example.test/", adapter, destination)
 }
 
 pub(super) fn open<'a>(root: &Path, engine: &'a CapturedBuild) -> Publisher<'a> {
