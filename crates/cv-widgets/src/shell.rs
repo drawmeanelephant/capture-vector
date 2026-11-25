@@ -2,7 +2,6 @@
 //! reading / inspector providers, status bar, command palette. Renders
 //! `*Model` data only — no lane logic, no IO.
 
-use crate::diagnostic;
 use crate::theme::{self, Size, Styled, color, font};
 use crate::{controls, fx, icons};
 use cv_core::events::shell::DegradedReason;
@@ -20,7 +19,7 @@ pub(crate) fn tone(t: &Theme, tn: Tone) -> Color {
     color(tone_token(t, tn))
 }
 
-fn label(t: &Theme, s: impl Into<String>) -> El {
+pub(crate) fn label(t: &Theme, s: impl Into<String>) -> El {
     text(s)
         .font(font(t.type_.label))
         .color(color(t.colors.text_dim))
@@ -61,7 +60,7 @@ pub fn degraded_tone(r: &DegradedReason) -> Tone {
     }
 }
 
-fn tone_token(t: &Theme, tn: Tone) -> Rgba {
+pub(crate) fn tone_token(t: &Theme, tn: Tone) -> Rgba {
     let c = &t.colors;
     match tn {
         Tone::Normal => c.text,
@@ -73,7 +72,7 @@ fn tone_token(t: &Theme, tn: Tone) -> Rgba {
 }
 
 /// A small tinted capsule: `label` in the tone colour on a wash of it.
-fn chip(t: &Theme, key: &str, label: impl Into<String>, tn: Tone) -> El {
+pub(crate) fn chip(t: &Theme, key: &str, label: impl Into<String>, tn: Tone) -> El {
     let fg = tone_token(t, tn);
     row()
         .key(key.to_string())
@@ -542,16 +541,21 @@ fn reading(s: &Workbench) -> El {
         if let Some(lb) = l.label {
             r = r.child(label(t, lb).w(96.0));
         }
-        pane = pane.child(
-            r.child(
-                text(l.text)
-                    .font(font(style))
-                    .color(tone(t, l.tone))
-                    .wrap()
-                    .grow(1.0)
-                    .min_w(0.0),
-            ),
-        );
+        let mut line = text(l.text.clone())
+            .font(font(style))
+            .color(tone(t, l.tone))
+            .wrap()
+            .grow(1.0)
+            .min_w(0.0);
+        if crate::inspector::is_url(&l.text) {
+            let url = l.text;
+            line = line.role("link").color(color(t.colors.accent)).on_press_tx(
+                move |_: &mut Workbench, tx| {
+                    let _ = tx.open_url(&url);
+                },
+            );
+        }
+        pane = pane.child(r.child(line));
     }
     if let Some(md) = model.markdown {
         // Draft sketch only: Boris output stays authoritative.
@@ -567,97 +571,6 @@ fn reading(s: &Workbench) -> El {
                 })
                 .child(Markdown::new(md).render(&theme::markdown(t))),
         );
-    }
-    pane
-}
-
-fn inspector(s: &Workbench) -> El {
-    let t = &s.theme;
-    let mut pane = col()
-        .key("inspector")
-        .w(t.spacing.inspector_w)
-        .h_full()
-        .padding(t.spacing.unit * 2.0)
-        .gap(t.spacing.unit)
-        .fill(color(t.colors.pane_alt))
-        .child(
-            text("Inspector")
-                .font(font(t.type_.title))
-                .color(color(t.colors.text)),
-        );
-    let field = |k: &str, v: String| {
-        row()
-            .key(format!("field-{k}"))
-            .gap(t.spacing.unit * 2.0)
-            .child(label(t, k.to_string()).w(72.0))
-            .child(
-                text(v)
-                    .font(font(t.type_.mono))
-                    .color(color(t.colors.text))
-                    .truncate(),
-            )
-    };
-    if let Some(k) = s.selected_key()
-        && let Some(m) = s.registry.get(s.active)
-    {
-        let model = m.inspector(k);
-        for (name, v) in model.fields {
-            pane = pane.child(field(&name, v));
-        }
-        if !model.diagnostics.is_empty() {
-            pane = pane.child(
-                label(t, "Diagnostics")
-                    .key("diagnostics")
-                    .mt(t.spacing.unit * 2.0),
-            );
-            for (n, d) in model.diagnostics.iter().enumerate() {
-                pane = pane.child(diagnostic::card(t, d, n));
-            }
-        }
-        for (n, (title, items)) in model.lists.into_iter().enumerate() {
-            pane = pane.child(
-                label(t, format!("{title} ({})", items.len()))
-                    .key(format!("list-{n}"))
-                    .mt(t.spacing.unit * 2.0),
-            );
-            for (j, it) in items.into_iter().take(12).enumerate() {
-                pane = pane.child(
-                    text(it)
-                        .key(format!("list-{n}-{j}"))
-                        .font(font(t.type_.mono))
-                        .color(color(t.colors.text))
-                        .truncate(),
-                );
-            }
-        }
-        if let Some(l) = s.link_for(k) {
-            pane = pane.child(
-                controls::button(
-                    t,
-                    "follow-link",
-                    &l.label,
-                    controls::Variant::Primary,
-                    |s: &mut Workbench| s.follow_link(),
-                )
-                .mt(t.spacing.unit * 2.0),
-            );
-        }
-    }
-    pane = pane.child(label(t, "Windows").mt(t.spacing.unit * 2.0));
-    pane = pane.child(field(
-        "primary",
-        if s.windows.primary.dirty {
-            "dirty"
-        } else {
-            "clean"
-        }
-        .into(),
-    ));
-    for c in &s.windows.companions {
-        pane = pane.child(field(
-            &format!("win{}", c.id.0),
-            format!("{}{}", c.title, if c.state.dirty { " *" } else { "" }),
-        ));
     }
     pane
 }
@@ -792,7 +705,7 @@ pub fn view(s: &Workbench, cx: &mut Cx<Workbench>) -> El {
         .child(list(s))
         .child(reading(s));
     if s.inspector_open {
-        body = body.child(inspector(s));
+        body = body.child(crate::inspector::pane(s));
     }
     let mut root = col()
         .key("shell")

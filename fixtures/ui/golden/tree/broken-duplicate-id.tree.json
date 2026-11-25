@@ -933,7 +933,7 @@
       "rect": [
         1128.0,
         28.3,
-        93.5,
+        144.0,
         13.8
       ],
       "role": "text",
@@ -971,7 +971,7 @@
       "rect": [
         1128.0,
         46.0,
-        26.8,
+        144.0,
         13.8
       ],
       "role": "text",
@@ -1004,6 +1004,7 @@
     },
     {
       "color": "#e6e9efff",
+      "help": "Second Page with Duplicate ID",
       "opacity": 1.0,
       "path": "shell/body/inspector/field-title/#1",
       "rect": [
@@ -1047,36 +1048,88 @@
       "rect": [
         1128.0,
         81.5,
-        64.4,
+        144.0,
         13.8
       ],
       "role": "text",
       "text": "stub-build-2"
     },
     {
-      "color": "#8a93a3ff",
       "key": "diagnostics",
+      "label": "Diagnostics",
       "opacity": 1.0,
       "path": "shell/body/inspector/diagnostics",
       "rect": [
         1048.0,
         107.3,
         224.0,
-        13.8
+        15.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/diagnostics/#0",
+      "rect": [
+        1048.0,
+        108.8,
+        12.0,
+        12.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/diagnostics/#1",
+      "rect": [
+        1064.0,
+        107.3,
+        68.4,
+        15.0
       ],
       "role": "text",
       "text": "Diagnostics"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#8a93a32e",
+      "key": "diagnostics-count",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/diagnostics/diagnostics-count",
+      "radius": 999.0,
+      "rect": [
+        1136.4,
+        107.9,
+        16.6,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/diagnostics/diagnostics-count/#0",
+      "rect": [
+        1142.4,
+        107.9,
+        4.6,
+        13.8
+      ],
+      "role": "text",
+      "text": "1"
+    },
+    {
+      "fill": "#ff3d711a",
       "key": "diag-0",
       "opacity": 1.0,
       "path": "shell/body/inspector/diag-0",
+      "radius": 6.0,
       "rect": [
         1048.0,
-        125.0,
+        126.3,
         224.0,
-        92.3
+        129.3
       ],
       "role": "note"
     },
@@ -1085,11 +1138,12 @@
       "key": "diag-rail",
       "opacity": 1.0,
       "path": "shell/body/inspector/diag-0/diag-rail",
+      "radius": 6.0,
       "rect": [
         1048.0,
-        125.0,
+        126.3,
         3.0,
-        92.3
+        129.3
       ],
       "role": "group"
     },
@@ -1098,10 +1152,10 @@
       "opacity": 1.0,
       "path": "shell/body/inspector/diag-0/diag-body",
       "rect": [
-        1055.0,
-        125.0,
-        217.0,
-        92.3
+        1051.0,
+        126.3,
+        221.0,
+        129.3
       ],
       "role": "group"
     },
@@ -1110,9 +1164,23 @@
       "opacity": 1.0,
       "path": "shell/body/inspector/diag-0/diag-body/diag-head",
       "rect": [
-        1055.0,
-        125.0,
-        217.0,
+        1059.0,
+        134.3,
+        205.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ff3d712e",
+      "key": "diag-severity",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/diag-0/diag-body/diag-head/diag-severity",
+      "radius": 999.0,
+      "rect": [
+        1059.0,
+        134.3,
+        37.8,
         13.8
       ],
       "role": "group"
@@ -1120,10 +1188,10 @@
     {
       "color": "#ff3d71ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/diag-0/diag-body/diag-head/#0",
+      "path": "shell/body/inspector/diag-0/diag-body/diag-head/diag-severity/#0",
       "rect": [
-        1055.0,
-        125.0,
+        1065.0,
+        134.3,
         25.8,
         13.8
       ],
@@ -1131,13 +1199,27 @@
       "text": "error"
     },
     {
+      "fill": "#e6e9ef2e",
+      "key": "diag-code",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/diag-0/diag-body/diag-head/diag-code",
+      "radius": 999.0,
+      "rect": [
+        1100.8,
+        134.3,
+        90.4,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/diag-0/diag-body/diag-head/#1",
+      "path": "shell/body/inspector/diag-0/diag-body/diag-head/diag-code/#0",
       "rect": [
-        1084.8,
-        125.0,
-        78.0,
+        1106.8,
+        134.3,
+        78.4,
         13.8
       ],
       "role": "text",
@@ -1149,9 +1231,9 @@
       "opacity": 1.0,
       "path": "shell/body/inspector/diag-0/diag-body/diag-at",
       "rect": [
-        1055.0,
-        140.8,
-        217.0,
+        1059.0,
+        152.0,
+        205.0,
         13.8
       ],
       "role": "text",
@@ -1163,10 +1245,10 @@
       "opacity": 1.0,
       "path": "shell/body/inspector/diag-0/diag-body/diag-msg",
       "rect": [
-        1055.0,
-        156.5,
-        217.0,
-        45.0
+        1059.0,
+        169.8,
+        205.0,
+        60.0
       ],
       "role": "text",
       "text": "duplicate id \"duplicate-id-page\" (also a.md) [Give each document a unique id (path-derived or id: override)]"
@@ -1177,77 +1259,62 @@
       "opacity": 1.0,
       "path": "shell/body/inspector/diag-0/diag-body/diag-build",
       "rect": [
-        1055.0,
-        203.5,
-        217.0,
+        1059.0,
+        233.8,
+        205.0,
         13.8
       ],
       "role": "text",
       "text": "build stub-build-2"
     },
     {
-      "color": "#8a93a3ff",
       "key": "list-0",
+      "label": "Satellites (nav, breadcrumbs)",
       "opacity": 1.0,
       "path": "shell/body/inspector/list-0",
       "rect": [
         1048.0,
-        229.3,
+        267.5,
         224.0,
-        13.8
+        15.0
       ],
-      "role": "text",
-      "text": "Satellites (nav, breadcrumbs) (0)"
-    },
-    {
-      "color": "#8a93a3ff",
-      "key": "list-1",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/list-1",
-      "rect": [
-        1048.0,
-        255.0,
-        224.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "Referenced by (0)"
-    },
-    {
-      "color": "#8a93a3ff",
-      "key": "list-2",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/list-2",
-      "rect": [
-        1048.0,
-        280.8,
-        224.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "Outputs (0)"
+      "role": "button"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/#10",
+      "path": "shell/body/inspector/list-0/#0",
       "rect": [
         1048.0,
-        306.5,
-        224.0,
-        13.8
+        269.0,
+        12.0,
+        12.0
       ],
-      "role": "text",
-      "text": "Windows"
+      "role": "icon"
     },
     {
-      "key": "field-primary",
+      "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-primary",
+      "path": "shell/body/inspector/list-0/#1",
       "rect": [
-        1048.0,
-        324.3,
-        224.0,
+        1064.0,
+        267.5,
+        170.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "Satellites (nav, breadcrumbs)"
+    },
+    {
+      "fill": "#8a93a32e",
+      "key": "list-0-count",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-0/list-0-count",
+      "radius": 999.0,
+      "rect": [
+        1238.0,
+        268.1,
+        19.1,
         13.8
       ],
       "role": "group"
@@ -1255,28 +1322,145 @@
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-primary/#0",
+      "path": "shell/body/inspector/list-0/list-0-count/#0",
       "rect": [
-        1048.0,
-        324.3,
-        72.0,
+        1244.0,
+        268.1,
+        7.1,
         13.8
       ],
       "role": "text",
-      "text": "primary"
+      "text": "0"
     },
     {
-      "color": "#e6e9efff",
+      "key": "list-1",
+      "label": "Referenced by",
       "opacity": 1.0,
-      "path": "shell/body/inspector/field-primary/#1",
+      "path": "shell/body/inspector/list-1",
       "rect": [
-        1128.0,
-        324.3,
-        28.2,
+        1048.0,
+        294.5,
+        224.0,
+        15.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-1/#0",
+      "rect": [
+        1048.0,
+        296.0,
+        12.0,
+        12.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-1/#1",
+      "rect": [
+        1064.0,
+        294.5,
+        84.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "Referenced by"
+    },
+    {
+      "fill": "#8a93a32e",
+      "key": "list-1-count",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-1/list-1-count",
+      "radius": 999.0,
+      "rect": [
+        1152.1,
+        295.1,
+        19.1,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-1/list-1-count/#0",
+      "rect": [
+        1158.1,
+        295.1,
+        7.1,
         13.8
       ],
       "role": "text",
-      "text": "clean"
+      "text": "0"
+    },
+    {
+      "key": "list-2",
+      "label": "Outputs",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-2",
+      "rect": [
+        1048.0,
+        321.5,
+        224.0,
+        15.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-2/#0",
+      "rect": [
+        1048.0,
+        323.0,
+        12.0,
+        12.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-2/#1",
+      "rect": [
+        1064.0,
+        321.5,
+        46.4,
+        15.0
+      ],
+      "role": "text",
+      "text": "Outputs"
+    },
+    {
+      "fill": "#8a93a32e",
+      "key": "list-2-count",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-2/list-2-count",
+      "radius": 999.0,
+      "rect": [
+        1114.4,
+        322.1,
+        19.1,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-2/list-2-count/#0",
+      "rect": [
+        1120.4,
+        322.1,
+        7.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "0"
     },
     {
       "fill": "#08090cff",

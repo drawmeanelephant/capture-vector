@@ -1547,7 +1547,7 @@
       "rect": [
         1128.0,
         60.3,
-        28.1,
+        144.0,
         13.8
       ],
       "role": "text",
@@ -1585,7 +1585,7 @@
       "rect": [
         1128.0,
         78.0,
-        26.8,
+        144.0,
         13.8
       ],
       "role": "text",
@@ -1623,7 +1623,7 @@
       "rect": [
         1128.0,
         95.8,
-        68.5,
+        144.0,
         13.8
       ],
       "role": "text",
@@ -1661,7 +1661,7 @@
       "rect": [
         1128.0,
         113.5,
-        37.1,
+        144.0,
         13.8
       ],
       "role": "text",
@@ -1699,25 +1699,76 @@
       "rect": [
         1128.0,
         131.3,
-        62.5,
+        144.0,
         13.8
       ],
       "role": "text",
       "text": "stub-build-1"
     },
     {
-      "color": "#8a93a3ff",
       "key": "list-0",
+      "label": "Satellites (nav, breadcrumbs)",
       "opacity": 1.0,
       "path": "shell/body/inspector/list-0",
       "rect": [
         1048.0,
         157.0,
         224.0,
+        15.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-0/#0",
+      "rect": [
+        1048.0,
+        158.5,
+        12.0,
+        12.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-0/#1",
+      "rect": [
+        1064.0,
+        157.0,
+        170.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "Satellites (nav, breadcrumbs)"
+    },
+    {
+      "fill": "#8a93a32e",
+      "key": "list-0-count",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-0/list-0-count",
+      "radius": 999.0,
+      "rect": [
+        1238.0,
+        157.6,
+        18.8,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-0/list-0-count/#0",
+      "rect": [
+        1244.0,
+        157.6,
+        6.8,
         13.8
       ],
       "role": "text",
-      "text": "Satellites (nav, breadcrumbs) (2)"
+      "text": "2"
     },
     {
       "color": "#e6e9efff",
@@ -1726,7 +1777,7 @@
       "path": "shell/body/inspector/list-0-0",
       "rect": [
         1048.0,
-        174.8,
+        176.0,
         224.0,
         13.8
       ],
@@ -1740,7 +1791,7 @@
       "path": "shell/body/inspector/list-0-1",
       "rect": [
         1048.0,
-        192.5,
+        193.8,
         224.0,
         13.8
       ],
@@ -1748,32 +1799,134 @@
       "text": "Getting Started"
     },
     {
-      "color": "#8a93a3ff",
       "key": "list-1",
+      "label": "Referenced by",
       "opacity": 1.0,
       "path": "shell/body/inspector/list-1",
       "rect": [
         1048.0,
-        218.3,
+        219.5,
         224.0,
-        13.8
+        15.0
       ],
-      "role": "text",
-      "text": "Referenced by (0)"
+      "role": "button"
     },
     {
       "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-1/#0",
+      "rect": [
+        1048.0,
+        221.0,
+        12.0,
+        12.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-1/#1",
+      "rect": [
+        1064.0,
+        219.5,
+        84.1,
+        15.0
+      ],
+      "role": "text",
+      "text": "Referenced by"
+    },
+    {
+      "fill": "#8a93a32e",
+      "key": "list-1-count",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-1/list-1-count",
+      "radius": 999.0,
+      "rect": [
+        1152.1,
+        220.1,
+        19.1,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-1/list-1-count/#0",
+      "rect": [
+        1158.1,
+        220.1,
+        7.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
       "key": "list-2",
+      "label": "Outputs",
       "opacity": 1.0,
       "path": "shell/body/inspector/list-2",
       "rect": [
         1048.0,
-        244.0,
+        246.5,
         224.0,
+        15.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-2/#0",
+      "rect": [
+        1048.0,
+        248.0,
+        12.0,
+        12.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-2/#1",
+      "rect": [
+        1064.0,
+        246.5,
+        46.4,
+        15.0
+      ],
+      "role": "text",
+      "text": "Outputs"
+    },
+    {
+      "fill": "#8a93a32e",
+      "key": "list-2-count",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-2/list-2-count",
+      "radius": 999.0,
+      "rect": [
+        1114.4,
+        247.1,
+        16.6,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-2/list-2-count/#0",
+      "rect": [
+        1120.4,
+        247.1,
+        4.6,
         13.8
       ],
       "role": "text",
-      "text": "Outputs (1)"
+      "text": "1"
     },
     {
       "color": "#e6e9efff",
@@ -1782,7 +1935,7 @@
       "path": "shell/body/inspector/list-2-0",
       "rect": [
         1048.0,
-        261.8,
+        265.5,
         224.0,
         13.8
       ],
@@ -1798,7 +1951,7 @@
       "radius": 4.0,
       "rect": [
         1048.0,
-        287.5,
+        291.3,
         224.0,
         20.0
       ],
@@ -1821,63 +1974,12 @@
       "path": "shell/body/inspector/follow-link/label",
       "rect": [
         1127.3,
-        291.5,
+        295.3,
         65.4,
         12.0
       ],
       "role": "text",
       "text": "Open output"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/#13",
-      "rect": [
-        1048.0,
-        319.5,
-        224.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "Windows"
-    },
-    {
-      "key": "field-primary",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/field-primary",
-      "rect": [
-        1048.0,
-        337.3,
-        224.0,
-        13.8
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/field-primary/#0",
-      "rect": [
-        1048.0,
-        337.3,
-        72.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "primary"
-    },
-    {
-      "color": "#e6e9efff",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/field-primary/#1",
-      "rect": [
-        1128.0,
-        337.3,
-        28.2,
-        13.8
-      ],
-      "role": "text",
-      "text": "clean"
     },
     {
       "fill": "#08090cff",

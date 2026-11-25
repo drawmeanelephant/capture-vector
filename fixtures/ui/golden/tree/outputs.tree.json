@@ -1921,7 +1921,7 @@
       "rect": [
         1128.0,
         28.3,
-        53.6,
+        144.0,
         13.8
       ],
       "role": "text",
@@ -1959,7 +1959,7 @@
       "rect": [
         1128.0,
         46.0,
-        18.8,
+        144.0,
         13.8
       ],
       "role": "text",
@@ -1997,7 +1997,7 @@
       "rect": [
         1128.0,
         63.8,
-        55.1,
+        144.0,
         13.8
       ],
       "role": "text",
@@ -2035,7 +2035,7 @@
       "rect": [
         1128.0,
         81.5,
-        20.7,
+        144.0,
         13.8
       ],
       "role": "text",
@@ -2073,7 +2073,7 @@
       "rect": [
         1128.0,
         99.3,
-        27.0,
+        144.0,
         13.8
       ],
       "role": "text",
@@ -2106,6 +2106,7 @@
     },
     {
       "color": "#e6e9efff",
+      "help": "df35843613ebf220d714fbec1f7da975941de84ea4f9b236fc7cca22dee65e3e",
       "opacity": 1.0,
       "path": "shell/body/inspector/field-sha256/#1",
       "rect": [
@@ -2149,7 +2150,7 @@
       "rect": [
         1128.0,
         134.8,
-        11.0,
+        144.0,
         13.8
       ],
       "role": "text",
@@ -2187,7 +2188,7 @@
       "rect": [
         1128.0,
         152.5,
-        56.1,
+        144.0,
         13.8
       ],
       "role": "text",
@@ -2225,7 +2226,7 @@
       "rect": [
         1128.0,
         170.3,
-        36.2,
+        144.0,
         13.8
       ],
       "role": "text",
@@ -2263,7 +2264,7 @@
       "rect": [
         1128.0,
         188.0,
-        40.1,
+        144.0,
         13.8
       ],
       "role": "text",
@@ -2301,7 +2302,7 @@
       "rect": [
         1128.0,
         205.8,
-        83.1,
+        144.0,
         13.8
       ],
       "role": "text",
@@ -2339,25 +2340,76 @@
       "rect": [
         1128.0,
         223.5,
-        11.0,
+        144.0,
         13.8
       ],
       "role": "text",
       "text": "—"
     },
     {
-      "color": "#8a93a3ff",
       "key": "list-0",
+      "label": "Sources",
       "opacity": 1.0,
       "path": "shell/body/inspector/list-0",
       "rect": [
         1048.0,
         249.3,
         224.0,
+        15.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-0/#0",
+      "rect": [
+        1048.0,
+        250.8,
+        12.0,
+        12.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-0/#1",
+      "rect": [
+        1064.0,
+        249.3,
+        47.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "Sources"
+    },
+    {
+      "fill": "#8a93a32e",
+      "key": "list-0-count",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-0/list-0-count",
+      "radius": 999.0,
+      "rect": [
+        1115.6,
+        249.9,
+        16.6,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-0/list-0-count/#0",
+      "rect": [
+        1121.6,
+        249.9,
+        4.6,
         13.8
       ],
       "role": "text",
-      "text": "Sources (1)"
+      "text": "1"
     },
     {
       "color": "#e6e9efff",
@@ -2366,7 +2418,7 @@
       "path": "shell/body/inspector/list-0-0",
       "rect": [
         1048.0,
-        267.0,
+        268.3,
         224.0,
         13.8
       ],
@@ -2382,7 +2434,7 @@
       "radius": 4.0,
       "rect": [
         1048.0,
-        292.8,
+        294.0,
         224.0,
         20.0
       ],
@@ -2405,63 +2457,12 @@
       "path": "shell/body/inspector/follow-link/label",
       "rect": [
         1111.7,
-        296.8,
+        298.0,
         96.7,
         12.0
       ],
       "role": "text",
       "text": "Open source page"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/#16",
-      "rect": [
-        1048.0,
-        324.8,
-        224.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "Windows"
-    },
-    {
-      "key": "field-primary",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/field-primary",
-      "rect": [
-        1048.0,
-        342.5,
-        224.0,
-        13.8
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/field-primary/#0",
-      "rect": [
-        1048.0,
-        342.5,
-        72.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "primary"
-    },
-    {
-      "color": "#e6e9efff",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/field-primary/#1",
-      "rect": [
-        1128.0,
-        342.5,
-        28.2,
-        13.8
-      ],
-      "role": "text",
-      "text": "clean"
     },
     {
       "fill": "#08090cff",

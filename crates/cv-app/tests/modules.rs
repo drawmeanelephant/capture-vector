@@ -46,12 +46,9 @@ fn card(h: &Harness) -> Vec<Value> {
             let p = n["path"].as_str().unwrap()[path.len()..].to_string();
             n["path"] = p.into();
             let r = n["rect"].as_array().unwrap().clone();
-            n["rect"] = serde_json::json!([
-                r[0].as_f64().unwrap() - ox,
-                r[1].as_f64().unwrap() - oy,
-                r[2],
-                r[3]
-            ]);
+            // Rounded again: the tree's 0.1 pt values don't subtract exactly.
+            let rel = |v: &Value, o: f64| ((v.as_f64().unwrap() - o) * 10.0).round() / 10.0;
+            n["rect"] = serde_json::json!([rel(&r[0], ox), rel(&r[1], oy), r[2], r[3]]);
             n
         })
         .collect()

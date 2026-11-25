@@ -5071,7 +5071,7 @@
       "rect": [
         1128.0,
         28.3,
-        58.9,
+        144.0,
         13.8
       ],
       "role": "text",
@@ -5109,62 +5109,11 @@
       "rect": [
         1128.0,
         46.0,
-        26.2,
+        144.0,
         13.8
       ],
       "role": "text",
       "text": "page"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/#3",
-      "rect": [
-        1048.0,
-        71.8,
-        224.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "Windows"
-    },
-    {
-      "key": "field-primary",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/field-primary",
-      "rect": [
-        1048.0,
-        89.5,
-        224.0,
-        13.8
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/field-primary/#0",
-      "rect": [
-        1048.0,
-        89.5,
-        72.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "primary"
-    },
-    {
-      "color": "#e6e9efff",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/field-primary/#1",
-      "rect": [
-        1128.0,
-        89.5,
-        28.2,
-        13.8
-      ],
-      "role": "text",
-      "text": "clean"
     },
     {
       "fill": "#08090cff",

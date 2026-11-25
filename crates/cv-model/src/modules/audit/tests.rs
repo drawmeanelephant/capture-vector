@@ -129,6 +129,28 @@ fn heuristic_findings_never_block() {
 }
 
 #[test]
+fn the_inspector_shows_the_publish_gate_as_a_chip() {
+    let mut m = module(vec![]);
+    m.ingest(&built(1));
+    let gate = |k: &str| m.inspector(k).badges.last().cloned().unwrap();
+    let heuristic: Vec<_> = m
+        .entries()
+        .iter()
+        .filter(|e| e.af.finding.tier == AuthorityTier::Heuristic)
+        .map(|e| e.id.clone())
+        .collect();
+    assert!(!heuristic.is_empty());
+    for k in &heuristic {
+        assert_eq!(gate(k), Chip::new("does not block publishing", Tone::Dim));
+        assert_eq!(m.inspector(k).badges[0].text, "heuristic (advisory)");
+    }
+    for i in 0..m.list_len(Some("blocking")) {
+        let k = m.row(Some("blocking"), i).key;
+        assert_eq!(gate(&k), Chip::new("blocks publishing", Tone::Error));
+    }
+}
+
+#[test]
 fn snooze_survives_the_next_build_and_a_reopen() {
     let mut m = module(vec![]);
     m.ingest(&built(1));

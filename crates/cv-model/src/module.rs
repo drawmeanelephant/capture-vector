@@ -125,6 +125,8 @@ pub struct ReadingModel {
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize)]
 pub struct InspectorModel {
+    /// Status chips above the fields (authority, the publish gate).
+    pub badges: Vec<Chip>,
     pub fields: Vec<(String, String)>,
     /// Rendered by one shared surface wherever they appear — the value is
     /// never remapped per module.

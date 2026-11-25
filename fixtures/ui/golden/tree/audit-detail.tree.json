@@ -2734,7 +2734,7 @@
       "text": "citation"
     },
     {
-      "color": "#e6e9efff",
+      "color": "#00d1ffff",
       "opacity": 1.0,
       "path": "shell/body/reading/line-8/#1",
       "rect": [
@@ -2743,7 +2743,7 @@
         316.0,
         13.8
       ],
-      "role": "text",
+      "role": "link",
       "text": "https://llmstxt.org/"
     },
     {
@@ -2773,12 +2773,78 @@
       "text": "Inspector"
     },
     {
+      "key": "inspector-badges",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-badges",
+      "rect": [
+        1048.0,
+        28.3,
+        224.0,
+        31.5
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#8a93a32e",
+      "key": "badge-0",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-badges/badge-0",
+      "radius": 999.0,
+      "rect": [
+        1048.0,
+        28.3,
+        114.2,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-badges/badge-0/#0",
+      "rect": [
+        1054.0,
+        28.3,
+        102.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "heuristic (advisory)"
+    },
+    {
+      "fill": "#8a93a32e",
+      "key": "badge-1",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-badges/badge-1",
+      "radius": 999.0,
+      "rect": [
+        1048.0,
+        46.0,
+        146.9,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-badges/badge-1/#0",
+      "rect": [
+        1054.0,
+        46.0,
+        134.9,
+        13.8
+      ],
+      "role": "text",
+      "text": "does not block publishing"
+    },
+    {
       "key": "field-code",
       "opacity": 1.0,
       "path": "shell/body/inspector/field-code",
       "rect": [
         1048.0,
-        28.3,
+        63.8,
         224.0,
         13.8
       ],
@@ -2790,7 +2856,7 @@
       "path": "shell/body/inspector/field-code/#0",
       "rect": [
         1048.0,
-        28.3,
+        63.8,
         72.0,
         13.8
       ],
@@ -2803,8 +2869,8 @@
       "path": "shell/body/inspector/field-code/#1",
       "rect": [
         1128.0,
-        28.3,
-        99.5,
+        63.8,
+        144.0,
         13.8
       ],
       "role": "text",
@@ -2816,7 +2882,7 @@
       "path": "shell/body/inspector/field-pack",
       "rect": [
         1048.0,
-        46.0,
+        81.5,
         224.0,
         13.8
       ],
@@ -2828,7 +2894,7 @@
       "path": "shell/body/inspector/field-pack/#0",
       "rect": [
         1048.0,
-        46.0,
+        81.5,
         72.0,
         13.8
       ],
@@ -2841,8 +2907,8 @@
       "path": "shell/body/inspector/field-pack/#1",
       "rect": [
         1128.0,
-        46.0,
-        39.2,
+        81.5,
+        144.0,
         13.8
       ],
       "role": "text",
@@ -2854,7 +2920,7 @@
       "path": "shell/body/inspector/field-subject",
       "rect": [
         1048.0,
-        63.8,
+        99.3,
         224.0,
         13.8
       ],
@@ -2866,7 +2932,7 @@
       "path": "shell/body/inspector/field-subject/#0",
       "rect": [
         1048.0,
-        63.8,
+        99.3,
         72.0,
         13.8
       ],
@@ -2879,8 +2945,8 @@
       "path": "shell/body/inspector/field-subject/#1",
       "rect": [
         1128.0,
-        63.8,
-        24.3,
+        99.3,
+        144.0,
         13.8
       ],
       "role": "text",
@@ -2892,7 +2958,7 @@
       "path": "shell/body/inspector/field-target",
       "rect": [
         1048.0,
-        81.5,
+        117.0,
         224.0,
         13.8
       ],
@@ -2904,7 +2970,7 @@
       "path": "shell/body/inspector/field-target/#0",
       "rect": [
         1048.0,
-        81.5,
+        117.0,
         72.0,
         13.8
       ],
@@ -2913,11 +2979,12 @@
     },
     {
       "color": "#e6e9efff",
+      "help": "5399710fd596737c5c4cdcdf190b1c978ddde227077e05ae712ab0457a38d440",
       "opacity": 1.0,
       "path": "shell/body/inspector/field-target/#1",
       "rect": [
         1128.0,
-        81.5,
+        117.0,
         144.0,
         13.8
       ],
@@ -2930,7 +2997,7 @@
       "path": "shell/body/inspector/field-status",
       "rect": [
         1048.0,
-        99.3,
+        134.8,
         224.0,
         13.8
       ],
@@ -2942,7 +3009,7 @@
       "path": "shell/body/inspector/field-status/#0",
       "rect": [
         1048.0,
-        99.3,
+        134.8,
         72.0,
         13.8
       ],
@@ -2955,8 +3022,8 @@
       "path": "shell/body/inspector/field-status/#1",
       "rect": [
         1128.0,
-        99.3,
-        28.6,
+        134.8,
+        144.0,
         13.8
       ],
       "role": "text",
@@ -2968,7 +3035,7 @@
       "path": "shell/body/inspector/field-lifecycle",
       "rect": [
         1048.0,
-        117.0,
+        152.5,
         224.0,
         13.8
       ],
@@ -2980,7 +3047,7 @@
       "path": "shell/body/inspector/field-lifecycle/#0",
       "rect": [
         1048.0,
-        117.0,
+        152.5,
         72.0,
         13.8
       ],
@@ -2993,88 +3060,12 @@
       "path": "shell/body/inspector/field-lifecycle/#1",
       "rect": [
         1128.0,
-        117.0,
-        26.3,
+        152.5,
+        144.0,
         13.8
       ],
       "role": "text",
       "text": "open"
-    },
-    {
-      "key": "field-tier",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/field-tier",
-      "rect": [
-        1048.0,
-        134.8,
-        224.0,
-        13.8
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/field-tier/#0",
-      "rect": [
-        1048.0,
-        134.8,
-        72.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "tier"
-    },
-    {
-      "color": "#e6e9efff",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/field-tier/#1",
-      "rect": [
-        1128.0,
-        134.8,
-        100.5,
-        13.8
-      ],
-      "role": "text",
-      "text": "heuristic (advisory)"
-    },
-    {
-      "key": "field-blocks",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/field-blocks",
-      "rect": [
-        1048.0,
-        152.5,
-        224.0,
-        13.8
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/field-blocks/#0",
-      "rect": [
-        1048.0,
-        152.5,
-        72.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "blocks"
-    },
-    {
-      "color": "#e6e9efff",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/field-blocks/#1",
-      "rect": [
-        1128.0,
-        152.5,
-        25.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "false"
     },
     {
       "key": "field-artifacts",
@@ -3103,6 +3094,7 @@
     },
     {
       "color": "#e6e9efff",
+      "help": "9e18bb8a9e912b15b42be56d50dc4ad87f53a786317274d7cd1b84457d90d598",
       "opacity": 1.0,
       "path": "shell/body/inspector/field-artifacts/#1",
       "rect": [
@@ -3141,6 +3133,7 @@
     },
     {
       "color": "#e6e9efff",
+      "help": "a8105e30998561e7db41ecb682ff2fefe930958c4e2f7673248cd3ffda01b915",
       "opacity": 1.0,
       "path": "shell/body/inspector/field-ruleset/#1",
       "rect": [
@@ -3179,6 +3172,7 @@
     },
     {
       "color": "#e6e9efff",
+      "help": "a11y-content, aeo-llm, seo-core",
       "opacity": 1.0,
       "path": "shell/body/inspector/field-packs/#1",
       "rect": [
@@ -3217,6 +3211,7 @@
     },
     {
       "color": "#e6e9efff",
+      "help": "session only (no workspace)",
       "opacity": 1.0,
       "path": "shell/body/inspector/field-sidecar/#1",
       "rect": [
@@ -3229,18 +3224,69 @@
       "text": "session only (no workspace)"
     },
     {
-      "color": "#8a93a3ff",
       "key": "list-0",
+      "label": "Evidence",
       "opacity": 1.0,
       "path": "shell/body/inspector/list-0",
       "rect": [
         1048.0,
         249.3,
         224.0,
+        15.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-0/#0",
+      "rect": [
+        1048.0,
+        250.8,
+        12.0,
+        12.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-0/#1",
+      "rect": [
+        1064.0,
+        249.3,
+        53.5,
+        15.0
+      ],
+      "role": "text",
+      "text": "Evidence"
+    },
+    {
+      "fill": "#8a93a32e",
+      "key": "list-0-count",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-0/list-0-count",
+      "radius": 999.0,
+      "rect": [
+        1121.5,
+        249.9,
+        18.6,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-0/list-0-count/#0",
+      "rect": [
+        1127.5,
+        249.9,
+        6.6,
         13.8
       ],
       "role": "text",
-      "text": "Evidence (5)"
+      "text": "5"
     },
     {
       "color": "#e6e9efff",
@@ -3249,7 +3295,7 @@
       "path": "shell/body/inspector/list-0-0",
       "rect": [
         1048.0,
-        267.0,
+        268.3,
         224.0,
         13.8
       ],
@@ -3263,7 +3309,7 @@
       "path": "shell/body/inspector/list-0-1",
       "rect": [
         1048.0,
-        284.8,
+        286.0,
         224.0,
         13.8
       ],
@@ -3277,7 +3323,7 @@
       "path": "shell/body/inspector/list-0-2",
       "rect": [
         1048.0,
-        302.5,
+        303.8,
         224.0,
         13.8
       ],
@@ -3291,7 +3337,7 @@
       "path": "shell/body/inspector/list-0-3",
       "rect": [
         1048.0,
-        320.3,
+        321.5,
         224.0,
         13.8
       ],
@@ -3305,63 +3351,12 @@
       "path": "shell/body/inspector/list-0-4",
       "rect": [
         1048.0,
-        338.0,
+        339.3,
         224.0,
         13.8
       ],
       "role": "text",
       "text": "selector: \"$.title\""
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/#19",
-      "rect": [
-        1048.0,
-        363.8,
-        224.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "Windows"
-    },
-    {
-      "key": "field-primary",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/field-primary",
-      "rect": [
-        1048.0,
-        381.5,
-        224.0,
-        13.8
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/field-primary/#0",
-      "rect": [
-        1048.0,
-        381.5,
-        72.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "primary"
-    },
-    {
-      "color": "#e6e9efff",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/field-primary/#1",
-      "rect": [
-        1128.0,
-        381.5,
-        28.2,
-        13.8
-      ],
-      "role": "text",
-      "text": "clean"
     },
     {
       "fill": "#08090cff",

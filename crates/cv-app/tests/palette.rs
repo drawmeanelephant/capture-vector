@@ -88,7 +88,13 @@ fn keys_reach_the_model_while_the_panel_holds_focus() {
 fn pointer_and_keys_share_one_highlight() {
     let mut h = open("canary");
     h.script(&["key:text:shell"]);
-    let selection = node(&h, "cmd-shell.degraded.dismiss")["fill"].clone();
+    let first = {
+        let hits = h.state().commands();
+        let visible = h.state().palette.visible(&hits);
+        format!("cmd-{}", visible[h.state().palette.cursor].id)
+    };
+    assert_ne!(first, "cmd-shell.palette");
+    let selection = node(&h, &first)["fill"].clone();
     assert!(selection.is_string(), "the cursor row is highlighted");
     assert!(h.hover("cmd-shell.palette"));
     let hits = h.state().commands();

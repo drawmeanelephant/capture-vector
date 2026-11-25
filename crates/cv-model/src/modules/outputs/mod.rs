@@ -258,6 +258,7 @@ impl Module for OutputsModule {
         let opt = |v: &Option<String>| v.clone().unwrap_or_else(|| "—".into());
         let mark = self.snap.last_publish.as_ref();
         InspectorModel {
+            badges: vec![],
             fields: vec![
                 ("path".into(), o.path.clone()),
                 ("class".into(), class(o).into()),

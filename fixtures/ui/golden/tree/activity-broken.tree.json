@@ -1096,7 +1096,7 @@
       "rect": [
         1128.0,
         28.3,
-        55.5,
+        144.0,
         13.8
       ],
       "role": "text",
@@ -1134,7 +1134,7 @@
       "rect": [
         1128.0,
         46.0,
-        4.5,
+        144.0,
         13.8
       ],
       "role": "text",
@@ -1172,7 +1172,7 @@
       "rect": [
         1128.0,
         63.8,
-        34.0,
+        144.0,
         13.8
       ],
       "role": "text",
@@ -1210,36 +1210,88 @@
       "rect": [
         1128.0,
         81.5,
-        34.0,
+        144.0,
         13.8
       ],
       "role": "text",
       "text": "stub-2"
     },
     {
-      "color": "#8a93a3ff",
       "key": "diagnostics",
+      "label": "Diagnostics",
       "opacity": 1.0,
       "path": "shell/body/inspector/diagnostics",
       "rect": [
         1048.0,
         107.3,
         224.0,
-        13.8
+        15.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/diagnostics/#0",
+      "rect": [
+        1048.0,
+        108.8,
+        12.0,
+        12.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/diagnostics/#1",
+      "rect": [
+        1064.0,
+        107.3,
+        68.4,
+        15.0
       ],
       "role": "text",
       "text": "Diagnostics"
     },
     {
-      "fill": "#14171dff",
+      "fill": "#8a93a32e",
+      "key": "diagnostics-count",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/diagnostics/diagnostics-count",
+      "radius": 999.0,
+      "rect": [
+        1136.4,
+        107.9,
+        16.6,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/diagnostics/diagnostics-count/#0",
+      "rect": [
+        1142.4,
+        107.9,
+        4.6,
+        13.8
+      ],
+      "role": "text",
+      "text": "1"
+    },
+    {
+      "fill": "#ff3d711a",
       "key": "diag-0",
       "opacity": 1.0,
       "path": "shell/body/inspector/diag-0",
+      "radius": 6.0,
       "rect": [
         1048.0,
-        125.0,
+        126.3,
         224.0,
-        92.3
+        114.3
       ],
       "role": "note"
     },
@@ -1248,11 +1300,12 @@
       "key": "diag-rail",
       "opacity": 1.0,
       "path": "shell/body/inspector/diag-0/diag-rail",
+      "radius": 6.0,
       "rect": [
         1048.0,
-        125.0,
+        126.3,
         3.0,
-        92.3
+        114.3
       ],
       "role": "group"
     },
@@ -1261,10 +1314,10 @@
       "opacity": 1.0,
       "path": "shell/body/inspector/diag-0/diag-body",
       "rect": [
-        1055.0,
-        125.0,
-        217.0,
-        92.3
+        1051.0,
+        126.3,
+        221.0,
+        114.3
       ],
       "role": "group"
     },
@@ -1273,9 +1326,23 @@
       "opacity": 1.0,
       "path": "shell/body/inspector/diag-0/diag-body/diag-head",
       "rect": [
-        1055.0,
-        125.0,
-        217.0,
+        1059.0,
+        134.3,
+        205.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ff3d712e",
+      "key": "diag-severity",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/diag-0/diag-body/diag-head/diag-severity",
+      "radius": 999.0,
+      "rect": [
+        1059.0,
+        134.3,
+        37.8,
         13.8
       ],
       "role": "group"
@@ -1283,10 +1350,10 @@
     {
       "color": "#ff3d71ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/diag-0/diag-body/diag-head/#0",
+      "path": "shell/body/inspector/diag-0/diag-body/diag-head/diag-severity/#0",
       "rect": [
-        1055.0,
-        125.0,
+        1065.0,
+        134.3,
         25.8,
         13.8
       ],
@@ -1294,13 +1361,27 @@
       "text": "error"
     },
     {
+      "fill": "#e6e9ef2e",
+      "key": "diag-code",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/diag-0/diag-body/diag-head/diag-code",
+      "radius": 999.0,
+      "rect": [
+        1100.8,
+        134.3,
+        108.7,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/diag-0/diag-body/diag-head/#1",
+      "path": "shell/body/inspector/diag-0/diag-body/diag-head/diag-code/#0",
       "rect": [
-        1084.8,
-        125.0,
-        96.0,
+        1106.8,
+        134.3,
+        96.7,
         13.8
       ],
       "role": "text",
@@ -1312,9 +1393,9 @@
       "opacity": 1.0,
       "path": "shell/body/inspector/diag-0/diag-body/diag-at",
       "rect": [
-        1055.0,
-        140.8,
-        217.0,
+        1059.0,
+        152.0,
+        205.0,
         13.8
       ],
       "role": "text",
@@ -1326,9 +1407,9 @@
       "opacity": 1.0,
       "path": "shell/body/inspector/diag-0/diag-body/diag-msg",
       "rect": [
-        1055.0,
-        156.5,
-        217.0,
+        1059.0,
+        169.8,
+        205.0,
         45.0
       ],
       "role": "text",
@@ -1340,27 +1421,78 @@
       "opacity": 1.0,
       "path": "shell/body/inspector/diag-0/diag-body/diag-build",
       "rect": [
-        1055.0,
-        203.5,
-        217.0,
+        1059.0,
+        218.8,
+        205.0,
         13.8
       ],
       "role": "text",
       "text": "build stub-build-2"
     },
     {
-      "color": "#8a93a3ff",
       "key": "list-0",
+      "label": "Builds",
       "opacity": 1.0,
       "path": "shell/body/inspector/list-0",
       "rect": [
         1048.0,
-        229.3,
+        252.5,
         224.0,
+        15.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-0/#0",
+      "rect": [
+        1048.0,
+        254.0,
+        12.0,
+        12.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-0/#1",
+      "rect": [
+        1064.0,
+        252.5,
+        35.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "Builds"
+    },
+    {
+      "fill": "#8a93a32e",
+      "key": "list-0-count",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-0/list-0-count",
+      "radius": 999.0,
+      "rect": [
+        1103.6,
+        253.1,
+        16.6,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/list-0/list-0-count/#0",
+      "rect": [
+        1109.6,
+        253.1,
+        4.6,
         13.8
       ],
       "role": "text",
-      "text": "Builds (1)"
+      "text": "1"
     },
     {
       "color": "#e6e9efff",
@@ -1369,7 +1501,7 @@
       "path": "shell/body/inspector/list-0-0",
       "rect": [
         1048.0,
-        247.0,
+        271.5,
         224.0,
         13.8
       ],
@@ -1385,7 +1517,7 @@
       "radius": 4.0,
       "rect": [
         1048.0,
-        272.8,
+        297.3,
         224.0,
         20.0
       ],
@@ -1408,63 +1540,12 @@
       "path": "shell/body/inspector/follow-link/label",
       "rect": [
         1122.0,
-        276.8,
+        301.3,
         76.0,
         12.0
       ],
       "role": "text",
       "text": "Open in Pages"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/#10",
-      "rect": [
-        1048.0,
-        304.8,
-        224.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "Windows"
-    },
-    {
-      "key": "field-primary",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/field-primary",
-      "rect": [
-        1048.0,
-        322.5,
-        224.0,
-        13.8
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/field-primary/#0",
-      "rect": [
-        1048.0,
-        322.5,
-        72.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "primary"
-    },
-    {
-      "color": "#e6e9efff",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/field-primary/#1",
-      "rect": [
-        1128.0,
-        322.5,
-        28.2,
-        13.8
-      ],
-      "role": "text",
-      "text": "clean"
     },
     {
       "fill": "#08090cff",

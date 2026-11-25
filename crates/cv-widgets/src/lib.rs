@@ -23,6 +23,7 @@ pub mod fx;
 #[cfg(any(test, feature = "harness"))]
 pub mod harness;
 pub mod icons;
+mod inspector;
 pub mod keys;
 mod palette;
 #[cfg(feature = "reference")]

@@ -501,6 +501,7 @@ impl Module for ActivityModule {
             .map(|o| o.event.clone())
             .unwrap_or_default();
         InspectorModel {
+            badges: vec![],
             fields: vec![
                 ("entry".into(), e.key.clone()),
                 ("seen".into(), e.occurrences.len().to_string()),

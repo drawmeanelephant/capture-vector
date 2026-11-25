@@ -488,6 +488,7 @@ impl Module for PagesModule {
             stack.extend(self.children.get(&self.pages[k].id).into_iter().flatten());
         }
         InspectorModel {
+            badges: vec![],
             fields,
             diagnostics,
             lists: vec![

@@ -701,7 +701,20 @@ impl Module for AuditModule {
                 evidence.push(format!("{k}: {v}"));
             }
         }
+        let publish = if e.blocks_publish() {
+            Chip::new("blocks publishing", Tone::Error)
+        } else {
+            Chip::new("does not block publishing", Tone::Dim)
+        };
+        let authority = Chip::new(
+            tier_label(f.tier),
+            match f.tier {
+                AuthorityTier::Heuristic => Tone::Dim,
+                AuthorityTier::NormativeSpec | AuthorityTier::EngineDocumented => Tone::Normal,
+            },
+        );
         InspectorModel {
+            badges: vec![authority, publish],
             fields: vec![
                 ("code".into(), f.code.clone()),
                 ("pack".into(), e.af.pack.clone()),
@@ -717,8 +730,6 @@ impl Module for AuditModule {
                     }
                     .into(),
                 ),
-                ("tier".into(), tier_label(f.tier).into()),
-                ("blocks".into(), e.blocks_publish().to_string()),
                 ("artifacts".into(), set),
                 ("ruleset".into(), rules),
                 ("packs".into(), DEFAULT_PACKS.join(", ")),
