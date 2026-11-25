@@ -123,6 +123,27 @@ pub fn from_bytes(
     Ok(out)
 }
 
+/// The target named by the proof artifact inventory under a built output
+/// tree. `None` means Boris did not produce an inventory. The mirror validates
+/// both the inventory's format identity and schema version before trusting its
+/// target field.
+pub fn artifact_inventory_target(out_dir: &Path) -> Result<Option<String>> {
+    let dir = out_dir.join(PROOF_DIR);
+    let Some(bytes) = read(&dir, "artifacts.json")? else {
+        return Ok(None);
+    };
+    let idx: ArtifactIndex = serde_json::from_slice(&bytes)
+        .map_err(|e| LedgerError::Proof(format!("artifacts.json: {e}")))?;
+    if idx.format != "boris-publication-artifacts" {
+        return Err(LedgerError::Proof(format!(
+            "artifacts.json: format {:?} is not boris-publication-artifacts",
+            idx.format
+        )));
+    }
+    schema("artifacts.json", idx.schema_version)?;
+    Ok(Some(idx.target))
+}
+
 /// Read the proof pack under a built output tree.
 pub fn from_output_dir(run: &StableId, out_dir: &Path) -> Result<ProofNouns> {
     let dir = out_dir.join(PROOF_DIR);

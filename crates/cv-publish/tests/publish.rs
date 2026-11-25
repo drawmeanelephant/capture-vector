@@ -1101,6 +1101,39 @@ fn a_dispatched_run_cannot_be_discarded_or_approved_again() {
 }
 
 #[test]
+fn proof_target_mismatch_blocks_preflight_before_a_grant_is_issued() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut eng = FakeEngine::new(dir.path());
+    eng.proof_target = Some("public".into());
+    let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets).unwrap();
+
+    let out = p
+        .preflight(
+            &PreflightRequest { config: cfg() },
+            &Rules::ok(),
+            &mut ids("run"),
+        )
+        .unwrap();
+
+    let PreflightOutcome::Blocked { blocks, .. } = out else {
+        panic!("mismatched proof target must block preflight: {out:?}")
+    };
+    assert!(
+        blocks
+            .iter()
+            .any(|b| b == "proof artifacts: target public is not default"),
+        "{blocks:?}"
+    );
+    assert!(
+        !p.journal()
+            .records()
+            .iter()
+            .any(|r| matches!(r.entry, Entry::GrantIssued { .. })),
+        "a grant must never seal artifacts from another proof target"
+    );
+}
+
+#[test]
 fn preflight_argv_is_what_boris_0_9_0_accepts() {
     let run = StableId("run-1".into());
     let argv: Vec<(String, Vec<String>)> = cv_publish::preflight::verbs(&cfg(), &run)

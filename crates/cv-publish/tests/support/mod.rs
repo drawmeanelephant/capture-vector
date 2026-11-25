@@ -26,6 +26,9 @@ pub struct FakeEngine {
     pub version: Mutex<String>,
     pub check_exit: ExitClass,
     pub pages: Vec<(&'static str, &'static str)>,
+    /// When set, the HTML build plants a proof inventory derived from the
+    /// pinned happy capture with only its target field tampered to this value.
+    pub proof_target: Option<String>,
     pub verbs: Mutex<Vec<Verb>>,
 }
 
@@ -43,6 +46,7 @@ impl FakeEngine {
                 ("llms.txt", "# site"),
                 ("context/index.md", "ctx"),
             ],
+            proof_target: None,
             verbs: Mutex::new(vec![]),
         }
     }
@@ -100,6 +104,20 @@ impl Engine for FakeEngine {
                     std::fs::write(f, body).unwrap();
                 }
                 std::fs::write(site.join("robots.txt"), "User-agent: *\n").unwrap();
+                if let Some(target) = &self.proof_target {
+                    let captured = String::from_utf8(
+                        cv_fixtures::corpus("happy").file("dist/dist/_boris/proof/artifacts.json"),
+                    )
+                    .unwrap();
+                    assert!(captured.contains("\"target\": \"default\""));
+                    let tampered = captured.replace(
+                        "\"target\": \"default\"",
+                        &format!("\"target\": \"{target}\""),
+                    );
+                    let proof = site.join("_boris/proof");
+                    std::fs::create_dir_all(&proof).unwrap();
+                    std::fs::write(proof.join("artifacts.json"), tampered).unwrap();
+                }
                 Ok(ExitClass::Ok)
             }
             Verb::Custom { name, args } if name == "build" && args.iter().any(|a| a == "--out") => {

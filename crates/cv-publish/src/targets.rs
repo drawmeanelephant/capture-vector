@@ -9,6 +9,9 @@ use cv_core::publish::TargetSpec;
 use cv_core::rules::{SlashPolicy, TargetDeployProfile};
 use serde::{Deserialize, Serialize};
 
+/// Boris's synthetic HTML target when no publication-profile target is selected.
+pub const DEFAULT_HTML_TARGET: &str = "default";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Target {

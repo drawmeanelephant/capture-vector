@@ -8,7 +8,7 @@ use crate::preflight::{
     verbs,
 };
 use crate::secrets::SecretBackend;
-use crate::targets::TargetConfig;
+use crate::targets::{DEFAULT_HTML_TARGET, TargetConfig};
 use crate::{PublishError, Result};
 use cv_core::engine::{Engine, ExitClass};
 use cv_core::events::publish::PublishEvent;
@@ -191,6 +191,13 @@ impl<'a> Publisher<'a> {
         let files = inventory(&site)?;
         if blocks.is_empty() && files.is_empty() {
             blocks.push("build: output dir is empty".into());
+        }
+        match ingest::artifact_inventory_target(&site) {
+            Ok(Some(target)) if target != DEFAULT_HTML_TARGET => blocks.push(format!(
+                "proof artifacts: target {target} is not {DEFAULT_HTML_TARGET}"
+            )),
+            Ok(_) => {}
+            Err(e) => blocks.push(format!("proof artifacts: {e}")),
         }
         let graph = self.read_graph(&run)?;
         if blocks.is_empty() && graph.is_none() {
