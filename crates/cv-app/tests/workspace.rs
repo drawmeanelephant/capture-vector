@@ -6,6 +6,7 @@
 use cv_app::{WorkspaceEnv, init, open_workspace};
 use cv_core::events::shell::DegradedReason;
 use cv_engine::locate::Locator;
+use cv_model::module::RowModel;
 use cv_model::windows::Companion;
 use cv_model::workbench::{KeyInput, KeyPress, ShellRequest, Workbench};
 use cv_widgets::editor::{self, host};
@@ -169,6 +170,17 @@ fn module_len(wb: &Workbench, id: &str, nav: Option<&str>) -> usize {
     wb.registry.get(i).unwrap().list_len(nav)
 }
 
+fn doctor_row(wb: &Workbench, nav: &str, key: &str) -> RowModel {
+    let m = wb
+        .registry
+        .get(wb.registry.index_of("doctor").unwrap())
+        .unwrap();
+    let i = m
+        .index_of_key(Some(nav), key)
+        .unwrap_or_else(|| panic!("doctor has no {key} under {nav}"));
+    m.row(Some(nav), i)
+}
+
 fn wait_for(wb: &mut Workbench, what: &str, mut f: impl FnMut(&Workbench) -> bool) {
     let deadline = Instant::now() + Duration::from_secs(30);
     loop {
@@ -196,6 +208,12 @@ fn engine_absent_is_disclosed_and_the_workspace_stays_browsable() {
     assert!(wb.workspace.is_some());
     assert!(module_len(&wb, "pages", None) > 0, "pages read from disk");
     assert!(wb.status.contains("boris not found"), "{}", wb.status);
+    assert_eq!(
+        doctor_row(&wb, "engine", "engine.status").title,
+        "Boris not found"
+    );
+    let lock = doctor_row(&wb, "store", "store.lock.research");
+    assert_eq!(lock.detail, "this window", "{lock:?}");
     // Same banner the L2 engine-absent golden pins.
     let tree = Harness::new(wb).tree().to_string();
     assert!(tree.contains(&degraded_text(&DegradedReason::EngineAbsent)));
@@ -216,6 +234,11 @@ fn version_mismatch_is_disclosed_not_booted() {
         })
     );
     assert_eq!(wb.app.engine, None, "no watch session on a failed gate");
+    let status = doctor_row(&wb, "engine", "engine.status");
+    assert_eq!(
+        (status.title.as_str(), status.detail.as_str()),
+        ("boris/0.8.2", "CV_BORIS_BIN")
+    );
 }
 
 #[test]
@@ -241,6 +264,13 @@ fn gated_engine_drives_activity_from_the_live_watch() {
     );
     assert!(module_len(&wb, "pages", None) > 0);
     assert!(wb.status.contains("boris/0.9.0"), "{}", wb.status);
+    let status = doctor_row(&wb, "engine", "engine.status");
+    assert_eq!(status.title, "boris/0.9.0", "{status:?}");
+    assert!(module_len(&wb, "doctor", Some("probe")) > 1, "probe facts");
+    assert_eq!(
+        doctor_row(&wb, "watch", "watch.handshake").detail,
+        "boris/0.9.0"
+    );
 }
 
 #[test]

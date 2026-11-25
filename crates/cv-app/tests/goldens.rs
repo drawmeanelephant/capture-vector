@@ -56,6 +56,10 @@ const TREE_SCENES: &[&str] = &[
     "dialog-progress",
     "effects",
     "engine-absent-toast",
+    "doctor",
+    "doctor-engine-absent",
+    "doctor-version-mismatch",
+    "doctor-watch-dead",
 ];
 
 #[test]
@@ -236,6 +240,18 @@ fn status_bar_buttons_toggle_theme_and_motion() {
     assert_eq!(h.state().theme.mode, cv_model::theme::Mode::Light);
     h.script(&["click:status-4"]);
     assert!(h.state().theme.motion.reduced);
+}
+
+#[test]
+fn the_engine_chip_opens_doctor_off_the_rail() {
+    let mut h = scene("canary");
+    assert!(!h.has("rail-doctor"), "Doctor is not a rail module");
+    h.script(&["click:status-0"]);
+    let wb = h.state();
+    let active = wb.registry.get(wb.active).unwrap().spec().id;
+    assert_eq!(active, "doctor");
+    assert_eq!(wb.selected_key(), Some("engine.status"));
+    assert!(h.has("row-engine.status"), "{:?}", h.texts());
 }
 
 #[test]

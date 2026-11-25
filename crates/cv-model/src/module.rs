@@ -9,7 +9,9 @@ use cv_core::events::Envelope;
 use cv_core::id::{NounAttrRow, NounId};
 use serde::Serialize;
 
-/// Fixed rail order. `Extra` holds non-core modules (the wave-0 demo).
+/// Fixed rail order. `Extra` holds non-core modules (the wave-0 demo);
+/// `Utility` modules are not on the rail: the shell opens them by command
+/// or from its chrome (Doctor).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Slot {
@@ -20,6 +22,7 @@ pub enum Slot {
     Outputs,
     Activity,
     Extra,
+    Utility,
 }
 
 impl Slot {
@@ -40,6 +43,7 @@ impl Slot {
             Slot::Outputs => "Outputs",
             Slot::Activity => "Activity",
             Slot::Extra => "Extra",
+            Slot::Utility => "Utility",
         }
     }
 }

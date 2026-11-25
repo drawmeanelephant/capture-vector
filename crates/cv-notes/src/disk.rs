@@ -24,7 +24,7 @@ pub const DIR: &str = ".cv/research";
 pub const NOTES: &str = "notes.jsonl";
 pub const PROVENANCE: &str = "provenance.jsonl";
 pub const INDEX: &str = "index.sqlite";
-const WRITER_LOCK: &str = ".cv/research.writer.lock";
+pub const WRITER_LOCK: &str = ".cv/research.writer.lock";
 const INDEX_SCHEMA: i64 = 1;
 
 /// `.cv/research/` sidecar schema. v1 = `notes.jsonl` + `provenance.jsonl`
