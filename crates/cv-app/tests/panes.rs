@@ -124,7 +124,10 @@ fn empty_panes_centre_a_glyph_title_and_hint() {
     let h = scene("empty");
     for (state, pane) in [("list-empty", "list-pane"), ("reading-empty", "reading")] {
         let (dx, dy) = off_centre(&h, &format!("{state}-title"), pane);
-        assert!(dx < 1.0 && dy < 40.0, "{state}: off by {dx} {dy}");
+        // Workspace actions sit under the list empty state, so its title
+        // intentionally rides higher than an actionless reading empty state.
+        let dy_limit = if state == "list-empty" { 50.0 } else { 40.0 };
+        assert!(dx < 1.0 && dy < dy_limit, "{state}: off by {dx} {dy}");
     }
     let hint = el(&h, "list-empty-hint").text.unwrap();
     assert_eq!(hint, "Open a workspace with ⇧⌘O");

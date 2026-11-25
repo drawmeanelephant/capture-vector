@@ -106,6 +106,8 @@ fn options<S: DialogHost>(t: &Theme, key: &str, i: usize, opts: &[String], selec
     let mut r = row()
         .key(format!("{key}-options"))
         .role("radiogroup")
+        .w_full()
+        .flex_wrap()
         .gap(t.spacing.unit)
         .items_center();
     for (o, label) in opts.iter().enumerate() {

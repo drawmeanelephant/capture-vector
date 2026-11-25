@@ -39,6 +39,20 @@ pub fn resolve(arg: Option<PathBuf>, env: Option<PathBuf>, recent: &RecentList) 
         .or_else(|| recent.entries.iter().find(|p| p.is_dir()).cloned())
 }
 
+/// The user's home folder, when the platform environment discloses it.
+pub fn home_dir() -> Option<PathBuf> {
+    let var = |k: &str| {
+        std::env::var_os(k)
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from)
+    };
+    if cfg!(windows) {
+        var("USERPROFILE").or_else(|| var("HOME"))
+    } else {
+        var("HOME")
+    }
+}
+
 /// Per-user config dir for Capture Vector.
 pub fn config_dir() -> Option<PathBuf> {
     let var = |k: &str| {
@@ -101,17 +115,7 @@ impl RecentList {
 /// `canonicalize` without Windows' `\\?\` verbatim prefix, which child
 /// processes and humans both read badly.
 pub fn normalize(root: &Path) -> std::io::Result<PathBuf> {
-    let p = std::fs::canonicalize(root)?;
-    #[cfg(windows)]
-    {
-        let s = p.to_string_lossy();
-        if let Some(rest) = s.strip_prefix(r"\\?\")
-            && rest.as_bytes().get(1) == Some(&b':')
-        {
-            return Ok(PathBuf::from(rest));
-        }
-    }
-    Ok(p)
+    cv_engine::paths::canonical_display(root)
 }
 
 #[cfg(test)]
