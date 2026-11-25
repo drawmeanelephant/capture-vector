@@ -114,7 +114,19 @@ there.
    - With `CV_EDIT`, type in the editor and press `mod+S`; the status
      line confirms the save.
 
-4. Headless fallback (no display): skip step 1 and run
+4. Run a Boris verb from the palette (needs Boris 0.9.0; set
+   `CV_BORIS_BIN` when it is not on `PATH`):
+   - `mod+K`, type `build`, run **Boris: Build site**. A progress
+     dialog with **Cancel** shows `boris build` until Boris exits.
+   - Expect the status line to read `boris build finished (exit 0, … ms)
+     · watch resumed`, and Activity › Builds to list **build finished**
+     with its command, exit code, duration and stderr in the reading pane.
+   - **Boris: Validate** and **Boris: Check (findings to Audit)** report on
+     the status line; check's findings appear in Audit under
+     **Pack · boris-check**. Without a located engine, every **Boris:**
+     command is listed dimmed with the reason.
+
+5. Headless fallback (no display): skip step 1 and run
    `cargo run -p cv-app -- --scene canary --tree target/qa.tree.json`,
    then confirm the JSON contains the shell tree.
 

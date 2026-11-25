@@ -22,6 +22,7 @@ use cv_engine::probe::WatchMode;
 use cv_engine::{EngineConfig, EngineError, EngineScheduler, ProcessEngine, SeatPolicy};
 use cv_model::cascade::WANT_ENGINE;
 use cv_model::modules::doctor::{EngineState, Feed};
+use cv_model::modules::engine::{EnginePort, VerbRun};
 use cv_model::workbench::{Inbound, Inbox};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -37,22 +38,96 @@ const IR_WINDOW: Duration = Duration::from_millis(250);
 mod projection;
 use projection::IrProjection;
 
-/// The workspace's scheduler once the engine has passed its gate.
+/// The workspace's scheduler once the engine has passed its gate, and
+/// the delivery palette verbs report through.
 #[derive(Clone, Default)]
-pub struct EngineSlot(Arc<OnceLock<Arc<Scheduler>>>, Arc<OnceLock<Arc<Resyncer>>>);
+pub struct EngineSlot {
+    sched: Arc<OnceLock<Arc<Scheduler>>>,
+    resyncer: Arc<OnceLock<Arc<Resyncer>>>,
+    verbs: Arc<OnceLock<VerbRoute>>,
+}
 
 impl EngineSlot {
     pub fn get(&self) -> Option<&Arc<Scheduler>> {
-        self.0.get()
+        self.sched.get()
     }
 
     /// Queue a convergent disk-truth scan when the workspace engine booted.
     /// A request made after a lifecycle mutation is guaranteed to run after
     /// that mutation even if an older scan is already in flight.
     pub fn request_resync(&self) {
-        if let Some(r) = self.1.get() {
+        if let Some(r) = self.resyncer.get() {
             r.request();
         }
+    }
+
+    /// Run a palette verb through the scheduler on a worker. Its events
+    /// (the terminal `VerbReported`/`VerbFailed` included) reach the
+    /// workbench like any engine envelope. A build that took the watch's
+    /// seat restarts the watch afterwards, so the workspace stays live.
+    pub fn start_verb(&self, run: VerbRun) -> Result<(), String> {
+        let (Some(sched), Some(route)) = (self.sched.get().cloned(), self.verbs.get().cloned())
+        else {
+            return Err(absent().to_string());
+        };
+        std::thread::Builder::new()
+            .name("cv-engine-verb".into())
+            .spawn(move || route.run(&sched, run))
+            .map(|_| ())
+            .map_err(|e| format!("could not start the verb worker: {e}"))
+    }
+}
+
+#[derive(Clone)]
+struct VerbRoute {
+    delivery: LiveDelivery,
+    warning: Option<String>,
+}
+
+impl VerbRoute {
+    fn run(&self, sched: &Arc<Scheduler>, run: VerbRun) {
+        let name = run.verb.name();
+        let watching = sched.watch_session();
+        let result = sched.run_reported(
+            &run.verb,
+            self.delivery.resync_sink(|deliver, env| deliver(env)),
+            &run.cancel,
+        );
+        let outcome = match &result {
+            Ok(r) if r.exit == ExitClass::Ok => format!("boris {name} finished"),
+            Ok(_) => format!("boris {name} failed · see Activity › Errors"),
+            Err(e) => format!("boris {name} did not finish: {e}"),
+        };
+        if result.is_err() {
+            self.delivery.inbox.send(Inbound::Status(outcome.clone()));
+        }
+        // Err loses the report's `stopped_watch`, so compare sessions.
+        let Some(stopped) = watching.filter(|_| sched.watch_session().is_none()) else {
+            return;
+        };
+        if self.delivery.inbox.send(Inbound::WatchStopped(stopped)) {
+            start_workspace_watch(
+                sched.clone(),
+                self.delivery.clone(),
+                self.warning.clone(),
+                Some(format!("{outcome} · watch resumed")),
+            );
+        }
+    }
+}
+
+/// The palette's engine port over the workspace slot.
+pub struct SlotVerbs(pub EngineSlot);
+
+impl EnginePort for SlotVerbs {
+    fn unavailable(&self) -> Option<String> {
+        self.0
+            .get()
+            .is_none()
+            .then(|| "Boris has not passed its version gate for this workspace (see Doctor)".into())
+    }
+    fn start(&mut self, run: VerbRun) -> Result<(), String> {
+        self.0.start_verb(run)
     }
 }
 
@@ -127,13 +202,13 @@ impl WatchHandle for SessionWatch {
         &self.session
     }
     fn stop(&mut self) {
-        self.sched.stop_watch();
+        self.sched.stop_watch_session(&self.session);
     }
 }
 
 impl Drop for SessionWatch {
     fn drop(&mut self) {
-        self.sched.stop_watch();
+        self.sched.stop_watch_session(&self.session);
     }
 }
 
@@ -591,26 +666,26 @@ fn run(b: EngineBoot) {
     let sched = Arc::new(
         EngineScheduler::new(engine.clone(), SeatPolicy::StopWatch).with_seat(engine.html_dir()),
     );
-    let _ = slot.0.set(sched.clone());
-    start_workspace_watch(
-        sched,
-        {
-            let resyncer = Arc::new(Resyncer::spawn(
-                engine.clone(),
-                inbox.clone(),
-                epoch.clone(),
-            ));
-            let _ = slot.1.set(resyncer.clone());
-            LiveDelivery {
-                engine,
-                inbox,
-                epoch,
-                resyncer,
-            }
-        },
-        warning,
-        notice,
-    );
+    let delivery = {
+        let resyncer = Arc::new(Resyncer::spawn(
+            engine.clone(),
+            inbox.clone(),
+            epoch.clone(),
+        ));
+        let _ = slot.resyncer.set(resyncer.clone());
+        LiveDelivery {
+            engine,
+            inbox,
+            epoch,
+            resyncer,
+        }
+    };
+    let _ = slot.verbs.set(VerbRoute {
+        delivery: delivery.clone(),
+        warning: warning.clone(),
+    });
+    let _ = slot.sched.set(sched.clone());
+    start_workspace_watch(sched, delivery, warning, notice);
 }
 
 fn start_workspace_watch(

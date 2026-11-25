@@ -8,8 +8,9 @@ use crate::module::{
     Chip, InspectorModel, Link, Module, ModuleSpec, NavCache, NavItem, NavModel, ReadingLine,
     ReadingModel, Registry, RowModel, Slot, Tone,
 };
-use cv_core::diagnostic::{Diagnostic, Severity};
-use cv_core::events::engine::{BuildPhase, EngineEvent, WatchEndReason};
+use cv_core::diagnostic::{Diagnostic, Severity, StderrDiagnostic};
+use cv_core::engine::ExitClass;
+use cv_core::events::engine::{BuildPhase, EngineEvent, VerbReport, WatchEndReason};
 use cv_core::events::shell::{DegradedReason, ShellEvent};
 use cv_core::events::{AppEvent, Envelope};
 use cv_core::id::{AccountId, AttrValue, NounAttrRow, NounId, NounKind, StableId, noun_kind};
@@ -89,6 +90,8 @@ pub enum EntryKind {
         verb: String,
         error: String,
     },
+    /// One user-requested run, never folded: each is its own noun.
+    Run(Box<VerbReport>),
     WatchEnded(WatchEndReason),
     Malformed(String),
     Degraded(DegradedReason),
@@ -116,6 +119,7 @@ impl Entry {
             | EntryKind::VerbFailed { .. }
             | EntryKind::Malformed(_) => Some(Severity::Error),
             EntryKind::Verb { exit, .. } if exit != "Ok" => Some(Severity::Error),
+            EntryKind::Run(r) if r.exit != ExitClass::Ok => Some(Severity::Error),
             EntryKind::Degraded(_) => Some(Severity::Warning),
             _ => None,
         }
@@ -139,6 +143,8 @@ impl Entry {
             EntryKind::Diagnostic(d) => diagnostic_title(&d.code, &d.message),
             EntryKind::Verb { verb, .. } => format!("{} finished", verb.to_lowercase()),
             EntryKind::VerbFailed { verb, .. } => format!("{} failed", verb.to_lowercase()),
+            EntryKind::Run(r) if r.exit == ExitClass::Ok => format!("{} finished", r.verb),
+            EntryKind::Run(r) => format!("{} failed ({})", r.verb, exit_code(r)),
             EntryKind::WatchEnded(r) => format!("Watch session ended ({r:?})"),
             EntryKind::Malformed(_) => "Malformed engine line".into(),
             EntryKind::Degraded(r) => format!("Degraded: {r:?}"),
@@ -160,6 +166,13 @@ impl Entry {
             EntryKind::Diagnostic(d) => location(d),
             EntryKind::Verb { verb, exit } => ir_verb_detail(verb, exit),
             EntryKind::VerbFailed { verb, error } => ir_verb_detail(verb, error),
+            EntryKind::Run(r) => format!(
+                "{:?} · {} · {} ms · {}",
+                r.exit,
+                exit_code(r),
+                r.duration_ms,
+                r.command()
+            ),
             EntryKind::Malformed(raw) => raw.clone(),
             _ => String::new(),
         }
@@ -232,6 +245,9 @@ impl ActivityModule {
                 views.push(DIAGNOSTICS.into());
             }
             EntryKind::Build { .. } => views.push(BUILDS.into()),
+            EntryKind::Run(r) if r.argv.first().is_some_and(|a| a == "build") => {
+                views.push(BUILDS.into())
+            }
             _ => {}
         }
         let error_entry = match &kind {
@@ -239,6 +255,7 @@ impl ActivityModule {
             | EntryKind::Build { ok: false, .. }
             | EntryKind::VerbFailed { .. } => true,
             EntryKind::Verb { exit, .. } => exit != "Ok",
+            EntryKind::Run(r) => r.exit != ExitClass::Ok,
             _ => false,
         };
         if error_entry {
@@ -377,6 +394,51 @@ fn ir_verb_detail(verb: &str, outcome: &str) -> String {
     }
 }
 
+/// `exit 1`, or the class when a signal ended the process.
+fn exit_code(r: &VerbReport) -> String {
+    r.code
+        .map_or_else(|| format!("{:?}", r.exit), |c| format!("exit {c}"))
+}
+
+/// Shown per stream in a run's reading view; the event keeps the rest.
+const MAX_STREAM_LINES: usize = 400;
+
+/// One reading line per output line, labelled once, verbatim.
+fn stream_lines(label: &str, text: &str, tone: Tone) -> Vec<ReadingLine> {
+    let all: Vec<&str> = text.lines().collect();
+    let mut out: Vec<ReadingLine> = all
+        .iter()
+        .take(MAX_STREAM_LINES)
+        .enumerate()
+        .map(|(i, l)| ReadingLine {
+            label: (i == 0).then(|| label.to_string()),
+            text: (*l).to_string(),
+            tone,
+            mono: true,
+        })
+        .collect();
+    if all.len() > MAX_STREAM_LINES {
+        out.push(ReadingLine {
+            label: None,
+            text: format!(
+                "… {} more {label} lines in the journaled event",
+                all.len() - MAX_STREAM_LINES
+            ),
+            tone: Tone::Dim,
+            mono: false,
+        });
+    }
+    out
+}
+
+fn run_diagnostics(r: &VerbReport) -> Vec<Diagnostic> {
+    r.stderr
+        .lines()
+        .filter_map(StderrDiagnostic::parse)
+        .map(|d| Diagnostic::from(&d))
+        .collect()
+}
+
 fn location_file(d: &Diagnostic) -> String {
     d.span
         .as_ref()
@@ -459,6 +521,7 @@ impl Module for ActivityModule {
                         }
                     }
                 }
+                EngineEvent::VerbReported(r) => boundary(self, EntryKind::Run(Box::new(r.clone()))),
                 EngineEvent::MalformedLine { raw } => {
                     boundary(self, EntryKind::Malformed(raw.clone()))
                 }
@@ -548,6 +611,30 @@ impl Module for ActivityModule {
                 line("message", d.message.clone(), Tone::Normal, false),
             ];
         }
+        if let EntryKind::Run(r) = &e.kind {
+            let tone = if r.exit == ExitClass::Ok {
+                Tone::Ok
+            } else {
+                Tone::Error
+            };
+            lines = vec![
+                line("command", r.command(), Tone::Normal, true),
+                line(
+                    "exit",
+                    format!("{} · {:?}", exit_code(r), r.exit),
+                    tone,
+                    false,
+                ),
+                line(
+                    "duration",
+                    format!("{} ms", r.duration_ms),
+                    Tone::Normal,
+                    false,
+                ),
+            ];
+            lines.extend(stream_lines("stderr", &r.stderr, Tone::Normal));
+            lines.extend(stream_lines("stdout", &r.stdout, Tone::Normal));
+        }
         for o in &e.occurrences {
             let at = o.build.clone().unwrap_or_else(|| "—".into());
             lines.push(line("seen", format!("{} · {at}", o.event), Tone::Dim, true));
@@ -573,16 +660,26 @@ impl Module for ActivityModule {
             .last()
             .map(|o| o.event.clone())
             .unwrap_or_default();
+        let mut fields = vec![
+            ("entry".into(), e.key.clone()),
+            ("seen".into(), e.occurrences.len().to_string()),
+            ("first".into(), first),
+            ("last".into(), last),
+        ];
+        if let EntryKind::Run(r) = &e.kind {
+            fields.extend([
+                ("verb".into(), r.verb.clone()),
+                ("command".into(), r.command()),
+                ("exit".into(), format!("{} · {:?}", exit_code(r), r.exit)),
+                ("duration".into(), format!("{} ms", r.duration_ms)),
+            ]);
+        }
         InspectorModel {
             badges: vec![],
-            fields: vec![
-                ("entry".into(), e.key.clone()),
-                ("seen".into(), e.occurrences.len().to_string()),
-                ("first".into(), first),
-                ("last".into(), last),
-            ],
+            fields,
             diagnostics: match &e.kind {
                 EntryKind::Diagnostic(d) => vec![d.clone()],
+                EntryKind::Run(r) => run_diagnostics(r),
                 _ => vec![],
             },
             lists: vec![(

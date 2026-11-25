@@ -14,13 +14,14 @@ FIX="$ROOT/fixtures"
 # theme, whose first build fails ELAYOUT.
 ALL_CORPORA="happy happy-textile cook-one dogfood broken-duplicate-id broken-frontmatter broken-parent broken-textile broken-wikilink content-only"
 # `init` is not a corpus: it captures `boris init` itself (see below).
+# `verbs` is not one either: one-shot palette verbs over corpus-src copies.
 # CV_CAPTURE_ONLY="<name> …" recaptures only those and keeps every other
 # capture byte-for-byte; the manifest still pins every file.
-CAPTURE="${CV_CAPTURE_ONLY:-$ALL_CORPORA init}"
+CAPTURE="${CV_CAPTURE_ONLY:-$ALL_CORPORA init verbs}"
 mkdir -p "$FIX/corpus-src" "$FIX/captures"
 if [ -n "${CV_CAPTURE_ONLY:-}" ]; then
   for c in $CAPTURE; do
-    case " $ALL_CORPORA init " in
+    case " $ALL_CORPORA init verbs " in
       *" $c "*) rm -rf "$FIX/corpus-src/$c" "$FIX/captures/$c" ;;
       *) echo "capture-fixtures: unknown capture '$c'" >&2; exit 2 ;;
     esac
@@ -34,7 +35,7 @@ fi
 # one line of build-info JSON (version + vcs revision) is the pinned identity
 "$BORIS" --build-info > "$FIX/engine-version.txt" 2>&1 || "$BORIS" --version > "$FIX/engine-version.txt" 2>&1
 for c in $CAPTURE; do
-  [ "$c" = init ] && continue
+  case "$c" in init|verbs) continue ;; esac
   src="$CORPUS_SRC/$c"
   [ -d "$src" ] || { echo "skip $c (no corpus at $src)"; continue; }
   echo "== $c =="
@@ -142,6 +143,45 @@ case " $CAPTURE " in *" init "*)
   ( cd "$scratch/$first" && "$BORIS" init site --type "$first" ) > "$cap/refuse/stdout.txt" 2> "$cap/refuse/stderr.txt"
   echo $? > "$cap/refuse/exit-code.txt"
   rm -rf "$scratch"
+  ;;
+esac
+
+# Palette verbs: `verbs/<corpus>/<key>/` holds the argv (one argument per
+# line, as cv-engine spells the verb), stdout, stderr and exit code of one
+# run from the corpus root. Each run gets a fresh copy of the corpus, so
+# no verb sees another's outputs.
+case " $CAPTURE " in *" verbs "*)
+  echo "== verbs =="
+  cap="$FIX/captures/verbs"
+  verb_capture() {
+    corpus=$1; key=$2; shift 2
+    out="$cap/$corpus/$key"
+    mkdir -p "$out"
+    scratch=$(mktemp -d)
+    cp -R "$FIX/corpus-src/$corpus/." "$scratch/"
+    printf '%s\n' "$@" > "$out/argv.txt"
+    ( cd "$scratch" && "$BORIS" "$@" ) > "$out/stdout.txt" 2> "$out/stderr.txt"
+    echo $? > "$out/exit-code.txt"
+    rm -rf "$scratch"
+  }
+  verb_capture happy build build
+  verb_capture happy validate validate
+  verb_capture happy check check --format json
+  verb_capture happy plan plan --profile boris.json
+  verb_capture happy graph graph
+  verb_capture happy impact/index impact index --format json
+  verb_capture happy impact/guides/getting-started impact guides/getting-started --format json
+  verb_capture happy impact/missing impact missing --format json
+  verb_capture happy export-out build --out .boris
+  verb_capture happy export-rag build --rag
+  verb_capture happy export-context build --context
+  verb_capture happy export-llms build --llms
+  verb_capture happy export-rss build --rss
+  verb_capture happy export-sitemap build --sitemap
+  # Textile sources built without --textile: a content failure.
+  verb_capture happy-textile build build
+  verb_capture happy-textile validate validate
+  verb_capture happy-textile check check --format json
   ;;
 esac
 
