@@ -39,11 +39,20 @@ use projection::IrProjection;
 
 /// The workspace's scheduler once the engine has passed its gate.
 #[derive(Clone, Default)]
-pub struct EngineSlot(Arc<OnceLock<Arc<Scheduler>>>);
+pub struct EngineSlot(Arc<OnceLock<Arc<Scheduler>>>, Arc<OnceLock<Arc<Resyncer>>>);
 
 impl EngineSlot {
     pub fn get(&self) -> Option<&Arc<Scheduler>> {
         self.0.get()
+    }
+
+    /// Queue a convergent disk-truth scan when the workspace engine booted.
+    /// A request made after a lifecycle mutation is guaranteed to run after
+    /// that mutation even if an older scan is already in flight.
+    pub fn request_resync(&self) {
+        if let Some(r) = self.1.get() {
+            r.request();
+        }
     }
 }
 
@@ -591,6 +600,7 @@ fn run(b: EngineBoot) {
                 inbox.clone(),
                 epoch.clone(),
             ));
+            let _ = slot.1.set(resyncer.clone());
             LiveDelivery {
                 engine,
                 inbox,

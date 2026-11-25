@@ -94,6 +94,26 @@ fn sink_delivery_does_not_wait_for_a_disk_scan() {
 }
 
 #[test]
+fn a_resync_requested_after_a_mutation_waits_behind_an_in_flight_scan() {
+    let (started_tx, started_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let resyncer = Arc::new(Resyncer::spawn_with(move || {
+        started_tx.send(()).unwrap();
+        release_rx.recv().unwrap();
+    }));
+    let slot = EngineSlot::default();
+    let _ = slot.1.set(resyncer.clone());
+
+    resyncer.request();
+    started_rx.recv().unwrap();
+    slot.request_resync();
+    assert!(started_rx.try_recv().is_err());
+    release_tx.send(()).unwrap();
+    started_rx.recv().unwrap();
+    release_tx.send(()).unwrap();
+}
+
+#[test]
 fn native_watch_spends_only_one_attempt_after_forwarding_undocumented_failures() {
     let root = tempfile::tempdir().unwrap();
     let mut wb = Workbench::new(Registry::with_all());
@@ -499,16 +519,27 @@ fn activity_rows(wb: &Workbench) -> Vec<String> {
 #[cfg(unix)]
 fn wait_for_ir_graph(root: &tempfile::TempDir, wb: &mut Workbench) {
     let deadline = std::time::Instant::now() + Duration::from_secs(10);
-    while !root.path().join(".cv/ir/graph.json").is_file() {
+    loop {
+        wb.drain();
+        let pages = wb
+            .registry
+            .get(wb.registry.index_of("pages").unwrap())
+            .unwrap();
+        let boris_backed = !pages
+            .inspector("index.md")
+            .fields
+            .iter()
+            .any(|(k, v)| k == "fields" && v.contains("no Boris IR"));
+        if root.path().join(".cv/ir/graph.json").is_file() && boris_backed {
+            return;
+        }
         assert!(
             std::time::Instant::now() < deadline,
             "{:?}",
             page_titles(wb)
         );
         std::thread::sleep(Duration::from_millis(10));
-        wb.drain();
     }
-    wb.drain();
 }
 
 fn finished(seq: u64) -> Envelope {
