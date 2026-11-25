@@ -1,0 +1,1 @@
+jekyll: wrote 10 page(s) to /CAPTURE_ROOT/out/jekyll/content/, /CAPTURE_ROOT/out/jekyll/report.json, /CAPTURE_ROOT/out/jekyll/REPORT.md

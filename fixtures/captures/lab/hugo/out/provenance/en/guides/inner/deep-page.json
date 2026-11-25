@@ -1,0 +1,20 @@
+{
+  "format": "boris-hugo-migration-lab",
+  "schema_version": 1,
+  "entity_id": "en/guides/inner/deep-page",
+  "source": "content/en/guides/inner/deep-page.md",
+  "kind": "single",
+  "language": "en",
+  "hugo_path": "guides/inner/deep-page",
+  "front_matter_format": "yaml",
+  "role": "satellite",
+  "parent": "en/guides",
+  "class": "human_review",
+  "published_at_source": "date",
+  "summary_source": "body",
+  "provenance_fields": {},
+  "dropped_keys": [],
+  "assets": [],
+  "shortcodes": [],
+  "notes": ["page in nested section guides/inner flattened: Satellite of en/guides (Boris graph is two-level)"]
+}

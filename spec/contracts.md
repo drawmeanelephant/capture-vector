@@ -138,6 +138,19 @@ additive fields; unknown variants decode to typed `Unknown` — never
 crash on drift. Fixture-decode tests are the entire suite; fixtures are
 real captures only (hand-authored Boris JSON is banned).
 
+## Migration-lab mirrors (`cv-contracts::lab`)
+
+Mirrors of `boris-migration-lab` output, keyed by `(format, schema_version)`
+per document role (`report.json`, `inventory.json`, `provenance/<id>.json`,
+`provenance_manifest.json`, and the mode-specific manifests). One format id
+names a family, so the file's role picks the mirror. Additive fields under
+a known version decode; an unknown format or version is a typed
+`DecodeError`, never a guess. The shared conversion class
+(`exact`/`transformed`/`unsupported`/`human_review`) is `Disposition`; a
+value outside it decodes to `Unknown`. Fixtures are pinned-lab captures in
+`fixtures/captures/lab/` (`scripts/capture-lab-fixtures.sh`), replayed by
+`cv_fixtures::StubLab`.
+
 ## Wave-0 must also pin down
 
 - Diagnostic span units (byte vs char vs UTF-16; 0/1-based; CRLF).

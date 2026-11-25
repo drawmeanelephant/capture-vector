@@ -1,0 +1,1 @@
+obsidian-migration-lab: wrote /CAPTURE_ROOT/out/obsidian/content/, /CAPTURE_ROOT/out/obsidian/assets/, /CAPTURE_ROOT/out/obsidian/report.json, /CAPTURE_ROOT/out/obsidian/REPORT.md, /CAPTURE_ROOT/out/obsidian/attachments_manifest.json

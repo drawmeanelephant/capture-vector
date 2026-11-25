@@ -1,0 +1,3 @@
+--mode=frontmatter-review
+--content=/CAPTURE_ROOT/src/fm-review-mixed/content
+--out=/CAPTURE_ROOT/out/frontmatter-review

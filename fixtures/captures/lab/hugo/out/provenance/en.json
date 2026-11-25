@@ -1,0 +1,20 @@
+{
+  "format": "boris-hugo-migration-lab",
+  "schema_version": 1,
+  "entity_id": "en",
+  "source": "content/en/_index.md",
+  "kind": "section",
+  "language": "en",
+  "hugo_path": "",
+  "front_matter_format": "yaml",
+  "role": "trunk",
+  "parent": null,
+  "class": "transformed",
+  "published_at_source": "none",
+  "summary_source": "description",
+  "provenance_fields": {},
+  "dropped_keys": [],
+  "assets": [],
+  "shortcodes": [],
+  "notes": ["link /posts/ → [[en/posts]]", "link /guides/ → [[en/guides]]"]
+}

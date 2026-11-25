@@ -1,0 +1,542 @@
+{
+  "format": "boris-obsidian-migration-lab",
+  "schema_version": 1,
+  "tool_version": "0.1.1",
+  "source_vault": "/CAPTURE_ROOT/src/mini-obsidian",
+  "summary": {
+    "pages": 17,
+    "attachments": 1,
+    "links_resolved": 11,
+    "links_unresolved": 2,
+    "links_ambiguous": 2,
+    "heading_or_block_refs": 2
+
+  },
+  "pages": [
+    {
+      "source_path": "A/Shared Path/Deep.md",
+      "entity_id": "A/Shared-Path/Deep",
+      "output_path": "content/A/Shared-Path/Deep.md",
+      "title": "Deep A",
+      "conversion": "exact",
+      "notes": []
+    },
+    {
+      "source_path": "Ambiguous/Shared.md",
+      "entity_id": "Ambiguous/Shared",
+      "output_path": "content/Ambiguous/Shared.md",
+      "title": "Shared",
+      "conversion": "exact",
+      "notes": []
+    },
+    {
+      "source_path": "B/Shared Path/Deep.md",
+      "entity_id": "B/Shared-Path/Deep",
+      "output_path": "content/B/Shared-Path/Deep.md",
+      "title": "Deep B",
+      "conversion": "exact",
+      "notes": []
+    },
+    {
+      "source_path": "Clash/Hello World.md",
+      "entity_id": "Clash/Hello-World",
+      "output_path": "content/Clash/Hello-World.md",
+      "title": "Hello World spaced",
+      "conversion": "exact",
+      "notes": []
+    },
+    {
+      "source_path": "Clash/Hello-World.md",
+      "entity_id": "Clash/Hello-World-2",
+      "output_path": "content/Clash/Hello-World-2.md",
+      "title": "Hello World dashed",
+      "conversion": "exact",
+      "notes": []
+    },
+    {
+      "source_path": "Dataview Demo.md",
+      "entity_id": "Dataview-Demo",
+      "output_path": "content/Dataview-Demo.md",
+      "title": "Dataview Demo",
+      "conversion": "unsupported",
+      "notes": ["hazard: dataviewjs", "hazard: dataview", "hazard: tasks_plugin", "hazard: plugin_syntax", "hazard: plugin_syntax"]
+    },
+    {
+      "source_path": "Embeds.md",
+      "entity_id": "Embeds",
+      "output_path": "content/Embeds.md",
+      "title": "Embeds",
+      "conversion": "human_review",
+      "notes": []
+    },
+    {
+      "source_path": "Notes/Alpha.md",
+      "entity_id": "Notes/Alpha",
+      "output_path": "content/Notes/Alpha.md",
+      "title": "Alpha",
+      "conversion": "human_review",
+      "notes": ["dropped unknown frontmatter key: cssclass"]
+    },
+    {
+      "source_path": "Notes/Beta.md",
+      "entity_id": "Notes/Beta",
+      "output_path": "content/Notes/Beta.md",
+      "title": "Beta",
+      "conversion": "exact",
+      "notes": []
+    },
+    {
+      "source_path": "Notes/Sub/Gamma.md",
+      "entity_id": "Notes/Sub/Gamma",
+      "output_path": "content/Notes/Sub/Gamma.md",
+      "title": "Gamma",
+      "conversion": "exact",
+      "notes": []
+    },
+    {
+      "source_path": "Notes/Suffix Probe.md",
+      "entity_id": "Notes/Suffix-Probe",
+      "output_path": "content/Notes/Suffix-Probe.md",
+      "title": "Suffix Probe",
+      "conversion": "human_review",
+      "notes": []
+    },
+    {
+      "source_path": "Other/Shared.md",
+      "entity_id": "Other/Shared",
+      "output_path": "content/Other/Shared.md",
+      "title": "Shared",
+      "conversion": "exact",
+      "notes": []
+    },
+    {
+      "source_path": "Projects/Q1 Plan.md",
+      "entity_id": "Projects/Q1-Plan",
+      "output_path": "content/Projects/Q1-Plan.md",
+      "title": "Q1 Plan",
+      "conversion": "transformed",
+      "notes": []
+    },
+    {
+      "source_path": "Templates/Nav.md",
+      "entity_id": "Templates/Nav",
+      "output_path": "content/Templates/Nav.md",
+      "title": "Nav Template",
+      "conversion": "human_review",
+      "notes": []
+    },
+    {
+      "source_path": "Vault/Concept Board/Concept Board.md",
+      "entity_id": "Vault/Concept-Board/Concept-Board",
+      "output_path": "content/Vault/Concept-Board/Concept-Board.md",
+      "title": "Concept Board",
+      "conversion": "exact",
+      "notes": []
+    },
+    {
+      "source_path": "Vault/Concept Board/Concepts/Vertical Hydroponics.md",
+      "entity_id": "Vault/Concept-Board/Concepts/Vertical-Hydroponics",
+      "output_path": "content/Vault/Concept-Board/Concepts/Vertical-Hydroponics.md",
+      "title": "Vertical Hydroponics",
+      "conversion": "transformed",
+      "notes": []
+    },
+    {
+      "source_path": "Welcome.md",
+      "entity_id": "Welcome",
+      "output_path": "content/Welcome.md",
+      "title": "Welcome",
+      "conversion": "transformed",
+      "notes": []
+    }
+  ],
+  "links": [
+    {
+      "source_path": "Embeds.md",
+      "raw": "![[Attachments/diagram.png]]",
+      "target": "Attachments/diagram.png",
+      "status": "resolved",
+      "is_embed": true,
+      "resolved_to": "assets/Attachments/diagram.png",
+      "note": "embed rewritten to Markdown link/image"
+    },
+    {
+      "source_path": "Embeds.md",
+      "raw": "![[Attachments/diagram.png|400]]",
+      "target": "Attachments/diagram.png",
+      "status": "unsupported_embed",
+      "is_embed": true,
+      "resolved_to": null,
+      "note": "embed size parameter not supported; left raw"
+    },
+    {
+      "source_path": "Embeds.md",
+      "raw": "![[Beta]]",
+      "target": "Beta",
+      "status": "resolved",
+      "is_embed": true,
+      "resolved_to": "Notes/Beta",
+      "note": "note embed flattened to wiki link (no live embed)"
+    },
+    {
+      "source_path": "Embeds.md",
+      "raw": "![[no-such.png]]",
+      "target": "no-such.png",
+      "status": "unresolved",
+      "is_embed": true,
+      "resolved_to": null,
+      "note": "unresolved embed target; left raw"
+    },
+    {
+      "source_path": "Notes/Alpha.md",
+      "raw": "![[Attachments/diagram.png]]",
+      "target": "Attachments/diagram.png",
+      "status": "skipped_fence",
+      "is_embed": true,
+      "resolved_to": null,
+      "note": "inside fenced code; left unchanged"
+    },
+    {
+      "source_path": "Notes/Alpha.md",
+      "raw": "[[Beta#Details]]",
+      "target": "Beta",
+      "status": "heading_or_block",
+      "is_embed": false,
+      "resolved_to": null,
+      "note": "heading or block reference not rewritten in phase-1"
+    },
+    {
+      "source_path": "Notes/Alpha.md",
+      "raw": "[[Beta#^block1]]",
+      "target": "Beta",
+      "status": "heading_or_block",
+      "is_embed": false,
+      "resolved_to": null,
+      "note": "heading or block reference not rewritten in phase-1"
+    },
+    {
+      "source_path": "Notes/Alpha.md",
+      "raw": "[[Beta]]",
+      "target": "Beta",
+      "status": "resolved",
+      "is_embed": false,
+      "resolved_to": "Notes/Beta",
+      "note": "wiki link rewritten to entity id"
+    },
+    {
+      "source_path": "Notes/Alpha.md",
+      "raw": "[[Beta]]",
+      "target": "Beta",
+      "status": "skipped_fence",
+      "is_embed": false,
+      "resolved_to": null,
+      "note": "inside fenced code; left unchanged"
+    },
+    {
+      "source_path": "Notes/Alpha.md",
+      "raw": "[[Beta|the beta note]]",
+      "target": "Beta",
+      "status": "resolved",
+      "is_embed": false,
+      "resolved_to": "Notes/Beta",
+      "note": "wiki link rewritten to entity id"
+    },
+    {
+      "source_path": "Notes/Alpha.md",
+      "raw": "[[Missing Note]]",
+      "target": "Missing Note",
+      "status": "unresolved",
+      "is_embed": false,
+      "resolved_to": null,
+      "note": "unresolved note target; left raw"
+    },
+    {
+      "source_path": "Notes/Alpha.md",
+      "raw": "[[Notes/Sub/Gamma]]",
+      "target": "Notes/Sub/Gamma",
+      "status": "resolved",
+      "is_embed": false,
+      "resolved_to": "Notes/Sub/Gamma",
+      "note": "wiki link rewritten to entity id"
+    },
+    {
+      "source_path": "Notes/Alpha.md",
+      "raw": "[[Q1 Plan]]",
+      "target": "Q1 Plan",
+      "status": "resolved",
+      "is_embed": false,
+      "resolved_to": "Projects/Q1-Plan",
+      "note": "wiki link rewritten to entity id"
+    },
+    {
+      "source_path": "Notes/Alpha.md",
+      "raw": "[[Shared]]",
+      "target": "Shared",
+      "status": "ambiguous",
+      "is_embed": false,
+      "resolved_to": null,
+      "note": "ambiguous note target"
+    },
+    {
+      "source_path": "Notes/Suffix Probe.md",
+      "raw": "[[Shared Path/Deep]]",
+      "target": "Shared Path/Deep",
+      "status": "ambiguous",
+      "is_embed": false,
+      "resolved_to": null,
+      "note": "ambiguous note target"
+    },
+    {
+      "source_path": "Projects/Q1 Plan.md",
+      "raw": "[[Welcome]]",
+      "target": "Welcome",
+      "status": "resolved",
+      "is_embed": false,
+      "resolved_to": "Welcome",
+      "note": "wiki link rewritten to entity id"
+    },
+    {
+      "source_path": "Templates/Nav.md",
+      "raw": "[[${navLink}|${navName}]]",
+      "target": "${navLink}",
+      "status": "plugin_template",
+      "is_embed": false,
+      "resolved_to": null,
+      "note": "plugin/template placeholder in wiki target; left raw"
+    },
+    {
+      "source_path": "Templates/Nav.md",
+      "raw": "[[<% tp.file.title %>]]",
+      "target": "<% tp.file.title %>",
+      "status": "plugin_template",
+      "is_embed": false,
+      "resolved_to": null,
+      "note": "plugin/template placeholder in wiki target; left raw"
+    },
+    {
+      "source_path": "Vault/Concept Board/Concepts/Vertical Hydroponics.md",
+      "raw": "[[Concept Board/Concept Board|Concept Board]]",
+      "target": "Concept Board/Concept Board",
+      "status": "resolved",
+      "is_embed": false,
+      "resolved_to": "Vault/Concept-Board/Concept-Board",
+      "note": "wiki link rewritten to entity id"
+    },
+    {
+      "source_path": "Vault/Concept Board/Concepts/Vertical Hydroponics.md",
+      "raw": "[[Concept-Board/Concept-Board]]",
+      "target": "Concept-Board/Concept-Board",
+      "status": "resolved",
+      "is_embed": false,
+      "resolved_to": "Vault/Concept-Board/Concept-Board",
+      "note": "wiki link rewritten to entity id"
+    },
+    {
+      "source_path": "Welcome.md",
+      "raw": "[[Beta]]",
+      "target": "Beta",
+      "status": "resolved",
+      "is_embed": false,
+      "resolved_to": "Notes/Beta",
+      "note": "wiki link rewritten to entity id"
+    },
+    {
+      "source_path": "Welcome.md",
+      "raw": "[[Notes/Alpha]]",
+      "target": "Notes/Alpha",
+      "status": "resolved",
+      "is_embed": false,
+      "resolved_to": "Notes/Alpha",
+      "note": "wiki link rewritten to entity id"
+    }
+  ],
+  "hazards": [
+    {
+      "kind": "canvas",
+      "source_path": "Canvas Board.canvas",
+      "detail": "Obsidian Canvas is not converted in phase-1; inventoried only"
+    },
+    {
+      "kind": "dataview",
+      "source_path": "Dataview Demo.md",
+      "detail": "dataview fenced block (not evaluated)"
+    },
+    {
+      "kind": "dataviewjs",
+      "source_path": "Dataview Demo.md",
+      "detail": "dataviewjs fenced block (not evaluated)"
+    },
+    {
+      "kind": "plugin_syntax",
+      "source_path": "Dataview Demo.md",
+      "detail": "inline $= query syntax retained raw"
+    },
+    {
+      "kind": "plugin_syntax",
+      "source_path": "Dataview Demo.md",
+      "detail": "possible inline field (key:: value) retained raw"
+    },
+    {
+      "kind": "tasks_plugin",
+      "source_path": "Dataview Demo.md",
+      "detail": "tasks plugin fenced block (not evaluated)"
+    },
+    {
+      "kind": "note_embed",
+      "source_path": "Embeds.md",
+      "detail": "![[Beta]] → [[Notes/Beta]]"
+    },
+    {
+      "kind": "unresolved_link",
+      "source_path": "Embeds.md",
+      "detail": "![[no-such.png]]"
+    },
+    {
+      "kind": "unsupported_embed",
+      "source_path": "Embeds.md",
+      "detail": "![[Attachments/diagram.png|400]]"
+    },
+    {
+      "kind": "ambiguous_link",
+      "source_path": "Notes/Alpha.md",
+      "detail": "[[Shared]]"
+    },
+    {
+      "kind": "heading_or_block_ref",
+      "source_path": "Notes/Alpha.md",
+      "detail": "[[Beta#Details]]"
+    },
+    {
+      "kind": "heading_or_block_ref",
+      "source_path": "Notes/Alpha.md",
+      "detail": "[[Beta#^block1]]"
+    },
+    {
+      "kind": "unknown_frontmatter_key",
+      "source_path": "Notes/Alpha.md",
+      "detail": "key `cssclass` not in Boris closed grammar"
+    },
+    {
+      "kind": "unresolved_link",
+      "source_path": "Notes/Alpha.md",
+      "detail": "[[Missing Note]]"
+    },
+    {
+      "kind": "ambiguous_link",
+      "source_path": "Notes/Suffix Probe.md",
+      "detail": "[[Shared Path/Deep]]"
+    },
+    {
+      "kind": "plugin_syntax",
+      "source_path": "Templates/Nav.md",
+      "detail": "[[${navLink}|${navName}]]"
+    },
+    {
+      "kind": "plugin_syntax",
+      "source_path": "Templates/Nav.md",
+      "detail": "[[<% tp.file.title %>]]"
+    }
+  ],
+  "attachments": [
+    {
+      "source_path": "Attachments/diagram.png",
+      "output_path": "assets/Attachments/diagram.png",
+      "referenced": true,
+      "copied": true
+    }
+  ],
+  "unsupported_items": [
+    {
+      "source_path": "Canvas Board.canvas",
+      "kind": "canvas",
+      "detail": "Obsidian Canvas is not converted in phase-1; inventoried only"
+    },
+    {
+      "source_path": "Clash/Hello-World.md",
+      "kind": "entity_id_collision",
+      "detail": "collides with Clash/Hello World.md → Clash/Hello-World; remapped to Clash/Hello-World-2"
+    }
+  ],
+  "human_review": [
+    {
+      "source_path": "Canvas Board.canvas",
+      "reason": "canvas",
+      "detail": "Obsidian Canvas is not converted in phase-1; inventoried only"
+    },
+    {
+      "source_path": "Dataview Demo.md",
+      "reason": "dataview",
+      "detail": "dataview fenced block (not evaluated)"
+    },
+    {
+      "source_path": "Dataview Demo.md",
+      "reason": "dataviewjs",
+      "detail": "dataviewjs fenced block (not evaluated)"
+    },
+    {
+      "source_path": "Dataview Demo.md",
+      "reason": "plugin_syntax",
+      "detail": "inline $= query syntax retained raw"
+    },
+    {
+      "source_path": "Dataview Demo.md",
+      "reason": "plugin_syntax",
+      "detail": "possible inline field (key:: value) retained raw"
+    },
+    {
+      "source_path": "Dataview Demo.md",
+      "reason": "tasks_plugin",
+      "detail": "tasks plugin fenced block (not evaluated)"
+    },
+    {
+      "source_path": "Embeds.md",
+      "reason": "unresolved",
+      "detail": "![[no-such.png]]"
+    },
+    {
+      "source_path": "Embeds.md",
+      "reason": "unsupported_embed",
+      "detail": "![[Attachments/diagram.png|400]]"
+    },
+    {
+      "source_path": "Notes/Alpha.md",
+      "reason": "ambiguous",
+      "detail": "[[Shared]]"
+    },
+    {
+      "source_path": "Notes/Alpha.md",
+      "reason": "heading_or_block",
+      "detail": "[[Beta#Details]]"
+    },
+    {
+      "source_path": "Notes/Alpha.md",
+      "reason": "heading_or_block",
+      "detail": "[[Beta#^block1]]"
+    },
+    {
+      "source_path": "Notes/Alpha.md",
+      "reason": "unknown_frontmatter_key",
+      "detail": "cssclass"
+    },
+    {
+      "source_path": "Notes/Alpha.md",
+      "reason": "unresolved",
+      "detail": "[[Missing Note]]"
+    },
+    {
+      "source_path": "Notes/Suffix Probe.md",
+      "reason": "ambiguous",
+      "detail": "[[Shared Path/Deep]]"
+    },
+    {
+      "source_path": "Templates/Nav.md",
+      "reason": "plugin_template",
+      "detail": "[[${navLink}|${navName}]]"
+    },
+    {
+      "source_path": "Templates/Nav.md",
+      "reason": "plugin_template",
+      "detail": "[[<% tp.file.title %>]]"
+    }
+  ]
+}

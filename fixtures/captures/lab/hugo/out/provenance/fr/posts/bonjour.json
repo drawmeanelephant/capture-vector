@@ -1,0 +1,20 @@
+{
+  "format": "boris-hugo-migration-lab",
+  "schema_version": 1,
+  "entity_id": "fr/posts/bonjour",
+  "source": "content/fr/posts/bonjour/index.md",
+  "kind": "leaf_bundle",
+  "language": "fr",
+  "hugo_path": "posts/bonjour",
+  "front_matter_format": "toml",
+  "role": "satellite",
+  "parent": "fr/posts",
+  "class": "transformed",
+  "published_at_source": "date",
+  "summary_source": "body",
+  "provenance_fields": {},
+  "dropped_keys": [],
+  "assets": [],
+  "shortcodes": [],
+  "notes": []
+}

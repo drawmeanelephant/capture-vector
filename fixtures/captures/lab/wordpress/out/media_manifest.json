@@ -1,0 +1,43 @@
+{
+  "format": "boris-wordpress-media-manifest",
+  "schema_version": 1,
+  "policy": "Verified local --media matches are copied into page-sibling {stem}.assets/ under --out only. Unresolved references are preserved and listed. No network fetch. Inputs never modified. Query strings and fragments are dropped on rewrite (Boris content-local asset grammar); reasons are recorded when dropped.",
+  "entries": [
+    {
+      "source_output": "content/_preserved/attachment-10.md",
+      "original_reference": "https://example.com/wp-content/uploads/2024/01/hero.png",
+      "upload_key": "2024/01/hero.png",
+      "matched_source": "2024/01/hero.png",
+      "emitted_asset_path": null,
+      "status": "rejected",
+      "reason": "attachment_inventory_only_not_materialized"
+    },
+    {
+      "source_output": "content/_preserved/attachment-11.md",
+      "original_reference": "https://example.com/wp-content/uploads/2024/01/missing-asset.png",
+      "upload_key": "2024/01/missing-asset.png",
+      "matched_source": null,
+      "emitted_asset_path": null,
+      "status": "missing",
+      "reason": "local_media_not_found"
+    },
+    {
+      "source_output": "content/posts/hello-world.md",
+      "original_reference": "https://example.com/wp-content/uploads/2024/01/hero.png",
+      "upload_key": "2024/01/hero.png",
+      "matched_source": "2024/01/hero.png",
+      "emitted_asset_path": "content/posts/hello-world.assets/2024/01/hero.png",
+      "status": "copied",
+      "reason": ""
+    },
+    {
+      "source_output": "content/posts/release-notes.md",
+      "original_reference": "https://example.com/wp-content/uploads/2024/01/missing-asset.png",
+      "upload_key": "2024/01/missing-asset.png",
+      "matched_source": null,
+      "emitted_asset_path": null,
+      "status": "missing",
+      "reason": "local_media_not_found"
+    }
+  ]
+}
