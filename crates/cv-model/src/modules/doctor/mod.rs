@@ -760,7 +760,7 @@ fn store_items(f: &Facts) -> Vec<Item> {
                 Item::new(format!("store.index.{}", ns.name), format!("{} index", ns.name), ix.clone())
                     .path()
                     .say(format!(
-                        "Rebuildable: the JSONL under {} is the truth. The index rebuilds on open whenever it is missing, corrupt or stale; to force a rebuild, quit, delete this file, and reopen the workspace.",
+                        "Rebuildable: the JSONL under {} is the truth. The index rebuilds on open whenever it is missing, corrupt or stale; to force a rebuild, run Rebuild local indexes from .cv JSONL from the command palette (mod+K). Only if that action reports failure: quit, delete this file, and reopen the workspace.",
                         ns.dir
                     )),
             );

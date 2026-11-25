@@ -82,12 +82,17 @@ impl LedgerIndex {
             let mut idx = Self::connect(tmp_path)?;
             idx.rebuild(records)?;
             idx.close()?;
+            // The replacement rename covers only the database file: a
+            // WAL or hot journal the old index left behind would replay
+            // into the replacement on next open, restoring the stale
+            // shape while the rebuild reports success. The journal
+            // writer lock is held here, so sidecars are always stale.
+            cv_store::paths::remove_sqlite_sidecars(&path)?;
             cv_store::paths::replace_file(tmp_path, &path)?;
+            cv_store::paths::remove_sqlite_sidecars(&path)?;
             Ok(())
         })();
-        for suffix in ["-journal", "-wal", "-shm"] {
-            let _ = std::fs::remove_file(PathBuf::from(format!("{}{suffix}", tmp_path.display())));
-        }
+        let _ = cv_store::paths::remove_sqlite_sidecars(tmp_path);
         result.map(|_| records.len() as u64)
     }
 
