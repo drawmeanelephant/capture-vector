@@ -319,12 +319,7 @@ pub fn plan(
     content_input: &str,
     merge_subfolder: Option<&str>,
 ) -> Result<Vec<PlannedFile>, AdoptError> {
-    let input = content_input.trim().trim_matches('/');
-    if !input.is_empty() && input != "." {
-        portable_relative(input).map_err(|_| {
-            AdoptError::Content(format!("content input {content_input:?} is not portable"))
-        })?;
-    }
+    let input = content_input_authority(content_input)?;
     let sub = match merge_subfolder {
         Some(s) => Some(subfolder(s)?),
         None => None,
@@ -344,7 +339,9 @@ pub fn plan(
     Ok(out)
 }
 
+mod input_authority;
 mod preflight;
+use input_authority::content_input_authority;
 pub use preflight::{Collision, CollisionKind, collisions, copy_content};
 use preflight::{bytes_identical, incoming_id_collisions, preflight_write_target_shapes};
 
@@ -355,7 +352,7 @@ fn starter_manifest(
     target_root: &Path,
     content_input: &str,
 ) -> Result<Vec<store::PendingFile>, AdoptError> {
-    let input = content_input.trim().trim_matches('/');
+    let input = content_input_authority(content_input)?;
     let dir = target_root.join(input);
     let mut files = Vec::new();
     if dir.is_dir() {
@@ -393,7 +390,7 @@ fn sweep_starter(
     journal: &store::PendingAdoption,
     planned: &[PlannedFile],
 ) -> Result<(), AdoptError> {
-    let input = content_input.trim().trim_matches('/');
+    let input = content_input_authority(content_input)?;
     if input.is_empty() || input == "." {
         // A whole-workspace input would make the workspace root itself
         // the sweep domain — `.cv/`, the journal, the Boris config.
@@ -869,6 +866,7 @@ pub fn transact(
     existing_ids: &BTreeMap<String, String>,
     at_ms: i64,
 ) -> Result<TxReport, AdoptError> {
+    content_input_authority(content_input)?;
     // A newly initialized workspace is already visible to other Capture
     // Vector processes, so "new" only means there is no live scheduler in
     // this process. Establish the `.cv` carrier as part of the intentional
@@ -904,6 +902,7 @@ pub fn transact(
 pub fn transact_existing_with_identity(
     tx: ExistingWorkspaceTransaction<'_>,
 ) -> Result<TxReport, AdoptError> {
+    content_input_authority(tx.content_input)?;
     // Lock order is fixed and documented: process-local scheduler batch
     // (held by the composition root) -> workspace-instance mutation lock ->
     // per-run lock. No adoption path acquires those capabilities in another
@@ -973,7 +972,7 @@ fn transact_impl(params: TxParams<'_>) -> Result<TxReport, AdoptError> {
     // silently overwrite provenance Capture Vector could not interpret.
     store::read_adoption_record(target_root, &src.run_id).map_err(AdoptError::Report)?;
     let pending = store::read_pending(target_root, &src.run_id).map_err(AdoptError::Report)?;
-    let input_norm = content_input.trim().trim_matches('/');
+    let input_norm = content_input_authority(content_input)?;
     let resume = match &pending {
         None => false,
         Some(p) if p.matches(target_kind, input_norm, subfolder_name.as_deref()) => true,

@@ -62,12 +62,34 @@ impl EngineConfig {
     }
 }
 
+fn normalize_component(raw: &str) -> String {
+    use unicode_casefold::UnicodeCaseFold;
+    use unicode_normalization::UnicodeNormalization;
+    let folded: String = raw.nfc().case_fold().collect();
+    folded.nfc().collect()
+}
+
+fn normalized_parts(path: &Path) -> Vec<String> {
+    path.components()
+        .filter_map(|c| match c {
+            std::path::Component::Normal(n) => Some(normalize_component(&n.to_string_lossy())),
+            _ => None,
+        })
+        .collect()
+}
+
 fn relative_parts(raw: &str, what: &str) -> Result<Vec<String>> {
-    let parts = Path::new(raw)
+    let path = Path::new(raw);
+    if path.is_absolute() || raw.trim().is_empty() || raw.contains('\\') {
+        return Err(EngineError::Refused(format!(
+            "{what} {raw:?} must be a workspace-relative path"
+        )));
+    }
+    let parts = path
         .components()
         .filter(|c| *c != std::path::Component::CurDir)
         .map(|c| match c {
-            std::path::Component::Normal(n) => Ok(n.to_string_lossy().to_lowercase()),
+            std::path::Component::Normal(n) => Ok(n.to_string_lossy().into_owned()),
             _ => Err(EngineError::Refused(format!(
                 "{what} {raw:?} must be a workspace-relative path"
             ))),
@@ -81,28 +103,69 @@ fn relative_parts(raw: &str, what: &str) -> Result<Vec<String>> {
     Ok(parts)
 }
 
+/// Canonicalize each existing component from the workspace root, then
+/// compare Unicode-NFC + case-folded components. This catches APFS's
+/// NFD/NFC and case aliases as well as symlinks in existing prefixes.
+/// Non-existent suffixes remain lexical because they have no filesystem
+/// identity yet; portable-relative validation still rejects parent escapes.
+fn canonical_parts(root: &Path, raw_parts: &[String]) -> Vec<String> {
+    let mut current = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
+    let mut unresolved = Vec::new();
+    for (i, part) in raw_parts.iter().enumerate() {
+        if unresolved.is_empty() {
+            let candidate = current.join(part);
+            if candidate.exists() {
+                current = candidate.canonicalize().unwrap_or(candidate);
+            } else {
+                unresolved = raw_parts[i..].to_vec();
+            }
+        }
+    }
+    let root_canon = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
+    let mut parts = current
+        .strip_prefix(&root_canon)
+        .map(normalized_parts)
+        .unwrap_or_else(|_| normalized_parts(&current));
+    parts.extend(unresolved.iter().map(|p| normalize_component(p)));
+    parts
+}
+
 fn overlaps(a: &[String], b: &[String]) -> bool {
     a.starts_with(b) || b.starts_with(a)
 }
 
-fn allowed_cv_output(parts: &[String], ir_output: bool) -> bool {
-    let cv = [".cv".to_string()];
-    let ir = [".cv".to_string(), "ir".to_string()];
-    let staging = [".cv".to_string(), "ir.staging".to_string()];
-    let out = [".cv".to_string(), "out".to_string()];
-    (ir_output && (parts.starts_with(&ir) || parts.starts_with(&staging)))
-        || parts.starts_with(&out)
-        || !parts.starts_with(&cv)
+fn owned_cv_output(parts: &[String]) -> bool {
+    [
+        [".cv", "publish"],
+        [".cv", "ir"],
+        [".cv", "ir.staging"],
+        [".cv", "out"],
+    ]
+    .iter()
+    .map(|lane| lane.map(str::to_string))
+    .any(|lane| parts.starts_with(&lane))
 }
 
-fn validate_output_path(
-    cfg: &EngineConfig,
-    raw: &str,
-    what: &str,
-    typed_export_out: bool,
-    ir_output: bool,
-) -> Result<()> {
-    let parts = relative_parts(raw, what)?;
+fn output_cfg(cfg: &EngineConfig, input: Option<&str>) -> Result<EngineConfig> {
+    let mut cfg = cfg.clone();
+    if let Some(input) = input {
+        if input.trim().is_empty()
+            || input != input.trim()
+            || Path::new(input).is_absolute()
+            || (input != "." && cv_store::paths::portable_relative(input).is_err())
+        {
+            return Err(EngineError::Refused(format!(
+                "content input {input:?} is not a portable workspace-relative authority"
+            )));
+        }
+        cfg.content_input = input.into();
+    }
+    Ok(cfg)
+}
+
+fn validate_output_path(cfg: &EngineConfig, raw: &str, what: &str) -> Result<()> {
+    let raw_parts = relative_parts(raw, what)?;
+    let parts = canonical_parts(&cfg.root, &raw_parts);
     let cv = [".cv".to_string()];
     let boris_meta = [".boris".to_string()];
     let profile = ["boris.json".to_string()];
@@ -111,33 +174,29 @@ fn validate_output_path(
             "{what} {raw:?} overlaps workspace profile metadata"
         )));
     }
-    if parts.starts_with(&cv) && !allowed_cv_output(&parts, ir_output) {
+    if parts.starts_with(&cv) && !owned_cv_output(&parts) {
         return Err(EngineError::Refused(format!(
-            "{what} {raw:?} overlaps Capture Vector metadata"
+            "{what} {raw:?} overlaps Capture Vector metadata outside an owned output lane"
         )));
     }
-    if parts.starts_with(&boris_meta) && !typed_export_out {
+    if parts.starts_with(&boris_meta) && raw != ".boris" {
         return Err(EngineError::Refused(format!(
             "{what} {raw:?} overlaps Boris metadata"
         )));
     }
     let input = cfg.content_input.to_string_lossy().replace('\\', "/");
-    let input_parts = Path::new(&input)
-        .components()
-        .filter(|c| *c != std::path::Component::CurDir)
-        .filter_map(|c| match c {
-            std::path::Component::Normal(n) => Some(n.to_string_lossy().to_lowercase()),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
-    let input_is_root = input_parts.is_empty();
-    if !input_is_root && overlaps(&parts, &input_parts) {
-        return Err(EngineError::Refused(format!(
-            "{what} {raw:?} overlaps the workspace content input {input:?}"
-        )));
-    }
-    if input_is_root {
-        let html = cfg.html_dir.to_lowercase();
+    let input_raw = if input == "." {
+        Vec::new()
+    } else {
+        input
+            .split('/')
+            .filter(|p| !p.is_empty() && *p != ".")
+            .map(str::to_string)
+            .collect::<Vec<_>>()
+    };
+    let input_parts = canonical_parts(&cfg.root, &input_raw);
+    if input_raw.is_empty() {
+        let html = normalize_component(&cfg.html_dir);
         let derived = parts.starts_with(&cv)
             || parts.starts_with(&boris_meta)
             || parts.first().is_some_and(|p| *p == html);
@@ -146,44 +205,130 @@ fn validate_output_path(
                 "{what} {raw:?} overlaps the workspace content input, which is the workspace root"
             )));
         }
+    } else if overlaps(&parts, &input_parts) {
+        return Err(EngineError::Refused(format!(
+            "{what} {raw:?} overlaps the workspace content input {input:?}"
+        )));
+    }
+    Ok(())
+}
+
+fn flag_value_at<'a>(args: &'a [String], i: usize, flag: &str) -> Option<&'a str> {
+    let arg = &args[i];
+    if arg == flag {
+        args.get(i + 1).map(String::as_str)
+    } else {
+        arg.strip_prefix(flag)?.strip_prefix('=')
+    }
+}
+
+fn validate_custom_outputs(cfg: &EngineConfig, args: &[String]) -> Result<()> {
+    let effective = output_cfg(cfg, flag_value(args, "--input"))?;
+    let cfg = &effective;
+    const PATH_FLAGS: &[&str] = &[
+        "--out",
+        "--html-dir",
+        "--dist",
+        "--llms-path",
+        "--rss-path",
+        "--sitemap-path",
+        "--rag-dir",
+        "--context-dir",
+        "--report",
+        "--report-out",
+        "--session-root",
+        "--plan",
+        "--bundle",
+    ];
+    for (i, _arg) in args.iter().enumerate() {
+        for flag in PATH_FLAGS {
+            if let Some(value) = flag_value_at(args, i, flag) {
+                if *flag == "--out" && value.trim_start_matches("./") == ".boris" {
+                    return Err(EngineError::Refused(format!(
+                        "{flag} {value:?} overlaps Boris metadata"
+                    )));
+                }
+                validate_output_path(cfg, value, flag)?;
+            }
+        }
+        if let Some(value) = flag_value_at(args, i, "--target")
+            && let Some((_, output)) = value.split_once('=')
+        {
+            validate_output_path(cfg, output, "--target")?;
+        }
+    }
+    let implicit = [
+        ("--rag", "rag"),
+        ("--context", "context"),
+        ("--llms", "llms.txt"),
+        ("--rss", "rss.xml"),
+        ("--no-rag", ".boris"),
+    ];
+    for (flag, output) in implicit {
+        if args.iter().any(|a| a == flag) {
+            validate_output_path(cfg, output, flag)?;
+        }
+    }
+    Ok(())
+}
+
+fn validate_default_html_output(cfg: &EngineConfig, name: &str, args: &[String]) -> Result<()> {
+    if !matches!(name, "build" | "watch") {
+        return Ok(());
+    }
+    let redirected = args.iter().any(|a| {
+        [
+            "--out",
+            "--html-dir",
+            "--target",
+            "--rag",
+            "--rag-dir",
+            "--context",
+            "--context-dir",
+            "--llms",
+            "--rss",
+            "--no-rag",
+        ]
+        .iter()
+        .any(|flag| a == flag || a.starts_with(&format!("{flag}=")))
+    });
+    if !redirected {
+        validate_output_path(cfg, "dist", "default HTML output")?;
     }
     Ok(())
 }
 
 fn validate_verb_output_paths(cfg: &EngineConfig, verb: &Verb) -> Result<()> {
-    if let Verb::Ir { out, .. } = verb {
-        validate_output_path(cfg, out, "IR output", false, true)?;
+    if let Verb::Ir { out, input } = verb {
+        let effective = output_cfg(cfg, input.as_deref())?;
+        validate_output_path(&effective, out, "IR output")?;
     }
     if let Verb::Init { dir, .. } = verb {
-        validate_output_path(cfg, dir, "init target", false, false)?;
+        validate_output_path(cfg, dir, "init target")?;
     }
-    let typed_export_out = matches!(
-        verb,
-        Verb::Export {
-            kind: cv_core::engine::ExportKind::Out
-        }
-    );
-    if typed_export_out {
-        validate_output_path(cfg, ".boris", "export output", true, false)?;
+    if let Verb::Export { kind } = verb {
+        use cv_core::engine::ExportKind;
+        let output = match kind {
+            ExportKind::Out => ".boris",
+            ExportKind::Rag => "rag",
+            ExportKind::Context => "context",
+            ExportKind::Llms => "llms.txt",
+            ExportKind::Rss => "rss.xml",
+            ExportKind::Sitemap => "dist",
+        };
+        validate_output_path(cfg, output, "export output")?;
     }
     if let Verb::Custom { name, args } = verb {
         if name == "init"
             && let Some(dir) = args.first()
         {
-            validate_output_path(cfg, dir, "init target", false, false)?;
+            validate_output_path(cfg, dir, "init target")?;
         }
-        for (i, arg) in args.iter().enumerate() {
-            for flag in ["--out", "--html-dir"] {
-                let value = if arg == flag {
-                    args.get(i + 1).map(String::as_str)
-                } else {
-                    arg.strip_prefix(flag).and_then(|v| v.strip_prefix('='))
-                };
-                if let Some(value) = value {
-                    validate_output_path(cfg, value, flag, false, false)?;
-                }
-            }
-        }
+        validate_custom_outputs(cfg, args)?;
+        validate_default_html_output(cfg, name, args)?;
+    }
+    if matches!(verb, Verb::Build) {
+        validate_output_path(cfg, "dist", "build output")?;
     }
     Ok(())
 }
@@ -420,13 +565,7 @@ impl ProcessEngine {
                 Some(out)
             };
             if let Some(rel) = rel {
-                validate_output_path(
-                    &self.cfg,
-                    &rel.to_string_lossy(),
-                    "sign output",
-                    false,
-                    false,
-                )?;
+                validate_output_path(&self.cfg, &rel.to_string_lossy(), "sign output")?;
             }
         }
         let _content_mutation = self.workspace_mutation_lock()?;

@@ -982,10 +982,6 @@ fn ir_output_overlapping_the_content_input_is_refused_before_any_write() {
             name: "build".into(),
             args: vec!["--out".into(), ".boris".into()],
         },
-        cv_core::engine::Verb::Custom {
-            name: "build".into(),
-            args: vec!["--out".into(), ".cv/ir".into()],
-        },
     ] {
         let err = engine.run(&verb, Box::new(|_| {})).unwrap_err();
         assert!(err.to_string().contains("overlaps"), "{verb:?}: {err}");
