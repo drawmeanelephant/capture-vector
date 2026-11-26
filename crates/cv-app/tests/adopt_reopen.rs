@@ -22,6 +22,11 @@ fn write(path: &Path, bytes: &[u8]) {
 
 #[cfg(unix)]
 fn fake_boris() -> (tempfile::TempDir, PathBuf) {
+    fake_boris_holding_watch(true)
+}
+
+#[cfg(unix)]
+fn fake_boris_holding_watch(hold: bool) -> (tempfile::TempDir, PathBuf) {
     let dir = tempfile::tempdir().unwrap();
     let bin = dir.path().join("boris");
     common::install_executable(&bin, BORIS_SHIM);
@@ -44,7 +49,9 @@ fn fake_boris() -> (tempfile::TempDir, PathBuf) {
         &dir.path().join("watch.ndjson"),
         b"{\"event\":\"hello\",\"watch_events_schema\":1,\"compiler\":\"boris/0.9.0\"}\n",
     );
-    write(&dir.path().join("watch-hold"), b"");
+    if hold {
+        write(&dir.path().join("watch-hold"), b"");
+    }
     (dir, bin)
 }
 
@@ -176,5 +183,54 @@ fn adoption_cannot_run_inside_a_stale_scheduler_after_workspace_reopen() {
     worker.join().unwrap();
     if let Some(w) = second.watch_session() {
         second.stop_watch_session(&w);
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn reopen_after_profile_input_change_refreshes_the_watch_args() {
+    let (boris_dir, boris) = fake_boris_holding_watch(false);
+    let ws_tmp = tempfile::tempdir().unwrap();
+    let ws = ws_tmp.path().canonicalize().unwrap();
+    write(&ws.join("docs/index.md"), b"---\ntitle: Home\n---\nHome\n");
+    write(&ws.join("content/index.md"), b"---\ntitle: Old\n---\nOld\n");
+    let recent_tmp = tempfile::tempdir().unwrap();
+    let env = env_for(&boris, &recent_tmp.path().join("recent.json"));
+    let workspace_watches = || {
+        std::fs::read_to_string(boris_dir.path().join("argv.log"))
+            .unwrap_or_default()
+            .lines()
+            .filter(|l| l.starts_with("watch ") && !l.contains("--serve"))
+            .map(str::to_string)
+            .collect::<Vec<_>>()
+    };
+
+    let mut wb = cv_app::init();
+    open_workspace(&mut wb, ws.clone(), &env)
+        .expect("first boot starts")
+        .join()
+        .unwrap();
+    let first = workspace_watches().last().cloned().unwrap_or_default();
+    assert_eq!(first, "watch --watch-json --input content");
+
+    // The documented restart path: the user adds a profile naming its input
+    // and reopens the workspace. The fresh watch must reflect that profile —
+    // Pages already does, so silently keeping `--input content` splits the
+    // UI from the compiler.
+    write(&ws.join("boris.json"), b"{\"input\":\"docs\"}\n");
+    open_workspace(&mut wb, ws.clone(), &env)
+        .expect("reopen boot starts")
+        .join()
+        .unwrap();
+    let reopened = workspace_watches().last().cloned().unwrap_or_default();
+    assert_eq!(
+        reopened, "watch --watch-json",
+        "reopen must not reuse the pre-profile watch argv"
+    );
+
+    if let Some(sched) = cv_app::slots::scheduler_for(&ws)
+        && let Some(w) = sched.watch_session()
+    {
+        sched.stop_watch_session(&w);
     }
 }

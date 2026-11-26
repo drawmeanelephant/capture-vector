@@ -24,7 +24,17 @@ fn seed_hugo_evidence(root: &Path, run_id: &str, mode: &str) {
         },
         1_764_100_000_000,
     );
-    rec.argv = transcript.argv.clone();
+    rec.argv = transcript
+        .argv
+        .iter()
+        .map(|a| {
+            if a == "--mode=hugo" {
+                format!("--mode={mode}")
+            } else {
+                a.clone()
+            }
+        })
+        .collect();
     rec.finished = Some(Finished {
         exit_code: Some(0),
         exit: store::FinishedExit::Ok,
@@ -102,8 +112,9 @@ fn an_emit_mode_cannot_borrow_another_familys_report() {
     seed_hugo_evidence(&source_root, "wrong-family-jekyll", "jekyll");
     let err = adopt::source(&source_root, "wrong-family-jekyll").unwrap_err();
     assert!(
-        err.to_string().contains("wrong") || err.to_string().contains("but run"),
-        "wrong-family evidence must be refused by authority, not adopted structurally: {err}"
+        err.to_string().contains("boris-hugo-migration-lab")
+            && err.to_string().contains("mode jekyll"),
+        "the report-family check itself must refuse once mode and argv agree: {err}"
     );
 }
 

@@ -908,6 +908,56 @@ esac
     drop(wb);
 }
 
+/// A restore racing reopen can lose the writer-lock race to a healthy
+/// replacement watch. `WatchAlreadyLive` is proof of restoration there,
+/// never a dead watch: no later session-start event exists to clear a
+/// false banner when the validate gate fails before build.
+#[cfg(unix)]
+#[test]
+fn an_already_live_watch_is_not_disclosed_as_dead() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let root = tempfile::tempdir().unwrap();
+    let bin = root.path().join("boris");
+    std::fs::write(
+        &bin,
+        r#"#!/bin/sh
+case "$1" in
+watch) echo '{"event":"hello","watch_events_schema":1,"compiler":"boris/0.9.0"}' >&2; sleep 30;;
+*) exit 2;;
+esac
+"#,
+    )
+    .unwrap();
+    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+    let mut wb = Workbench::new(Registry::with_all());
+    let delivery = test_delivery(root.path(), WatchMode::Native, &wb);
+    let sched = Arc::new(EngineScheduler::new(
+        delivery.engine.clone(),
+        SeatPolicy::StopWatch,
+    ));
+    start_workspace_watch(sched.clone(), delivery.clone(), None, None);
+    let live = sched.watch_session().expect("first watch is live");
+
+    // Exact losing-restoration endpoint: the replacement already owns the
+    // single watch seat when another restore reaches start_watch.
+    start_workspace_watch(
+        sched.clone(),
+        delivery.clone(),
+        None,
+        Some("stale restore · watch resumed".into()),
+    );
+    wb.drain();
+    assert_ne!(
+        wb.app.degraded,
+        Some(DegradedReason::WatchDead),
+        "a live healthy watch must never be disclosed as dead"
+    );
+    assert!(sched.stop_watch_session(&live));
+    drop(wb);
+}
+
 /// The matching negative: a gate that leaves the watch untouched has
 /// nothing to restore and must not spawn a duplicate session.
 #[cfg(unix)]

@@ -90,10 +90,13 @@ fn clear_of_seat(dir: &str, seat: &str) -> bool {
 }
 
 pub struct EngineScheduler<E: Engine + Sync> {
-    engine: Arc<E>,
+    /// Current engine incarnation. The scheduler — especially `rw` — is
+    /// the workspace's durable mutation identity; the engine behind it may
+    /// be refreshed when a workspace is reopened with changed config.
+    engine: RwLock<Arc<E>>,
     policy: SeatPolicy,
     /// The HTML output tree a live watch writes (Boris default `dist`).
-    seat: String,
+    seat: RwLock<String>,
     rw: RwLock<()>,
     watch: Mutex<Option<Box<dyn WatchHandle>>>,
     isolated: AtomicU64,
@@ -102,9 +105,9 @@ pub struct EngineScheduler<E: Engine + Sync> {
 impl<E: Engine + Sync> EngineScheduler<E> {
     pub fn new(engine: Arc<E>, policy: SeatPolicy) -> Self {
         Self {
-            engine,
+            engine: RwLock::new(engine),
             policy,
-            seat: "dist".into(),
+            seat: RwLock::new("dist".into()),
             rw: RwLock::new(()),
             watch: Mutex::new(None),
             isolated: AtomicU64::new(0),
@@ -112,13 +115,40 @@ impl<E: Engine + Sync> EngineScheduler<E> {
     }
 
     /// Name the watch's HTML output tree when it is not `dist`.
-    pub fn with_seat(mut self, html_dir: impl Into<String>) -> Self {
-        self.seat = html_dir.into();
+    pub fn with_seat(self, html_dir: impl Into<String>) -> Self {
+        *write(&self.seat) = html_dir.into();
         self
     }
 
-    pub fn engine(&self) -> &Arc<E> {
-        &self.engine
+    /// The current engine incarnation. Callers needing stable identity
+    /// must go through a serialized scheduler operation; this snapshot is
+    /// for read-only metadata/delivery wiring and may be superseded by a
+    /// later config refresh.
+    pub fn engine(&self) -> Arc<E> {
+        read(&self.engine).clone()
+    }
+
+    /// Construct and install a refreshed engine as one serialized mutation.
+    /// Unlike constructing first and swapping later, there is no gap in
+    /// which another batch can use the old incarnation while the probe's
+    /// write-capability evidence is already being created; the old-config
+    /// watch is stopped before the constructor can touch the input tree.
+    /// A constructor error leaves the old engine installed and disclosed
+    /// to the caller, with the watch stopped as reopen's restart contract.
+    pub fn replace_engine_with<X>(
+        &self,
+        make: impl FnOnce() -> Result<(Arc<E>, String), X>,
+    ) -> Result<Arc<E>, X> {
+        let _w = write(&self.rw);
+        self.stop_watch();
+        let (engine, html_dir) = make()?;
+        *write(&self.engine) = engine.clone();
+        *write(&self.seat) = html_dir;
+        Ok(engine)
+    }
+
+    fn seat(&self) -> String {
+        read(&self.seat).clone()
     }
 
     pub fn watch_session(&self) -> Option<SessionId> {
@@ -137,7 +167,8 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         if slot.is_some() {
             return Err(crate::EngineError::WatchAlreadyLive.into());
         }
-        let h = self.engine.watch(sink)?;
+        let engine = self.engine();
+        let h = engine.watch(sink)?;
         let id = h.session().clone();
         *slot = Some(h);
         Ok(id)
@@ -206,7 +237,8 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         {
             return Ok(RecoveryBuild::WatchReplaced(session));
         }
-        let exit = self.engine.run_caused(&Verb::Build, sink, cause)?;
+        let engine = self.engine();
+        let exit = engine.run_caused(&Verb::Build, sink, cause)?;
         Ok(RecoveryBuild::Ran(exit))
     }
 
@@ -216,19 +248,24 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         run: impl FnOnce(&E, &Verb) -> cv_core::Result<ExitClass>,
     ) -> cv_core::Result<RunReport> {
         let own = own_out_dir(verb);
-        if let Some(dir) = &own
-            && !clear_of_seat(dir, &self.seat)
-        {
-            return Err(EngineError::Refused(format!(
-                "{} must write a workspace-relative dir clear of the watch's HTML output {:?}, not {dir:?}",
-                verb.name(),
-                self.seat
-            ))
-            .into());
-        }
+        let check_seat = |seat: &str| -> cv_core::Result<()> {
+            if let Some(dir) = &own
+                && !clear_of_seat(dir, seat)
+            {
+                return Err(EngineError::Refused(format!(
+                    "{} must write a workspace-relative dir clear of the watch's HTML output {:?}, not {dir:?}",
+                    verb.name(),
+                    seat
+                ))
+                .into());
+            }
+            Ok(())
+        };
         if !is_mutating(verb) {
             let _r = read(&self.rw);
-            let exit = run(&self.engine, verb)?;
+            check_seat(&self.seat())?;
+            let engine = self.engine();
+            let exit = run(engine.as_ref(), verb)?;
             return Ok(RunReport {
                 exit,
                 stopped_watch: None,
@@ -236,6 +273,7 @@ impl<E: Engine + Sync> EngineScheduler<E> {
             });
         }
         let _w = write(&self.rw);
+        check_seat(&self.seat())?;
         let mut stopped_watch = None;
         let mut out_dir = own;
         let mut verb = verb.clone();
@@ -259,7 +297,8 @@ impl<E: Engine + Sync> EngineScheduler<E> {
                 }
             }
         }
-        let exit = run(&self.engine, &verb)?;
+        let engine = self.engine();
+        let exit = run(engine.as_ref(), &verb)?;
         Ok(RunReport {
             exit,
             stopped_watch,
@@ -290,26 +329,26 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         base: Option<Fingerprint>,
     ) -> cv_core::Result<WriteOutcome> {
         let _w = write(&self.rw);
-        self.engine.write_content(draft, base)
+        self.engine().write_content(draft, base)
     }
 
     /// Serialized fingerprint-checked delete.
     pub fn remove_content(&self, path: &str, base: Fingerprint) -> cv_core::Result<RemoveOutcome> {
         let _w = write(&self.rw);
-        self.engine.remove_content(path, base)
+        self.engine().remove_content(path, base)
     }
 
     /// Serialized move: the destination write and source removal are
     /// covered by one writer lock against every other engine mutation.
     pub fn move_content(&self, mv: &PageMove) -> cv_core::Result<MoveOutcome> {
         let _w = write(&self.rw);
-        self.engine.move_content(mv)
+        self.engine().move_content(mv)
     }
 
     /// Disk truth; a read, so it runs alongside other reads.
     pub fn snapshot(&self) -> cv_core::Result<ArtifactSet> {
         let _r = read(&self.rw);
-        self.engine.snapshot()
+        self.engine().snapshot()
     }
 }
 
@@ -478,6 +517,60 @@ mod tests {
             "a verb write interleaved with the in-flight mutation batch"
         );
         assert_eq!(p.max_writes.load(Ordering::SeqCst), 1);
+    }
+
+    /// Config refresh must reuse the scheduler's serialization identity,
+    /// not race it: replacement cannot enter a held mutation batch, and it
+    /// retires the old-config watch before the new incarnation is visible.
+    #[test]
+    fn engine_replacement_is_serialized_and_stops_the_old_watch() {
+        let old_probe = Arc::new(Probe::default());
+        let old = Arc::new(Fake(old_probe.clone()));
+        let new_probe = Arc::new(Probe::default());
+        let new = Arc::new(Fake(new_probe));
+        let s = Arc::new(EngineScheduler::new(old, SeatPolicy::StopWatch));
+        s.start_watch(noop()).unwrap();
+        assert_eq!(old_probe.watch_stops.load(Ordering::SeqCst), 0);
+
+        let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel::<()>();
+        let batch_sched = s.clone();
+        let batch = std::thread::spawn(move || {
+            batch_sched.mutation_batch(|| {
+                entered_tx.send(()).unwrap();
+                release_rx.recv().unwrap();
+            });
+        });
+        entered_rx.recv().unwrap();
+
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let replace_sched = s.clone();
+        let replacement = new.clone();
+        let replace = std::thread::spawn(move || {
+            replace_sched
+                .replace_engine_with(|| {
+                    Ok::<_, std::convert::Infallible>((replacement, "dist".to_string()))
+                })
+                .unwrap();
+            done_tx.send(()).unwrap();
+        });
+        std::thread::sleep(Duration::from_millis(50));
+        assert!(
+            done_rx.try_recv().is_err(),
+            "replacement entered the in-flight mutation batch"
+        );
+        release_tx.send(()).unwrap();
+        batch.join().unwrap();
+        done_rx.recv().unwrap();
+        replace.join().unwrap();
+
+        assert_eq!(
+            old_probe.watch_stops.load(Ordering::SeqCst),
+            1,
+            "the old incarnation's watch was retired before the swap"
+        );
+        assert!(s.watch_session().is_none());
+        assert!(Arc::ptr_eq(&s.engine(), &new));
     }
 
     #[test]

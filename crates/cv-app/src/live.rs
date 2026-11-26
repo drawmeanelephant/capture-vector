@@ -722,11 +722,34 @@ fn run(b: EngineBoot) {
         return;
     }
     if let Some(sched) = slot.get().cloned() {
+        // Reopen is the documented engine restart path. Scheduler identity
+        // stays stable so in-flight mutations cannot split-brain, but the
+        // engine incarnation behind it must refresh from the config just
+        // read from disk. The probe can create a write-capability temporary
+        // in the content input, so it is serialized as workspace mutation
+        // evidence rather than raced against an adoption batch. Replacement
+        // then takes the same writer lock, stops the old-config watch, and
+        // swaps engine + output-seat atomically against scheduler users.
+        let engine = match sched.replace_engine_with(|| {
+            ProcessEngine::start(cfg).map(|engine| {
+                let html_dir = engine.html_dir().to_string();
+                (Arc::new(engine), html_dir)
+            })
+        }) {
+            Ok(engine) => engine,
+            Err(e) => {
+                doctor.update(|f| f.engine = crate::doctor::engine_state(&e));
+                let status = format!("{}: {e}", root.display());
+                finish(&inbox, &warning, &notice, Some(degraded_reason(&e)), status);
+                return;
+            }
+        };
         doctor.update(|f| {
-            f.engine = crate::doctor::located(sched.engine().identity());
-            f.probe = Some(crate::doctor::probe(sched.engine().report()));
+            f.engine = crate::doctor::located(engine.identity());
+            f.probe = Some(crate::doctor::probe(engine.report()));
         });
-        let engine = sched.engine().clone();
+        let html_dir = engine.html_dir().to_string();
+        let version = engine.identity().version.clone();
         let resyncer = Arc::new(Resyncer::spawn(
             engine.clone(),
             inbox.clone(),
@@ -744,8 +767,8 @@ fn run(b: EngineBoot) {
         });
         let _ = inbox.send(Inbound::Snapshot(workspace_snapshot(
             &root,
-            sched.engine().html_dir(),
-            Some(sched.engine().identity().version.clone()),
+            &html_dir,
+            Some(version),
             1,
         )));
         start_workspace_watch(sched, delivery, warning, notice);
@@ -834,14 +857,23 @@ fn start_workspace_watch(
             published
         }
         Err(e) => {
-            let status = format!("{}: {e}", delivery.engine.root().display());
-            finish(
-                inbox,
-                &warning,
-                &notice,
-                Some(DegradedReason::WatchDead),
-                status,
-            );
+            // A restore can lose the writer-lock race to reopen's healthy
+            // replacement watch. That is already-restored, not dead: unlike
+            // a real start failure there will be no later session-start
+            // event to clear a false WatchDead banner.
+            if sched.watch_session().is_some() {
+                let status = format!("{} · watch already live", delivery.workspace_identity());
+                finish(inbox, &warning, &notice, None, status);
+            } else {
+                let status = format!("{}: {e}", delivery.engine.root().display());
+                finish(
+                    inbox,
+                    &warning,
+                    &notice,
+                    Some(DegradedReason::WatchDead),
+                    status,
+                );
+            }
             false
         }
     };
