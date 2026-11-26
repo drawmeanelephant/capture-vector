@@ -3,6 +3,8 @@
 //! engine-absent / version-mismatch disclosure, live watch diagnostics
 //! through the cursor-resync sink, and the open/recent commands.
 
+mod common;
+
 use cv_app::{WorkspaceEnv, init, open_workspace};
 use cv_core::events::shell::DegradedReason;
 use cv_engine::locate::Locator;
@@ -17,7 +19,9 @@ use cv_widgets::shell::degraded_text;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
+#[cfg(unix)]
 const SHIM_SH: &str = include_str!("../../cv-engine/tests/fake-boris/boris");
+#[cfg(windows)]
 const SHIM_BAT: &str = include_str!("../../cv-engine/tests/fake-boris/boris.bat");
 
 #[test]
@@ -260,18 +264,16 @@ impl Fake {
             .prefix("cv-bin-")
             .tempdir()
             .unwrap();
-        let bin = if cfg!(windows) {
+        #[cfg(windows)]
+        let bin = {
             let p = dir.path().join("boris.bat");
             std::fs::write(&p, SHIM_BAT).unwrap();
             p
-        } else {
+        };
+        #[cfg(unix)]
+        let bin = {
             let p = dir.path().join("boris");
-            std::fs::write(&p, SHIM_SH).unwrap();
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
-            }
+            common::install_executable(&p, SHIM_SH);
             p
         };
         let raw = std::fs::read_to_string(cv_fixtures::fixtures_root().join("engine-version.txt"))

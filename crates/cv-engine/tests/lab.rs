@@ -3,33 +3,19 @@
 //! script, so these run on Unix only.
 #![cfg(unix)]
 
+mod common;
+
+use common::install_executable;
 use cv_core::engine::EngineSource;
 use cv_engine::error::EngineError;
 use cv_engine::exit::ExitOutcome;
 use cv_engine::lab::{self, LabError, LabExit, LabIdentity, LabRun, PINNED};
 use cv_engine::locate::Locator;
 use cv_engine::proc::CancelToken;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 const STUB: &str = include_str!("fake-lab/boris-migration-lab");
-
-/// Never open the executable inode for writing in this process: a sibling
-/// fork could inherit that fd and make Linux exec fail with ETXTBSY
-/// (rust-lang/rust#114554). The destination writer belongs only to `cp`.
-fn install_executable(bin: &Path, contents: &str) {
-    let staging = bin.parent().unwrap().join("staging-contents");
-    std::fs::write(&staging, contents).unwrap();
-    let status = std::process::Command::new("cp")
-        .arg(&staging)
-        .arg(bin)
-        .status()
-        .unwrap();
-    assert!(status.success(), "cp into the executable path failed");
-    std::fs::remove_file(&staging).unwrap();
-    std::fs::set_permissions(bin, std::fs::Permissions::from_mode(0o755)).unwrap();
-}
 
 struct FakeLab {
     dir: tempfile::TempDir,

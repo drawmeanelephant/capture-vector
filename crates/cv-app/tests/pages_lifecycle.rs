@@ -2,13 +2,17 @@
 //! Dialogs are scripted through the shared dialog model; all writes go
 //! through the real staged workspace writer behind the fake engine gate.
 
+mod common;
+
 use cv_app::{WorkspaceEnv, init, open_workspace};
 use cv_engine::locate::Locator;
 use cv_model::dialog::{DialogKind, Input};
 use cv_model::workbench::Workbench;
 use std::path::Path;
 
+#[cfg(unix)]
 const SHIM_SH: &str = include_str!("../../cv-engine/tests/fake-boris/boris");
+#[cfg(windows)]
 const SHIM_BAT: &str = include_str!("../../cv-engine/tests/fake-boris/boris.bat");
 
 fn copy_tree(from: &Path, to: &Path) {
@@ -40,17 +44,18 @@ fn fake() -> (tempfile::TempDir, std::path::PathBuf) {
         .prefix("cv-bin-")
         .tempdir()
         .unwrap();
-    let (bin, bytes) = if cfg!(windows) {
-        (dir.path().join("boris.bat"), SHIM_BAT)
-    } else {
-        (dir.path().join("boris"), SHIM_SH)
+    #[cfg(windows)]
+    let bin = {
+        let bin = dir.path().join("boris.bat");
+        std::fs::write(&bin, SHIM_BAT).unwrap();
+        bin
     };
-    std::fs::write(&bin, bytes).unwrap();
     #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
-    }
+    let bin = {
+        let bin = dir.path().join("boris");
+        common::install_executable(&bin, SHIM_SH);
+        bin
+    };
     let raw =
         std::fs::read_to_string(cv_fixtures::fixtures_root().join("engine-version.txt")).unwrap();
     let build_info = raw
