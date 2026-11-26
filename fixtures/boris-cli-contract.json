@@ -1,0 +1,854 @@
+{
+  "format": "cv-boris-cli-contract",
+  "schema_version": 1,
+  "engine": {
+    "version": "boris/0.9.0",
+    "vcs_revision": "66efcfb"
+  },
+  "workspace": "fixtures/corpus-src/happy, copied fresh per shape",
+  "canonical_values": {
+    "nostr_bundle": ".cv/publish/run-1/nostr-bundle.json",
+    "nostr_plan": ".cv/publish/run-1/nostr-plan.json",
+    "profile": "boris.json",
+    "run": "run-1",
+    "run_dir": ".cv/publish/run-1",
+    "site": ".cv/publish/run-1/site",
+    "standard_site_plan": ".cv/publish/run-1/standard-site-plan.json"
+  },
+  "notes": [
+    "argv entries are canonical representatives: run ids and output paths are dynamic in production, while the flags and their order are the contract.",
+    "status=emitted means a static test links the shape to an in-product constructor; intended means a documented target-native or profile seam not yet wired end-to-end; reference means a former or exploratory shape kept as negative/positive evidence.",
+    "The happy fixture has no Standard.site or enabled Nostr publication metadata. Native publication-family rows therefore prove parser/artifact-boundary behavior with an invalid or missing artifact, never live network delivery.",
+    "observed stdout/stderr excerpts are generated evidence. The black-box gate compares exit_code and error_line; excerpts explain the classification without pinning progress output."
+  ],
+  "shapes": [
+    {
+      "id": "engine.build",
+      "family": "build",
+      "status": "emitted",
+      "origin": "cv-engine Verb::Build",
+      "prepare": "none",
+      "argv": [
+        "build"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "",
+        "stderr_excerpt": "  wrote dist/guides/getting-started.html\n  wrote dist/guides/publishing.html\n  wrote dist/index.html\nok: wrote HTML for 1 target(s):\n  target default: out=dist layout=themes/boris/layouts/main.html rules=0\n  checks: 3/3 passed"
+      }
+    },
+    {
+      "id": "engine.validate",
+      "family": "validate",
+      "status": "emitted",
+      "origin": "cv-engine Verb::Validate",
+      "prepare": "none",
+      "argv": [
+        "validate"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "",
+        "stderr_excerpt": "ok: validation passed for 1 target(s)"
+      }
+    },
+    {
+      "id": "engine.check",
+      "family": "check",
+      "status": "emitted",
+      "origin": "cv-engine Verb::Check",
+      "prepare": "none",
+      "argv": [
+        "check",
+        "--format",
+        "json"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "",
+        "stderr_excerpt": "{\n  \"format\": \"boris-documentation-intelligence\",\n  \"schemaVersion\": \"0.2.0\",\n  \"compiler\": \"boris/0.9.0\",\n  \"input\": \"content\",\n  \"summary\": {"
+      }
+    },
+    {
+      "id": "engine.plan.profile",
+      "family": "profile",
+      "status": "emitted",
+      "origin": "cv-engine Verb::Plan",
+      "prepare": "none",
+      "argv": [
+        "plan",
+        "--profile",
+        "boris.json"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "{\n  \"format\": \"boris-publication-plan\",\n  \"schema_version\": 1,\n  \"input\": \"content\",\n  \"input_format\": \"markdown\",\n  \"site\": {",
+        "stderr_excerpt": ""
+      }
+    },
+    {
+      "id": "engine.graph",
+      "family": "graph",
+      "status": "emitted",
+      "origin": "cv-engine Verb::Graph",
+      "prepare": "none",
+      "argv": [
+        "graph"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "graph TD\n  %% boris graph --format mermaid\n  classDef trunk stroke:#2563eb,stroke-width:2px;\n  classDef satellite stroke:#6b7280;\n  classDef source stroke:#9ca3af,stroke-dasharray:4 3;\n  p0[\"Getting Started\"]:::satellite",
+        "stderr_excerpt": ""
+      }
+    },
+    {
+      "id": "engine.impact.index",
+      "family": "impact",
+      "status": "emitted",
+      "origin": "cv-engine Verb::Impact",
+      "prepare": "none",
+      "argv": [
+        "impact",
+        "index",
+        "--format",
+        "json"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "",
+        "stderr_excerpt": "{\n  \"format\": \"boris-documentation-intelligence\",\n  \"schemaVersion\": \"0.2.0\",\n  \"compiler\": \"boris/0.9.0\",\n  \"input\": \"content\",\n  \"summary\": {"
+      }
+    },
+    {
+      "id": "engine.export.out",
+      "family": "build",
+      "status": "emitted",
+      "origin": "cv-engine Verb::Export Out",
+      "prepare": "none",
+      "argv": [
+        "build",
+        "--out",
+        ".boris"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "",
+        "stderr_excerpt": "boris: load  scanning content\nboris: roll  parsing 3 page(s)\nboris: ignite validating graph\nboris: ignite emitting IR → .boris\nboris: reset done (3 page(s))\nok: wrote IR under .boris (3 page(s))"
+      }
+    },
+    {
+      "id": "engine.export.rag",
+      "family": "build",
+      "status": "emitted",
+      "origin": "cv-engine Verb::Export Rag",
+      "prepare": "none",
+      "argv": [
+        "build",
+        "--rag"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "",
+        "stderr_excerpt": "boris: load  scanning content\nboris: roll  parsing 3 page(s)\nboris: ignite validating graph\n\nExporting RAG corpus → rag/\n  rag pack    working-1.md (3641 bytes, 3 document(s))"
+      }
+    },
+    {
+      "id": "engine.export.context",
+      "family": "build",
+      "status": "emitted",
+      "origin": "cv-engine Verb::Export Context",
+      "prepare": "none",
+      "argv": [
+        "build",
+        "--context"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "",
+        "stderr_excerpt": "boris: load  scanning content\nboris: roll  parsing 3 page(s)\nboris: ignite validating graph\ncontext export complete: context (3 selected page(s))\nok: wrote context bundle under context (3 graph page(s))"
+      }
+    },
+    {
+      "id": "engine.export.llms",
+      "family": "build",
+      "status": "emitted",
+      "origin": "cv-engine Verb::Export Llms",
+      "prepare": "none",
+      "argv": [
+        "build",
+        "--llms"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "",
+        "stderr_excerpt": "boris: load  scanning content\nboris: roll  parsing 3 page(s)\nboris: ignite validating graph\nllms.txt export complete: llms.txt (3 page(s))\nok: wrote llms.txt under llms.txt (3 page(s))"
+      }
+    },
+    {
+      "id": "engine.export.rss",
+      "family": "build",
+      "status": "emitted",
+      "origin": "cv-engine Verb::Export Rss",
+      "prepare": "none",
+      "argv": [
+        "build",
+        "--rss"
+      ],
+      "observed": {
+        "exit_code": 2,
+        "exit_class": "usage-error",
+        "error_line": "error: RSS mode requires --site-url, --rss-title, and --rss-description (try --help)",
+        "stdout_excerpt": "",
+        "stderr_excerpt": "error: RSS mode requires --site-url, --rss-title, and --rss-description (try --help)\nusage: boris <command> [options] (run boris --help for the full option list)"
+      }
+    },
+    {
+      "id": "engine.export.sitemap",
+      "family": "build",
+      "status": "emitted",
+      "origin": "cv-engine Verb::Export Sitemap",
+      "prepare": "none",
+      "argv": [
+        "build",
+        "--sitemap"
+      ],
+      "observed": {
+        "exit_code": 2,
+        "exit_class": "usage-error",
+        "error_line": "error: --sitemap / --sitemap-path require --site-url (try --help)",
+        "stdout_excerpt": "",
+        "stderr_excerpt": "error: --sitemap / --sitemap-path require --site-url (try --help)\nusage: boris <command> [options] (run boris --help for the full option list)"
+      }
+    },
+    {
+      "id": "engine.ir.live",
+      "family": "build",
+      "status": "emitted",
+      "origin": "cv-engine Verb::Ir logical live projection",
+      "prepare": "none",
+      "argv": [
+        "build",
+        "--out",
+        ".cv/ir"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "",
+        "stderr_excerpt": "boris: load  scanning content\nboris: roll  parsing 3 page(s)\nboris: ignite validating graph\nboris: ignite emitting IR → .cv/ir\nboris: reset done (3 page(s))\nok: wrote IR under .cv/ir (3 page(s))"
+      }
+    },
+    {
+      "id": "engine.ir.live-input",
+      "family": "build",
+      "status": "emitted",
+      "origin": "cv-engine Verb::Ir logical live projection with input",
+      "prepare": "none",
+      "argv": [
+        "build",
+        "--out",
+        ".cv/ir",
+        "--input",
+        "content"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "",
+        "stderr_excerpt": "boris: load  scanning content\nboris: roll  parsing 3 page(s)\nboris: ignite validating graph\nboris: ignite emitting IR → .cv/ir\nboris: reset done (3 page(s))\nok: wrote IR under .cv/ir (3 page(s))"
+      }
+    },
+    {
+      "id": "engine.ir.staging",
+      "family": "build",
+      "status": "emitted",
+      "origin": "cv-engine staged Verb::Ir child argv",
+      "prepare": "none",
+      "argv": [
+        "build",
+        "--out",
+        ".cv/ir.staging"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "",
+        "stderr_excerpt": "boris: load  scanning content\nboris: roll  parsing 3 page(s)\nboris: ignite validating graph\nboris: ignite emitting IR → .cv/ir.staging\nboris: reset done (3 page(s))\nok: wrote IR under .cv/ir.staging (3 page(s))"
+      }
+    },
+    {
+      "id": "engine.ir.staging-input",
+      "family": "build",
+      "status": "emitted",
+      "origin": "cv-engine staged Verb::Ir child argv with input",
+      "prepare": "none",
+      "argv": [
+        "build",
+        "--out",
+        ".cv/ir.staging",
+        "--input",
+        "content"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "",
+        "stderr_excerpt": "boris: load  scanning content\nboris: roll  parsing 3 page(s)\nboris: ignite validating graph\nboris: ignite emitting IR → .cv/ir.staging\nboris: reset done (3 page(s))\nok: wrote IR under .cv/ir.staging (3 page(s))"
+      }
+    },
+    {
+      "id": "engine.init.docs",
+      "family": "init",
+      "status": "emitted",
+      "origin": "cv-engine Verb::Init docs archetype",
+      "prepare": "none",
+      "argv": [
+        "init",
+        "site",
+        "--type",
+        "docs"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "",
+        "stderr_excerpt": "ok: initialized a Boris site in site\n  archetype: docs\n  content/index.md                  trunk page\n  content/guides/getting-started.md satellite page\n  content/guides/publishing.md      satellite page with a relation\n  themes/boris/                     the catalog \"boris\" theme: relations, backlinks, search UI"
+      }
+    },
+    {
+      "id": "engine.probe.validate-input",
+      "family": "validate",
+      "status": "emitted",
+      "origin": "cv-engine capability probe validate --input",
+      "prepare": "none",
+      "argv": [
+        "validate",
+        "--input",
+        "content"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "",
+        "stderr_excerpt": "ok: validation passed for 1 target(s)"
+      }
+    },
+    {
+      "id": "engine.scheduler.separate-out-dir",
+      "family": "build",
+      "status": "emitted",
+      "origin": "cv-engine scheduler SeparateOutDir first redirect",
+      "prepare": "none",
+      "argv": [
+        "build",
+        "--html-dir",
+        ".cv/out/1"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "",
+        "stderr_excerpt": "  wrote .cv/out/1/guides/getting-started.html\n  wrote .cv/out/1/guides/publishing.html\n  wrote .cv/out/1/index.html\nok: wrote HTML for 1 target(s):\n  target default: out=.cv/out/1 layout=themes/boris/layouts/main.html rules=0\n  checks: 3/3 passed"
+      }
+    },
+    {
+      "id": "engine.secrets.nostr-sign",
+      "family": "publish",
+      "status": "emitted",
+      "origin": "cv-engine secrets::nostr_sign stdout bundle",
+      "prepare": "publish-run",
+      "argv": [
+        "nostr",
+        "sign",
+        "--plan",
+        ".cv/publish/run-1/nostr-plan.json",
+        "--key-stdin"
+      ],
+      "observed": {
+        "exit_code": 3,
+        "exit_class": "io-failure",
+        "error_line": "error: unable to read the plan artifact: FileNotFound",
+        "stdout_excerpt": "",
+        "stderr_excerpt": "error: unable to read the plan artifact: FileNotFound"
+      }
+    },
+    {
+      "id": "engine.secrets.nostr-sign-out",
+      "family": "publish",
+      "status": "emitted",
+      "origin": "cv-engine secrets::nostr_sign --out bundle",
+      "prepare": "publish-run",
+      "argv": [
+        "nostr",
+        "sign",
+        "--plan",
+        ".cv/publish/run-1/nostr-plan.json",
+        "--key-stdin",
+        "--out",
+        ".cv/publish/run-1/nostr-bundle.json"
+      ],
+      "observed": {
+        "exit_code": 3,
+        "exit_class": "io-failure",
+        "error_line": "error: unable to read the plan artifact: FileNotFound",
+        "stdout_excerpt": "",
+        "stderr_excerpt": "error: unable to read the plan artifact: FileNotFound"
+      }
+    },
+    {
+      "id": "publish.preflight.build",
+      "family": "build",
+      "status": "emitted",
+      "origin": "cv-publish preflight::verbs static-dist build",
+      "prepare": "publish-run",
+      "argv": [
+        "build",
+        "--html-dir",
+        ".cv/publish/run-1/site"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "",
+        "stderr_excerpt": "  wrote .cv/publish/run-1/site/guides/getting-started.html\n  wrote .cv/publish/run-1/site/guides/publishing.html\n  wrote .cv/publish/run-1/site/index.html\nok: wrote HTML for 1 target(s):\n  target default: out=.cv/publish/run-1/site layout=themes/boris/layouts/main.html rules=0\n  checks: 3/3 passed"
+      }
+    },
+    {
+      "id": "publish.preflight.validate",
+      "family": "validate",
+      "status": "emitted",
+      "origin": "cv-publish preflight::verbs static-dist validate",
+      "prepare": "publish-run",
+      "argv": [
+        "validate",
+        "--html-dir",
+        ".cv/publish/run-1/site"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "",
+        "stderr_excerpt": "ok: validation passed for 1 target(s)"
+      }
+    },
+    {
+      "id": "publish.preflight.check",
+      "family": "check",
+      "status": "emitted",
+      "origin": "cv-publish preflight::verbs check",
+      "prepare": "publish-run",
+      "argv": [
+        "check"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "",
+        "stderr_excerpt": "Documentation Intelligence (check)\npages: 3 (roots 1, satellites 2)\nsource endpoints: 0\nedge counts (incoming/outgoing): pages parent 2/2, include 0/0, reference 3/3; sources parent 0/0, include 0/0, reference 0/0\nunreferenced pages: 1\nhotspots: 0"
+      }
+    },
+    {
+      "id": "publish.preflight.proof-verify",
+      "family": "proof",
+      "status": "emitted",
+      "origin": "cv-publish preflight::verbs proof verify",
+      "prepare": "proof-site",
+      "argv": [
+        "proof",
+        "verify",
+        "--html-dir",
+        ".cv/publish/run-1/site"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "",
+        "stderr_excerpt": "boris proof verify: .cv/publish/run-1/site/_boris/proof/checks.json\n  checks: 3/3 passed\nverdict: pass"
+      }
+    },
+    {
+      "id": "publish.preflight.ir",
+      "family": "build",
+      "status": "emitted",
+      "origin": "cv-publish preflight::verbs IR projection",
+      "prepare": "publish-run",
+      "argv": [
+        "build",
+        "--out",
+        ".cv/publish/run-1/ir"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "",
+        "stderr_excerpt": "boris: load  scanning content\nboris: roll  parsing 3 page(s)\nboris: ignite validating graph\nboris: ignite emitting IR → .cv/publish/run-1/ir\nboris: reset done (3 page(s))\nok: wrote IR under .cv/publish/run-1/ir (3 page(s))"
+      }
+    },
+    {
+      "id": "publish.adapter.generic-no-profile",
+      "family": "publish",
+      "status": "emitted",
+      "origin": "cv-publish RunCommand default without a named profile",
+      "prepare": "proof-site",
+      "argv": [
+        "publish",
+        "--target",
+        "nostr-nip23",
+        "--html-dir",
+        ".cv/publish/run-1/site"
+      ],
+      "observed": {
+        "exit_code": 2,
+        "exit_class": "usage-error",
+        "error_line": "error: unexpected argument: publish (try --help)",
+        "stdout_excerpt": "",
+        "stderr_excerpt": "error: unexpected argument: publish (try --help)\nusage: boris <command> [options] (run boris --help for the full option list)"
+      }
+    },
+    {
+      "id": "publish.adapter.generic-profile",
+      "family": "publish",
+      "status": "emitted",
+      "origin": "cv-publish RunCommand default with a named profile",
+      "prepare": "proof-site",
+      "argv": [
+        "publish",
+        "--target",
+        "nostr-nip23",
+        "--profile",
+        "boris.json",
+        "--html-dir",
+        ".cv/publish/run-1/site"
+      ],
+      "observed": {
+        "exit_code": 2,
+        "exit_class": "usage-error",
+        "error_line": "error: unexpected argument: publish (try --help)",
+        "stdout_excerpt": "",
+        "stderr_excerpt": "error: unexpected argument: publish (try --help)\nusage: boris <command> [options] (run boris --help for the full option list)"
+      }
+    },
+    {
+      "id": "profile.build",
+      "family": "profile",
+      "status": "intended",
+      "origin": "named publication-profile build baseline",
+      "prepare": "none",
+      "argv": [
+        "build",
+        "--profile",
+        "boris.json"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "",
+        "stderr_excerpt": "  wrote <workspace>/dist/guides/getting-started.html\n  wrote <workspace>/dist/guides/publishing.html\n  wrote <workspace>/dist/index.html\nok: wrote HTML for 1 target(s):\n  target public: out=<workspace>/dist layout=themes/boris/layouts/main.html rules=0\n  checks: 3/3 passed"
+      }
+    },
+    {
+      "id": "profile.validate",
+      "family": "profile",
+      "status": "intended",
+      "origin": "named publication-profile validation",
+      "prepare": "none",
+      "argv": [
+        "validate",
+        "--profile",
+        "boris.json"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "",
+        "stderr_excerpt": "ok: validation passed for 1 target(s):\n  target public: out=<workspace>/dist layout=themes/boris/layouts/main.html rules=0"
+      }
+    },
+    {
+      "id": "profile.plan-html-dir-override",
+      "family": "profile",
+      "status": "intended",
+      "origin": "plan declaration output override",
+      "prepare": "publish-run",
+      "argv": [
+        "plan",
+        "--profile",
+        "boris.json",
+        "--html-dir",
+        ".cv/publish/run-1/site"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "{\n  \"format\": \"boris-publication-plan\",\n  \"schema_version\": 1,\n  \"input\": \"content\",\n  \"input_format\": \"markdown\",\n  \"site\": {",
+        "stderr_excerpt": ""
+      }
+    },
+    {
+      "id": "profile.build-html-dir-refused",
+      "family": "profile",
+      "status": "reference",
+      "origin": "spike redirection shape formerly encoded by preflight",
+      "prepare": "publish-run",
+      "argv": [
+        "build",
+        "--profile",
+        "boris.json",
+        "--html-dir",
+        ".cv/publish/run-1/site"
+      ],
+      "observed": {
+        "exit_code": 2,
+        "exit_class": "usage-error",
+        "error_line": "error: --profile HTML target 'public' declares name not selected by this build; --profile does not execute HTML targets (pass matching CLI flags)",
+        "stdout_excerpt": "",
+        "stderr_excerpt": "error: --profile HTML target 'public' declares name not selected by this build; --profile does not execute HTML targets (pass matching CLI flags)"
+      }
+    },
+    {
+      "id": "profile.build-target-refused",
+      "family": "profile",
+      "status": "reference",
+      "origin": "spike redirection shape through explicit target selection",
+      "prepare": "publish-run",
+      "argv": [
+        "build",
+        "--profile",
+        "boris.json",
+        "--target",
+        "public=.cv/publish/run-1/site"
+      ],
+      "observed": {
+        "exit_code": 2,
+        "exit_class": "usage-error",
+        "error_line": "error: --profile HTML target 'public' declares output not selected by this build; --profile does not execute HTML targets (pass matching CLI flags)",
+        "stdout_excerpt": "",
+        "stderr_excerpt": "error: --profile HTML target 'public' declares output not selected by this build; --profile does not execute HTML targets (pass matching CLI flags)"
+      }
+    },
+    {
+      "id": "profile.build-target-exact",
+      "family": "profile",
+      "status": "reference",
+      "origin": "explicit selector exactly matching the plain profile target",
+      "prepare": "none",
+      "argv": [
+        "build",
+        "--profile",
+        "boris.json",
+        "--target",
+        "public=dist"
+      ],
+      "observed": {
+        "exit_code": 2,
+        "exit_class": "usage-error",
+        "error_line": "error: --profile declares Standard.site or enabled Nostr metadata not selected by this build; --profile does not execute publication targets or editions",
+        "stdout_excerpt": "",
+        "stderr_excerpt": "error: --profile declares Standard.site or enabled Nostr metadata not selected by this build; --profile does not execute publication targets or editions"
+      }
+    },
+    {
+      "id": "profile.explicit-target-build",
+      "family": "profile",
+      "status": "intended",
+      "origin": "normalized-plan explicit CLI compilation seam",
+      "prepare": "publish-run",
+      "argv": [
+        "build",
+        "--input",
+        "content",
+        "--target",
+        "public=.cv/publish/run-1/site",
+        "--theme",
+        "themes/boris"
+      ],
+      "observed": {
+        "exit_code": 0,
+        "exit_class": "ok",
+        "error_line": null,
+        "stdout_excerpt": "",
+        "stderr_excerpt": "  wrote .cv/publish/run-1/site/guides/getting-started.html\n  wrote .cv/publish/run-1/site/guides/publishing.html\n  wrote .cv/publish/run-1/site/index.html\nok: wrote HTML for 1 target(s):\n  target public: out=.cv/publish/run-1/site layout=themes/boris/layouts/main.html rules=0\n  checks: 3/3 passed"
+      }
+    },
+    {
+      "id": "reference.check-html-dir-refused",
+      "family": "check",
+      "status": "reference",
+      "origin": "former preflight check shape",
+      "prepare": "publish-run",
+      "argv": [
+        "check",
+        "--html-dir",
+        ".cv/publish/run-1/site"
+      ],
+      "observed": {
+        "exit_code": 2,
+        "exit_class": "usage-error",
+        "error_line": "error: check conflicts with --html-dir (try --help)",
+        "stdout_excerpt": "",
+        "stderr_excerpt": "error: check conflicts with --html-dir (try --help)\nusage: boris <command> [options] (run boris --help for the full option list)"
+      }
+    },
+    {
+      "id": "nostr.plan",
+      "family": "publish",
+      "status": "intended",
+      "origin": "native Nostr unsigned plan artifact chain",
+      "prepare": "none",
+      "argv": [
+        "nostr",
+        "plan",
+        "--profile",
+        "boris.json"
+      ],
+      "observed": {
+        "exit_code": 2,
+        "exit_class": "usage-error",
+        "error_line": "error: profile declares no nostr section",
+        "stdout_excerpt": "",
+        "stderr_excerpt": "error: profile declares no nostr section"
+      }
+    },
+    {
+      "id": "nostr.publish",
+      "family": "publish",
+      "status": "intended",
+      "origin": "native Nostr exact signed-event publication",
+      "prepare": "publish-run",
+      "argv": [
+        "nostr",
+        "publish",
+        "--plan",
+        ".cv/publish/run-1/nostr-plan.json",
+        "--bundle",
+        ".cv/publish/run-1/nostr-bundle.json"
+      ],
+      "observed": {
+        "exit_code": 3,
+        "exit_class": "io-failure",
+        "error_line": "error: unable to read the plan artifact: FileNotFound",
+        "stdout_excerpt": "",
+        "stderr_excerpt": "error: unable to read the plan artifact: FileNotFound"
+      }
+    },
+    {
+      "id": "standard-site.plan",
+      "family": "publish",
+      "status": "intended",
+      "origin": "native Standard.site deterministic plan artifact chain",
+      "prepare": "none",
+      "argv": [
+        "standard-site",
+        "plan",
+        "--profile",
+        "boris.json"
+      ],
+      "observed": {
+        "exit_code": 2,
+        "exit_class": "usage-error",
+        "error_line": "error: invalid publication profile: InvalidPublication",
+        "stdout_excerpt": "",
+        "stderr_excerpt": "error: invalid publication profile: InvalidPublication"
+      }
+    },
+    {
+      "id": "standard-site.records",
+      "family": "publish",
+      "status": "intended",
+      "origin": "native Standard.site canonical records artifact chain",
+      "prepare": "none",
+      "argv": [
+        "standard-site",
+        "records",
+        "--profile",
+        "boris.json"
+      ],
+      "observed": {
+        "exit_code": 2,
+        "exit_class": "usage-error",
+        "error_line": "error: invalid publication profile: InvalidPublication",
+        "stdout_excerpt": "",
+        "stderr_excerpt": "error: invalid publication profile: InvalidPublication"
+      }
+    },
+    {
+      "id": "standard-site.verify",
+      "family": "publish",
+      "status": "intended",
+      "origin": "native Standard.site offline verification surfaces",
+      "prepare": "proof-site",
+      "argv": [
+        "standard-site",
+        "verify",
+        "--profile",
+        "boris.json",
+        "--dist",
+        ".cv/publish/run-1/site"
+      ],
+      "observed": {
+        "exit_code": 2,
+        "exit_class": "usage-error",
+        "error_line": "error: invalid publication profile: InvalidPublication",
+        "stdout_excerpt": "",
+        "stderr_excerpt": "error: invalid publication profile: InvalidPublication"
+      }
+    },
+    {
+      "id": "standard-site.publish",
+      "family": "publish",
+      "status": "intended",
+      "origin": "native Standard.site committed-plan publication",
+      "prepare": "publish-run",
+      "argv": [
+        "standard-site",
+        "publish",
+        "--profile",
+        "boris.json",
+        "--plan",
+        ".cv/publish/run-1/standard-site-plan.json"
+      ],
+      "observed": {
+        "exit_code": 2,
+        "exit_class": "usage-error",
+        "error_line": "error: invalid publication profile: InvalidPublication",
+        "stdout_excerpt": "",
+        "stderr_excerpt": "error: invalid publication profile: InvalidPublication"
+      }
+    }
+  ]
+}

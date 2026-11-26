@@ -7,6 +7,7 @@
 use crate::error::Result;
 use crate::exit::ExitOutcome;
 use crate::proc::{CancelToken, boris_command, run_captured};
+use std::ffi::OsString;
 use std::path::Path;
 use zeroize::Zeroizing;
 
@@ -96,6 +97,22 @@ fn b64_standard(key: &[u8]) -> String {
     out
 }
 
+/// `nostr sign --plan PLAN --key-stdin [--out OUT]` as argv after the
+/// binary name. The key itself never appears here.
+pub fn nostr_sign_args(plan: &Path, out: Option<&Path>) -> Vec<OsString> {
+    let mut args: Vec<OsString> = ["nostr", "sign", "--plan"]
+        .into_iter()
+        .map(OsString::from)
+        .collect();
+    args.push(plan.as_os_str().to_os_string());
+    args.push("--key-stdin".into());
+    if let Some(out) = out {
+        args.push("--out".into());
+        args.push(out.as_os_str().to_os_string());
+    }
+    args
+}
+
 /// `boris nostr sign --plan PLAN --key-stdin [--out OUT]`.
 pub fn nostr_sign(
     bin: &Path,
@@ -107,12 +124,7 @@ pub fn nostr_sign(
 ) -> Result<SignOutput> {
     let key = secrets.nostr_key()?;
     let mut cmd = boris_command(bin, cwd);
-    cmd.args(["nostr", "sign", "--plan"])
-        .arg(plan)
-        .arg("--key-stdin");
-    if let Some(o) = out {
-        cmd.arg("--out").arg(o);
-    }
+    cmd.args(nostr_sign_args(plan, out));
     let mut stdin = Zeroizing::new(key.expose().to_vec());
     stdin.push(b'\n');
     let c = run_captured(cmd, Some(&stdin), cancel)?;
