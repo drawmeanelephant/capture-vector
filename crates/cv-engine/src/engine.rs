@@ -62,6 +62,132 @@ impl EngineConfig {
     }
 }
 
+fn relative_parts(raw: &str, what: &str) -> Result<Vec<String>> {
+    let parts = Path::new(raw)
+        .components()
+        .filter(|c| *c != std::path::Component::CurDir)
+        .map(|c| match c {
+            std::path::Component::Normal(n) => Ok(n.to_string_lossy().to_lowercase()),
+            _ => Err(EngineError::Refused(format!(
+                "{what} {raw:?} must be a workspace-relative path"
+            ))),
+        })
+        .collect::<Result<Vec<_>>>()?;
+    if parts.is_empty() {
+        return Err(EngineError::Refused(format!(
+            "{what} {raw:?} must name a workspace-relative child, not the workspace root"
+        )));
+    }
+    Ok(parts)
+}
+
+fn overlaps(a: &[String], b: &[String]) -> bool {
+    a.starts_with(b) || b.starts_with(a)
+}
+
+fn allowed_cv_output(parts: &[String], ir_output: bool) -> bool {
+    let cv = [".cv".to_string()];
+    let ir = [".cv".to_string(), "ir".to_string()];
+    let staging = [".cv".to_string(), "ir.staging".to_string()];
+    let out = [".cv".to_string(), "out".to_string()];
+    (ir_output && (parts.starts_with(&ir) || parts.starts_with(&staging)))
+        || parts.starts_with(&out)
+        || !parts.starts_with(&cv)
+}
+
+fn validate_output_path(
+    cfg: &EngineConfig,
+    raw: &str,
+    what: &str,
+    typed_export_out: bool,
+    ir_output: bool,
+) -> Result<()> {
+    let parts = relative_parts(raw, what)?;
+    let cv = [".cv".to_string()];
+    let boris_meta = [".boris".to_string()];
+    let profile = ["boris.json".to_string()];
+    if overlaps(&parts, &profile) {
+        return Err(EngineError::Refused(format!(
+            "{what} {raw:?} overlaps workspace profile metadata"
+        )));
+    }
+    if parts.starts_with(&cv) && !allowed_cv_output(&parts, ir_output) {
+        return Err(EngineError::Refused(format!(
+            "{what} {raw:?} overlaps Capture Vector metadata"
+        )));
+    }
+    if parts.starts_with(&boris_meta) && !typed_export_out {
+        return Err(EngineError::Refused(format!(
+            "{what} {raw:?} overlaps Boris metadata"
+        )));
+    }
+    let input = cfg.content_input.to_string_lossy().replace('\\', "/");
+    let input_parts = Path::new(&input)
+        .components()
+        .filter(|c| *c != std::path::Component::CurDir)
+        .filter_map(|c| match c {
+            std::path::Component::Normal(n) => Some(n.to_string_lossy().to_lowercase()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    let input_is_root = input_parts.is_empty();
+    if !input_is_root && overlaps(&parts, &input_parts) {
+        return Err(EngineError::Refused(format!(
+            "{what} {raw:?} overlaps the workspace content input {input:?}"
+        )));
+    }
+    if input_is_root {
+        let html = cfg.html_dir.to_lowercase();
+        let derived = parts.starts_with(&cv)
+            || parts.starts_with(&boris_meta)
+            || parts.first().is_some_and(|p| *p == html);
+        if !derived {
+            return Err(EngineError::Refused(format!(
+                "{what} {raw:?} overlaps the workspace content input, which is the workspace root"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn validate_verb_output_paths(cfg: &EngineConfig, verb: &Verb) -> Result<()> {
+    if let Verb::Ir { out, .. } = verb {
+        validate_output_path(cfg, out, "IR output", false, true)?;
+    }
+    if let Verb::Init { dir, .. } = verb {
+        validate_output_path(cfg, dir, "init target", false, false)?;
+    }
+    let typed_export_out = matches!(
+        verb,
+        Verb::Export {
+            kind: cv_core::engine::ExportKind::Out
+        }
+    );
+    if typed_export_out {
+        validate_output_path(cfg, ".boris", "export output", true, false)?;
+    }
+    if let Verb::Custom { name, args } = verb {
+        if name == "init"
+            && let Some(dir) = args.first()
+        {
+            validate_output_path(cfg, dir, "init target", false, false)?;
+        }
+        for (i, arg) in args.iter().enumerate() {
+            for flag in ["--out", "--html-dir"] {
+                let value = if arg == flag {
+                    args.get(i + 1).map(String::as_str)
+                } else {
+                    arg.strip_prefix(flag).and_then(|v| v.strip_prefix('='))
+                };
+                if let Some(value) = value {
+                    validate_output_path(cfg, value, flag, false, false)?;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 pub struct ProcessEngine {
     cfg: EngineConfig,
     identity: EngineIdentity,
@@ -161,6 +287,7 @@ impl ProcessEngine {
     /// Run a verb, returning verbatim stdout/stderr (Activity renders
     /// these as-is). Emits nothing.
     pub fn run_verb(&self, verb: &Verb, cancel: &CancelToken) -> Result<VerbOutput> {
+        validate_verb_output_paths(&self.cfg, verb)?;
         let _content_mutation = if crate::verbs::may_mutate_content(verb) {
             Some(self.workspace_mutation_lock()?)
         } else {
@@ -227,6 +354,7 @@ impl ProcessEngine {
         cause: Option<&cv_core::events::EventId>,
         report: bool,
     ) -> Result<ExitClass> {
+        validate_verb_output_paths(&self.cfg, verb)?;
         let staged = crate::ir::staged_verb(verb)?;
         if staged.is_some() {
             crate::ir::prepare(&self.cfg.root)?;
@@ -285,6 +413,22 @@ impl ProcessEngine {
         secrets: &dyn SecretSource,
         cancel: &CancelToken,
     ) -> Result<SignOutput> {
+        if let Some(out) = out {
+            let rel = if out.is_absolute() {
+                out.strip_prefix(&self.cfg.root).ok()
+            } else {
+                Some(out)
+            };
+            if let Some(rel) = rel {
+                validate_output_path(
+                    &self.cfg,
+                    &rel.to_string_lossy(),
+                    "sign output",
+                    false,
+                    false,
+                )?;
+            }
+        }
         let _content_mutation = self.workspace_mutation_lock()?;
         nostr_sign(
             &self.identity.path,

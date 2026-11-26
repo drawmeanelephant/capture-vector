@@ -30,7 +30,17 @@ pub fn is_mutating(verb: &Verb) -> bool {
 /// starter source tree, and `Custom` is conservative because Capture Vector
 /// cannot prove what an arbitrary Boris subcommand writes.
 pub fn may_mutate_content(verb: &Verb) -> bool {
-    matches!(verb, Verb::Init { .. } | Verb::Custom { .. })
+    match verb {
+        Verb::Init { .. } => true,
+        // These are spellings of Boris verbs whose semantics are read-only
+        // or derived-output-only even when they arrived through Custom.
+        // Unknown commands remain conservatively content-mutating.
+        Verb::Custom { name, .. } => !matches!(
+            name.as_str(),
+            "validate" | "check" | "plan" | "graph" | "impact" | "build"
+        ),
+        _ => false,
+    }
 }
 
 pub(crate) fn flag_value<'a>(args: &'a [String], flag: &str) -> Option<&'a str> {

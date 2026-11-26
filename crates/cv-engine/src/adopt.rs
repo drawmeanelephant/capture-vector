@@ -646,12 +646,45 @@ pub fn validate_then_build(
     ),
     cv_core::Error,
 > {
+    validate_then_build_with_input(run, sink, None)
+}
+
+/// Adoption's gate over the exact content-input authority the transaction
+/// wrote. `boris.json` may move source truth away from the default
+/// `content/`; a bare validate/build would green the wrong tree there.
+pub fn validate_then_build_with_input(
+    run: &dyn Fn(
+        cv_core::engine::Verb,
+        cv_core::engine::EventSink,
+    ) -> cv_core::Result<cv_core::engine::ExitClass>,
+    sink: &dyn Fn() -> cv_core::engine::EventSink,
+    input: Option<&str>,
+) -> Result<
+    (
+        cv_core::engine::ExitClass,
+        Option<cv_core::engine::ExitClass>,
+    ),
+    cv_core::Error,
+> {
     use cv_core::engine::{ExitClass, Verb};
-    let validate = run(Verb::Validate, sink())?;
+    let verb = |name: &str| match input {
+        Some(input) => Verb::Custom {
+            name: name.into(),
+            args: vec!["--input".into(), input.into()],
+        },
+        None => {
+            if name == "validate" {
+                Verb::Validate
+            } else {
+                Verb::Build
+            }
+        }
+    };
+    let validate = run(verb("validate"), sink())?;
     if validate != ExitClass::Ok {
         return Ok((validate, None));
     }
-    let build = run(Verb::Build, sink())?;
+    let build = run(verb("build"), sink())?;
     Ok((validate, Some(build)))
 }
 
@@ -836,6 +869,20 @@ pub fn transact(
     existing_ids: &BTreeMap<String, String>,
     at_ms: i64,
 ) -> Result<TxReport, AdoptError> {
+    // A newly initialized workspace is already visible to other Capture
+    // Vector processes, so "new" only means there is no live scheduler in
+    // this process. Establish the `.cv` carrier as part of the intentional
+    // mutation and serialize the transaction like any other workspace write.
+    let mutation_lock = cv_store::workspace_mutation::lock_for_content_mutation(target_root)
+        .map_err(|e| {
+            if e.kind() == std::io::ErrorKind::WouldBlock {
+                AdoptError::Run(format!(
+                    "adoption blocked: the workspace is busy with another mutation ({e}); nothing was written"
+                ))
+            } else {
+                AdoptError::Io(e)
+            }
+        })?;
     transact_impl(TxParams {
         target_root,
         src,
@@ -845,7 +892,7 @@ pub fn transact(
         existing_ids,
         at_ms,
         expected_instance: None,
-        workspace_mutation_lock: None,
+        workspace_mutation_lock: Some(mutation_lock),
     })
 }
 

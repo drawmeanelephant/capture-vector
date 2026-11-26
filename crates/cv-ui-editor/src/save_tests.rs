@@ -325,3 +325,18 @@ impl Engine for RefusingEngine {
         Err(cv_core::Error::Engine("writes unsupported".into()))
     }
 }
+
+#[test]
+fn save_refuses_while_the_workspace_mutation_lock_is_held() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    let _held = cv_store::workspace_mutation::lock(&root).unwrap();
+    let writer = FsWriter::new(&root);
+    let buf = Buffer::open("content/page.md", "# hi", None);
+    let ticket = buf.begin_save();
+    let err = save_blocking(&writer, &ticket).unwrap_err();
+    assert!(err.to_string().contains("workspace is busy"), "{err}");
+    assert!(!root.join("content/page.md").exists());
+}

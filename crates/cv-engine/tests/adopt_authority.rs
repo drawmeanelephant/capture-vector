@@ -470,6 +470,20 @@ fn add_large_payload(root: &Path, run_id: &str) {
 }
 
 fn cross_process_child() {
+    if std::env::var_os("CV_ADOPT_NEW_CHILD").is_some() {
+        let root = std::path::PathBuf::from(std::env::var("CV_ADOPT_ONCE_ROOT").unwrap());
+        let source_root = std::path::PathBuf::from(std::env::var("CV_ADOPT_SOURCE_ROOT").unwrap());
+        let run_id = std::env::var("CV_ADOPT_ONCE_RUN").unwrap();
+        let src = adopt::source(&source_root, &run_id).unwrap();
+        match adopt::transact(&root, &src, "content", None, "new", &BTreeMap::new(), 42) {
+            Ok(report) => println!("new ok {report:?}"),
+            Err(e) => {
+                println!("new err {e}");
+                std::process::exit(2);
+            }
+        }
+        return;
+    }
     if std::env::var_os("CV_ADOPT_ONCE_CHILD").is_none() {
         return;
     }
@@ -567,6 +581,64 @@ fn concurrent_cross_process_adoptions_cannot_both_commit_duplicate_page_ids() {
             "duplicate explicit Boris page ids committed in one workspace"
         );
     }
+}
+
+#[test]
+fn cross_process_ordinary_content_write_cannot_interleave_with_new_workspace_adoption() {
+    if std::env::var_os("CV_WRITE_ONCE_CHILD").is_some()
+        || std::env::var_os("CV_ADOPT_NEW_CHILD").is_some()
+    {
+        return;
+    }
+    let base_tmp = tempfile::tempdir().unwrap();
+    let base = base_tmp.path().canonicalize().unwrap();
+    let root = base.join("workspace");
+    let source_root = base.join("source");
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    std::fs::create_dir_all(&source_root).unwrap();
+    let run_id = "new-adoption-race".to_string();
+    seed_hugo_evidence(&source_root, &run_id, "hugo");
+    add_large_payload(&source_root, &run_id);
+    let exe = std::env::current_exe().unwrap();
+    let adopt_child = std::process::Command::new(&exe)
+        .arg("cross_process_adoption_child_entry")
+        .arg("--exact")
+        .arg("--nocapture")
+        .env("CV_ADOPT_NEW_CHILD", "1")
+        .env("CV_ADOPT_ONCE_ROOT", &root)
+        .env("CV_ADOPT_SOURCE_ROOT", &source_root)
+        .env("CV_ADOPT_ONCE_RUN", &run_id)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    let writer = std::process::Command::new(&exe)
+        .arg("ordinary_writer_child_entry")
+        .arg("--exact")
+        .arg("--nocapture")
+        .env("CV_WRITE_ONCE_CHILD", "1")
+        .env("CV_WRITE_ONCE_ROOT", &root)
+        .env("CV_WRITE_ONCE_RUN", &run_id)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    let adopt_out = adopt_child.wait_with_output().unwrap();
+    let write_out = writer.wait_with_output().unwrap();
+    println!(
+        "R21-NEW-ORDINARY adopt={} writer={} out={} err={}",
+        adopt_out.status,
+        write_out.status,
+        String::from_utf8_lossy(&write_out.stdout),
+        String::from_utf8_lossy(&write_out.stderr)
+    );
+    assert!(
+        adopt_out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&adopt_out.stdout)
+    );
+    assert_eq!(write_out.status.code(), Some(42));
+    assert!(!root.join("content/ordinary.md").exists());
 }
 
 fn production_write_engine(root: &Path) -> ProcessEngine {
@@ -1069,4 +1141,59 @@ fn pre_lock_cv_byte_copy_substitution_fails_before_any_write() {
         !root.join(".cv/imports").join(&run_id).exists(),
         "the substituted copied lock must not reach run-lock or journaling"
     );
+}
+
+/// A newly initialized workspace is path-visible to other Capture Vector
+/// processes before this process has a live scheduler for it. New-workspace
+/// adoption therefore establishes and holds the same mutation carrier.
+#[test]
+fn new_workspace_adoption_cannot_write_while_the_workspace_lock_is_held() {
+    let root_tmp = tempfile::tempdir().unwrap();
+    let root = root_tmp.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    let _held = cv_store::workspace_mutation::lock(&root).unwrap();
+    let (source_ws, run_id) = hugo_source();
+    let src = adopt::source(source_ws.path(), &run_id).unwrap();
+    let err =
+        adopt::transact(&root, &src, "content", None, "new", &BTreeMap::new(), 42).unwrap_err();
+    assert!(err.to_string().contains("workspace is busy"), "{err}");
+    assert!(!root.join("content/imported").exists());
+}
+
+/// Caller-selected derived-output redirection may not overlap source truth,
+/// even though the verb is otherwise serialized and lock-participating.
+#[test]
+fn ir_output_overlapping_the_content_input_is_refused_before_any_write() {
+    let root_tmp = tempfile::tempdir().unwrap();
+    let root = root_tmp.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    let engine = production_write_engine(&root);
+    for verb in [
+        cv_core::engine::Verb::Ir {
+            out: "content".into(),
+            input: None,
+        },
+        cv_core::engine::Verb::Custom {
+            name: "build".into(),
+            args: vec!["--out".into(), "content/graph.json".into()],
+        },
+        cv_core::engine::Verb::Ir {
+            out: ".cv".into(),
+            input: None,
+        },
+        cv_core::engine::Verb::Custom {
+            name: "build".into(),
+            args: vec!["--out".into(), ".boris".into()],
+        },
+        cv_core::engine::Verb::Custom {
+            name: "build".into(),
+            args: vec!["--out".into(), ".cv/ir".into()],
+        },
+    ] {
+        let err = engine.run(&verb, Box::new(|_| {})).unwrap_err();
+        assert!(err.to_string().contains("overlaps"), "{verb:?}: {err}");
+    }
+    assert!(!root.join("content/graph.json").exists());
 }

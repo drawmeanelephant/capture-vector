@@ -121,6 +121,7 @@ fn run_gate_live(
     cancel: &cv_core::engine::CancelToken,
     outcomes: &OutcomeSink,
     workspace: &WorkspaceKey,
+    input: &str,
 ) -> Result<(ExitClass, Option<ExitClass>), String> {
     let sched = slot
         .get()
@@ -143,7 +144,8 @@ fn run_gate_live(
             .unwrap_or_else(|| Box::new(|_: cv_core::events::Envelope| {}));
         recording_sink(inner, outcomes, workspace, journal.clone())
     };
-    let result = adopt::validate_then_build(&run, &sink).map_err(|e| e.to_string());
+    let result =
+        adopt::validate_then_build_with_input(&run, &sink, Some(input)).map_err(|e| e.to_string());
     publish_journal(outcomes, workspace, &journal);
     let outcome = match &result {
         Ok((v, b)) => format!(
@@ -169,16 +171,19 @@ fn run_gate_fresh(
     cancel: &cv_core::engine::CancelToken,
     outcomes: &OutcomeSink,
     workspace: &WorkspaceKey,
+    input: &str,
 ) -> Result<(ExitClass, Option<ExitClass>), String> {
     let mut cfg = EngineConfig::new(root);
     cfg.locator = locator.clone();
+    cfg.content_input = input.into();
     let engine = ProcessEngine::start(cfg).map_err(|e| e.to_string())?;
     let scheduler = EngineScheduler::new(Arc::new(engine), SeatPolicy::StopWatch);
     let run =
         |verb: Verb, sink: EventSink| scheduler.run_reported(&verb, sink, cancel).map(|r| r.exit);
     let journal: SharedOutcomes = Arc::new(Mutex::new(Vec::new()));
     let sink = || recording_sink(inbox.sink(), outcomes, workspace, journal.clone());
-    let result = adopt::validate_then_build(&run, &sink).map_err(|e| e.to_string());
+    let result =
+        adopt::validate_then_build_with_input(&run, &sink, Some(input)).map_err(|e| e.to_string());
     publish_journal(outcomes, workspace, &journal);
     result
 }
@@ -354,6 +359,7 @@ fn execute(
             // content input and existing-id snapshot are read only after
             // that serialization point is entered; a pre-lock snapshot
             // would be exactly the stale state the batch exists to exclude.
+            let mut adopted_input = String::new();
             let tx = batch_watch_safe(&slot, &sched, || {
                 if let Err(e) = sched.readiness() {
                     let _ = e;
@@ -362,6 +368,7 @@ fn execute(
                     ));
                 }
                 let input = crate::snapshot::content_input(&root);
+                adopted_input = input.clone();
                 let scan_root = root.clone();
                 adopt::transact_existing_with_identity(adopt::ExistingWorkspaceTransaction {
                     target_root: &root,
@@ -383,6 +390,7 @@ fn execute(
                 &cv_core::engine::CancelToken::new(),
                 outcomes,
                 &workspace_key,
+                &adopted_input,
             )?;
             Ok(finish_report(&root, &tx, gate, false))
         }
@@ -434,6 +442,7 @@ fn execute(
                 &creation.cancel,
                 outcomes,
                 &workspace_key,
+                &input,
             )?;
             if creation.cancel.is_cancelled() {
                 return Err(
