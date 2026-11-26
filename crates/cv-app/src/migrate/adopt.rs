@@ -178,12 +178,15 @@ fn execute(
             let sched = slot.get().cloned().ok_or_else(|| {
                 "the workspace engine is not ready; nothing was written".to_string()
             })?;
-            let input = crate::snapshot::content_input(&root);
-            let ids = existing_ids(&root);
             // Preflight through copy, provenance, and sidecars as one
             // serialized, journaled transaction: no page edit, move,
-            // build, or watch start can interleave with the batch.
+            // build, or watch start can interleave with the batch. The
+            // content input and existing-id snapshot are read only after
+            // that serialization point is entered; a pre-lock snapshot
+            // would be exactly the stale state the batch exists to exclude.
             let tx = batch_watch_safe(&slot, &sched, || {
+                let input = crate::snapshot::content_input(&root);
+                let ids = existing_ids(&root);
                 adopt::transact(
                     &root,
                     &src,
@@ -264,6 +267,8 @@ pub fn adopt(wb: &mut Workbench, job: AdoptionJob, env: &WorkspaceEnv) -> Option
     let worker_notices = notices.clone();
     let env_locator = env.locator.clone();
     let worker_run = run_id.clone();
+    let cancel = job.cancel.clone();
+    let worker_cancel = cancel.clone();
     match std::thread::Builder::new()
         .name("cv-migrate-adopt".into())
         .spawn(move || {
@@ -288,6 +293,7 @@ pub fn adopt(wb: &mut Workbench, job: AdoptionJob, env: &WorkspaceEnv) -> Option
             });
             worker_notices.send(ShellNotice::Adopted {
                 run_id: worker_run,
+                cancel: worker_cancel,
                 result,
             });
         }) {
@@ -295,6 +301,7 @@ pub fn adopt(wb: &mut Workbench, job: AdoptionJob, env: &WorkspaceEnv) -> Option
         Err(e) => {
             notices.send(ShellNotice::Adopted {
                 run_id,
+                cancel,
                 result: Err(format!("could not start the adoption worker: {e}")),
             });
             None

@@ -13,6 +13,8 @@ use cv_model::workbench::Workbench;
 use std::path::Path;
 use std::sync::mpsc;
 
+mod adoption;
+
 /// Never write the executable inode in this process: a sibling fork could
 /// inherit that fd and make Linux exec fail with ETXTBSY
 /// (rust-lang/rust#114554). Unlike cv-engine's child-copy installer, this

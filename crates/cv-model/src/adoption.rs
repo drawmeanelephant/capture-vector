@@ -3,6 +3,7 @@
 //! validation and writes happen behind cv-engine/cv-store.
 
 use crate::new_workspace::WorkspaceCreation;
+use cv_core::engine::CancelToken;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -22,6 +23,11 @@ pub struct AdoptionRequest {
 pub struct AdoptionJob {
     pub source_root: PathBuf,
     pub request: AdoptionRequest,
+    /// Stable operation identity. New-workspace adoption shares the
+    /// creation token so progress cancellation and completion correlation
+    /// are the same operation; existing-workspace adoption gets its own
+    /// token even though it currently has no cancellation dialog.
+    pub cancel: CancelToken,
 }
 
 /// A worker's completed adoption, for shell status/workspace handoff.

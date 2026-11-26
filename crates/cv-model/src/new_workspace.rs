@@ -89,6 +89,8 @@ pub enum ShellNotice {
     /// path; errors are disclosed in place.
     Adopted {
         run_id: String,
+        /// Stable identity of the adoption operation this notice belongs to.
+        cancel: CancelToken,
         result: Result<crate::adoption::AdoptionReport, String>,
     },
     ImportStarted {
@@ -331,30 +333,44 @@ impl Workbench {
     pub(crate) fn notice(&mut self, n: ShellNotice) {
         match n {
             ShellNotice::Archetypes(a) => self.archetypes = a,
-            ShellNotice::Adopted { run_id, result } => match result {
-                Ok(report) if report.new_workspace => {
+            ShellNotice::Adopted {
+                run_id,
+                cancel,
+                result,
+            } => {
+                // Adoption and ordinary creation can overlap. Only the
+                // notice carrying the live creation's exact token may
+                // complete that dialog/token state; foreign adoption
+                // outcomes are status/refresh facts only.
+                let owns_creation = self
+                    .create_cancel
+                    .as_ref()
+                    .is_some_and(|live| *live == cancel);
+                if owns_creation {
                     self.create_cancel = None;
                     self.dialogs.close(CREATING);
-                    self.status = format!(
-                        "adopted {run_id}: {} file(s), validate {}, build {}",
-                        report.files_written, report.validate, report.build
-                    );
-                    self.requests
-                        .push(ShellRequest::OpenWorkspace(report.workspace));
                 }
-                Ok(report) => {
-                    self.status = format!(
-                        "adopted {run_id}: {} file(s), validate {}, build {}",
-                        report.files_written, report.validate, report.build
-                    );
-                    self.run_command(crate::modules::migrate::REFRESH);
+                match result {
+                    Ok(report) if report.new_workspace => {
+                        self.status = format!(
+                            "adopted {run_id}: {} file(s), validate {}, build {}",
+                            report.files_written, report.validate, report.build
+                        );
+                        self.requests
+                            .push(ShellRequest::OpenWorkspace(report.workspace));
+                    }
+                    Ok(report) => {
+                        self.status = format!(
+                            "adopted {run_id}: {} file(s), validate {}, build {}",
+                            report.files_written, report.validate, report.build
+                        );
+                        self.run_command(crate::modules::migrate::REFRESH);
+                    }
+                    Err(e) => {
+                        self.status = format!("adoption of {run_id} refused: {e}");
+                    }
                 }
-                Err(e) => {
-                    self.create_cancel = None;
-                    self.dialogs.close(CREATING);
-                    self.status = format!("adoption of {run_id} refused: {e}");
-                }
-            },
+            }
             ShellNotice::Created { creation, result } => {
                 let cancelled = creation.cancel.is_cancelled();
                 if self
@@ -600,6 +616,77 @@ mod tests {
         wb.run_command(NEW);
         assert!(!wb.dialogs.is_open());
         assert_eq!(wb.status, "New workspace is unavailable: boris not found");
+    }
+
+    #[test]
+    fn a_foreign_adoption_failure_cannot_close_an_unrelated_creation() {
+        let mut wb = wb();
+        fill(&mut wb, "notes");
+        wb.key(&KeyPress::new(KeyInput::Enter));
+        let creation = take_creation(&mut wb);
+        let token = creation.cancel.clone();
+        assert!(wb.dialogs.open().is_some_and(|d| d.spec.id == CREATING));
+
+        // Existing-workspace adoption can overlap an ordinary creation;
+        // its failure is a different operation and must not complete it.
+        wb.notice(ShellNotice::Adopted {
+            run_id: "unrelated-existing-adoption".into(),
+            cancel: CancelToken::new(),
+            result: Err("adoption collision".into()),
+        });
+
+        assert!(
+            wb.create_cancel.as_ref().is_some_and(|c| *c == token),
+            "an unrelated adoption failure must not clear the live creation token"
+        );
+        assert!(
+            wb.dialogs.open().is_some_and(|d| d.spec.id == CREATING),
+            "an unrelated adoption failure must not close creation progress"
+        );
+    }
+
+    #[test]
+    fn a_foreign_adoption_success_cannot_close_an_unrelated_creation() {
+        let mut wb = wb();
+        fill(&mut wb, "notes");
+        wb.key(&KeyPress::new(KeyInput::Enter));
+        let creation = take_creation(&mut wb);
+        let token = creation.cancel.clone();
+        wb.notice(ShellNotice::Adopted {
+            run_id: "unrelated-existing-adoption".into(),
+            cancel: CancelToken::new(),
+            result: Ok(crate::adoption::AdoptionReport {
+                workspace: PathBuf::from("/elsewhere"),
+                files_written: 3,
+                validate: "ok".into(),
+                build: "ok".into(),
+                new_workspace: false,
+            }),
+        });
+
+        assert!(wb.create_cancel.as_ref().is_some_and(|c| *c == token));
+        assert!(wb.dialogs.open().is_some_and(|d| d.spec.id == CREATING));
+    }
+
+    #[test]
+    fn a_matching_adoption_failure_completes_its_own_creation_progress() {
+        let mut wb = wb();
+        fill(&mut wb, "notes");
+        wb.key(&KeyPress::new(KeyInput::Enter));
+        let creation = take_creation(&mut wb);
+        let token = creation.cancel.clone();
+        wb.notice(ShellNotice::Adopted {
+            run_id: "matching-adoption".into(),
+            cancel: token,
+            result: Err("adoption collision".into()),
+        });
+
+        assert!(wb.create_cancel.is_none());
+        assert!(!wb.dialogs.is_open());
+        assert_eq!(
+            wb.status,
+            "adoption of matching-adoption refused: adoption collision"
+        );
     }
 
     #[test]

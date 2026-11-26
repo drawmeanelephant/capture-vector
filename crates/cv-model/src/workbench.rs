@@ -907,10 +907,21 @@ impl Workbench {
                 suggested_archetype,
             } => self.adopt_new_workspace(&run_id, suggested_archetype.as_deref()),
             Intent::AdoptRun(request) => match self.workspace.clone() {
-                Some(source_root) => self.requests.push(ShellRequest::AdoptRun(AdoptionJob {
-                    source_root,
-                    request,
-                })),
+                Some(source_root) => {
+                    let cancel = match &request.target {
+                        crate::adoption::AdoptionTarget::NewWorkspace(creation) => {
+                            creation.cancel.clone()
+                        }
+                        crate::adoption::AdoptionTarget::ExistingWorkspace { .. } => {
+                            CancelToken::new()
+                        }
+                    };
+                    self.requests.push(ShellRequest::AdoptRun(AdoptionJob {
+                        source_root,
+                        request,
+                        cancel,
+                    }));
+                }
                 None => self.status = "open the workspace that owns this import run first".into(),
             },
             Intent::RunImport(mut job) => {

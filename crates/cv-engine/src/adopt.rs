@@ -168,6 +168,11 @@ pub fn source(root: &Path, run_id: &str) -> Result<AdoptionSource, AdoptError> {
             "run {run_id} has not finished successfully"
         )));
     }
+    if record.mode.ends_with("-inventory") {
+        return Err(AdoptError::Run(format!(
+            "run {run_id} is inventory-only and emits no adoptable content"
+        )));
+    }
     let out = dir.join(store::OUT);
     if is_link(&out)? {
         return Err(AdoptError::Content(format!(
@@ -448,13 +453,26 @@ pub fn collisions(
     out.extend(blocked_parents(target_root, &rel_targets));
 
     for p in planned {
-        let exists = confined_file(target_root, Path::new(&p.target))
-            .ok()
-            .is_some_and(|path| std::fs::symlink_metadata(&path).is_ok());
+        let target = target_root.join(&p.target);
+        let metadata = match std::fs::symlink_metadata(&target) {
+            Ok(metadata) => Some(metadata),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+            Err(e) => {
+                out.push(Collision {
+                    kind: CollisionKind::ParentShape,
+                    incoming: p.display.clone(),
+                    existing: format!("{} cannot be resolved: {e}", p.target),
+                });
+                None
+            }
+        };
         let mut copy = true;
-        if exists {
-            let target = target_root.join(&p.target);
-            if resume && bytes_identical(&target, &p.source) {
+        if let Some(metadata) = metadata {
+            // `symlink_metadata` is the no-follow final-component check: a
+            // link exactly at the target is existing foreign state, never an
+            // absent file merely because confined resolution refused it.
+            let ordinary_file = metadata.is_file() && !cv_store::paths::is_link(&metadata);
+            if resume && ordinary_file && bytes_identical(&target, &p.source) {
                 copy = false;
             } else {
                 out.push(Collision {

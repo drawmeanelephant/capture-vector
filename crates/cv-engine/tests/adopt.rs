@@ -1002,8 +1002,62 @@ fn inventory_only_runs_are_not_adoptable() {
     let run_id = seed_run(ws.path(), "hugo-inventory", 1_764_000_000_001);
     let err = adopt::source(ws.path(), &run_id).unwrap_err();
     assert!(
-        err.to_string().contains("report.json") || err.to_string().contains("content"),
-        "inventory-only output has no adoptable emit evidence: {err}"
+        err.to_string().contains("inventory"),
+        "inventory mode is rejected explicitly: {err}"
+    );
+}
+
+#[test]
+fn inventory_mode_cannot_adopt_even_with_emit_shaped_evidence() {
+    let ws = tempfile::tempdir().unwrap();
+    let root = ws.path().canonicalize().unwrap();
+    let run_id = seed_run(&root, "hugo-inventory", 1_764_100_000_000);
+    let dir = store::run_dir(&root, &run_id).unwrap();
+    std::fs::remove_dir_all(dir.join(store::OUT)).unwrap();
+    StubLab::new().run("hugo", &dir.join(store::OUT)).unwrap();
+
+    let err = adopt::source(&root, &run_id).unwrap_err();
+    assert!(
+        err.to_string().contains("inventory"),
+        "mode validation rejects the run before structural evidence can fail open: {err}"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn a_symlink_at_a_final_target_is_a_pre_write_collision_not_a_mid_copy_failure() {
+    let (source_ws, run_id) = hugo_source();
+    let source_root = source_ws.path().canonicalize().unwrap();
+    let src = adopt::source(&source_root, &run_id).unwrap();
+    let target = tempfile::tempdir().unwrap();
+    let root = target.path().canonicalize().unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    std::fs::write(outside.path().join("outside.md"), b"outside").unwrap();
+    let victim = root.join("content/imported/fr/posts/bonjour.md");
+    std::fs::create_dir_all(victim.parent().unwrap()).unwrap();
+    std::os::unix::fs::symlink(outside.path().join("outside.md"), &victim).unwrap();
+
+    let err = adopt::transact(
+        &root,
+        &src,
+        "content",
+        Some("imported"),
+        "existing",
+        &BTreeMap::new(),
+        7,
+    )
+    .unwrap_err();
+    assert!(
+        matches!(err, AdoptError::Collisions(_)),
+        "a final-target symlink is a deterministic pre-write collision: {err}"
+    );
+    let copied: Vec<_> = walk_files(&root.join("content"))
+        .into_iter()
+        .filter(|p| p != &std::path::PathBuf::from("imported/fr/posts/bonjour.md"))
+        .collect();
+    assert!(
+        copied.is_empty(),
+        "no earlier file may land when any final target is a symlink: {copied:?}"
     );
 }
 
