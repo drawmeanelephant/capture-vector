@@ -36,10 +36,6 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get update && sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers libxkbcommon-dev
 
-      # Gate: no boris, no display, no net needed at test time.
-      - name: cargo test --workspace
-        run: cargo test --workspace --locked
-
       # PNG goldens: canonical rasterizer only (Linux + Lavapipe). The
       # cross-OS UI gate is the tree/layout JSON in `cv-app --test goldens`.
       - name: PNG goldens (lavapipe)
@@ -48,6 +44,10 @@ jobs:
         run: |
           ls /usr/share/vulkan/icd.d/
           bash scripts/check-ui-png.sh
+
+      # Gate: no boris, no display, no net needed at test time.
+      - name: cargo test --workspace
+        run: cargo test --workspace --locked
 
       # A mismatch keeps the Lavapipe renders, so a deliberate visual change
       # is blessed from the canonical rasterizer, never a local GPU.
