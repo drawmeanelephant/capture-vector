@@ -206,6 +206,42 @@ fn a_held_run_lock_projects_running_and_release_projects_unfinished() {
 }
 
 #[test]
+fn orphaned_output_never_makes_an_unfinished_run_success_or_evidence() {
+    let d = tempfile::tempdir().unwrap();
+    let root = std::fs::canonicalize(d.path()).unwrap();
+    let dir = legacy_unfinished_run(&root, "orphaned");
+    let finished = seed_run(&root, "hugo", 99);
+    // Simulate the orphaned lab continuing after Capture Vector died: even a
+    // later exact-family report and changing output cannot complete the run
+    // record retroactively or become positive count evidence.
+    std::fs::copy(
+        root.join(store::DIR)
+            .join(&finished)
+            .join(store::OUT)
+            .join("report.json"),
+        dir.join(store::OUT).join("report.json"),
+    )
+    .unwrap();
+    for step in 0..3 {
+        std::fs::write(
+            dir.join(store::OUT).join("partial.txt"),
+            format!("orphan write {step}"),
+        )
+        .unwrap();
+        let imports = load(&root);
+        let run = imports.runs.iter().find(|r| r.id == "orphaned").unwrap();
+        assert_eq!(run.status, RunStatus::Unfinished);
+        assert!(!run.count_evidence, "partial orphan output is not evidence");
+        assert!(
+            run.counts.iter().all(|(_, n)| *n == 0),
+            "orphan output must not resurrect counts: {:?}",
+            run.counts
+        );
+        assert_eq!(run.outcome, None, "no terminal outcome was recorded");
+    }
+}
+
+#[test]
 fn lab_refusal_names_are_detected_regardless_of_exit_code() {
     // The pinned lab reports safety refusals at exit 2 or 3 depending on
     // when they fire; the stderr error name is the stable signal.

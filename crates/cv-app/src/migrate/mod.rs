@@ -725,7 +725,7 @@ fn project(root: &Path, d: &RunDir) -> ImportRun {
     }
     run.out = format!("{rel}/{}", store::OUT);
     let out = d.out();
-    if run.status == RunStatus::Running {
+    if matches!(run.status, RunStatus::Running | RunStatus::Unfinished) {
         return run;
     }
     if out.join("provenance_manifest.json").is_file() {

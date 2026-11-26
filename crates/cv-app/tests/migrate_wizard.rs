@@ -354,6 +354,27 @@ fn switching_workspaces_during_import_keeps_the_run_lock_and_record_intact() {
         "workspace switching must not rewrite the active run record"
     );
 
+    // Reopening the original workspace is the stale-view case that used to
+    // sweep active records as interrupted. It must observe only: the worker
+    // still owns the run lock and the record bytes stay exactly intact.
+    let env_a = cv_app::WorkspaceEnv {
+        locator: Some(cv_engine::locate::Locator::default()),
+        recent_file: Some(other_root.join("recent-a.json")),
+    };
+    if let Some(boot) = cv_app::open_workspace(h.state_mut(), root.clone(), &env_a) {
+        boot.join().unwrap();
+    }
+    assert_eq!(
+        store::probe_run(&root, &inventory.run_id).unwrap(),
+        store::RunProbe::Held,
+        "reopening the workspace must not release the active import lock"
+    );
+    assert_eq!(
+        std::fs::read(run_dir.join(store::RECORD)).unwrap(),
+        before_record,
+        "reopening the workspace must not rewrite the active run record"
+    );
+
     inventory.cancel.cancel();
     worker.join().unwrap();
     let rec = run_record(&root, &inventory.run_id);
