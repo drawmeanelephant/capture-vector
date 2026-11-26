@@ -13,6 +13,25 @@ use cv_model::workbench::Workbench;
 use std::path::Path;
 use std::sync::mpsc;
 
+/// Never open the executable inode for writing in this process: a sibling
+/// fork could inherit that fd and make Linux exec fail with ETXTBSY
+/// (rust-lang/rust#114554). The destination writer belongs only to `cp`.
+#[cfg(unix)]
+fn install_executable(bin: &Path, contents: &str) {
+    use std::os::unix::fs::PermissionsExt;
+
+    let staging = bin.parent().unwrap().join("staging-contents");
+    std::fs::write(&staging, contents).unwrap();
+    let status = std::process::Command::new("cp")
+        .arg(&staging)
+        .arg(bin)
+        .status()
+        .unwrap();
+    assert!(status.success(), "cp into the executable path failed");
+    std::fs::remove_file(&staging).unwrap();
+    std::fs::set_permissions(bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+}
+
 fn test_delivery(root: &Path, mode: WatchMode, wb: &Workbench) -> LiveDelivery {
     let engine = ProcessEngine::with_report(
         EngineConfig::new(root),
@@ -290,7 +309,6 @@ fn polling_watch_discloses_failures_without_retrying_and_clears_on_success() {
 
 #[cfg(unix)]
 fn run_native_recovery(exit: Option<i32>) -> Workbench {
-    use std::os::unix::fs::PermissionsExt;
     use std::time::{Duration, Instant};
 
     let root = tempfile::tempdir().unwrap();
@@ -305,18 +323,16 @@ fn run_native_recovery(exit: Option<i32>) -> Workbench {
     // harness even if recovery incorrectly feeds its own sink again.
     let watch_setup = if exit.is_none() { "rm \"$0\";" } else { "" };
     let exit_code = exit.unwrap_or_default();
-    std::fs::write(
+    install_executable(
         &bin,
-        format!(
+        &format!(
             "#!/bin/sh\ncase \"$1\" in\n\
          watch) {watch_setup} cat watch.ndjson >&2; exit 1;;\n\
          build) if [ -e attempts ]; then echo build >> attempts; exit 0; fi\n\
          echo build > attempts; exit {exit_code};;\n\
          *) exit 2;;\nesac\n"
         ),
-    )
-    .unwrap();
-    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+    );
     let mut wb = Workbench::new(Registry::with_all());
     let delivery = test_delivery(root.path(), WatchMode::Native, &wb);
     let sched = Arc::new(EngineScheduler::new(
@@ -351,11 +367,9 @@ fn run_native_recovery(exit: Option<i32>) -> Workbench {
 #[cfg(unix)]
 #[test]
 fn delayed_recovery_does_not_stop_a_replacement_watch() {
-    use std::os::unix::fs::PermissionsExt;
-
     let root = tempfile::tempdir().unwrap();
     let bin = root.path().join("boris");
-    std::fs::write(
+    install_executable(
         &bin,
         r#"#!/bin/sh
 case "$1" in
@@ -364,9 +378,7 @@ build) echo build >> attempts; exit 0;;
 *) exit 2;;
 esac
 "#,
-    )
-    .unwrap();
-    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+    );
     let mut wb = Workbench::new(Registry::with_all());
     let delivery = test_delivery(root.path(), WatchMode::Native, &wb);
     let sched = Arc::new(EngineScheduler::new(
@@ -447,7 +459,6 @@ fn diagnostic_build_error_is_disclosed_even_without_a_build_envelope() {
 #[cfg(unix)]
 #[test]
 fn fatal_initial_build_with_a_diagnostic_is_disclosed_without_a_recovery_build() {
-    use std::os::unix::fs::PermissionsExt;
     use std::time::{Duration, Instant};
 
     let root = tempfile::tempdir().unwrap();
@@ -457,15 +468,13 @@ fn fatal_initial_build_with_a_diagnostic_is_disclosed_without_a_recovery_build()
     )
     .unwrap();
     let bin = root.path().join("boris");
-    std::fs::write(
+    install_executable(
         &bin,
         "#!/bin/sh\ncase \"$1\" in\n\
          watch) cat watch.ndjson >&2; exit 3;;\n\
          build) [ \"$2\" = \"--out\" ] || echo \"$1\" >> attempts; exit 3;;\n\
          *) echo \"$1\" >> attempts; exit 3;;\nesac\n",
-    )
-    .unwrap();
-    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+    );
     let mut wb = Workbench::new(Registry::with_all());
     let delivery = test_delivery(root.path(), WatchMode::Native, &wb);
     let sched = Arc::new(EngineScheduler::new(
@@ -499,7 +508,6 @@ fn fatal_initial_build_with_a_diagnostic_is_disclosed_without_a_recovery_build()
 /// graph Boris captured for that corpus into DIR, or exits `fail`.
 #[cfg(unix)]
 fn ir_workspace(fail: Option<i32>) -> (tempfile::TempDir, Workbench, LiveDelivery) {
-    use std::os::unix::fs::PermissionsExt;
     let editor = cv_fixtures::fixtures_root().join("editor");
     let manifest = cv_fixtures::Manifest::load(&editor.join("MANIFEST.toml"));
     let root = tempfile::tempdir().unwrap();
@@ -525,15 +533,13 @@ fn ir_workspace(fail: Option<i32>) -> (tempfile::TempDir, Workbench, LiveDeliver
         ),
     };
     let bin = root.path().join("boris");
-    std::fs::write(
+    install_executable(
         &bin,
-        format!(
+        &format!(
             "#!/bin/sh\necho \"$*\" >> \"$(dirname \"$0\")/argv.log\"\n\
              case \"$1 $2\" in\n\"build --out\") {run};;\n*) exit 2;;\nesac\n"
         ),
-    )
-    .unwrap();
-    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+    );
     let wb = Workbench::new(Registry::with_all());
     let delivery = test_delivery(root.path(), WatchMode::Native, &wb);
     (root, wb, delivery)
@@ -721,11 +727,10 @@ fn a_failed_ir_projection_keeps_the_previous_boris_graph_and_discloses_it() {
     sink(finished(0));
     wait_for_ir_graph(&root, &mut wb);
 
-    std::fs::write(
-        root.path().join("boris"),
+    install_executable(
+        &root.path().join("boris"),
         "#!/bin/sh\necho \"$*\" >> \"$(dirname \"$0\")/argv.log\"\nrm -f \"$3/graph.json\"\necho 'error: EFRONTMATTER: unknown key' >&2\nexit 1\n",
-    )
-    .unwrap();
+    );
     sink(finished(1));
     let deadline = Instant::now() + Duration::from_secs(10);
     while !activity_rows(&wb).iter().any(|r| {

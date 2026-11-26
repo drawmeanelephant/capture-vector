@@ -9,6 +9,8 @@
 //!   checked-in one byte for byte. Run with
 //!   `CV_MIGRATION_LAB_BIN=… CV_BORIS_BIN=… cargo test -p cv-engine --test lab_conformance -- --ignored`.
 
+mod common;
+
 #[path = "common/lab_capture.rs"]
 mod lab_capture;
 
@@ -48,14 +50,12 @@ fn stub_lab_equals_process_lab_over_a_replaying_fake() {
     use cv_engine::exit::ExitOutcome;
     use cv_engine::lab::{self, InputKind, LabExit, LabRun, PINNED};
     use cv_engine::proc::CancelToken;
-    use std::os::unix::fs::PermissionsExt;
 
     for spec in LAB_CAPTURES {
         let captured = cv_fixtures::lab::lab_capture(spec.mode).transcript();
         let (_fake_dir, fake) = canonical_tempdir();
         let bin = fake.join(lab::exe_name());
-        std::fs::write(&bin, include_str!("fake-lab/boris-migration-lab")).unwrap();
-        std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+        common::install_executable(&bin, include_str!("fake-lab/boris-migration-lab"));
         std::fs::write(fake.join("version.txt"), format!("{}\n", PINNED.tool_id)).unwrap();
         std::fs::write(fake.join("stdout.txt"), &captured.stdout).unwrap();
         std::fs::write(fake.join("stderr.txt"), &captured.stderr).unwrap();
