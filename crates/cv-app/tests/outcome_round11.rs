@@ -20,6 +20,7 @@ fn write(path: &Path, bytes: &[u8]) {
     std::fs::write(path, bytes).unwrap();
 }
 
+#[cfg(unix)]
 fn fake_boris() -> (tempfile::TempDir, PathBuf) {
     let dir = tempfile::tempdir().unwrap();
     let bin = dir.path().join("boris");
@@ -648,6 +649,7 @@ fn r11_firmlink_alias_of_the_owning_workspace_must_drain_held_outcome() {
 /// the gate is in flight: live copies, per-verb queue copies, and the final
 /// journal replay must collapse to exactly one truthful ordered outcome each.
 #[test]
+#[cfg(unix)]
 fn r10_passing_gate_interleaved_drains_repeated_retirement_exactly_once_ordered() {
     let reps: usize = std::env::var("R10_REPS")
         .ok()
@@ -730,6 +732,7 @@ fn r10_passing_gate_interleaved_drains_repeated_retirement_exactly_once_ordered(
 /// generation — neither replay multiplication nor loss of the operation that
 /// finished across the reset.
 #[test]
+#[cfg(unix)]
 fn r10_multiple_adoptions_across_one_retirement_exactly_once_per_run() {
     let (boris_dir, boris) = fake_boris();
     let (_w, ws) = workspace();
@@ -801,6 +804,7 @@ fn r10_multiple_adoptions_across_one_retirement_exactly_once_per_run() {
 /// into the replacement. Correct causal order keeps validate older than that
 /// replacement-generation truth; commit-order replay cannot express that.
 #[test]
+#[cfg(unix)]
 fn r12_pre_reset_validate_replay_precesses_after_causally_later_watch_build() {
     let (boris_dir, boris) = fake_boris();
     let (_w, ws) = workspace();
