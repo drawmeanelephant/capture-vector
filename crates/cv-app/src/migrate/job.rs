@@ -1,16 +1,21 @@
-//! Shell-owned migration workers. The worker only locates the gated lab and
-//! calls [`run_lab`]; validation, argv construction, spawning, cancellation
-//! and process-group handling remain inside `cv-engine`.
+//! Shell-owned migration workers. The worker locates the gated lab, claims
+//! the collision-resolved run, and executes it under that held capability;
+//! validation, argv construction, spawning, cancellation and process-group
+//! handling remain inside `cv-engine`.
 
-use super::{now_ms, run_lab};
+use super::{claim_import_run, now_ms, run_lab_with_lock};
 use cv_engine::lab::{self as engine_lab, LabIdentity};
 use cv_model::command::ImportJob;
-use cv_model::new_workspace::ShellNotice;
+use cv_model::new_workspace::{Notices, ShellNotice};
 use cv_model::workbench::Workbench;
 use cv_store::imports::{self as store, RunRecord};
 use std::thread::JoinHandle;
 
-fn execute(job: &ImportJob, lab_override: Option<LabIdentity>) -> Result<(), String> {
+fn execute(
+    job: &ImportJob,
+    lab_override: Option<LabIdentity>,
+    notices: &Notices,
+) -> Result<(), String> {
     let mode = engine_lab::mode(&job.mode)
         .ok_or_else(|| format!("migration mode {} is not registered", job.mode))?;
     let lab = match lab_override {
@@ -21,9 +26,23 @@ fn execute(job: &ImportJob, lab_override: Option<LabIdentity>) -> Result<(), Str
                 .map_err(|e| e.to_string())?
         }
     };
-    run_lab(
-        &job.workspace,
-        &job.run_id,
+    // Claim after lab discovery but before any lab process exists. The
+    // wizard's id came from a possibly stale projection; collision
+    // resolution happens here, then the shell is told the actual id before
+    // the run can complete.
+    let (lock, actual_id) =
+        claim_import_run(&job.workspace, &job.run_id, &job.mode).map_err(|e| e.to_string())?;
+    if actual_id != job.run_id {
+        let mut actual = job.clone();
+        actual.run_id = actual_id.clone();
+        notices.send(ShellNotice::ImportStarted {
+            requested: job.run_id.clone(),
+            job: actual,
+        });
+    }
+    run_lab_with_lock(
+        lock,
+        &actual_id,
         &lab,
         mode,
         job.inputs.clone(),
@@ -52,7 +71,7 @@ pub fn spawn_import_with(
             // never strand it in Running, so the terminal notice is sent
             // from behind a catch boundary either way.
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                execute(&job, lab_override)
+                execute(&job, lab_override, &notices)
             }))
             .unwrap_or_else(|_| {
                 Err("the import worker panicked; the run record shows what was written".into())

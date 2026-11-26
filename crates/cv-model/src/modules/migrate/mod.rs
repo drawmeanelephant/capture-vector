@@ -88,7 +88,7 @@ pub enum RunStatus {
 impl RunStatus {
     pub fn label(self) -> &'static str {
         match self {
-            Self::Running => "running",
+            Self::Running => "lock held",
             Self::Unfinished => "unfinished",
             Self::Ok => "ok",
             Self::Cancelled => "cancelled",
@@ -704,12 +704,12 @@ impl MigrateModule {
         }
         if r.status == RunStatus::Running {
             lines.push(note(
-                "No exit was recorded yet. This run's lock is still held by a live import operation.",
+                "No exit was recorded yet. This run's lock appears held; the lab may still be active, or its holder may not have finished recording the outcome.",
             ));
         }
         if r.status == RunStatus::Unfinished {
             lines.push(note(
-                "Capture Vector quit or crashed before the lab reported an outcome, or the run lock can no longer be inspected. The output may be partial. This run cannot be adopted; start a new import to retry. On macOS and Linux, quitting is not cancelling, so the lab may continue writing this run's output.",
+                "No outcome was recorded and no live run lock was observed. Capture Vector may have quit or crashed before the lab reported, or the lock may no longer be inspectable. The output may be partial. This run cannot be adopted; start a new import to retry. On macOS and Linux, quitting is not cancelling, so the lab may continue writing this run's output.",
             ));
         }
         for input in &r.inputs {
@@ -1056,6 +1056,10 @@ impl Module for MigrateModule {
 
     fn answer(&mut self, command: &str, answer: &crate::dialog::DialogAnswer) -> Vec<Intent> {
         self.answer_wizard(command, answer)
+    }
+
+    fn import_started(&mut self, requested: &str, job: &crate::command::ImportJob) -> Vec<Intent> {
+        self.retarget_started_import(requested, job)
     }
 
     fn contains(&self, key: &str) -> bool {

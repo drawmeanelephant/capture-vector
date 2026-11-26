@@ -277,6 +277,17 @@ pub trait Module {
     fn answer(&mut self, _command: &str, _answer: &DialogAnswer) -> Vec<Intent> {
         Vec::new()
     }
+    /// A migration worker atomically claimed its actual run id. `requested`
+    /// is the stale candidate the wizard originally staged; `job` is the
+    /// actual job now holding the run claim. Modules use this to retarget
+    /// in-flight state before the completion notice arrives.
+    fn import_started(
+        &mut self,
+        _requested: &str,
+        _job: &crate::command::ImportJob,
+    ) -> Vec<Intent> {
+        Vec::new()
+    }
     /// Intents an `ingest` left owing (a finished run closes its
     /// progress dialog); the shell applies them after each commit.
     fn take_owed(&mut self) -> Vec<Intent> {

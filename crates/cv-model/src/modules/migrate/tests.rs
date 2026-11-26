@@ -574,6 +574,32 @@ fn inventory_completion_never_emits_without_an_explicit_decision() {
 }
 
 #[test]
+fn collision_resolved_start_retargets_the_running_wizard() {
+    let (mut m, _appeared) = dynamic_wizard_module();
+    let requested = drive_hugo_to_inventory(&mut m);
+    let cancel = match &m.wizard.stage {
+        wizard::WizardStage::Running { cancel, .. } => cancel.clone(),
+        _ => panic!("inventory is running"),
+    };
+    let actual = crate::command::ImportJob {
+        workspace: std::path::PathBuf::from("/workspace"),
+        run_id: "import-2-hugo-inventory".into(),
+        mode: "hugo-inventory".into(),
+        phase: crate::command::ImportPhase::Inventory,
+        inputs: Vec::new(),
+        extras: Vec::new(),
+        cancel,
+    };
+    m.retarget_started_import(&requested, &actual);
+    match &m.wizard.stage {
+        wizard::WizardStage::Running { run_id, .. } => {
+            assert_eq!(run_id, "import-2-hugo-inventory")
+        }
+        _ => panic!("wizard remains running"),
+    }
+}
+
+#[test]
 fn internal_companion_and_out_of_stage_answers_are_rejected() {
     let mut m = wizard_module();
     // A deep MODE answer before the wizard is at that step is a no-op.

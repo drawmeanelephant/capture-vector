@@ -206,6 +206,22 @@ fn a_held_run_lock_projects_running_and_release_projects_unfinished() {
 }
 
 #[test]
+fn run_claim_collisions_advance_to_the_next_wizard_candidate() {
+    let d = tempfile::tempdir().unwrap();
+    let root = std::fs::canonicalize(d.path()).unwrap();
+    let base = root.join(store::DIR);
+    std::fs::create_dir_all(base.join("import-1-hugo")).unwrap();
+    std::fs::create_dir_all(base.join("import-2-hugo")).unwrap();
+
+    let (lock, actual) = claim_import_run(&root, "import-1-hugo", "hugo").unwrap();
+    assert_eq!(actual, "import-3-hugo");
+    assert_eq!(lock.run_id(), "import-3-hugo");
+    assert!(!base.join("import-1-hugo").join(store::RUN_LOCK).exists());
+    assert!(!base.join("import-2-hugo").join(store::RUN_LOCK).exists());
+    assert!(base.join("import-3-hugo").join(store::RUN_LOCK).exists());
+}
+
+#[test]
 fn orphaned_output_never_makes_an_unfinished_run_success_or_evidence() {
     let d = tempfile::tempdir().unwrap();
     let root = std::fs::canonicalize(d.path()).unwrap();
@@ -293,6 +309,43 @@ fn a_refused_run_is_recorded_without_spawning() {
     let r = &load(d.path()).runs[0];
     assert_eq!(r.status, RunStatus::Refused);
     assert_eq!(r.boris_pin.as_deref(), Some("boris/0.9.0 @ 66efcfb"));
+}
+
+#[test]
+fn a_collision_retry_writes_the_refused_run_under_the_actual_claimed_id() {
+    let d = tempfile::tempdir().unwrap();
+    let base = d.path().join(store::DIR);
+    std::fs::create_dir_all(base.join("import-1-hugo")).unwrap();
+    let lab = LabIdentity {
+        source: EngineSource::Path,
+        path: d.path().join("no-such-lab"),
+        tool_id: engine_lab::PINNED.tool_id.into(),
+    };
+    let rec = run_lab(
+        d.path(),
+        "import-1-hugo",
+        &lab,
+        engine_lab::mode("hugo").unwrap(),
+        vec![("--root".into(), d.path().join("absent"))],
+        Vec::new(),
+        &CancelToken::new(),
+    )
+    .unwrap();
+    assert_eq!(rec.run_id, "import-2-hugo");
+    assert!(rec.refused.is_some(), "the pre-spawn refusal is recorded");
+    assert!(
+        !base.join("import-1-hugo").join(store::RECORD).exists(),
+        "the colliding foreign run directory is never written"
+    );
+    let runs = load(d.path()).runs;
+    let actual = runs.iter().find(|r| r.id == "import-2-hugo").unwrap();
+    assert_eq!(actual.status, RunStatus::Refused);
+    let foreign = runs.iter().find(|r| r.id == "import-1-hugo").unwrap();
+    assert_eq!(foreign.status, RunStatus::Failed);
+    assert!(
+        foreign.problem.is_some(),
+        "the foreign empty dir is visible"
+    );
 }
 
 #[test]
@@ -444,7 +497,7 @@ fn a_valid_inventory_carries_count_evidence() {
 }
 
 #[test]
-fn a_second_review_writer_is_read_only_and_refuses_decisions() {
+fn independent_review_windows_append_under_operation_scoped_locks() {
     let d = tempfile::tempdir().unwrap();
     let root = std::fs::canonicalize(d.path()).unwrap();
     let id = seed_run(&root, "jekyll", 1);
@@ -453,19 +506,16 @@ fn a_second_review_writer_is_read_only_and_refuses_decisions() {
         panic!("jekyll capture has review items")
     };
 
-    let mut writer = DiskPort::open(&root, LabState::NoWorkspace);
-    let mut loser = DiskPort::open(&root, LabState::NoWorkspace);
-    writer.record(&id, &item, ReviewState::Accepted).unwrap();
-    let err = loser.record(&id, &item, ReviewState::Deferred).unwrap_err();
-    assert!(err.contains("read-only"), "{err}");
-    drop(writer);
-    // A handle that lost the race does not become a writer later in-place;
-    // only a fresh open after the holder closes can win the lock.
-    let err = loser.record(&id, &item, ReviewState::Deferred).unwrap_err();
-    assert!(err.contains("read-only"), "{err}");
-    drop(loser);
+    let mut first = DiskPort::open(&root, LabState::NoWorkspace);
+    let mut second = DiskPort::open(&root, LabState::NoWorkspace);
+    first.record(&id, &item, ReviewState::Accepted).unwrap();
+    // Neither window becomes session-read-only merely because another
+    // window exists. The lock lifetime is one append, and the data model's
+    // last-write-per-item rule makes this second decision explicit.
+    second.record(&id, &item, ReviewState::Deferred).unwrap();
     let mut fresh = DiskPort::open(&root, LabState::NoWorkspace);
-    fresh.record(&id, &item, ReviewState::Deferred).unwrap();
+    let run = fresh.load().runs.into_iter().find(|r| r.id == id).unwrap();
+    assert_eq!(run.review[0].state, ReviewState::Deferred);
 }
 
 #[test]

@@ -213,8 +213,6 @@ pub enum Error {
         lock: String,
         record: String,
     },
-    /// This review-log handle lost the writer-lock race and is read-only.
-    ReadOnly(PathBuf),
     Json(serde_json::Error),
     Schema(SidecarError),
 }
@@ -240,11 +238,6 @@ impl std::fmt::Display for Error {
             Error::LockMismatch { lock, record } => {
                 write!(f, "run lock {lock:?} cannot write a record for {record:?}")
             }
-            Error::ReadOnly(p) => write!(
-                f,
-                "review log {} is read-only because another window holds its writer lock",
-                p.display()
-            ),
             Error::Json(e) => write!(f, "{e}"),
             Error::Schema(e) => write!(f, "{e}"),
         }
@@ -411,23 +404,8 @@ pub fn lock_run(root: &Path, run_id: &str) -> Result<RunLock, Error> {
     if !meta.is_dir() {
         return Err(Error::NotDirectory(dir));
     }
-    let file = match OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create_new(true)
-        .open(&lock_path)
-    {
-        Ok(f) => f,
-        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
-            refuse_symlinks(&[&lock_path])?;
-            OpenOptions::new()
-                .read(true)
-                .write(true)
-                .truncate(false)
-                .open(&lock_path)?
-        }
-        Err(e) => return Err(e.into()),
-    };
+    let file = crate::open::open_create_no_follow(&lock_path)?;
+    refuse_symlinks(&[&lock_path])?;
     lock_exclusive(&file, &lock_path)?;
     Ok(RunLock {
         root: root.to_path_buf(),
@@ -458,12 +436,11 @@ pub fn probe_run(root: &Path, run_id: &str) -> Result<RunProbe, Error> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(RunProbe::Missing),
         Err(e) => return Err(e.into()),
     }
-    let file = match OpenOptions::new()
-        .read(true)
-        .write(true)
-        .truncate(false)
-        .open(&lock_path)
-    {
+    // Windows lock acquisition may require a write-capable handle. The open
+    // is non-creating, non-truncating, and final-component no-follow on every
+    // platform; mutation is impossible because the probe only lock-tests and
+    // closes the handle.
+    let file = match crate::open::open_existing_no_follow(&lock_path, cfg!(windows)) {
         Ok(f) => f,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(RunProbe::Missing),
         Err(e) => return Err(e.into()),
@@ -665,61 +642,23 @@ pub struct Scan {
     pub torn_bytes: u64,
 }
 
-/// `.cv/imports/review.jsonl`, append-only. The writer holds
-/// `.cv/imports/review.lock` before reading, truncating a torn tail, or
-/// appending. A window that loses that lock race still reads the existing
-/// log, but its handle is read-only: it must not create, truncate or write.
+/// `.cv/imports/review.jsonl`, append-only. Opening is pure observation:
+/// it never creates the imports directory, lock, or log and never repairs
+/// or truncates a torn tail. Each append is an explicit operation-scoped
+/// mutation: create/acquire `review.lock`, append one complete record (first
+/// terminating an undecodable partial tail with a newline when necessary),
+/// fsync, and release the lock when the operation ends. No window holds a
+/// session-long review writer capability.
 pub struct ReviewLog {
-    file: Option<File>,
+    root: PathBuf,
     path: PathBuf,
-    _writer: Option<File>,
 }
 
-fn review_lock(root: &Path, base: &Path, lock_path: &Path) -> Result<Option<File>, Error> {
-    if matches!(
-        std::fs::symlink_metadata(base),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound
-    ) {
-        // No lock can exist below a missing imports directory, so this opener
-        // is a writer candidate rather than a non-holder writing underneath
-        // someone else. Schema stamping is serialized by its own sidecar lock.
-        ensure_imports_schema(root)?;
-    }
-    let file = match OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create_new(true)
-        .open(lock_path)
-    {
-        Ok(f) => f,
-        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
-            refuse_symlinks(&[lock_path])?;
-            match OpenOptions::new()
-                .read(true)
-                .write(true)
-                .truncate(false)
-                .open(lock_path)
-            {
-                Ok(f) => f,
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                    // The lock file is never removed by this implementation;
-                    // a foreign removal raced us. Retry as the creator once.
-                    OpenOptions::new()
-                        .read(true)
-                        .write(true)
-                        .create_new(true)
-                        .open(lock_path)?
-                }
-                Err(e) => return Err(e.into()),
-            }
-        }
-        Err(e) => return Err(e.into()),
-    };
-    match crate::lock::try_lock_settled(&file) {
-        Ok(()) => Ok(Some(file)),
-        Err(TryLockError::WouldBlock) => Ok(None),
-        Err(TryLockError::Error(e)) => Err(e.into()),
-    }
+fn open_review_lock_for_append(lock_path: &Path) -> Result<File, Error> {
+    refuse_symlinks(&[lock_path])?;
+    let file = crate::open::open_create_no_follow(lock_path)?;
+    refuse_symlinks(&[lock_path])?;
+    Ok(file)
 }
 
 fn parse_review_states(buf: &[u8], good: usize, scan: &mut Scan) -> ReviewStates {
@@ -754,73 +693,68 @@ fn parse_review_states(buf: &[u8], good: usize, scan: &mut Scan) -> ReviewStates
 }
 
 impl ReviewLog {
-    /// Open the review sidecar. Exactly one live opener becomes the writer;
-    /// other live windows receive a read-only handle over the same records.
+    /// Open the review sidecar read-only. A missing log is an empty log;
+    /// opening itself creates nothing. Bytes after the final newline are
+    /// reported as torn and ignored rather than repaired.
     pub fn open(root: &Path) -> Result<(Self, ReviewStates, Scan), Error> {
         let base = root.join(DIR);
         let path = base.join(REVIEW);
         let lock_path = base.join(REVIEW_LOCK);
         refuse_symlinks(&[&root.join(".cv"), &base, &path, &lock_path])?;
-        let writer = review_lock(root, &base, &lock_path)?;
-        let writable = writer.is_some();
-        let mut file = None;
-        let mut buf = Vec::new();
-        if writable {
-            // Only the writer may stamp/migrate or create the log. Both writes
-            // happen after the review writer lock is held, never before it.
-            ensure_imports_schema(root)?;
-            refuse_symlinks(&[&root.join(".cv"), &base, &path, &lock_path])?;
-            let mut f = OpenOptions::new()
-                .read(true)
-                .write(true)
-                .create(true)
-                .truncate(false)
-                .open(&path)?;
-            f.read_to_end(&mut buf)?;
-            file = Some(f);
-        } else {
-            match std::fs::read(&path) {
-                Ok(bytes) => buf = bytes,
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-                Err(e) => return Err(e.into()),
-            }
-        }
+        let buf = match std::fs::read(&path) {
+            Ok(bytes) => bytes,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Vec::new(),
+            Err(e) => return Err(e.into()),
+        };
         let good = buf.iter().rposition(|b| *b == b'\n').map_or(0, |i| i + 1);
         let mut scan = Scan {
             torn_bytes: (buf.len() - good) as u64,
             ..Scan::default()
         };
-        if scan.torn_bytes > 0 && writable {
-            let f = file.as_mut().expect("writer review log file");
-            f.set_len(good as u64)?;
-            f.sync_all()?;
-        }
-        if writable {
-            file.as_mut()
-                .expect("writer review log file")
-                .seek(SeekFrom::End(0))?;
-        }
         let states = parse_review_states(&buf, good, &mut scan);
         Ok((
             Self {
-                file,
+                root: root.to_path_buf(),
                 path,
-                _writer: writer,
             },
             states,
             scan,
         ))
     }
 
-    /// Whether this handle won the review writer lock.
-    pub fn writable(&self) -> bool {
-        self.file.is_some()
-    }
-
+    /// Append one triage transition under a lock held only for this
+    /// operation. Concurrent windows may both append in sequence; their
+    /// last-write-per-item data model remains explicit, while a lock that
+    /// stays contested beyond the bounded acquisition attempt refuses the
+    /// operation instead of writing unlocked.
     pub fn append(&mut self, run: &str, item: &str, to: ReviewState) -> Result<(), Error> {
-        let Some(file) = &mut self.file else {
-            return Err(Error::ReadOnly(self.path.clone()));
-        };
+        let base = self.root.join(DIR);
+        let lock_path = base.join(REVIEW_LOCK);
+        refuse_symlinks(&[&self.root.join(".cv"), &base, &self.path, &lock_path])?;
+        // Schema/imports creation is part of this explicit mutation, never
+        // part of opening or scanning. The schema lock serializes its own
+        // stamp independently of this review operation lock.
+        ensure_imports_schema(&self.root)?;
+        refuse_symlinks(&[&self.root.join(".cv"), &base, &self.path, &lock_path])?;
+        let lock_file = open_review_lock_for_append(&lock_path)?;
+        lock_exclusive(&lock_file, &lock_path)?;
+        refuse_symlinks(&[&self.root.join(".cv"), &base, &self.path, &lock_path])?;
+        let mut file = crate::open::open_create_no_follow(&self.path)?;
+        let len = file.metadata()?.len();
+        if len > 0 {
+            file.seek(SeekFrom::End(-1))?;
+            let mut last = [0u8; 1];
+            file.read_exact(&mut last)?;
+            file.seek(SeekFrom::End(0))?;
+            if last[0] != b'\n' {
+                // Do not truncate or rewrite foreign bytes. Terminating the
+                // partial line keeps it visible as undecodable evidence while
+                // preventing the new JSON record from concatenating with it.
+                file.write_all(b"\n")?;
+            }
+        } else {
+            file.seek(SeekFrom::End(0))?;
+        }
         let rec = ReviewRecord {
             schema_version: REVIEW_SCHEMA_VERSION,
             run: run.into(),
@@ -1030,75 +964,6 @@ mod tests {
                 "{bad}"
             );
         }
-    }
-
-    #[test]
-    fn review_states_persist_last_write_wins() {
-        let d = tempfile::tempdir().unwrap();
-        let (mut log, got, _) = ReviewLog::open(d.path()).unwrap();
-        assert!(log.writable());
-        assert!(got.is_empty());
-        log.append("r1", "a", ReviewState::Accepted).unwrap();
-        log.append("r1", "b", ReviewState::Deferred).unwrap();
-        log.append("r1", "a", ReviewState::Open).unwrap();
-        drop(log);
-        let mut f = OpenOptions::new()
-            .append(true)
-            .open(d.path().join(DIR).join(REVIEW))
-            .unwrap();
-        write!(f, "{{\"torn").unwrap();
-        drop(f);
-        let (_, got, scan) = ReviewLog::open(d.path()).unwrap();
-        assert!(scan.torn_bytes > 0);
-        assert_eq!(
-            got,
-            vec![
-                (("r1".into(), "a".into()), ReviewState::Open),
-                (("r1".into(), "b".into()), ReviewState::Deferred),
-            ]
-        );
-        // The stamp, locks and log are not run directories.
-        assert!(super::scan(d.path()).unwrap().is_empty());
-    }
-
-    #[test]
-    fn concurrent_review_logs_make_the_loser_read_only_without_truncating() {
-        let d = tempfile::tempdir().unwrap();
-        let path = d.path().join(DIR).join(REVIEW);
-        let (mut writer, _, _) = ReviewLog::open(d.path()).unwrap();
-        writer.append("r1", "a", ReviewState::Accepted).unwrap();
-        let mut foreign = OpenOptions::new().append(true).open(&path).unwrap();
-        write!(foreign, "{{\"torn").unwrap();
-        drop(foreign);
-        let before = std::fs::read(&path).unwrap();
-
-        let (mut loser, _, scan) = ReviewLog::open(d.path()).unwrap();
-        assert!(!loser.writable());
-        assert!(scan.torn_bytes > 0);
-        assert_eq!(std::fs::read(&path).unwrap(), before);
-        assert!(matches!(
-            loser.append("r1", "a", ReviewState::Deferred),
-            Err(Error::ReadOnly(_))
-        ));
-        assert_eq!(std::fs::read(&path).unwrap(), before);
-        drop(loser);
-        drop(writer);
-
-        let (mut winner, states, scan) = ReviewLog::open(d.path()).unwrap();
-        assert!(winner.writable());
-        assert!(scan.torn_bytes > 0, "the torn tail is reported");
-        assert!(!std::fs::read(&path).unwrap().ends_with(b"{\"torn"));
-        assert_eq!(
-            states,
-            vec![(("r1".into(), "a".into()), ReviewState::Accepted)]
-        );
-        winner.append("r1", "a", ReviewState::Deferred).unwrap();
-        drop(winner);
-        let (_, states, _) = ReviewLog::open(d.path()).unwrap();
-        assert_eq!(
-            states,
-            vec![(("r1".into(), "a".into()), ReviewState::Deferred)]
-        );
     }
 
     #[test]

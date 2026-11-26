@@ -206,8 +206,9 @@ impl DiskPort {
     ///
     /// Opening is read-only with respect to run directories: unfinished
     /// records are projected from their per-run locks, never rewritten by a
-    /// workspace-wide sweep. Review-log opening may claim its own narrow
-    /// writer lock, but it never writes inside any run folder.
+    /// workspace-wide sweep. Review-log opening is observational only;
+    /// triage appends take their own operation-scoped lock and never write
+    /// inside any run folder.
     pub fn open(root: &Path, lab: LabState) -> Self {
         let mut port = Self::detached(lab);
         port.root = Some(root.to_path_buf());
@@ -270,7 +271,7 @@ impl MigratePort for DiskPort {
         };
         log.append(run, item, to_store(to)).map_err(|e| {
             format!(
-                "review decision was not written for {run}/{item}: {e}; this window is read-only or the log is unavailable"
+                "review decision was not written for {run}/{item}: {e}; the operation-scoped review lock was unavailable or the log could not be written"
             )
         })?;
         self.states.insert((run.into(), item.into()), to);
@@ -926,9 +927,45 @@ pub(crate) fn plain_lab_refusal(stderr: &str, out: &Path) -> String {
     format!("The migration lab refused the run for {path}: {detail}")
 }
 
+/// Claim the first available candidate for an import run. The model picks
+/// ids from a possibly stale projection, so `RunExists` is an expected
+/// collision: advance the numeric wizard candidate where possible rather
+/// than turning it into a catastrophic start failure. Suspicious symlinks
+/// and lock/io errors remain hard refusals.
+pub(crate) fn claim_import_run(
+    root: &Path,
+    preferred: &str,
+    mode: &str,
+) -> Result<(store::RunLock, String), store::Error> {
+    let root = &std::fs::canonicalize(root)?;
+    let numbered = preferred
+        .strip_prefix("import-")
+        .and_then(|rest| rest.strip_suffix(&format!("-{mode}")))
+        .and_then(|n| n.parse::<u32>().ok());
+    for attempt in 0..10_000u32 {
+        let candidate = if attempt == 0 {
+            preferred.to_string()
+        } else if let Some(n) = numbered {
+            format!("import-{}-{mode}", n + attempt)
+        } else {
+            format!("{preferred}-{}", attempt + 1)
+        };
+        match store::claim_run(root, &candidate) {
+            Ok(lock) => return Ok((lock, candidate)),
+            Err(store::Error::RunExists(_)) => continue,
+            Err(e) => return Err(e),
+        }
+    }
+    Err(store::Error::RunExists(
+        root.join(store::DIR).join(preferred),
+    ))
+}
+
 /// Run `mode` into `<root>/.cv/imports/<run_id>/out`, recording the run
 /// before the spawn and again when it ends. A run the adapter refuses
-/// (bad input, overlap, symlinked path) is recorded as refused.
+/// (bad input, overlap, symlinked path) is recorded as refused. `run_id`
+/// is the preferred candidate; if a possibly stale projection collides,
+/// the returned record carries the actual collision-resolved id.
 pub fn run_lab(
     root: &Path,
     run_id: &str,
@@ -938,13 +975,23 @@ pub fn run_lab(
     extras: Vec<(String, String)>,
     cancel: &CancelToken,
 ) -> Result<RunRecord, RunError> {
-    // The output spelling is anchored at the canonical workspace root: the
-    // workspace location is the user's chosen home for outputs, not
-    // migration-input evidence, and canonicalizing it once here is the
-    // narrow normalization that keeps `.cv/imports` reachable on macOS
-    // alias mount points without ever flattening a user-selected input.
-    let root = &std::fs::canonicalize(root).map_err(|e| RunError::Store(e.into()))?;
-    let lock = store::claim_run(root, run_id).map_err(RunError::Store)?;
+    let (lock, run_id) = claim_import_run(root, run_id, mode.name).map_err(RunError::Store)?;
+    run_lab_with_lock(lock, &run_id, lab, mode, inputs, extras, cancel)
+}
+
+/// Execute one import under a run claim already held by its operation. The
+/// lock is claimed before any lab process is spawned and remains the same
+/// capability used for start, refusal, cancellation, and completion writes.
+pub(crate) fn run_lab_with_lock(
+    lock: store::RunLock,
+    run_id: &str,
+    lab: &LabIdentity,
+    mode: &'static ModeSpec,
+    inputs: Vec<(String, PathBuf)>,
+    extras: Vec<(String, String)>,
+    cancel: &CancelToken,
+) -> Result<RunRecord, RunError> {
+    let root = lock.root();
     let dir = lock.dir().to_path_buf();
     let run = LabRun {
         mode,

@@ -572,6 +572,19 @@ impl MigrateModule {
         }
     }
 
+    pub(crate) fn retarget_started_import(
+        &mut self,
+        requested: &str,
+        job: &ImportJob,
+    ) -> Vec<Intent> {
+        if let WizardStage::Running { run_id, .. } = &mut self.wizard.stage
+            && run_id == requested
+        {
+            *run_id = job.run_id.clone();
+        }
+        Vec::new()
+    }
+
     pub(crate) fn finish_import_job(&mut self) -> Vec<Intent> {
         self.imports = self.port.load();
         let Some(stage) = (match &self.wizard.stage {
@@ -602,7 +615,7 @@ impl MigrateModule {
             self.wizard.reset();
             return vec![
                 Intent::Status(format!(
-                    "The {} worker ended before the lab reported an outcome, but the run lock is still held; inspect the run before retrying",
+                    "The {} worker ended before the lab reported an outcome, but the run lock still appears held; another holder may still be writing. Inspect the run before retrying",
                     phase.label()
                 )),
                 Intent::Reveal {
