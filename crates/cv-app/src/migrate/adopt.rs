@@ -308,6 +308,11 @@ fn execute(
             let sched = slot.get().cloned().ok_or_else(|| {
                 "the workspace engine is not ready; nothing was written".to_string()
             })?;
+            // Capture the already-open workspace's identity before mutation.
+            // This lookup must not mint or recreate the root if the workspace
+            // moves mid-adoption; the captured evidence is the owner outcomes
+            // are held for at the surviving path.
+            let workspace_key = slots::workspace_key_lookup(&root);
             // Preflight through copy, provenance, and sidecars as one
             // serialized, journaled transaction: no page edit, move,
             // build, or watch start can interleave with the batch. The
@@ -338,7 +343,6 @@ fn execute(
             // disk truth explicitly so Pages reflects the merge even
             // before the watch's own rebuild lands.
             slot.request_resync();
-            let workspace_key = slots::workspace_key(&root);
             let gate = run_gate_live(
                 &slot,
                 &cv_core::engine::CancelToken::new(),

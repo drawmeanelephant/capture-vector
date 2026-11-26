@@ -239,6 +239,8 @@ pub struct Workbench {
     pub workspace: Option<PathBuf>,
     /// Instance identity of `workspace`, shared with scheduler registration.
     pub workspace_key: Option<WorkspaceKey>,
+    /// Identity evidence errors already surfaced for this shell, by path/error.
+    identity_disclosures: BTreeSet<String>,
     /// Recently opened workspaces, newest first (palette entries).
     pub recent: Vec<PathBuf>,
     /// Pending requests for the windowing layer; drained by its poll.
@@ -300,6 +302,7 @@ impl Workbench {
             status: String::new(),
             workspace: None,
             workspace_key: None,
+            identity_disclosures: BTreeSet::new(),
             recent: Vec::new(),
             requests: Vec::new(),
             archetypes: Err(new_workspace::LOCATING.into()),
@@ -450,11 +453,23 @@ impl Workbench {
             }
         }
         let evicted = enforce_outcome_retention(&mut keep);
-        let disclosure = (evicted > 0).then(|| {
-            format!(
+        let mut disclosures = Vec::new();
+        if let Some(key) = &self.workspace_key
+            && let Some(error) = key.instance_error()
+        {
+            let disclosure_key = format!("{}::{error}", key.path().display());
+            if self.identity_disclosures.insert(disclosure_key) {
+                disclosures.push(format!(
+                    "workspace instance evidence for {} is unusable; held outcomes stay unowned: {error}",
+                    key.path().display()
+                ));
+            }
+        }
+        if evicted > 0 {
+            disclosures.push(format!(
                 "discarded {evicted} held outcome(s): retention is bounded to {MAX_PENDING_OUTCOMES} outcomes or {MAX_PENDING_OUTCOME_BYTES} bytes"
-            )
-        });
+            ));
+        }
         self.pending_outcomes = keep;
         while let Ok(q) = self.rx.try_recv() {
             ordered.push((queued_seq(&q), Item::Inbox(q)));
@@ -498,8 +513,8 @@ impl Workbench {
                 }
             }
         }
-        if let Some(disclosure) = disclosure {
-            self.status = disclosure;
+        if !disclosures.is_empty() {
+            self.status = disclosures.join(" · ");
             changed = true;
         }
         changed

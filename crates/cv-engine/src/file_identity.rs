@@ -13,17 +13,38 @@ pub fn identity(path: &Path) -> Option<(u64, u64)> {
 
 #[cfg(windows)]
 pub fn identity(path: &Path) -> Option<(u64, u64)> {
-    use std::os::windows::io::AsRawHandle;
+    use std::os::windows::ffi::OsStrExt;
+    use std::os::windows::io::{AsRawHandle, FromRawHandle};
+    use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
     use windows_sys::Win32::Storage::FileSystem::{
-        BY_HANDLE_FILE_INFORMATION, GetFileInformationByHandle,
+        BY_HANDLE_FILE_INFORMATION, CreateFileW, FILE_FLAG_BACKUP_SEMANTICS, FILE_SHARE_DELETE,
+        FILE_SHARE_READ, FILE_SHARE_WRITE, GetFileInformationByHandle, OPEN_EXISTING,
     };
-    let file = std::fs::File::open(path).ok()?;
-    let mut info = std::mem::MaybeUninit::<BY_HANDLE_FILE_INFORMATION>::zeroed();
-    let ok = unsafe { GetFileInformationByHandle(file.as_raw_handle() as _, info.as_mut_ptr()) };
-    if ok == 0 {
+
+    let wide: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
+    // Directories require BACKUP_SEMANTICS on Windows. A zero desired-access
+    // query is enough for by-handle metadata and avoids opening the workspace
+    // for read/write merely to observe identity.
+    let handle = unsafe {
+        CreateFileW(
+            wide.as_ptr(),
+            0,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            std::ptr::null(),
+            OPEN_EXISTING,
+            FILE_FLAG_BACKUP_SEMANTICS,
+            std::ptr::null_mut(),
+        )
+    };
+    if handle.is_null() || handle == INVALID_HANDLE_VALUE {
         return None;
     }
-    let info = unsafe { info.assume_init() };
+    let file = unsafe { std::fs::File::from_raw_handle(handle as _) };
+    let mut info = std::mem::MaybeUninit::<BY_HANDLE_FILE_INFORMATION>::zeroed();
+    let ok = unsafe { GetFileInformationByHandle(file.as_raw_handle() as _, info.as_mut_ptr()) };
+    let info = (ok != 0).then(|| unsafe { info.assume_init() });
+    drop(file);
+    let info = info?;
     Some((
         info.dwVolumeSerialNumber.into(),
         ((info.nFileIndexHigh as u64) << 32) | u64::from(info.nFileIndexLow),

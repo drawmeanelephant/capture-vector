@@ -2,9 +2,10 @@
 //!
 //! Device+file-index evidence follows renames on normal filesystems but is
 //! not a lifetime identity: POSIX permits reuse after deletion. This small
-//! minted token is the lifetime evidence outcome ownership needs. It is not
-//! a security boundary — a byte copy of `.cv` is the same logical lineage —
-//! but deleting and recreating a workspace mints a different instance.
+//! minted token is lifetime evidence, but it is deliberately only half of
+//! workspace identity: callers also bind the containing directory's
+//! device+file-index evidence so a byte copy of `.cv` in a coexisting copy
+//! does not share the process-local scheduler/outcome instance.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -46,7 +47,7 @@ fn mint() -> String {
     format!("cvwi-{nanos:032x}-{:x}-{n:x}", std::process::id())
 }
 
-fn read(root: &Path) -> std::io::Result<Option<String>> {
+fn read_file(root: &Path) -> std::io::Result<Option<String>> {
     match std::fs::read_to_string(path(root, FILE)) {
         Ok(raw) => {
             let id = raw.trim();
@@ -67,6 +68,15 @@ fn read(root: &Path) -> std::io::Result<Option<String>> {
     }
 }
 
+/// Observe existing instance evidence without creating or minting anything.
+/// Missing roots and missing evidence both return `None`; malformed or
+/// symlinked evidence is an error and is never rewritten.
+pub fn read(root: &Path) -> std::io::Result<Option<String>> {
+    refuse_symlink(&root.join(".cv"))?;
+    refuse_symlink(&path(root, FILE))?;
+    read_file(root)
+}
+
 /// Read the workspace-instance token, minting it under a cross-process lock
 /// when this `.cv` does not have one yet. Malformed evidence is never
 /// overwritten silently; callers must treat the instance as unproven.
@@ -78,7 +88,7 @@ pub fn ensure(root: &Path) -> std::io::Result<String> {
     std::fs::create_dir_all(root.join(".cv"))?;
     let lock = crate::open::open_create_no_follow(&path(root, LOCK))?;
     lock.lock()?;
-    if let Some(id) = read(root)? {
+    if let Some(id) = read_file(root)? {
         return Ok(id);
     }
 
