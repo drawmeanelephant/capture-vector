@@ -33,7 +33,10 @@ fn failed_lock_acquisition_refuses_without_touching_run_bytes() {
         .collect();
     entries.sort();
     let record_before = std::fs::read(dir.join(store::RECORD)).unwrap();
-    let lock_before = std::fs::read(dir.join(store::RUN_LOCK)).unwrap();
+    // Windows byte-range locks are mandatory: even another read handle in
+    // this process cannot read the locked lock-file bytes. Metadata remains
+    // portable and is enough here because lock files are empty by design.
+    let lock_len_before = std::fs::metadata(dir.join(store::RUN_LOCK)).unwrap().len();
 
     assert!(matches!(
         store::lock_run(d.path(), "held"),
@@ -45,8 +48,8 @@ fn failed_lock_acquisition_refuses_without_touching_run_bytes() {
         record_before
     );
     assert_eq!(
-        std::fs::read(dir.join(store::RUN_LOCK)).unwrap(),
-        lock_before
+        std::fs::metadata(dir.join(store::RUN_LOCK)).unwrap().len(),
+        lock_len_before
     );
     let mut after: Vec<_> = std::fs::read_dir(&dir)
         .unwrap()
