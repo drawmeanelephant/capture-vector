@@ -27,8 +27,6 @@ const MAX_DOC_BYTES: u64 = 32 << 20;
 
 /// The Markdown reports a run may carry, in the order one is picked.
 const REPORTS_MD: &[&str] = &["REPORT.md", "INVENTORY.md", "FRONTMATTER_REVIEW.md"];
-/// Mirrored documents that are not `report.json` / `inventory.json`.
-const OTHER_DOCS: &[&str] = &["link_audit.json", "frontmatter_review.json"];
 
 /// The family mailboxes, from the lab's mode table in `cv-engine`.
 pub fn families() -> Vec<Family> {
@@ -225,6 +223,25 @@ impl DiskPort {
 
 impl MigratePort for DiskPort {
     fn load(&mut self) -> Imports {
+        // A load is a rescan: re-read the review log so this window
+        // observes other windows' appends instead of serving only the
+        // states parsed at open. Re-opening is pure observation — it
+        // creates and repairs nothing. A failed re-open never regresses to
+        // less information: the states already held are kept.
+        if let Some(root) = self.root.clone() {
+            match ReviewLog::open(&root) {
+                Ok((log, states, _)) => {
+                    self.log = Some(log);
+                    self.states = states.into_iter().map(|(k, s)| (k, to_model(s))).collect();
+                    self.log_error = None;
+                }
+                Err(e) => {
+                    if self.log.is_none() {
+                        self.log_error = Some(e.to_string());
+                    }
+                }
+            }
+        }
         let mut out = Imports {
             lab: self.lab.clone(),
             families: families(),
@@ -607,22 +624,50 @@ fn named(rel: &str, e: impl std::fmt::Display) -> String {
     }
 }
 
-/// Decode the run's main document; `Err` names the file and why.
-/// Returns `true` when at least one lab document was decoded. A run that
-/// exits 0 but leaves nothing decodable is missing the evidence every
+/// The one document authoritative for a run of `mode`. Role-specific
+/// authority: emit runs answer to exact-family `report.json`, inventory
+/// runs to exact-family `inventory.json`, link-audit runs to
+/// `link_audit.json` and frontmatter-review runs to
+/// `frontmatter_review.json`. Every other decodable document is at most
+/// auxiliary enrichment and can never substitute for a missing primary.
+fn authoritative_document(mode: &str) -> &'static str {
+    if mode.ends_with("-inventory") {
+        "inventory.json"
+    } else if mode == "link-audit" {
+        "link_audit.json"
+    } else if mode == "frontmatter-review" {
+        "frontmatter_review.json"
+    } else {
+        "report.json"
+    }
+}
+
+/// Decode the run's authoritative document; `Err` names the file and why.
+/// Returns `true` only when that primary document was decoded. A run that
+/// exits 0 but leaves its primary missing is missing the evidence every
 /// downstream decision rests on — the caller must surface that, not treat
-/// it as a valid zero-count outcome.
+/// it as a valid zero-count outcome, no matter what auxiliary documents
+/// decode.
 fn read_documents(out: &Path, run: &mut ImportRun) -> Result<bool, String> {
     let read = |rel: &str| read_capped(&out.join(rel), MAX_DOC_BYTES);
     let inventory_mode = run.mode.ends_with("-inventory");
-    let (primary, wrong_role, role) = if inventory_mode {
-        ("inventory.json", "report.json", "inventory")
+    let primary = authoritative_document(&run.mode);
+    // The wrong-role pair exists only between the emit and inventory
+    // roles: each is the companion document of the other. Cross-cutting
+    // modes have no such pair; foreign documents in their output simply
+    // supply nothing.
+    let wrong_role = if inventory_mode {
+        Some(("report.json", "inventory"))
+    } else if primary == "report.json" {
+        Some(("inventory.json", "emit"))
     } else {
-        ("report.json", "inventory.json", "emit")
+        None
     };
     let mut wrong_problem = None;
     let mut wrong_exact_family = false;
-    if let Some(bytes) = read(wrong_role) {
+    if let Some((wrong_role, role)) = wrong_role
+        && let Some(bytes) = read(wrong_role)
+    {
         let bytes = bytes.map_err(|e| format!("{wrong_role}: {e}"))?;
         let decoded_family = if inventory_mode {
             let r = Report::decode(&bytes).map_err(|e| named(wrong_role, e))?;
@@ -654,21 +699,14 @@ fn read_documents(out: &Path, run: &mut ImportRun) -> Result<bool, String> {
         if inventory_mode {
             let i = Inventory::decode(&bytes).map_err(|e| named(primary, e))?;
             inventory_facts(&i, run);
-        } else {
+        } else if primary == "report.json" {
             let r = Report::decode(&bytes).map_err(|e| named(primary, e))?;
             report_facts(&r, run);
+        } else {
+            let d = Document::decode(primary, &bytes).map_err(|e| named(primary, e))?;
+            other_facts(&d, run);
         }
         decoded = true;
-    } else {
-        for rel in OTHER_DOCS {
-            if let Some(bytes) = read(rel) {
-                let bytes = bytes.map_err(|e| format!("{rel}: {e}"))?;
-                let d = Document::decode(rel, &bytes).map_err(|e| named(rel, e))?;
-                other_facts(&d, run);
-                decoded = true;
-                break;
-            }
-        }
     }
     if let Some(problem) = wrong_problem {
         // Emit modes can legitimately leave their exact-family inventory as
@@ -737,13 +775,10 @@ fn project(root: &Path, d: &RunDir) -> ImportRun {
     match read_documents(&out, &mut run) {
         Err(e) => run.problem = Some(e),
         Ok(false) if run.status == RunStatus::Ok => {
-            run.problem = Some(
-                concat!(
-                    "the lab reported success but the output contains no report.json, ",
-                    "inventory.json, or other decodable lab document"
-                )
-                .into(),
-            );
+            run.problem = Some(format!(
+                "the lab reported success but the output is missing {}, the authoritative document for this run; auxiliary documents never substitute for it",
+                authoritative_document(&run.mode)
+            ));
         }
         Ok(false) => {}
         Ok(true) => {}

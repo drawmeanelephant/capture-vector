@@ -426,7 +426,7 @@ fn a_successful_run_with_no_decodable_output_document_is_a_problem() {
         r.problem
             .as_deref()
             .unwrap_or("")
-            .contains("no report.json"),
+            .contains("missing report.json"),
         "{:?}",
         r.problem
     );
@@ -704,5 +704,85 @@ fn a_wrong_family_inventory_supplies_no_count_evidence() {
     assert!(
         problem.contains("wrong-family"),
         "visible problem names the mismatch: {problem}"
+    );
+}
+
+#[test]
+fn auxiliary_documents_never_substitute_for_a_missing_primary() {
+    let d = tempfile::tempdir().unwrap();
+    let root = std::fs::canonicalize(d.path()).unwrap();
+    let base = root.join(".cv").join("imports");
+    let out = |id: &str| base.join(id).join("out");
+
+    // The adversarial probe shape: a hugo emit exits 0 without report.json
+    // but leaves a decodable link_audit.json. The auxiliary document must
+    // not substitute for the missing emit report.
+    let emit = seed_run(&root, "hugo", 1);
+    std::fs::remove_file(out(&emit).join("report.json")).unwrap();
+    std::fs::write(
+        out(&emit).join("link_audit.json"),
+        cv_fixtures::lab::lab_capture("link-audit").file("out/link_audit.json"),
+    )
+    .unwrap();
+
+    // Inventory runs fail closed the same way: a decodable auxiliary can
+    // never stand in for the required exact-family inventory.json.
+    let inv = seed_run(&root, "hugo-inventory", 2);
+    std::fs::remove_file(out(&inv).join("inventory.json")).unwrap();
+    std::fs::write(
+        out(&inv).join("frontmatter_review.json"),
+        cv_fixtures::lab::lab_capture("frontmatter-review").file("out/frontmatter_review.json"),
+    )
+    .unwrap();
+
+    // Cross-cutting modes are authoritative over their own document: a
+    // link-audit run missing link_audit.json must not read clean even when
+    // a decodable emit report is present.
+    let audit = seed_run(&root, "link-audit", 3);
+    std::fs::remove_file(out(&audit).join("link_audit.json")).unwrap();
+    let hugo_emit = seed_run(&root, "hugo", 4);
+    std::fs::copy(
+        out(&hugo_emit).join("report.json"),
+        out(&audit).join("report.json"),
+    )
+    .unwrap();
+
+    let runs = load(&root).runs;
+    for (id, primary) in [
+        (emit, "report.json"),
+        (inv, "inventory.json"),
+        (audit, "link_audit.json"),
+    ] {
+        let run = runs.iter().find(|r| r.id == id).unwrap();
+        assert!(
+            run.problem.is_some(),
+            "{id}: missing {primary} must be a visible problem even with decodable auxiliaries"
+        );
+        assert!(!run.count_evidence, "{id}: no count evidence");
+    }
+}
+
+#[test]
+fn a_live_window_observes_another_windows_review_appends_on_load() {
+    let d = tempfile::tempdir().unwrap();
+    let root = std::fs::canonicalize(d.path()).unwrap();
+    let id = seed_run(&root, "jekyll", 1);
+    let item = load(&root).runs[0].review.first().map(|i| i.id.clone());
+    let Some(item) = item else {
+        panic!("jekyll capture has review items")
+    };
+
+    // Both windows open before either decides anything: their parsed
+    // states are empty at open time.
+    let mut first = DiskPort::open(&root, LabState::NoWorkspace);
+    let mut second = DiskPort::open(&root, LabState::NoWorkspace);
+    first.record(&id, &item, ReviewState::Accepted).unwrap();
+    // The second window's reload is a rescan: it must observe the first
+    // window's append rather than serving the states parsed at open.
+    let run = second.load().runs.into_iter().find(|r| r.id == id).unwrap();
+    assert_eq!(
+        run.review.iter().find(|i| i.id == item).map(|i| i.state),
+        Some(ReviewState::Accepted),
+        "cross-window append is visible on reload"
     );
 }

@@ -291,6 +291,13 @@ pub fn run_dir(root: &Path, run_id: &str) -> Result<PathBuf, Error> {
 /// the operation that claimed or adopted the run. Construction is possible
 /// only through [`claim_run`] or [`lock_run`], and run writes borrow it, so
 /// the type system makes writes outside a held operation unrepresentable.
+///
+/// Documented limitation: a same-user process can delete or replace
+/// `run.lock` externally while it is held, splitting the capability from
+/// the path a later probe observes. That requires deliberate local
+/// interference inside `.cv` — and a same-user attacker can already modify
+/// or delete the run's artifacts directly — so it is accepted rather than
+/// structurally closed for the import boundary.
 #[derive(Debug)]
 pub struct RunLock {
     root: PathBuf,
