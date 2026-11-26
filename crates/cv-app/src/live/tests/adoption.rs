@@ -114,6 +114,149 @@ esac
     drop(wb);
 }
 
+/// Round-15 probe: identity captured before the adoption batch must be
+/// revalidated inside that batch. Renaming the workspace away and copying
+/// it back at the captured path creates a byte-copy replacement with the
+/// same `.cv` token but a different containing-directory identity. The
+/// batch must fail closed rather than write the adoption into that foreign
+/// replacement.
+#[cfg(unix)]
+#[test]
+fn adoption_revalidates_workspace_identity_inside_the_mutation_batch() {
+    fn copy_tree(from: &Path, to: &Path) {
+        std::fs::create_dir_all(to).unwrap();
+        for entry in std::fs::read_dir(from).unwrap() {
+            let entry = entry.unwrap();
+            let target = to.join(entry.file_name());
+            let ty = entry.file_type().unwrap();
+            if ty.is_dir() {
+                copy_tree(&entry.path(), &target);
+            } else if ty.is_file() {
+                std::fs::copy(entry.path(), target).unwrap();
+            }
+        }
+    }
+
+    let root_tmp = tempfile::tempdir().unwrap();
+    let base = root_tmp.path().canonicalize().unwrap();
+    let root = base.join("workspace");
+    std::fs::create_dir_all(&root).unwrap();
+    install_executable(
+        &root.join("boris"),
+        r#"#!/bin/sh
+case "$1" in
+watch) echo '{"event":"hello","watch_events_schema":1,"compiler":"boris/0.9.0"}' >&2; sleep 30;;
+*) exit 0;;
+esac
+"#,
+    );
+    std::fs::create_dir_all(root.join("content")).unwrap();
+
+    let run_id = "identity-toctou-hugo";
+    let lock = cv_store::imports::claim_run(&root, run_id).unwrap();
+    let transcript = cv_fixtures::lab::StubLab::new()
+        .run("hugo", &lock.dir().join(cv_store::imports::OUT))
+        .unwrap();
+    let mut rec = cv_store::imports::RunRecord::started(
+        run_id,
+        "hugo",
+        cv_store::imports::RecordedLab {
+            tool_id: "boris-migration-lab/0.8.1".into(),
+            source: "fixture".into(),
+            path: "fixtures/captures/lab".into(),
+        },
+        7,
+    );
+    rec.argv = transcript.argv.clone();
+    rec.finished = Some(cv_store::imports::Finished {
+        exit_code: Some(0),
+        exit: cv_store::imports::FinishedExit::Ok,
+        outcome: "exited 0".into(),
+        duration_ms: 0,
+    });
+    cv_store::imports::write(&lock, &rec).unwrap();
+    drop(lock);
+
+    let mut wb = Workbench::new(Registry::with_all());
+    let delivery = test_delivery(&root, WatchMode::Native, &wb);
+    let sched = Arc::new(EngineScheduler::new(
+        delivery.engine.clone(),
+        SeatPolicy::StopWatch,
+    ));
+    let slot = EngineSlot::default();
+    let _ = slot.sched.set(sched.clone());
+    crate::slots::register_slot(&root, &slot);
+
+    let job = cv_model::adoption::AdoptionJob {
+        source_root: root.clone(),
+        request: cv_model::adoption::AdoptionRequest {
+            run_id: run_id.into(),
+            target: cv_model::adoption::AdoptionTarget::ExistingWorkspace {
+                subfolder: "imported".into(),
+            },
+        },
+        cancel: cv_core::engine::CancelToken::new(),
+    };
+    // Hold the scheduler write lock until the worker has captured identity
+    // and reached the batch boundary. The replacement then happens in the
+    // exact capture-to-batch window this regression models.
+    let (entered_tx, entered_rx) = mpsc::channel();
+    let (release_tx, release_rx) = mpsc::channel();
+    let blocker_sched = sched.clone();
+    let blocker = std::thread::spawn(move || {
+        blocker_sched.mutation_batch(|| {
+            entered_tx.send(()).unwrap();
+            release_rx.recv().unwrap();
+        });
+    });
+    entered_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+
+    let (batch_tx, batch_rx) = mpsc::channel();
+    crate::migrate::adopt::arm_batch_entry_probe(batch_tx);
+    let worker = crate::migrate::adopt::adopt(&mut wb, job, &crate::WorkspaceEnv::native())
+        .expect("adoption worker starts");
+
+    batch_rx
+        .recv_timeout(Duration::from_secs(3))
+        .expect("worker did not reach the batch");
+    let moved = base.join("moved-survivor");
+    std::fs::rename(&root, &moved).unwrap();
+    copy_tree(&moved, &root);
+    release_tx.send(()).unwrap();
+    blocker.join().unwrap();
+
+    worker.join().unwrap();
+    // The refusal is a shell-level terminal adoption outcome, not a
+    // generation-scoped engine stream event: it must still surface when the
+    // workspace generation retires before the UI drains it.
+    wb.reset_project(Registry::with_all());
+    wb.drain();
+    let replacement_written = root.join("content/imported/en.md").exists();
+    let survivor_written = moved.join("content/imported/en.md").exists();
+    println!(
+        "R15-IDENTITY-TOCTOU replacement_written={replacement_written} survivor_written={survivor_written} status={:?}",
+        wb.status
+    );
+    assert!(
+        !replacement_written,
+        "adoption wrote into a foreign byte-copy replacement at the captured path"
+    );
+    assert!(
+        !survivor_written,
+        "fail-closed semantics: the path-bound batch must not follow the moved workspace"
+    );
+    assert!(
+        wb.status.contains("adoption") && wb.status.contains("workspace identity"),
+        "refusal must be terminally disclosed, got {:?}",
+        wb.status
+    );
+
+    if let Some(w) = sched.watch_session() {
+        sched.stop_watch_session(&w);
+    }
+    drop(wb);
+}
+
 /// Round-2 probe: stopping the watch before taking the batch writer lock
 /// leaves a start-watch window. A queued watch start must never win that
 /// window and observe the mutation batch as unpaused.

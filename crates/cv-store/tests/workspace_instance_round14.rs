@@ -32,7 +32,10 @@ fn r14_preexisting_symlinks_are_refused_without_touching_targets() {
             symlink(&target, root.path().join(rel)).unwrap();
         }
         let err = workspace_instance::ensure(root.path()).unwrap_err();
-        println!("R14-SYMLINK case={case} error_kind={:?} error={err}", err.kind());
+        println!(
+            "R14-SYMLINK case={case} error_kind={:?} error={err}",
+            err.kind()
+        );
         assert_eq!(
             std::fs::read_to_string(&target).unwrap(),
             valid_token("outside"),
@@ -130,6 +133,10 @@ fn r14_concurrent_first_open_cross_process_mint_has_exactly_one_winner() {
             tokens[0]
         );
         assert_eq!(distinct.len(), 1, "round {round}: split mint tokens");
-        assert_eq!(persisted.trim(), tokens[0], "round {round}: winner not persisted");
+        assert_eq!(
+            persisted.trim(),
+            tokens[0],
+            "round {round}: winner not persisted"
+        );
     }
 }

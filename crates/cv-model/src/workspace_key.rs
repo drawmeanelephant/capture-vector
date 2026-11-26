@@ -62,6 +62,17 @@ impl WorkspaceKey {
         }
     }
 
+    pub fn instance_token(&self) -> Option<&str> {
+        match &self.instance {
+            Some(InstanceEvidence::Token(token)) => Some(token),
+            _ => None,
+        }
+    }
+
+    pub fn file_identity(&self) -> Option<(u64, u64)> {
+        self.file
+    }
+
     fn same_container(&self, other: &Self) -> bool {
         match (self.file, other.file) {
             (Some(a), Some(b)) => a == b,

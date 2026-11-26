@@ -406,6 +406,10 @@ impl Workbench {
         self.seen.clear();
         self.unjournaled.clear();
         self.palette = Palette::default();
+        // Degraded identity evidence belongs to the workspace, not one
+        // module generation; disclose it afresh after each rebuild so the
+        // persistent degraded channel in the new AppState represents it.
+        self.identity_disclosures.clear();
         // Their askers were just replaced.
         self.dialogs.clear();
     }
@@ -454,15 +458,20 @@ impl Workbench {
         }
         let evicted = enforce_outcome_retention(&mut keep);
         let mut disclosures = Vec::new();
-        if let Some(key) = &self.workspace_key
-            && let Some(error) = key.instance_error()
-        {
-            let disclosure_key = format!("{}::{error}", key.path().display());
+        let identity_error = self.workspace_key.as_ref().and_then(|key| {
+            key.instance_error()
+                .map(|error| (key.path().display().to_string(), error.to_string()))
+        });
+        let mut identity_degraded = None;
+        if let Some((path, error)) = identity_error {
+            let disclosure_key = format!("{path}::{error}");
             if self.identity_disclosures.insert(disclosure_key) {
                 disclosures.push(format!(
-                    "workspace instance evidence for {} is unusable; held outcomes stay unowned: {error}",
-                    key.path().display()
+                    "workspace instance evidence for {path} is unusable; held outcomes stay unowned: {error}"
                 ));
+                let seq = self.causal.fetch_add(1, Ordering::SeqCst) + 1;
+                identity_degraded =
+                    Some((seq, self.degraded_envelope(DegradedReason::StoreCorrupt)));
             }
         }
         if evicted > 0 {
@@ -512,6 +521,9 @@ impl Workbench {
                     };
                 }
             }
+        }
+        if let Some((seq, env)) = identity_degraded {
+            changed |= self.commit(&env, seq);
         }
         if !disclosures.is_empty() {
             self.status = disclosures.join(" · ");

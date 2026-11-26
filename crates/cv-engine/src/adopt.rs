@@ -655,6 +655,43 @@ pub fn validate_then_build(
     Ok((validate, Some(build)))
 }
 
+/// Workspace-instance evidence captured before an existing-workspace
+/// adoption batch. The token proves `.cv` lineage; the containing
+/// directory's file identity distinguishes that surviving lineage from a
+/// byte copy restored at the same path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExpectedWorkspaceInstance {
+    pub token: String,
+    pub file: Option<(u64, u64)>,
+}
+
+impl ExpectedWorkspaceInstance {
+    pub fn new(token: impl Into<String>, file: Option<(u64, u64)>) -> Self {
+        Self {
+            token: token.into(),
+            file,
+        }
+    }
+}
+
+fn revalidate_workspace_instance(
+    target_root: &Path,
+    expected: &ExpectedWorkspaceInstance,
+) -> Result<(), AdoptError> {
+    let current_file = crate::file_identity::identity(target_root);
+    let current_token = cv_store::workspace_instance::read(target_root).map_err(|e| {
+        AdoptError::Run(format!(
+            "adoption refused: workspace identity evidence could not be revalidated inside the mutation batch ({e}); nothing was written"
+        ))
+    })?;
+    if current_token.as_deref() == Some(expected.token.as_str()) && current_file == expected.file {
+        return Ok(());
+    }
+    Err(AdoptError::Run(
+        "adoption refused: the workspace identity captured before the mutation batch no longer matches this path; nothing was written".into(),
+    ))
+}
+
 /// What one committed adoption transaction produced.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TxReport {
@@ -676,6 +713,30 @@ fn adoption_lock(target_root: &Path, run_id: &str) -> Result<store::RunLock, Ado
         Err(store::Error::RunExists(_)) => Ok(store::lock_run(target_root, run_id)?),
         Err(e) => Err(e.into()),
     }
+}
+
+struct TxParams<'a> {
+    target_root: &'a Path,
+    src: &'a AdoptionSource,
+    content_input: &'a str,
+    merge_subfolder: Option<&'a str>,
+    target_kind: &'a str,
+    existing_ids: &'a BTreeMap<String, String>,
+    at_ms: i64,
+    expected_instance: Option<&'a ExpectedWorkspaceInstance>,
+}
+
+/// Inputs for an existing-workspace adoption whose captured instance must
+/// still own the target path when the serialized engine transaction begins.
+/// Grouping them keeps the evidence inseparable from the mutation request.
+pub struct ExistingWorkspaceTransaction<'a> {
+    pub target_root: &'a Path,
+    pub src: &'a AdoptionSource,
+    pub content_input: &'a str,
+    pub merge_subfolder: Option<&'a str>,
+    pub existing_ids: &'a BTreeMap<String, String>,
+    pub at_ms: i64,
+    pub expected_instance: &'a ExpectedWorkspaceInstance,
 }
 
 /// One crash-aware adoption transaction: preflight, journal, content,
@@ -714,6 +775,12 @@ fn adoption_lock(target_root: &Path, run_id: &str) -> Result<store::RunLock, Ado
 /// running watch are the caller's concern (the composition root stops
 /// and restores the watch around the batch); see the scheduler's
 /// `mutation_batch` for the write-lock half.
+///
+/// Raw adoption transaction without prior workspace-instance evidence. This
+/// is appropriate for a newly created workspace and for engine-local
+/// preflight/recovery tests; production existing-workspace adoption must use
+/// [`transact_existing_with_identity`] so captured identity is revalidated
+/// inside the engine transaction.
 pub fn transact(
     target_root: &Path,
     src: &AdoptionSource,
@@ -723,6 +790,52 @@ pub fn transact(
     existing_ids: &BTreeMap<String, String>,
     at_ms: i64,
 ) -> Result<TxReport, AdoptError> {
+    transact_impl(TxParams {
+        target_root,
+        src,
+        content_input,
+        merge_subfolder,
+        target_kind,
+        existing_ids,
+        at_ms,
+        expected_instance: None,
+    })
+}
+
+/// Existing-workspace adoption transaction with captured instance evidence.
+/// The revalidation happens before the run lock, journal, or any content
+/// byte is written. Callers must run this inside the scheduler mutation
+/// critical section; the engine performs the comparison here so the
+/// capture-to-commit race cannot be closed incorrectly in the composition root.
+pub fn transact_existing_with_identity(
+    tx: ExistingWorkspaceTransaction<'_>,
+) -> Result<TxReport, AdoptError> {
+    transact_impl(TxParams {
+        target_root: tx.target_root,
+        src: tx.src,
+        content_input: tx.content_input,
+        merge_subfolder: tx.merge_subfolder,
+        target_kind: "existing",
+        existing_ids: tx.existing_ids,
+        at_ms: tx.at_ms,
+        expected_instance: Some(tx.expected_instance),
+    })
+}
+
+fn transact_impl(params: TxParams<'_>) -> Result<TxReport, AdoptError> {
+    let TxParams {
+        target_root,
+        src,
+        content_input,
+        merge_subfolder,
+        target_kind,
+        existing_ids,
+        at_ms,
+        expected_instance,
+    } = params;
+    if let Some(expected) = expected_instance {
+        revalidate_workspace_instance(target_root, expected)?;
+    }
     let lock = adoption_lock(target_root, &src.run_id)?;
     let subfolder_name = match merge_subfolder {
         Some(raw) => Some(subfolder(raw)?),

@@ -313,6 +313,14 @@ fn execute(
             // moves mid-adoption; the captured evidence is the owner outcomes
             // are held for at the surviving path.
             let workspace_key = slots::workspace_key_lookup(&root);
+            let expected_instance = workspace_key
+                .instance_token()
+                .map(|token| {
+                    adopt::ExpectedWorkspaceInstance::new(token, workspace_key.file_identity())
+                })
+                .ok_or_else(|| {
+                    "adoption refused: workspace identity evidence is unavailable or degraded; nothing was written".to_string()
+                })?;
             // Preflight through copy, provenance, and sidecars as one
             // serialized, journaled transaction: no page edit, move,
             // build, or watch start can interleave with the batch. The
@@ -328,15 +336,15 @@ fn execute(
                 }
                 let input = crate::snapshot::content_input(&root);
                 let ids = existing_ids(&root);
-                adopt::transact(
-                    &root,
-                    &src,
-                    &input,
-                    Some(subfolder),
-                    "existing",
-                    &ids,
+                adopt::transact_existing_with_identity(adopt::ExistingWorkspaceTransaction {
+                    target_root: &root,
+                    src: &src,
+                    content_input: &input,
+                    merge_subfolder: Some(subfolder),
+                    existing_ids: &ids,
                     at_ms,
-                )
+                    expected_instance: &expected_instance,
+                })
             })
             .map_err(err)?;
             // Content writes emit no engine events of their own; queue

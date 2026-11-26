@@ -3,6 +3,7 @@
 use cv_app::slots;
 use cv_core::engine::ExitClass;
 use cv_core::events::engine::{EngineEvent, VerbReport};
+use cv_core::events::shell::DegradedReason;
 use cv_core::events::{AppEvent, Cursor, Envelope, EventId, SessionId, SnapshotEpoch};
 use cv_core::id::WorkspaceId;
 use cv_model::module::Registry;
@@ -231,7 +232,7 @@ fn r14_malformed_instance_must_not_silently_downgrade_identity_or_strand_outcome
     let downgraded_key = slots::workspace_key(&owner);
     let legacy_key = WorkspaceKey::new(owner.clone(), cv_engine::file_identity::identity(&owner));
     let fell_back_to_inode = downgraded_key.same_instance(&legacy_key);
-    install_key(&mut wb, &owner, downgraded_key);
+    install_key(&mut wb, &owner, downgraded_key.clone());
     wb.drain();
     let rows = validate_rows(&wb);
     println!(
@@ -244,4 +245,26 @@ fn r14_malformed_instance_must_not_silently_downgrade_identity_or_strand_outcome
             wb.status
         );
     }
+    assert_eq!(
+        wb.app.degraded,
+        Some(DegradedReason::StoreCorrupt),
+        "malformed workspace-instance evidence must use the persistent degraded-state channel"
+    );
+    wb.inbox()
+        .send(cv_model::workbench::Inbound::Status("engine ready".into()));
+    wb.drain();
+    assert_eq!(
+        wb.app.degraded,
+        Some(DegradedReason::StoreCorrupt),
+        "ordinary later status must not clear the persistent degraded identity state"
+    );
+
+    wb.reset_project(Registry::with_all());
+    install_key(&mut wb, &owner, downgraded_key);
+    wb.drain();
+    assert_eq!(
+        wb.app.degraded,
+        Some(DegradedReason::StoreCorrupt),
+        "a reopened generation must represent the same malformed identity evidence again"
+    );
 }

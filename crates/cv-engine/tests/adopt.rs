@@ -72,6 +72,65 @@ fn hugo_source() -> (tempfile::TempDir, String) {
     (source_ws, run_id)
 }
 
+fn copy_tree(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).unwrap();
+    for entry in std::fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let target = to.join(entry.file_name());
+        let ty = entry.file_type().unwrap();
+        if ty.is_dir() {
+            copy_tree(&entry.path(), &target);
+        } else if ty.is_file() {
+            std::fs::copy(entry.path(), target).unwrap();
+        }
+    }
+}
+
+#[test]
+fn existing_workspace_transaction_revalidates_captured_instance_before_writing() {
+    let (source_ws, run_id) = hugo_source();
+    let base_tmp = tempfile::tempdir().unwrap();
+    let base = base_tmp.path().canonicalize().unwrap();
+    let root = base.join("workspace");
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    let token = cv_store::workspace_instance::ensure(&root).unwrap();
+    let expected =
+        adopt::ExpectedWorkspaceInstance::new(token, cv_engine::file_identity::identity(&root));
+    let src = adopt::source(source_ws.path(), &run_id).expect("adoptable hugo run");
+
+    let moved = base.join("moved-survivor");
+    std::fs::rename(&root, &moved).unwrap();
+    copy_tree(&moved, &root);
+
+    let err = adopt::transact_existing_with_identity(adopt::ExistingWorkspaceTransaction {
+        target_root: &root,
+        src: &src,
+        content_input: "content",
+        merge_subfolder: Some("imported"),
+        existing_ids: &BTreeMap::new(),
+        at_ms: 42,
+        expected_instance: &expected,
+    })
+    .unwrap_err();
+    let message = err.to_string();
+    println!(
+        "R15-ENGINE-IDENTITY error={message:?} replacement_imported={}",
+        root.join("content/imported").exists()
+    );
+    assert!(
+        message.contains("workspace identity"),
+        "refusal must name the identity failure: {message}"
+    );
+    assert!(
+        !root.join("content/imported").exists(),
+        "no adoption byte may land in the byte-copy replacement"
+    );
+    assert!(
+        !moved.join("content/imported").exists(),
+        "fail-closed path-bound semantics do not follow the moved survivor"
+    );
+}
+
 #[test]
 fn adopt_to_new_copies_content_provenance_and_runs_validate_then_build() {
     let (source_ws, run_id) = hugo_source();
