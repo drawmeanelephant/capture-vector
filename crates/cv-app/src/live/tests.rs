@@ -15,6 +15,7 @@ use std::sync::mpsc;
 
 mod adoption;
 mod generation;
+#[cfg(unix)]
 mod generation_attack;
 
 /// Never write the executable inode in this process: a sibling fork could
