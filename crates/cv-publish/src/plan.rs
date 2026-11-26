@@ -123,15 +123,47 @@ pub(crate) fn host_relative(path: &str) -> Result<&Path> {
                             "invalid windows publish path: {path:?}"
                         )));
                     }
-                    // Reserved device names stay reserved with extensions:
-                    // `aux.html`/`nul.txt` open devices, not files.
+                    // ASCII control characters are never valid Win32 file
+                    // name bytes (NUL is already refused above).
+                    if seg.as_encoded_bytes().iter().any(|b| (1..=31).contains(b)) {
+                        return Err(PublishError::Refused(format!(
+                            "windows control character in publish path: {path:?}"
+                        )));
+                    }
                     let lossy = seg.to_string_lossy();
-                    let stem = lossy.split('.').next().unwrap_or("").to_ascii_uppercase();
-                    let device = matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+                    // Trailing dots/spaces are stripped by Win32
+                    // canonicalization per component, so `dot./page.html`
+                    // and `dot/page.html` silently converge on one file
+                    // identity — the namespace collision class this grammar
+                    // exists to prevent. Unfaithful shapes refuse outright.
+                    if lossy.ends_with('.') || lossy.ends_with(' ') {
+                        return Err(PublishError::Refused(format!(
+                            "windows trailing dot/space in publish path: {path:?}"
+                        )));
+                    }
+                    // Reserved device names stay reserved with extensions:
+                    // `aux.html`/`nul.txt` open devices, not files. Matching
+                    // happens after Windows-equivalent trailing dot/space
+                    // normalization of the stem (`NUL .txt` canonicalizes
+                    // toward the device), and COM/LPT recognize the
+                    // superscript digits real Boris emits (`COM¹.html`).
+                    let stem = lossy.split('.').next().unwrap_or("");
+                    let normalized = stem
+                        .trim_end_matches(|c| c == '.' || c == ' ')
+                        .to_uppercase();
+                    let device = matches!(normalized.as_str(), "CON" | "PRN" | "AUX" | "NUL")
                         || ["COM", "LPT"].iter().any(|prefix| {
-                            stem.len() == 4
-                                && stem.starts_with(prefix)
-                                && stem[3..].parse::<u8>().is_ok_and(|d| (1..=9).contains(&d))
+                            let Some(rest) = normalized.strip_prefix(prefix) else {
+                                return false;
+                            };
+                            let mut chars = rest.chars();
+                            match (chars.next(), chars.next()) {
+                                (Some(d), None) => {
+                                    d.is_ascii_digit() && d != '0'
+                                        || matches!(d, '\u{b9}' | '\u{b2}' | '\u{b3}')
+                                }
+                                _ => false,
+                            }
                         });
                     if device {
                         return Err(PublishError::Refused(format!(
@@ -233,6 +265,9 @@ mod tests {
             assert!(super::host_relative("aux.html").is_ok());
             assert!(super::host_relative("guides/a:b.html").is_ok());
             assert!(super::host_relative("star*.html").is_ok());
+            // The same real Boris shapes are ordinary confined payload here.
+            assert!(super::host_relative("COM\u{b9}.html").is_ok());
+            assert!(super::host_relative("dot./page.html").is_ok());
         }
         #[cfg(windows)]
         {
@@ -243,6 +278,11 @@ mod tests {
             assert!(super::host_relative("com1.html").is_err());
             assert!(super::host_relative("lpt9").is_err());
             assert!(super::host_relative("con").is_err());
+            // Real Boris 0.9.0 emitted shapes, reviewer-verified.
+            assert!(super::host_relative("COM\u{b9}.html").is_err());
+            assert!(super::host_relative("dot./page.html").is_err());
+            assert!(super::host_relative("NUL .txt").is_err());
+            assert!(super::host_relative("trail /page.html").is_err());
         }
     }
 }

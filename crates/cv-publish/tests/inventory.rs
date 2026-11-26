@@ -431,6 +431,10 @@ fn host_valid_boris_page_names_deploy_end_to_end() {
         ("index.html", "<h1>home</h1>"),
         ("aux.html", "<h1>aux</h1>"),
         ("guides/a:b.html", "<h1>colon</h1>"),
+        // Real Boris 0.9.0 emitted shapes, reviewer-verified: ordinary
+        // confined payload on unix, host-invalid on windows.
+        ("COM\u{b9}.html", "<h1>superscript</h1>"),
+        ("dot./page.html", "<h1>trailing dot</h1>"),
     ];
     let mut p = Publisher::open(dir.path(), &eng, &CLOCK, &NoSecrets)
         .unwrap()
@@ -452,6 +456,8 @@ fn host_valid_boris_page_names_deploy_end_to_end() {
         let dest = dir.path().join("deployed");
         assert!(dest.join("aux.html").exists());
         assert!(dest.join("guides/a:b.html").exists());
+        assert!(dest.join("COM\u{b9}.html").exists());
+        assert!(dest.join("dot./page.html").exists());
     }
     // Windows host grammar: `aux` is a reserved device name and `a:b` is an
     // ADS/drive spelling — both must refuse early at the root cause, never
