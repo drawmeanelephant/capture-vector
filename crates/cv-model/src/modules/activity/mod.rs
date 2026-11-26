@@ -280,6 +280,27 @@ impl ActivityModule {
         self.entries.get(n)
     }
 
+    fn insert_occurrence(entry: &mut Entry, occ: Occurrence) {
+        let pos = entry
+            .occurrences
+            .partition_point(|existing| existing.causal <= occ.causal);
+        entry.occurrences.insert(pos, occ);
+    }
+
+    /// Coalesced state is the state of the causally newest occurrence, not
+    /// of whichever replay committed most recently. Equal stamps retain the
+    /// later arrival as before; distinct real stamps are unique.
+    fn fold_occurrence(entry: &mut Entry, kind: EntryKind, occ: Occurrence) {
+        let is_newest = entry
+            .occurrences
+            .last()
+            .is_none_or(|latest| occ.causal >= latest.causal);
+        if is_newest {
+            entry.kind = kind;
+        }
+        Self::insert_occurrence(entry, occ);
+    }
+
     fn push(&mut self, kind: EntryKind, occ: Occurrence) -> usize {
         let i = self.entries.len();
         let mut views = vec![ALL.to_string()];
@@ -400,10 +421,7 @@ impl ActivityModule {
             self.initial_builds.get(&initial_key).copied()
         };
         match fold {
-            Some(i) => {
-                self.entries[i].kind = kind;
-                self.entries[i].occurrences.push(occ.clone());
-            }
+            Some(i) => Self::fold_occurrence(&mut self.entries[i], kind, occ.clone()),
             None => {
                 let i = self.push(kind, occ.clone());
                 if phase == BuildPhase::Rebuild {
@@ -420,10 +438,13 @@ impl ActivityModule {
             let id = identity(d);
             match self.open.get(&id) {
                 Some(&i) => {
-                    // Latest value wins, so Activity and Pages show the
-                    // same build's diagnostic; every occurrence is kept.
-                    self.entries[i].kind = EntryKind::Diagnostic(d.clone());
-                    self.entries[i].occurrences.push(occ.clone());
+                    // The causally latest value wins, so Activity and Pages show
+                    // the newest build's diagnostic; every occurrence is kept.
+                    Self::fold_occurrence(
+                        &mut self.entries[i],
+                        EntryKind::Diagnostic(d.clone()),
+                        occ.clone(),
+                    );
                 }
                 None => {
                     let i = self.push(EntryKind::Diagnostic(d.clone()), occ.clone());
@@ -471,7 +492,7 @@ impl ActivityModule {
                     let key = (0u8, verb.clone(), exit.clone());
                     self.last_build = None;
                     match self.verb_outcomes.get(&key).copied() {
-                        Some(i) => self.entries[i].occurrences.push(occ.clone()),
+                        Some(i) => Self::insert_occurrence(&mut self.entries[i], occ.clone()),
                         None => {
                             let i = self.push(
                                 EntryKind::Verb {
@@ -488,7 +509,7 @@ impl ActivityModule {
                     let key = (1u8, verb.clone(), error.clone());
                     self.last_build = None;
                     match self.verb_outcomes.get(&key).copied() {
-                        Some(i) => self.entries[i].occurrences.push(occ.clone()),
+                        Some(i) => Self::insert_occurrence(&mut self.entries[i], occ.clone()),
                         None => {
                             let i = self.push(
                                 EntryKind::VerbFailed {

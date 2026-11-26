@@ -11,10 +11,15 @@ use std::sync::{Arc, Mutex, OnceLock};
 static SLOTS: OnceLock<Mutex<HashMap<WorkspaceKey, EngineSlot>>> = OnceLock::new();
 
 /// The process-local workspace-instance key shared by scheduler identity
-/// and outcome ownership. Exact paths remain the fallback on filesystems
-/// with no device+file-index evidence.
+/// and outcome ownership. `.cv` instance evidence is authoritative when it
+/// can be read or minted; device+file-index and exact paths remain the
+/// compatibility fallback when that evidence is unavailable.
 pub fn workspace_key(root: &Path) -> WorkspaceKey {
-    WorkspaceKey::new(root.to_path_buf(), cv_engine::file_identity::identity(root))
+    let file = cv_engine::file_identity::identity(root);
+    match cv_store::workspace_instance::ensure(root) {
+        Ok(instance) => WorkspaceKey::with_instance(root.to_path_buf(), file, instance),
+        Err(_) => WorkspaceKey::new(root.to_path_buf(), file),
+    }
 }
 
 fn slots() -> &'static Mutex<HashMap<WorkspaceKey, EngineSlot>> {

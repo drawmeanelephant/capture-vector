@@ -24,7 +24,8 @@ use cv_core::id::{Selection, StableId, WorkspaceId};
 use cv_core::store::{Namespace, Store};
 pub use input::{KeyInput, KeyPress, ShellRequest};
 use outcome_retention::{
-    MAX_PENDING_OUTCOME_BYTES, MAX_PENDING_OUTCOMES, enforce_outcome_retention,
+    MAX_PENDING_OUTCOME_BYTES, MAX_PENDING_OUTCOMES, dedupe_outcome_copies, digest,
+    enforce_outcome_retention,
 };
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -434,6 +435,7 @@ impl Workbench {
         while let Ok(env) = self.outcome_rx.try_recv() {
             pending.push(env);
         }
+        dedupe_outcome_copies(&mut pending);
         let mut keep = Vec::new();
         let mut ordered: Vec<(u64, Item)> = Vec::new();
         for (seq, key, env) in pending {
@@ -1140,17 +1142,6 @@ impl Workbench {
         }
         true
     }
-}
-
-/// Idempotency digest: the serialized envelope (event_id is deduped
-/// separately, so this stands in for the contract's `input_hash` — a
-/// reused id with a different payload or session is a new event, not a
-/// replay).
-fn digest(env: &Envelope) -> u64 {
-    use std::hash::{Hash, Hasher};
-    let mut h = std::collections::hash_map::DefaultHasher::new();
-    serde_json::to_vec(env).unwrap_or_default().hash(&mut h);
-    h.finish()
 }
 
 impl Drop for Workbench {

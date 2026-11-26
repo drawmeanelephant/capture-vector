@@ -145,6 +145,23 @@ fn workspace_instance_identity_distinguishes_alias_and_recreation() {
     assert!(!key("same-path", 10).same_instance(&key("same-path", 11)));
 }
 
+#[test]
+fn cv_instance_evidence_follows_moves_and_rejects_inode_recycling() {
+    let owner =
+        WorkspaceKey::with_instance("old-path".into(), Some((7, 42)), "owner-instance".into());
+    let moved =
+        WorkspaceKey::with_instance("new-path".into(), Some((7, 42)), "owner-instance".into());
+    let recycled = WorkspaceKey::with_instance(
+        "brand-new".into(),
+        Some((7, 42)),
+        "recreated-instance".into(),
+    );
+    assert!(owner.same_instance(&moved));
+    assert!(!owner.same_instance(&recycled));
+    let legacy = WorkspaceKey::new("old-path".into(), Some((7, 42)));
+    assert!(!owner.same_instance(&legacy));
+}
+
 #[cfg(unix)]
 #[test]
 fn workspace_identity_fallback_uses_exact_path_bytes_not_lossy_strings() {
