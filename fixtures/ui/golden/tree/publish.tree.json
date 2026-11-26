@@ -976,7 +976,7 @@
       "rect": [
         160.2,
         174.8,
-        61.8,
+        62.1,
         0.0
       ],
       "role": "group"
@@ -987,9 +987,9 @@
       "path": "shell/body/nav/nav-scroll/#1/nav-evidence/#2",
       "radius": 999.0,
       "rect": [
-        226.0,
+        226.3,
         167.9,
-        26.0,
+        25.7,
         13.8
       ],
       "role": "group"
@@ -999,13 +999,13 @@
       "opacity": 1.0,
       "path": "shell/body/nav/nav-scroll/#1/nav-evidence/#2/#0",
       "rect": [
-        232.0,
+        232.3,
         167.9,
-        14.0,
+        13.7,
         13.8
       ],
       "role": "text",
-      "text": "30"
+      "text": "26"
     },
     {
       "fill": "#0e1014ff",
@@ -1290,9 +1290,9 @@
     },
     {
       "fill": "#0e1014ff",
-      "key": "row-run-000003-45",
+      "key": "row-run-000003-44",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000003-45",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000003-44",
       "rect": [
         268.0,
         0.0,
@@ -1306,7 +1306,7 @@
       "fill": "#e6e9efff",
       "key": "rail",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000003-45/rail",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000003-44/rail",
       "radius": 1.5,
       "rect": [
         276.0,
@@ -1318,9 +1318,9 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "Standard.site (ATProto) · run-000003-45",
+      "help": "Standard.site (ATProto) · run-000003-44",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000003-45/#1",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000003-44/#1",
       "rect": [
         287.0,
         3.5,
@@ -1328,13 +1328,13 @@
         15.0
       ],
       "role": "text",
-      "text": "Standard.site (ATProto) · run-000003-45"
+      "text": "Standard.site (ATProto) · run-000003-44"
     },
     {
       "color": "#8a93a3ff",
-      "help": "10 files · 52843 B",
+      "help": "5 files · 12600 B",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000003-45/#2",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000003-44/#2",
       "rect": [
         430.3,
         4.1,
@@ -1342,13 +1342,13 @@
         13.8
       ],
       "role": "text",
-      "text": "10 files · 52843 B"
+      "text": "5 files · 12600 B"
     },
     {
       "color": "#e6e9efff",
       "fill": "#e6e9ef26",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000003-45/#3",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000003-44/#3",
       "radius": 999.0,
       "rect": [
         518.3,
@@ -1361,9 +1361,9 @@
     },
     {
       "fill": "#0e1014ff",
-      "key": "row-run-000002-29",
+      "key": "row-run-000002-28",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-29",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-28",
       "rect": [
         268.0,
         22.0,
@@ -1376,7 +1376,7 @@
       "fill": "#ffb020ff",
       "key": "rail",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-29/rail",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-28/rail",
       "radius": 1.5,
       "rect": [
         276.0,
@@ -1388,9 +1388,9 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "Nostr NIP-23 · run-000002-29",
+      "help": "Nostr NIP-23 · run-000002-28",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-29/#1",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-28/#1",
       "rect": [
         287.0,
         25.5,
@@ -1398,13 +1398,13 @@
         15.0
       ],
       "role": "text",
-      "text": "Nostr NIP-23 · run-000002-29"
+      "text": "Nostr NIP-23 · run-000002-28"
     },
     {
       "color": "#8a93a3ff",
-      "help": "10 files · 52843 B",
+      "help": "5 files · 12600 B",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-29/#2",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-28/#2",
       "rect": [
         431.8,
         26.1,
@@ -1412,13 +1412,13 @@
         13.8
       ],
       "role": "text",
-      "text": "10 files · 52843 B"
+      "text": "5 files · 12600 B"
     },
     {
       "color": "#ffb020ff",
       "fill": "#ffb02026",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-29/#3",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000002-28/#3",
       "radius": 999.0,
       "rect": [
         519.8,
@@ -1431,9 +1431,9 @@
     },
     {
       "fill": "#0e1014ff",
-      "key": "row-run-000001-17",
+      "key": "row-run-000001-16",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000001-17",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000001-16",
       "rect": [
         268.0,
         44.0,
@@ -1446,7 +1446,7 @@
       "fill": "#ff3d71ff",
       "key": "rail",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000001-17/rail",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000001-16/rail",
       "radius": 1.5,
       "rect": [
         276.0,
@@ -1458,9 +1458,9 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "GitHub Pages · run-000001-17",
+      "help": "GitHub Pages · run-000001-16",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000001-17/#1",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000001-16/#1",
       "rect": [
         287.0,
         47.5,
@@ -1468,13 +1468,13 @@
         15.0
       ],
       "role": "text",
-      "text": "GitHub Pages · run-000001-17"
+      "text": "GitHub Pages · run-000001-16"
     },
     {
       "color": "#8a93a3ff",
       "help": "check: ContentFailure",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000001-17/#2",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000001-16/#2",
       "rect": [
         389.2,
         48.1,
@@ -1488,7 +1488,7 @@
       "color": "#ff3d71ff",
       "fill": "#ff3d7126",
       "opacity": 1.0,
-      "path": "shell/body/list-pane/list-viewport/list/row-run-000001-17/#3",
+      "path": "shell/body/list-pane/list-viewport/list/row-run-000001-16/#3",
       "radius": 999.0,
       "rect": [
         477.2,
@@ -1542,7 +1542,7 @@
     },
     {
       "color": "#8a93a3ff",
-      "help": "10 files · 52843 B",
+      "help": "5 files · 12600 B",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-run-000000-0/#2",
       "rect": [
@@ -1552,7 +1552,7 @@
         13.8
       ],
       "role": "text",
-      "text": "10 files · 52843 B"
+      "text": "5 files · 12600 B"
     },
     {
       "color": "#3dff9aff",
@@ -1654,11 +1654,11 @@
       "rect": [
         739.2,
         16.0,
-        83.9,
+        84.5,
         13.8
       ],
       "role": "text",
-      "text": "run-000003-45"
+      "text": "run-000003-44"
     },
     {
       "color": "#e6e9efff",
@@ -1682,7 +1682,7 @@
         588.0,
         63.8,
         452.0,
-        113.8
+        149.8
       ],
       "role": "group"
     },
@@ -1861,7 +1861,45 @@
         13.8
       ],
       "role": "text",
-      "text": "10 files · 52843 B → https://pds.example.test/"
+      "text": "5 files · 12600 B → https://pds.example.test/"
+    },
+    {
+      "key": "line-5",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-5",
+      "rect": [
+        604.0,
+        167.5,
+        420.0,
+        30.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-5/#0",
+      "rect": [
+        604.0,
+        167.5,
+        96.0,
+        30.0
+      ],
+      "role": "text",
+      "text": "next"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-5/#1",
+      "rect": [
+        708.0,
+        167.5,
+        316.0,
+        30.0
+      ],
+      "role": "text",
+      "text": "Standard.site (ATProto) delivery is pending #185: which delivery adapters ship in v1 is not decided yet"
     },
     {
       "fill": "#0e1014ff",
@@ -2028,7 +2066,7 @@
         13.8
       ],
       "role": "text",
-      "text": "run-000003-45"
+      "text": "run-000003-44"
     },
     {
       "key": "field-target",
@@ -2180,7 +2218,7 @@
         13.8
       ],
       "role": "text",
-      "text": "boris.json"
+      "text": "default HTML target"
     },
     {
       "key": "field-base url",
@@ -2332,7 +2370,7 @@
         13.8
       ],
       "role": "text",
-      "text": "10"
+      "text": "5"
     },
     {
       "key": "field-bytes",
@@ -2370,7 +2408,7 @@
         13.8
       ],
       "role": "text",
-      "text": "52843"
+      "text": "12600"
     },
     {
       "key": "field-artifacts",
@@ -2437,7 +2475,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "d4c884e227f72c2ee86a3b765a03314f25bcfd7b0971e15f3911397645f1bbb4",
+      "help": "60be5bf00f07b0e4214275803ac6bc69098fabce93d67bc688edc95afa4de25e",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-artifact set/#1",
       "rect": [
@@ -2447,7 +2485,7 @@
         13.8
       ],
       "role": "text",
-      "text": "d4c884e227f72c2ee86a3b765a03314f25bcfd7b0971e15f3911397645f1bbb4"
+      "text": "60be5bf00f07b0e4214275803ac6bc69098fabce93d67bc688edc95afa4de25e"
     },
     {
       "key": "field-graph",
@@ -2476,7 +2514,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "c51c43a95664f4572573277f82182fb215e7a5472516c2bb525ffe0287774835",
+      "help": "d1020957f0580499d98c5ed096777c2c3cd1c4e92569288cc60f81dcfba580f5",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-graph/#1",
       "rect": [
@@ -2486,7 +2524,7 @@
         13.8
       ],
       "role": "text",
-      "text": "c51c43a95664f4572573277f82182fb215e7a5472516c2bb525ffe0287774835"
+      "text": "d1020957f0580499d98c5ed096777c2c3cd1c4e92569288cc60f81dcfba580f5"
     },
     {
       "key": "field-plan",
@@ -2515,7 +2553,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "f465f8f2fabda508e15cfce203f98dc44b562d182e9e0d12f6ed7885b644c8c2",
+      "help": "60aee388f24f0fba2919fe1df8692c50e12be5d28aa4f98848d5a82fc87622e2",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-plan/#1",
       "rect": [
@@ -2525,7 +2563,7 @@
         13.8
       ],
       "role": "text",
-      "text": "f465f8f2fabda508e15cfce203f98dc44b562d182e9e0d12f6ed7885b644c8c2"
+      "text": "60aee388f24f0fba2919fe1df8692c50e12be5d28aa4f98848d5a82fc87622e2"
     },
     {
       "key": "field-target cfg",
@@ -2554,7 +2592,7 @@
     },
     {
       "color": "#e6e9efff",
-      "help": "6d6709bdd1ec5b223eef0dbb1e436a6d27243004c1d7c7ebb69ff86b013dd264",
+      "help": "80811fe6256ef6e939e5243622ef261987cdcbc68817c08f0de7a2fdc4102b5b",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-target cfg/#1",
       "rect": [
@@ -2564,7 +2602,7 @@
         13.8
       ],
       "role": "text",
-      "text": "6d6709bdd1ec5b223eef0dbb1e436a6d27243004c1d7c7ebb69ff86b013dd264"
+      "text": "80811fe6256ef6e939e5243622ef261987cdcbc68817c08f0de7a2fdc4102b5b"
     },
     {
       "key": "field-ruleset",

@@ -92,14 +92,14 @@ fn delivered_run_carries_its_plan_settings_and_evidence() {
     );
     assert!(plan.files > 0 && plan.bytes > 0);
     let s = r.settings.as_ref().unwrap();
-    assert_eq!(s.profile, "boris.json");
-    assert_eq!(s.base_url, "https://example.test/");
+    assert_eq!(s.profile, "default HTML target");
+    assert_eq!(s.base_url, "unhosted local copy");
     assert!(!s.verified);
     assert_eq!(r.grant.as_ref().unwrap().boris_version, "boris/0.9.0");
     assert_eq!(r.approved_by.as_deref(), Some("local"));
     assert_eq!(r.history, ["dispatching", "complete"]);
     assert!(r.artifacts > 0, "proof-pack artifacts were lifted");
-    assert!(r.exports_checked);
+    assert!(!r.exports_checked);
     let mine = |k: EvidenceKind| {
         l.evidence
             .iter()
@@ -107,14 +107,12 @@ fn delivered_run_carries_its_plan_settings_and_evidence() {
             .count()
     };
     assert_eq!(mine(EvidenceKind::Delivery), 1);
-    assert_eq!(mine(EvidenceKind::Receipt), 4, "one per declared export");
+    assert_eq!(
+        mine(EvidenceKind::Receipt),
+        0,
+        "unhosted static-dist declares no exports"
+    );
     assert!(mine(EvidenceKind::Check) > 0 && mine(EvidenceKind::Claim) > 0);
-    let receipt = l
-        .evidence
-        .iter()
-        .find(|e| e.kind == EvidenceKind::Receipt && e.name == "sitemap.xml")
-        .unwrap();
-    assert_eq!(receipt.id, format!("rcpt:{}:sitemap.xml", r.id));
 }
 
 #[test]
@@ -143,7 +141,7 @@ impl DeliveryAdapter for Crash {
 }
 
 #[test]
-fn an_interrupted_dispatch_reads_as_dispatching_and_is_not_recovered() {
+fn an_interrupted_dispatch_reads_as_unknown_and_is_not_recovered() {
     let d = tempfile::tempdir().unwrap();
     let eng = scene::CapturedBuild {
         root: d.path().into(),
@@ -166,7 +164,7 @@ fn an_interrupted_dispatch_reads_as_dispatching_and_is_not_recovered() {
     drop(p);
     let before = journal_bytes(d.path());
     let l = ledger(d.path());
-    assert_eq!(l.runs[0].phase, Phase::Dispatching);
+    assert_eq!(l.runs[0].phase, Phase::Unknown);
     assert_eq!(l.runs[0].history, ["dispatching"]);
     assert_eq!(journal_bytes(d.path()), before, "read-only: no recovery");
 }

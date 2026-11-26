@@ -109,6 +109,15 @@ pub fn key_id(k: &DedupKey) -> String {
     )
 }
 
+/// `(code, subject stable id)` of a [`key_id`]; `None` for any other text.
+pub fn parse_key_id(id: &str) -> Option<(&str, &str)> {
+    let (code, rest) = id.split_once('|')?;
+    let (subject, hex) = rest.rsplit_once('|')?;
+    let (_kind, stable) = subject.split_once(':')?;
+    let hex_ok = hex.len() == 64 && hex.bytes().all(|b| b.is_ascii_hexdigit());
+    (hex_ok && !code.is_empty()).then_some((code, stable))
+}
+
 pub fn lifecycle_label(l: FindingLifecycle) -> &'static str {
     match l {
         FindingLifecycle::Open => "open",

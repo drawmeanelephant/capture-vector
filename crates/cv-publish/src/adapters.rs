@@ -5,7 +5,7 @@
 //! IndexNow-class pings are an [`HttpPost`] with a different body.
 
 use crate::Observation;
-use crate::plan::{PlanFile, SealedPlan, sha256};
+use crate::plan::{PlanFile, SealedPlan, host_relative, sha256};
 use crate::secrets::{Secret, SecretBackend};
 use crate::targets::TargetConfig;
 use cv_core::engine::{Engine, ExitClass, Verb};
@@ -74,6 +74,10 @@ pub trait DeliveryAdapter {
 }
 
 /// Copy the sealed bytes into a folder (staged `*.tmp` + rename).
+///
+/// Delivery is an overlay, not managed synchronization: paths in the sealed
+/// plan are replaced with their sealed bytes, while unmanaged files — including
+/// stale output from an earlier plan — are preserved and never deleted.
 pub struct CopyToFolder {
     root: PathBuf,
 }
@@ -96,15 +100,24 @@ impl CopyToFolder {
 /// macOS and Windows volumes usually are.
 pub(crate) fn copy_destination(destination: &str) -> std::io::Result<&Path> {
     let path = portable_relative(destination)?;
-    if destination
-        .split('/')
-        .next()
-        .is_some_and(|first| first.eq_ignore_ascii_case(".cv"))
-    {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            "copy destination is inside the .cv sidecar",
-        ));
+    // Version-control and sidecar directories are refused component-wise,
+    // case-insensitively: a copy destination inside `.git` (or `.cv`, `.svn`,
+    // `.hg`) lets delivered bytes overwrite repository metadata or run
+    // evidence. First-component-only checks miss nested spellings like
+    // `out/.git/hooks`, and macOS/Windows volumes are usually
+    // case-insensitive.
+    for component in destination.split('/') {
+        if [".cv", ".git", ".svn", ".hg"]
+            .iter()
+            .any(|reserved| component.eq_ignore_ascii_case(reserved))
+        {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!(
+                    "copy destination contains version-control/sidecar component {component:?}"
+                ),
+            ));
+        }
     }
     Ok(path)
 }
@@ -112,6 +125,27 @@ pub(crate) fn copy_destination(destination: &str) -> std::io::Result<&Path> {
 pub const COPY_TO_FOLDER: &str = "copy-to-folder";
 pub const RUN_COMMAND: &str = "run-command";
 pub const HTTP_POST: &str = "http-post";
+
+#[cfg(unix)]
+fn fsync_chain(root: &Path, parents: impl IntoIterator<Item = PathBuf>) -> Vec<PathBuf> {
+    let mut chain = std::collections::BTreeSet::new();
+    for dir in parents {
+        let mut cur = Some(dir.as_path());
+        while let Some(d) = cur {
+            if !d.starts_with(root) {
+                break;
+            }
+            chain.insert(d.to_path_buf());
+            if d == root {
+                break;
+            }
+            cur = d.parent();
+        }
+    }
+    let mut chain: Vec<_> = chain.into_iter().collect();
+    chain.sort_by_key(|p| std::cmp::Reverse(p.components().count()));
+    chain
+}
 
 impl DeliveryAdapter for CopyToFolder {
     fn id(&self) -> &str {
@@ -125,8 +159,9 @@ impl DeliveryAdapter for CopyToFolder {
             .files
             .iter()
             .map(|(f, _)| {
-                let relative =
-                    copy_destination(&d.config.destination)?.join(portable_relative(&f.path)?);
+                let relative = copy_destination(&d.config.destination)?.join(
+                    host_relative(&f.path).map_err(|e| std::io::Error::other(e.to_string()))?,
+                );
                 confined_file(&self.root, &relative)
             })
             .collect::<std::io::Result<Vec<_>>>()
@@ -169,8 +204,15 @@ impl DeliveryAdapter for CopyToFolder {
             if let Some(dp) = dest.parent() {
                 parents.insert(dp.to_path_buf());
             }
-            for dir in &parents {
-                std::fs::File::open(dir)
+            // A rename is durable only after its containing directory is
+            // fsynced, and a newly created directory is durable only after
+            // every ancestor link is durable. Flush the complete used chain
+            // deepest-first up to the project root. Windows has no directory
+            // fsync equivalent on this path; there the terminal journal record
+            // can acknowledge renames before the directory entries themselves
+            // are guaranteed durable.
+            for dir in fsync_chain(&self.root, parents) {
+                std::fs::File::open(&dir)
                     .and_then(|d| d.sync_all())
                     .map_err(|e| TransportFailure::after_contact(format!("fsync {dir:?}: {e}")))?;
             }
@@ -185,7 +227,7 @@ impl DeliveryAdapter for CopyToFolder {
     fn read_back(&self, cfg: &TargetConfig, path: &str) -> Option<Vec<u8>> {
         let relative = copy_destination(&cfg.destination)
             .ok()?
-            .join(portable_relative(path).ok()?);
+            .join(host_relative(path).ok()?);
         std::fs::read(confined_file(&self.root, &relative).ok()?).ok()
     }
 
@@ -220,16 +262,16 @@ pub struct RunCommand {
 impl Default for RunCommand {
     fn default() -> Self {
         Self {
-            verb: |cfg, site| Verb::Custom {
-                name: "publish".into(),
-                args: vec![
-                    "--target".into(),
-                    cfg.target.id().into(),
-                    "--profile".into(),
-                    cfg.profile.clone(),
-                    "--html-dir".into(),
-                    site.to_string_lossy().into_owned(),
-                ],
+            verb: |cfg, site| {
+                let mut args = vec!["--target".into(), cfg.target.id().into()];
+                if let Some(profile) = &cfg.profile {
+                    args.extend(["--profile".into(), profile.clone()]);
+                }
+                args.extend(["--html-dir".into(), site.to_string_lossy().into_owned()]);
+                Verb::Custom {
+                    name: "publish".into(),
+                    args,
+                }
             },
         }
     }
@@ -320,7 +362,9 @@ impl<T: HttpTransport> DeliveryAdapter for HttpPost<T> {
             .plan
             .files
             .iter()
-            .filter(|f| f.path.ends_with(".html"))
+            .filter(|f| {
+                crate::publisher::is_html_page(f.kind.as_deref()) && f.advertised != Some(false)
+            })
             .map(|f| format!("{base}/{}", f.path))
             .collect();
         let body = serde_json::to_vec(&serde_json::json!({ "host": host, "urlList": urls }))
@@ -337,5 +381,33 @@ impl<T: HttpTransport> DeliveryAdapter for HttpPost<T> {
             400..=499 => Ok(Delivered::Complete(RunStatus::Failed)),
             s => Err(TransportFailure::after_contact(format!("http {s}"))),
         }
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::fsync_chain;
+    use std::path::{Path, PathBuf};
+
+    #[test]
+    fn copy_fsync_chain_is_complete_and_deepest_first() {
+        let root = Path::new("/project");
+        let chain = fsync_chain(
+            root,
+            [
+                PathBuf::from("/project/deploy/guides"),
+                PathBuf::from("/project"),
+                PathBuf::from("/elsewhere/deploy"),
+            ],
+        );
+        let pos = |p: &Path| chain.iter().position(|x| x == p).unwrap_or(usize::MAX);
+        assert_eq!(chain.first().unwrap(), Path::new("/project/deploy/guides"));
+        assert_eq!(chain.last().unwrap(), root);
+        assert!(
+            pos(Path::new("/project/deploy/guides")) < pos(Path::new("/project/deploy"))
+                && pos(Path::new("/project/deploy")) < pos(root),
+            "deepest-first chain: {chain:?}"
+        );
+        assert!(!chain.iter().any(|p| p.starts_with("/elsewhere")));
     }
 }
