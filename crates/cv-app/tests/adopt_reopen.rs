@@ -28,9 +28,30 @@ fn fake_boris() -> (tempfile::TempDir, PathBuf) {
 
 #[cfg(unix)]
 fn fake_boris_holding_watch(hold: bool) -> (tempfile::TempDir, PathBuf) {
+    fake_boris_holding_watch_with_version_delay(hold, false)
+}
+
+#[cfg(unix)]
+fn fake_boris_holding_watch_with_version_delay(
+    hold: bool,
+    version_delay: bool,
+) -> (tempfile::TempDir, PathBuf) {
     let dir = tempfile::tempdir().unwrap();
     let bin = dir.path().join("boris");
-    common::install_executable(&bin, BORIS_SHIM);
+    const VERSION_CASE: &str = r#"  --version) cat "$D/version.txt"; exit 0 ;;"#;
+    const DELAYED_VERSION_CASE: &str = r#"  --version) [ -f "$D/version-delay" ] && sleep "$(cat "$D/version-delay")"; cat "$D/version.txt"; exit 0 ;;"#;
+    const HOLD_CASE: &str = r#"    if [ -f "$D/watch-hold" ]; then"#;
+    const WORKSPACE_HOLD_CASE: &str =
+        r#"    if [ -f "$D/watch-hold" ] && ! printf '%s' "$*" | grep -q -- '--serve'; then"#;
+    assert!(BORIS_SHIM.contains(VERSION_CASE));
+    assert!(BORIS_SHIM.contains(HOLD_CASE));
+    let shim = BORIS_SHIM.replace(HOLD_CASE, WORKSPACE_HOLD_CASE);
+    let shim = if version_delay {
+        shim.replace(VERSION_CASE, DELAYED_VERSION_CASE)
+    } else {
+        shim
+    };
+    common::install_executable(&bin, &shim);
     let raw =
         std::fs::read_to_string(cv_fixtures::fixtures_root().join("engine-version.txt")).unwrap();
     let build_info = raw
@@ -103,6 +124,103 @@ fn seed_long_run(root: &Path, run_id: &str, extra_files: usize) {
         );
     }
     drop(lock);
+}
+
+fn settle(wb: &mut cv_model::workbench::Workbench, dur: Duration) {
+    let end = Instant::now() + dur;
+    while Instant::now() < end {
+        wb.drain();
+        std::thread::sleep(Duration::from_millis(5));
+    }
+}
+
+/// Round-5 probe shape: a restore queued behind a successful replacement
+/// probe captures the pre-reset delivery and wins the post-replacement
+/// start race. That unpublished transient must not consume the
+/// replacement's one watch start: the reopened generation owns the session
+/// that remains live.
+#[cfg(unix)]
+#[test]
+fn restore_started_during_successful_replacement_uses_live_delivery() {
+    let reps: usize = std::env::var("R5_REPS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(6);
+    for rep in 0..reps {
+        let (boris_dir, boris) = fake_boris_holding_watch_with_version_delay(true, true);
+        let ws_tmp = tempfile::tempdir().unwrap();
+        let ws = ws_tmp.path().canonicalize().unwrap();
+        write(
+            &ws.join("content/index.md"),
+            b"---
+title: Home
+---
+Home
+",
+        );
+        let recent_tmp = tempfile::tempdir().unwrap();
+        let env = env_for(&boris, &recent_tmp.path().join("recent.json"));
+
+        let mut wb = cv_app::init();
+        open_workspace(&mut wb, ws.clone(), &env)
+            .expect("first boot starts")
+            .join()
+            .unwrap();
+        settle(&mut wb, Duration::from_millis(250));
+        let initial_versions = std::fs::read_to_string(boris_dir.path().join("argv.log"))
+            .unwrap_or_default()
+            .lines()
+            .filter(|l| *l == "--version")
+            .count();
+        write(
+            &boris_dir.path().join("version-delay"),
+            b"1
+",
+        );
+        let boot = open_workspace(&mut wb, ws.clone(), &env).expect("reopen boot starts");
+
+        // Once the replacement has entered its delayed version probe, the
+        // old watch is already stopped and the pre-reset verb route is still
+        // installed. Queue restore there; it waits on the replacement writer.
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            let versions = std::fs::read_to_string(boris_dir.path().join("argv.log"))
+                .unwrap_or_default()
+                .lines()
+                .filter(|l| *l == "--version")
+                .count();
+            if versions > initial_versions {
+                break;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "replacement did not reach its delayed version probe"
+            );
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        let slot = cv_app::slots::slot_for(&ws).expect("stable slot");
+        let restore = std::thread::spawn(move || {
+            slot.restore_watch(None, "r5 restore".into());
+        });
+        restore.join().unwrap();
+        boot.join().unwrap();
+        settle(&mut wb, Duration::from_millis(1000));
+
+        let sched = cv_app::slots::scheduler_for(&ws).expect("scheduler remains");
+        assert_eq!(
+            (
+                sched.watch_session().is_some(),
+                wb.app.watch_live,
+                wb.app.degraded.is_none(),
+                wb.app.engine.is_some(),
+            ),
+            (true, true, true, true),
+            "rep {rep}: successful replacement must end with exactly one live published watch"
+        );
+        if let Some(w) = sched.watch_session() {
+            sched.stop_watch_session(&w);
+        }
+    }
 }
 
 #[cfg(unix)]

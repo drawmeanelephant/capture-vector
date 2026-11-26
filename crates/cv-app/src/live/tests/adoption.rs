@@ -141,10 +141,7 @@ esac
         ));
         let slot = EngineSlot::default();
         let _ = slot.sched.set(sched.clone());
-        slot.install_verbs(VerbRoute {
-            delivery: delivery.clone(),
-            warning: None,
-        });
+        slot.install_verbs(slot.verb_route(delivery.clone(), None));
         let initial = sched.start_watch(Box::new(|_| {})).unwrap();
 
         // Hold the writer lock. Queue the watch start first, then let the
@@ -226,10 +223,7 @@ esac
     ));
     let slot = EngineSlot::default();
     let _ = slot.sched.set(sched.clone());
-    slot.install_verbs(VerbRoute {
-        delivery: delivery.clone(),
-        warning: None,
-    });
+    slot.install_verbs(slot.verb_route(delivery.clone(), None));
 
     slot.restore_watch(None, "adoption gate".into());
     let deadline = std::time::Instant::now() + Duration::from_secs(3);

@@ -192,6 +192,23 @@ impl<E: Engine + Sync> EngineScheduler<E> {
     /// Start the single watch session. Takes the writer lock so it never
     /// races an in-flight build for `dist/`.
     pub fn start_watch(&self, sink: EventSink) -> cv_core::Result<SessionId> {
+        self.start_watch_with_publication(sink, |_| true)
+            .map(|session| session.expect("an accepted start publishes"))
+    }
+
+    /// Start a watch only if its owner can publish the session handle. The
+    /// publication decision is made while both the scheduler writer and the
+    /// watch-slot mutex are held. An unpublished child is stopped completely
+    /// before either lock is released, so it is never observable as an
+    /// already-live session and cannot consume a concurrent boot's start.
+    /// `Ok(None)` means the engine start succeeded but publication refused
+    /// it (normally because the shell generation is dead); `Ok(Some)` means
+    /// the slot contains a published session.
+    pub fn start_watch_with_publication(
+        &self,
+        sink: EventSink,
+        publish: impl FnOnce(&SessionId) -> bool,
+    ) -> cv_core::Result<Option<SessionId>> {
         let _w = write(&self.rw);
         self.ready()?;
         let mut slot = mutex(&self.watch);
@@ -199,28 +216,43 @@ impl<E: Engine + Sync> EngineScheduler<E> {
             return Err(crate::EngineError::WatchAlreadyLive.into());
         }
         let engine = self.engine();
-        let h = engine.watch(sink)?;
+        let mut h = engine.watch(sink)?;
         let id = h.session().clone();
-        *slot = Some(h);
-        Ok(id)
+        if publish(&id) {
+            *slot = Some(h);
+            Ok(Some(id))
+        } else {
+            h.stop();
+            Ok(None)
+        }
     }
 
+    /// Stop the current watch atomically with respect to the slot. The
+    /// handle remains occupied while its process tree is killed and its
+    /// pump joined; only then may observers see the slot as empty. This
+    /// closes the half-stopped window in which a start could lose to the
+    /// engine incarnation's still-live watch bit.
     pub fn stop_watch(&self) -> Option<SessionId> {
-        let mut h = mutex(&self.watch).take()?;
+        let mut slot = mutex(&self.watch);
+        let h = slot.as_mut()?;
+        let session = h.session().clone();
         h.stop();
-        Some(h.session().clone())
+        *slot = None;
+        Some(session)
     }
 
     /// Stop the watch only while it is still `session`: a handle that
     /// outlived its session must not stop the watch that replaced it.
+    /// Like `stop_watch`, the slot is not released until the process stop
+    /// has converged.
     pub fn stop_watch_session(&self, session: &SessionId) -> bool {
         let mut slot = mutex(&self.watch);
         if slot.as_ref().is_none_or(|w| w.session() != session) {
             return false;
         }
-        let mut h = slot.take().expect("checked above");
-        drop(slot);
+        let h = slot.as_mut().expect("checked above");
         h.stop();
+        *slot = None;
         true
     }
 
@@ -402,6 +434,7 @@ mod tests {
     use cv_core::engine::{EngineCaps, EngineInfo};
     use cv_core::events::engine::EngineEvent;
     use cv_core::events::{Cursor, Envelope, EventId, SnapshotEpoch};
+    use std::sync::Condvar;
     use std::sync::atomic::AtomicI64;
     use std::time::Duration;
 
@@ -555,6 +588,221 @@ mod tests {
             "a verb write interleaved with the in-flight mutation batch"
         );
         assert_eq!(p.max_writes.load(Ordering::SeqCst), 1);
+    }
+
+    struct StopGate {
+        state: Mutex<(bool, bool)>,
+        wake: Condvar,
+    }
+
+    fn released_race_probe() -> Arc<RaceProbe> {
+        let probe = Arc::new(RaceProbe::default());
+        probe.gate.state.lock().unwrap().1 = true;
+        probe
+    }
+
+    struct RaceProbe {
+        live: std::sync::atomic::AtomicBool,
+        attempts: AtomicU64,
+        gate: StopGate,
+        stopped: std::sync::atomic::AtomicBool,
+    }
+
+    impl Default for RaceProbe {
+        fn default() -> Self {
+            Self {
+                live: std::sync::atomic::AtomicBool::new(false),
+                attempts: AtomicU64::new(0),
+                gate: StopGate {
+                    state: Mutex::new((false, false)),
+                    wake: Condvar::new(),
+                },
+                stopped: std::sync::atomic::AtomicBool::new(false),
+            }
+        }
+    }
+
+    struct RaceWatch {
+        session: SessionId,
+        probe: Arc<RaceProbe>,
+    }
+
+    impl WatchHandle for RaceWatch {
+        fn session(&self) -> &SessionId {
+            &self.session
+        }
+        fn stop(&mut self) {
+            {
+                let mut state = self.probe.gate.state.lock().unwrap();
+                state.0 = true;
+                self.probe.gate.wake.notify_all();
+                while !state.1 {
+                    state = self.probe.gate.wake.wait(state).unwrap();
+                }
+            }
+            self.probe.live.store(false, Ordering::SeqCst);
+            self.probe.stopped.store(true, Ordering::SeqCst);
+        }
+    }
+
+    struct RaceEngine(Arc<RaceProbe>);
+    impl Engine for RaceEngine {
+        fn locate(&self) -> cv_core::Result<EngineInfo> {
+            unreachable!()
+        }
+        fn capabilities(&self) -> EngineCaps {
+            EngineCaps::default()
+        }
+        fn snapshot(&self) -> cv_core::Result<ArtifactSet> {
+            unreachable!()
+        }
+        fn watch(&self, _: EventSink) -> cv_core::Result<Box<dyn WatchHandle>> {
+            self.probe().attempts.fetch_add(1, Ordering::SeqCst);
+            if self.probe().live.swap(true, Ordering::SeqCst) {
+                return Err(EngineError::WatchAlreadyLive.into());
+            }
+            Ok(Box::new(RaceWatch {
+                session: SessionId("race".into()),
+                probe: self.probe().clone(),
+            }))
+        }
+        fn run(&self, _: &Verb, _: EventSink) -> cv_core::Result<ExitClass> {
+            Ok(ExitClass::Ok)
+        }
+        fn run_caused(
+            &self,
+            cmd: &Verb,
+            sink: EventSink,
+            _: Option<&EventId>,
+        ) -> cv_core::Result<ExitClass> {
+            self.run(cmd, sink)
+        }
+        fn write_content(
+            &self,
+            _: &PageDraft,
+            _: Option<Fingerprint>,
+        ) -> cv_core::Result<WriteOutcome> {
+            unreachable!()
+        }
+    }
+
+    impl RaceEngine {
+        fn probe(&self) -> &Arc<RaceProbe> {
+            &self.0
+        }
+    }
+
+    /// Publication refusal must be atomic too: the child is stopped before
+    /// the start lock opens, so a replacement can never observe the
+    /// unpublished transient as already-live.
+    #[test]
+    fn an_unpublished_watch_is_stopped_before_the_next_start() {
+        let probe = released_race_probe();
+        let sched =
+            EngineScheduler::new(Arc::new(RaceEngine(probe.clone())), SeatPolicy::StopWatch);
+        let first = sched
+            .start_watch_with_publication(noop(), |_| false)
+            .unwrap();
+        assert_eq!(first, None);
+        assert!(probe.stopped.load(Ordering::SeqCst));
+        assert!(!probe.live.load(Ordering::SeqCst));
+        assert!(sched.watch_session().is_none());
+
+        let published = sched
+            .start_watch_with_publication(noop(), |_| true)
+            .unwrap();
+        assert_eq!(published, Some(SessionId("race".into())));
+        assert_eq!(sched.watch_session(), Some(SessionId("race".into())));
+    }
+
+    /// Concurrent restores serialize through the one watch seat: exactly
+    /// one start publishes and the loser sees already-live, never a second
+    /// engine watch or a zero-watch terminal state.
+    #[test]
+    fn double_restore_never_duplicates_a_watch_session() {
+        for rep in 0..20 {
+            let probe = released_race_probe();
+            let sched = Arc::new(EngineScheduler::new(
+                Arc::new(RaceEngine(probe.clone())),
+                SeatPolicy::StopWatch,
+            ));
+            let barrier = Arc::new(std::sync::Barrier::new(2));
+            let mut starts = Vec::new();
+            for _ in 0..2 {
+                let sched = sched.clone();
+                let barrier = barrier.clone();
+                starts.push(std::thread::spawn(move || {
+                    barrier.wait();
+                    sched.start_watch(noop())
+                }));
+            }
+            let results: Vec<_> = starts.into_iter().map(|t| t.join().unwrap()).collect();
+            assert_eq!(
+                results.iter().filter(|r| r.is_ok()).count(),
+                1,
+                "rep {rep}: {results:?}"
+            );
+            assert_eq!(
+                results
+                    .iter()
+                    .filter(|r| r
+                        .as_ref()
+                        .is_err_and(|e| e.to_string().contains("already live")))
+                    .count(),
+                1,
+                "rep {rep}: {results:?}"
+            );
+            assert!(sched.watch_session().is_some());
+            let live = sched.watch_session().unwrap();
+            assert!(sched.stop_watch_session(&live));
+        }
+    }
+
+    /// Round-5 concurrent stop/start shape: while a process stop is still
+    /// joined inside the scheduler slot, a restore must not observe an
+    /// empty slot and lose to the engine's still-live watch bit. The start
+    /// waits for the stop to converge, then installs exactly one session.
+    #[test]
+    fn concurrent_stop_and_start_cannot_observe_a_half_stopped_watch() {
+        for rep in 0..20 {
+            let probe = Arc::new(RaceProbe::default());
+            let sched = Arc::new(EngineScheduler::new(
+                Arc::new(RaceEngine(probe.clone())),
+                SeatPolicy::StopWatch,
+            ));
+            let first = sched.start_watch(noop()).unwrap();
+            let stopper = {
+                let sched = sched.clone();
+                std::thread::spawn(move || sched.stop_watch_session(&first))
+            };
+            {
+                let mut state = probe.gate.state.lock().unwrap();
+                while !state.0 {
+                    state = probe.gate.wake.wait(state).unwrap();
+                }
+            }
+            let (started_tx, started_rx) = std::sync::mpsc::channel();
+            let starter = {
+                let sched = sched.clone();
+                std::thread::spawn(move || {
+                    started_tx.send(()).unwrap();
+                    sched.start_watch(noop())
+                })
+            };
+            started_rx.recv().unwrap();
+            probe.gate.state.lock().unwrap().1 = true;
+            probe.gate.wake.notify_all();
+            assert!(stopper.join().unwrap(), "the original session stopped");
+            let started = starter.join().unwrap();
+            assert!(
+                started.is_ok(),
+                "rep {rep}: restore lost to a half-stopped watch: {started:?}"
+            );
+            assert!(probe.stopped.load(Ordering::SeqCst));
+            assert!(sched.watch_session().is_some());
+            let live = sched.watch_session().unwrap();
+            assert!(sched.stop_watch_session(&live));
+        }
     }
 
     /// A failed refresh is closed evidence owned by the scheduler: even

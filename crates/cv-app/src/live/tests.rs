@@ -123,10 +123,7 @@ fn a_resync_requested_after_a_mutation_waits_behind_an_in_flight_scan() {
     let mut delivery = test_delivery(root.path(), WatchMode::Native, &wb);
     delivery.resyncer = resyncer.clone();
     let slot = EngineSlot::default();
-    slot.install_verbs(VerbRoute {
-        delivery,
-        warning: None,
-    });
+    slot.install_verbs(slot.verb_route(delivery, None));
 
     resyncer.request();
     started_rx
@@ -864,10 +861,7 @@ esac
     ));
     let slot = EngineSlot::default();
     let _ = slot.sched.set(sched.clone());
-    slot.install_verbs(VerbRoute {
-        delivery: delivery.clone(),
-        warning: None,
-    });
+    slot.install_verbs(slot.verb_route(delivery.clone(), None));
 
     let session = sched.start_watch(Box::new(|_| {})).unwrap();
     let watching = sched.watch_session();
@@ -988,10 +982,7 @@ esac
     ));
     let slot = EngineSlot::default();
     let _ = slot.sched.set(sched.clone());
-    slot.install_verbs(VerbRoute {
-        delivery: delivery.clone(),
-        warning: None,
-    });
+    slot.install_verbs(slot.verb_route(delivery.clone(), None));
 
     let session = sched.start_watch(Box::new(|_| {})).unwrap();
     let watching = sched.watch_session();
@@ -1037,10 +1028,7 @@ esac
     ));
     let slot = EngineSlot::default();
     let _ = slot.sched.set(sched.clone());
-    slot.install_verbs(VerbRoute {
-        delivery: delivery.clone(),
-        warning: None,
-    });
+    slot.install_verbs(slot.verb_route(delivery.clone(), None));
 
     let session = sched.start_watch(Box::new(|_| {})).unwrap();
 
@@ -1108,10 +1096,7 @@ esac
     ));
     let slot = EngineSlot::default();
     let _ = slot.sched.set(sched.clone());
-    slot.install_verbs(VerbRoute {
-        delivery: delivery.clone(),
-        warning: None,
-    });
+    slot.install_verbs(slot.verb_route(delivery.clone(), None));
 
     let session = sched.start_watch(Box::new(|_| {})).unwrap();
     let result: Result<(), &str> = crate::migrate::adopt::batch_watch_safe(&slot, &sched, || {
@@ -1164,10 +1149,7 @@ esac
     ));
     let slot = EngineSlot::default();
     let _ = slot.sched.set(sched.clone());
-    slot.install_verbs(VerbRoute {
-        delivery: delivery.clone(),
-        warning: None,
-    });
+    slot.install_verbs(slot.verb_route(delivery.clone(), None));
 
     let session = sched.start_watch(Box::new(|_| {})).unwrap();
     let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
