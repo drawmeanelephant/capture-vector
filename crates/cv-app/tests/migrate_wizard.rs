@@ -513,3 +513,95 @@ fn stale_completion_after_reopen_does_not_complete_the_wrong_wizard() {
         h.state().status
     );
 }
+
+/// The production race from adversarial review: two operations stage the
+/// same unclaimed candidate id across a workspace reopen; one claims it,
+/// the other collides and retargets. The colliding operation's start notice
+/// carries the collided requested id — which string-matches the running
+/// wizard's candidate — but its cancellation token belongs to the other
+/// operation. The wizard must not rebind: token identity, never the run id,
+/// discriminates operations that staged the same candidate.
+#[test]
+fn collision_retarget_for_a_different_operation_does_not_rebind_the_wizard() {
+    let (_t, root) = workspace();
+    let (_t2, other) = workspace();
+    std::fs::create_dir_all(root.join("hugo-source").join("content")).unwrap();
+    let env = |dir: &Path| cv_app::WorkspaceEnv {
+        locator: Some(cv_engine::locate::Locator::default()),
+        recent_file: Some(dir.join("recent-workspaces.json")),
+    };
+
+    // Import A is accepted in W, its worker still waiting in the external
+    // gate before claiming. The workspace switches away and back, recreating
+    // module state while shell notices survive.
+    let mut h = harness(&root);
+    let job_a = drive_hugo_inventory(&mut h, &root);
+    if let Some(boot) = cv_app::open_workspace(h.state_mut(), other.clone(), &env(&other)) {
+        boot.join().unwrap();
+    }
+    if let Some(boot) = cv_app::open_workspace(h.state_mut(), root.clone(), &env(&root)) {
+        boot.join().unwrap();
+    }
+    reseed_fixture_migrate(&mut h, &root);
+
+    // Import B is accepted in the reopened workspace. Nothing was ever
+    // written to disk, so B stages the same candidate run id A had.
+    let job_b = drive_hugo_inventory(&mut h, &root);
+    assert_eq!(
+        job_b.run_id, job_a.run_id,
+        "both operations stage the same unclaimed candidate"
+    );
+    assert_ne!(job_b.cancel, job_a.cancel, "distinct operations");
+
+    // B's worker claims the candidate first; A's gate then releases, A
+    // collides, claims the next id, and publishes its ordered retargeting
+    // notice. B's finished record is on disk for the candidate id, exactly
+    // as B's worker leaves it when its lab ends.
+    let lock = store::claim_run(&root, &job_b.run_id).expect("B claims the candidate");
+    let mut record = store::RunRecord::started(
+        &job_b.run_id,
+        "hugo-inventory",
+        store::RecordedLab {
+            tool_id: "stub".into(),
+            source: "fixture".into(),
+            path: "stub".into(),
+        },
+        1,
+    );
+    record.finished = Some(store::Finished {
+        exit_code: Some(1),
+        exit: store::FinishedExit::Io,
+        outcome: "exited 1".into(),
+        duration_ms: 3,
+    });
+    store::write(&lock, &record).expect("B's worker records the outcome");
+    drop(lock);
+
+    let mut retargeted_a = job_a.clone();
+    retargeted_a.run_id = format!("{}-collided", job_a.run_id);
+    h.state().notices().send(ShellNotice::ImportStarted {
+        requested: job_a.run_id.clone(),
+        job: retargeted_a,
+    });
+    h.settle();
+
+    // B completes. Its token correlates, so completion proceeds — and must
+    // read B's own run record at the candidate id. Had A's notice rebound
+    // the wizard to A's collided id, the lookup would miss every record and
+    // report a run that "ended before its run record could be written".
+    h.state().notices().send(ShellNotice::ImportFinished {
+        job: job_b.clone(),
+        result: Ok(()),
+    });
+    h.settle();
+    assert!(
+        !h.state().status.contains("ended before"),
+        "B's completion must read B's own run record, not A's collided id: {}",
+        h.state().status
+    );
+    assert!(
+        h.state().status.contains("did not complete"),
+        "the recorded outcome is what the wizard reports: {}",
+        h.state().status
+    );
+}

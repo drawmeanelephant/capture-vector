@@ -577,8 +577,15 @@ impl MigrateModule {
         requested: &str,
         job: &ImportJob,
     ) -> Vec<Intent> {
-        if let WizardStage::Running { run_id, .. } = &mut self.wizard.stage
+        // A retargeting notice belongs to exactly one operation, and the
+        // requested run-id text cannot identify it: two operations can
+        // stage the same unclaimed candidate across a workspace reopen,
+        // so the string matches by collision alone. The cancellation token
+        // is the operation's stable identity here exactly as in completion
+        // correlation — an unmatched notice leaves the wizard untouched.
+        if let WizardStage::Running { run_id, cancel, .. } = &mut self.wizard.stage
             && run_id == requested
+            && *cancel == job.cancel
         {
             *run_id = job.run_id.clone();
         }

@@ -601,6 +601,35 @@ fn collision_resolved_start_retargets_the_running_wizard() {
 }
 
 #[test]
+fn a_collision_notice_for_a_different_operation_never_retargets_the_wizard() {
+    let (mut m, _appeared) = dynamic_wizard_module();
+    let requested = drive_hugo_to_inventory(&mut m);
+    // The production race: another operation's worker collided on the same
+    // candidate id this wizard staged, claimed a later id, and published its
+    // retargeting notice. The requested run-id text matches by collision,
+    // but the cancellation token belongs to that other operation — the
+    // notice must leave this wizard bound to its own candidate, because the
+    // id alone never discriminates two operations that staged it.
+    let foreign = crate::command::ImportJob {
+        workspace: std::path::PathBuf::from("/workspace"),
+        run_id: "import-2-hugo-inventory".into(),
+        mode: "hugo-inventory".into(),
+        phase: crate::command::ImportPhase::Inventory,
+        inputs: Vec::new(),
+        extras: Vec::new(),
+        cancel: cv_core::engine::CancelToken::new(),
+    };
+    m.retarget_started_import(&requested, &foreign);
+    match &m.wizard.stage {
+        wizard::WizardStage::Running { run_id, .. } => assert_eq!(
+            run_id, &requested,
+            "a different operation's start notice must not rebind this wizard"
+        ),
+        _ => panic!("wizard remains running"),
+    }
+}
+
+#[test]
 fn internal_companion_and_out_of_stage_answers_are_rejected() {
     let mut m = wizard_module();
     // A deep MODE answer before the wizard is at that step is a no-op.
