@@ -89,6 +89,15 @@ fn clear_of_seat(dir: &str, seat: &str) -> bool {
     !dir.is_empty() && !dir.starts_with(&seat) && !seat.starts_with(&dir)
 }
 
+/// Result of an atomic watch start/publication attempt. `artifact` is
+/// whatever the publication closure chose to return; it is handed back so
+/// a rejected publication object can be dropped after the scheduler
+/// writer lock and watch-slot mutex have been released.
+pub struct PublicationOutcome<P> {
+    pub result: cv_core::Result<Option<SessionId>>,
+    pub artifact: Option<P>,
+}
+
 pub struct EngineScheduler<E: Engine + Sync> {
     /// Current engine incarnation. The scheduler — especially `rw` — is
     /// the workspace's durable mutation identity; the engine behind it may
@@ -192,7 +201,8 @@ impl<E: Engine + Sync> EngineScheduler<E> {
     /// Start the single watch session. Takes the writer lock so it never
     /// races an in-flight build for `dist/`.
     pub fn start_watch(&self, sink: EventSink) -> cv_core::Result<SessionId> {
-        self.start_watch_with_publication(sink, |_| true)
+        self.start_watch_with_publication(sink, |_| (true, ()))
+            .result
             .map(|session| session.expect("an accepted start publishes"))
     }
 
@@ -204,26 +214,46 @@ impl<E: Engine + Sync> EngineScheduler<E> {
     /// `Ok(None)` means the engine start succeeded but publication refused
     /// it (normally because the shell generation is dead); `Ok(Some)` means
     /// the slot contains a published session.
-    pub fn start_watch_with_publication(
+    ///
+    /// The closure returns `(accepted, artifact)`. The artifact is carried
+    /// out of the critical section untouched: if it owns a publication
+    /// message whose drop can acquire scheduler/watch locks, the caller can
+    /// drop that message only after this method has returned. Never drop
+    /// such an object inside the closure itself.
+    pub fn start_watch_with_publication<P>(
         &self,
         sink: EventSink,
-        publish: impl FnOnce(&SessionId) -> bool,
-    ) -> cv_core::Result<Option<SessionId>> {
+        publish: impl FnOnce(&SessionId) -> (bool, P),
+    ) -> PublicationOutcome<P> {
+        let early = |result| PublicationOutcome {
+            result,
+            artifact: None,
+        };
         let _w = write(&self.rw);
-        self.ready()?;
+        if let Err(e) = self.ready() {
+            return early(Err(e));
+        }
         let mut slot = mutex(&self.watch);
         if slot.is_some() {
-            return Err(crate::EngineError::WatchAlreadyLive.into());
+            return early(Err(crate::EngineError::WatchAlreadyLive.into()));
         }
         let engine = self.engine();
-        let mut h = engine.watch(sink)?;
+        let mut h = match engine.watch(sink) {
+            Ok(h) => h,
+            Err(e) => return early(Err(e)),
+        };
         let id = h.session().clone();
-        if publish(&id) {
+        let (accepted, artifact) = publish(&id);
+        let result = if accepted {
             *slot = Some(h);
             Ok(Some(id))
         } else {
             h.stop();
             Ok(None)
+        };
+        PublicationOutcome {
+            result,
+            artifact: Some(artifact),
         }
     }
 
@@ -701,7 +731,8 @@ mod tests {
         let sched =
             EngineScheduler::new(Arc::new(RaceEngine(probe.clone())), SeatPolicy::StopWatch);
         let first = sched
-            .start_watch_with_publication(noop(), |_| false)
+            .start_watch_with_publication(noop(), |_| (false, ()))
+            .result
             .unwrap();
         assert_eq!(first, None);
         assert!(probe.stopped.load(Ordering::SeqCst));
@@ -709,7 +740,8 @@ mod tests {
         assert!(sched.watch_session().is_none());
 
         let published = sched
-            .start_watch_with_publication(noop(), |_| true)
+            .start_watch_with_publication(noop(), |_| (true, ()))
+            .result
             .unwrap();
         assert_eq!(published, Some(SessionId("race".into())));
         assert_eq!(sched.watch_session(), Some(SessionId("race".into())));

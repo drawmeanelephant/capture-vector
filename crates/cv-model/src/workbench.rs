@@ -88,25 +88,42 @@ impl Inbox {
     /// FIFO as sent, so their relative order is untouched, and whatever
     /// was sent after a snapshot drains after one at least that new.
     pub fn send(&self, m: Inbound) -> bool {
+        self.try_send(m).is_ok()
+    }
+
+    /// Send like [`Inbox::send`], but return the message on failure. This
+    /// is load-bearing for values whose drop performs cleanup: the caller
+    /// can move that drop outside whatever lock it was publishing under.
+    pub fn try_send(&self, m: Inbound) -> Result<(), Box<Inbound>> {
         let ok = match m {
             Inbound::Snapshot(snap) => {
                 let mut slot = lock(&self.snapshot);
                 if slot.closed {
-                    return false;
+                    return Err(Box::new(Inbound::Snapshot(snap)));
                 }
                 if slot.latest.replace(snap).is_some() {
                     // The pending marker is queued and its wake delivered.
-                    return true;
+                    return Ok(());
                 }
                 // Queued under the slot lock, so no other sender can fill
                 // the slot and queue messages ahead of this marker.
-                let ok = self.tx.send(Queued::Snapshot).is_ok();
-                if !ok {
-                    slot.latest = None;
+                match self.tx.send(Queued::Snapshot) {
+                    Ok(()) => true,
+                    Err(_) => {
+                        let snap = slot.latest.take().expect("stored above");
+                        return Err(Box::new(Inbound::Snapshot(snap)));
+                    }
                 }
-                ok
             }
-            m => self.tx.send(Queued::Msg(m)).is_ok(),
+            m => match self.tx.send(Queued::Msg(m)) {
+                Ok(()) => true,
+                Err(e) => {
+                    let Queued::Msg(m) = e.0 else {
+                        unreachable!("watch messages are never snapshot markers")
+                    };
+                    return Err(Box::new(m));
+                }
+            },
         };
         if ok
             && let Some(w) = self
@@ -117,7 +134,7 @@ impl Inbox {
         {
             w();
         }
-        ok
+        Ok(())
     }
     pub fn sink(&self) -> EventSink {
         let me = self.clone();
@@ -1066,5 +1083,44 @@ mod tests {
         wb.run_command("watch.restart");
         assert!(wb.requests.is_empty());
         assert_eq!(wb.status, "no workspace open");
+    }
+
+    struct DropWatch {
+        session: SessionId,
+        dropped: Arc<std::sync::atomic::AtomicBool>,
+    }
+
+    impl WatchHandle for DropWatch {
+        fn session(&self) -> &SessionId {
+            &self.session
+        }
+        fn stop(&mut self) {}
+    }
+
+    impl Drop for DropWatch {
+        fn drop(&mut self) {
+            self.dropped
+                .store(true, std::sync::atomic::Ordering::SeqCst);
+        }
+    }
+
+    #[test]
+    fn failed_try_send_returns_the_watch_message_instead_of_dropping_it() {
+        let mut wb = Workbench::new(Registry::with_all());
+        let inbox = wb.inbox();
+        wb.reset_project(Registry::default());
+        let dropped = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let message = inbox
+            .try_send(Inbound::Watch(Box::new(DropWatch {
+                session: SessionId("dead-generation".into()),
+                dropped: dropped.clone(),
+            })))
+            .expect_err("the reset generation refuses the send");
+        assert!(
+            !dropped.load(std::sync::atomic::Ordering::SeqCst),
+            "try_send must not drop the cleanup-owning message inside the caller's critical section"
+        );
+        drop(message);
+        assert!(dropped.load(std::sync::atomic::Ordering::SeqCst));
     }
 }

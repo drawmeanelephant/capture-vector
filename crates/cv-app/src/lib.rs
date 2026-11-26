@@ -204,10 +204,13 @@ pub fn open_workspace(
     // the scheduler-owned watch directly before the shared scheduler can
     // be reopened. Adoption batches tolerate this because they stop the
     // same session inside their serialized mutation batch.
-    if let Some(previous) = wb.workspace.as_ref()
-        && let Some(sched) = slots::scheduler_for(previous)
-    {
-        sched.stop_watch();
+    if let Some(previous) = wb.workspace.as_ref() {
+        if let Some(slot) = slots::slot_for(previous) {
+            slot.retire_verbs();
+        }
+        if let Some(sched) = slots::scheduler_for(previous) {
+            sched.stop_watch();
+        }
     }
     wb.stop_watch();
     wb.registry = Registry::default();

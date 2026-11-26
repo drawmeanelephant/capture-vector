@@ -134,6 +134,263 @@ fn settle(wb: &mut cv_model::workbench::Workbench, dur: Duration) {
     }
 }
 
+#[cfg(unix)]
+fn fake_boris_with_controlled_verb_holds() -> (tempfile::TempDir, PathBuf) {
+    let (dir, bin) = fake_boris_holding_watch(true);
+    const HOLD: &str = r#"if [ -f "$D/verbs/$V/hold" ]; then sleep 300 & wait; fi"#;
+    const CONTROLLED: &str = r#"if [ -f "$D/verbs/$V/hold" ]; then while [ -f "$D/verbs/$V/hold" ]; do sleep 0.02; done; fi"#;
+    let shim = std::fs::read_to_string(&bin).unwrap();
+    assert!(shim.contains(HOLD));
+    common::install_executable(&bin, &shim.replace(HOLD, CONTROLLED));
+    (dir, bin)
+}
+
+fn wait_for_path(path: &Path, what: &str) {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !path.exists() {
+        assert!(Instant::now() < deadline, "never reached {what}");
+        std::thread::sleep(Duration::from_millis(1));
+    }
+}
+
+fn wait_for_argv(dir: &Path, needle: &str) {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        if std::fs::read_to_string(dir.join("argv.log"))
+            .unwrap_or_default()
+            .lines()
+            .any(|l| l.starts_with(needle))
+        {
+            return;
+        }
+        assert!(Instant::now() < deadline, "never saw argv {needle}");
+        std::thread::sleep(Duration::from_millis(2));
+    }
+}
+
+fn join_with_timeout<T: Send + 'static>(
+    handle: std::thread::JoinHandle<T>,
+    timeout: Duration,
+    what: &str,
+) -> T {
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(handle.join());
+    });
+    rx.recv_timeout(timeout)
+        .unwrap_or_else(|_| panic!("{what} did not finish within {timeout:?}"))
+        .unwrap_or_else(|_| panic!("{what} panicked"))
+}
+
+/// Round-4 natural hang shape, bounded: three reopens can queue behind
+/// one another while the profile changes. Every boot must finish, and the
+/// final live watch must belong to the last requested configuration.
+#[cfg(unix)]
+#[test]
+fn rapid_reopen_reopen_reopen_converges_without_deadlock() {
+    let rounds: usize = std::env::var("R4_REOPEN_REPS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(2);
+    let (boris_dir, boris) = fake_boris_holding_watch(true);
+    let ws_tmp = tempfile::tempdir().unwrap();
+    let ws = ws_tmp.path().canonicalize().unwrap();
+    write(
+        &ws.join("content/index.md"),
+        b"---
+title: Home
+---
+Home
+",
+    );
+    write(
+        &ws.join("docs/index.md"),
+        b"---
+title: Docs
+---
+Docs
+",
+    );
+    let recent_tmp = tempfile::tempdir().unwrap();
+    let env = env_for(&boris, &recent_tmp.path().join("recent.json"));
+    let mut wb = cv_app::init();
+    join_with_timeout(
+        open_workspace(&mut wb, ws.clone(), &env).expect("first boot starts"),
+        Duration::from_secs(5),
+        "first boot",
+    );
+
+    for round in 0..rounds {
+        let mut boots = Vec::new();
+        let mut last_has_profile = false;
+        for k in 0..3 {
+            last_has_profile = (round + k) % 2 == 0;
+            if last_has_profile {
+                write(&ws.join("boris.json"), br#"{"input":"docs"}"#);
+            } else {
+                let _ = std::fs::remove_file(ws.join("boris.json"));
+            }
+            boots.push(open_workspace(&mut wb, ws.clone(), &env).expect("reopen boot starts"));
+        }
+        for (k, boot) in boots.into_iter().enumerate() {
+            join_with_timeout(
+                boot,
+                Duration::from_secs(5),
+                &format!("round {round} reopen boot {k}"),
+            );
+        }
+        settle(&mut wb, Duration::from_millis(300));
+        let want = if last_has_profile {
+            "watch --watch-json"
+        } else {
+            "watch --watch-json --input content"
+        };
+        let got = std::fs::read_to_string(boris_dir.path().join("argv.log"))
+            .unwrap_or_default()
+            .lines()
+            .rfind(|l| l.starts_with("watch ") && !l.contains("--serve"))
+            .unwrap_or_default()
+            .to_string();
+        let sched = cv_app::slots::scheduler_for(&ws).expect("scheduler remains");
+        assert_eq!(
+            (
+                got.as_str(),
+                sched.watch_session().is_some(),
+                wb.app.watch_live,
+                wb.app.degraded.is_none(),
+            ),
+            (want, true, true, true),
+            "round {round}: rapid reopens must converge to the final profile"
+        );
+    }
+    if let Some(sched) = cv_app::slots::scheduler_for(&ws)
+        && let Some(w) = sched.watch_session()
+    {
+        sched.stop_watch_session(&w);
+    }
+}
+
+/// Round-6 lock-inversion shape: adoption restore starts after the shell
+/// has switched away, so its inbox is dead. A failed watch publication
+/// must be dropped only after the scheduler locks are released; the worker
+/// and every later scheduler operation must continue to completion.
+#[cfg(unix)]
+#[test]
+fn switching_away_before_adoption_restore_cannot_deadlock_publication() {
+    let reps: usize = std::env::var("R6_REPS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(3);
+    for rep in 0..reps {
+        let (boris_dir, boris) = fake_boris_with_controlled_verb_holds();
+        let (_boris_b_dir, boris_b) = fake_boris_holding_watch(true);
+        let wa = tempfile::tempdir().unwrap();
+        let ws_a = wa.path().canonicalize().unwrap();
+        let wb_tmp = tempfile::tempdir().unwrap();
+        let ws_b = wb_tmp.path().canonicalize().unwrap();
+        write(
+            &ws_a.join("content/index.md"),
+            b"---
+title: A
+---
+A
+",
+        );
+        write(
+            &ws_b.join("content/index.md"),
+            b"---
+title: B
+---
+B
+",
+        );
+        let recent = tempfile::tempdir().unwrap();
+        let env_a = env_for(&boris, &recent.path().join("recent-a.json"));
+        let env_b = env_for(&boris_b, &recent.path().join("recent-b.json"));
+        let run_id = "r6-deadlock-hugo";
+        seed_long_run(&ws_a, run_id, 1);
+
+        let mut wb = cv_app::init();
+        open_workspace(&mut wb, ws_a.clone(), &env_a)
+            .expect("first boot starts")
+            .join()
+            .unwrap();
+        write(&boris_dir.path().join("verbs/validate/hold"), b"");
+        let worker = cv_app::migrate::adopt::adopt(
+            &mut wb,
+            AdoptionJob {
+                source_root: ws_a.clone(),
+                request: AdoptionRequest {
+                    run_id: run_id.into(),
+                    target: AdoptionTarget::ExistingWorkspace {
+                        subfolder: "imported".into(),
+                    },
+                },
+                cancel: CancelToken::new(),
+            },
+            &env_a,
+        )
+        .expect("adoption starts");
+        wait_for_path(
+            &ws_a.join(".cv/imports").join(run_id).join(store::PENDING),
+            "the adoption journal",
+        );
+        wait_for_argv(boris_dir.path(), "validate ");
+        open_workspace(&mut wb, ws_b.clone(), &env_b)
+            .expect("switch-away boot starts")
+            .join()
+            .unwrap();
+        std::fs::remove_file(boris_dir.path().join("verbs/validate/hold")).unwrap();
+
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = done_tx.send(worker.join().is_ok());
+        });
+        let worker_completed = done_rx
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap_or(false);
+        assert!(
+            worker_completed,
+            "rep {rep}: dead-generation publication self-deadlocked the adoption worker"
+        );
+
+        let workspace_watches = std::fs::read_to_string(boris_dir.path().join("argv.log"))
+            .unwrap_or_default()
+            .lines()
+            .filter(|l| l.starts_with("watch ") && !l.contains("--serve"))
+            .count();
+        assert_eq!(
+            workspace_watches, 1,
+            "rep {rep}: the retired generation should not even start a transient watch"
+        );
+        let sched = cv_app::slots::scheduler_for(&ws_a).expect("workspace A scheduler remains");
+        let (sched_tx, sched_rx) = std::sync::mpsc::channel();
+        std::thread::spawn({
+            let sched = sched.clone();
+            move || {
+                let _ = sched.snapshot();
+                let _ = sched_tx.send(());
+            }
+        });
+        assert!(
+            sched_rx.recv_timeout(Duration::from_secs(1)).is_ok(),
+            "rep {rep}: dead-generation publication left the scheduler writer locked"
+        );
+        assert!(
+            !sched.engine().watch_live(),
+            "rep {rep}: an unpublished dead-generation watch must not remain live"
+        );
+        if let Some(w) = sched.watch_session() {
+            sched.stop_watch_session(&w);
+        }
+        if let Some(sched_b) = cv_app::slots::scheduler_for(&ws_b)
+            && let Some(w) = sched_b.watch_session()
+        {
+            sched_b.stop_watch_session(&w);
+        }
+    }
+}
+
 /// Round-5 probe shape: a restore queued behind a successful replacement
 /// probe captures the pre-reset delivery and wins the post-replacement
 /// start race. That unpublished transient must not consume the
@@ -202,8 +459,8 @@ Home
         let restore = std::thread::spawn(move || {
             slot.restore_watch(None, "r5 restore".into());
         });
-        restore.join().unwrap();
-        boot.join().unwrap();
+        join_with_timeout(restore, Duration::from_secs(3), "stale restore");
+        join_with_timeout(boot, Duration::from_secs(5), "replacement boot");
         settle(&mut wb, Duration::from_millis(1000));
 
         let sched = cv_app::slots::scheduler_for(&ws).expect("scheduler remains");
@@ -299,7 +556,7 @@ fn adoption_cannot_run_inside_a_stale_scheduler_after_workspace_reopen() {
         "SCHEDULER-SPLIT: adoption was still inside the first scheduler batch while a mutation batch completed on the post-reopen scheduler (same_scheduler={same_scheduler}, pending_before={pending_before}, pending_after={pending_after})"
     );
 
-    worker.join().unwrap();
+    join_with_timeout(worker, Duration::from_secs(10), "adoption worker");
     if let Some(w) = second.watch_session() {
         second.stop_watch_session(&w);
     }
@@ -399,7 +656,7 @@ fn a_failed_reopen_refresh_makes_adoption_and_palette_refuse_before_any_write() 
         &env,
     )
     .expect("adoption worker starts");
-    worker.join().unwrap();
+    join_with_timeout(worker, Duration::from_secs(10), "adoption worker");
     assert!(
         !ws.join("content/imported").exists(),
         "zombie engine adoption wrote content after the refresh failure"

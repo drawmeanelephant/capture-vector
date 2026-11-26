@@ -96,6 +96,14 @@ impl EngineSlot {
         *self.verbs.lock().unwrap_or_else(|e| e.into_inner()) = Some(route);
     }
 
+    /// Invalidate the installed shell delivery without waiting for the next
+    /// successful boot. Switching away or resetting the project retires the
+    /// old inbox immediately, and clones of its route must know they are
+    /// stale before they construct a new watch-owner publication.
+    pub fn retire_verbs(&self) {
+        self.generations.fetch_add(1, Ordering::SeqCst);
+    }
+
     /// Queue a convergent disk-truth scan when the workspace engine booted.
     /// A request made after a lifecycle mutation is guaranteed to run after
     /// that mutation even if an older scan is already in flight.
@@ -130,7 +138,7 @@ impl EngineSlot {
         let (Some(sched), Some(route)) = (self.sched.get().cloned(), self.route()) else {
             return;
         };
-        if self.unready().is_some() || sched.watch_session().is_some() {
+        if self.unready().is_some() || sched.watch_session().is_some() || !route.is_current() {
             return;
         }
         // `before` is only evidence for retiring the old UI handle. Whether
@@ -905,13 +913,27 @@ fn start_workspace_watch_gated(
         });
         let publish_inbox = delivery.inbox.clone();
         let publish_sched = sched.clone();
-        let outcome = sched.start_watch_with_publication(sink, |session| {
-            publishable()
-                && publish_inbox.send(Inbound::Watch(Box::new(SessionWatch {
-                    sched: publish_sched.clone(),
-                    session: session.clone(),
-                })))
+        let publication = sched.start_watch_with_publication(sink, |session| {
+            if !publishable() {
+                return (false, None);
+            }
+            match publish_inbox.try_send(Inbound::Watch(Box::new(SessionWatch {
+                sched: publish_sched.clone(),
+                session: session.clone(),
+            }))) {
+                Ok(()) => (true, None),
+                Err(m) => (false, Some(m)),
+            }
         });
+        // The publication artifact owns the failed `SessionWatch` message.
+        // `start_watch_with_publication` has returned, releasing both the
+        // scheduler writer lock and watch-slot mutex; only now may that
+        // message drop, because `SessionWatch::drop` reacquires the watch
+        // slot while cleaning up. Dropping it inside the publication
+        // closure is a same-thread self-deadlock.
+        let artifact = publication.artifact.flatten();
+        let outcome = publication.result;
+        drop(artifact);
         // An already-live winner is normally a stable published session and
         // is reported below as already-restored. If it has already converged
         // away, though, it was transient stop/start state rather than a live
