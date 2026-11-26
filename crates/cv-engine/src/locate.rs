@@ -435,18 +435,15 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn gate_rejects_nonzero_exit_despite_valid_stdout() {
-        use std::os::unix::fs::PermissionsExt;
         let t = tempfile::tempdir().unwrap();
         let bin = t.path().join("boris");
-        std::fs::write(
+        crate::test_support::install_executable(
             &bin,
             "#!/bin/sh\ncase \"$1\" in\n\
              --version) printf 'boris/0.9.0\\n'; exit 3;;\n\
              --build-info) printf '%s\\n' '{\"format\":\"boris-build-info\",\"schemaVersion\":\"1\",\"version\":\"boris/0.9.0\",\"vcsRevision\":\"66efcfb\"}'; exit 0;;\n\
              esac\n",
-        )
-        .unwrap();
-        std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+        );
         let err = gate(EngineSource::EnvOverride, &bin, t.path(), PINNED).unwrap_err();
         assert!(
             matches!(err, EngineError::Abnormal(ExitOutcome::Exited { code: 3 })),

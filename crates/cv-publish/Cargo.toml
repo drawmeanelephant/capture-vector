@@ -21,5 +21,6 @@ default = ["mock"]
 mock = []
 
 [dev-dependencies]
+cv-fixtures.workspace = true
 cv-rules.workspace = true
 tempfile.workspace = true

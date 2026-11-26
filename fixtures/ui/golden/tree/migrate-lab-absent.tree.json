@@ -1110,7 +1110,7 @@
     },
     {
       "color": "#8a93a3ff",
-      "help": "starting an import from Capture Vector is not in this build yet",
+      "help": "boris-migration-lab was not found",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-new/#1",
       "rect": [
@@ -1120,7 +1120,7 @@
         13.8
       ],
       "role": "text",
-      "text": "starting an import from Capture Vector is not in this build yet"
+      "text": "boris-migration-lab was not found"
     },
     {
       "color": "#8a93a3ff",

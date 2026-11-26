@@ -12,5 +12,6 @@
 pub mod audit;
 pub mod imports;
 pub mod lock;
+pub(crate) mod open;
 pub mod paths;
 pub mod sidecar;

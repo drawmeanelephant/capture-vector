@@ -17,7 +17,6 @@ use cv_model::workbench::Workbench;
 use cv_publish::adapters::{
     COPY_TO_FOLDER, CopyToFolder, Delivered, Delivery, DeliveryAdapter, HTTP_POST, TransportFailure,
 };
-use cv_publish::plan::PlanFile;
 use cv_publish::secrets::NoSecrets;
 use cv_publish::{
     PreflightOutcome, PreflightRequest, Publisher, Ruleset, RulesetVerdict, Target, TargetConfig,
@@ -26,10 +25,6 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 const CLOCK: FixedClock = FixedClock(Timestamp(1_700_000_000_000));
-/// No `boris graph` capture exists; a grant only needs the graph bytes
-/// its run sealed.
-const GRAPH: &str = "graph TD\n  index --> guides\n";
-
 pub(super) struct CapturedBuild {
     pub(super) root: PathBuf,
     pub(super) check: ExitClass,
@@ -87,13 +82,20 @@ impl Engine for CapturedBuild {
             return Ok(ExitClass::Ok);
         };
         match name.as_str() {
-            "build" => {
+            "build" if args.iter().any(|a| a == "--html-dir") => {
                 let dist = cv_fixtures::fixtures_root().join("captures/happy/dist/dist");
-                copy_tree(&dist, &self.root.join(flag(args, "--html-dir")?)).map_err(io)?;
+                let out = self.root.join(flag(args, "--html-dir")?);
+                copy_tree(&dist, &out).map_err(io)?;
                 Ok(ExitClass::Ok)
             }
-            "graph" => {
-                std::fs::write(self.root.join(flag(args, "--out")?), GRAPH).map_err(io)?;
+            "build" if args.iter().any(|a| a == "--out") => {
+                let dir = self.root.join(flag(args, "--out")?);
+                std::fs::create_dir_all(&dir).map_err(io)?;
+                std::fs::write(
+                    dir.join("graph.json"),
+                    cv_fixtures::ir_capture("happy").file("graph.json"),
+                )
+                .map_err(io)?;
                 Ok(ExitClass::Ok)
             }
             "check" => Ok(self.check),
@@ -125,7 +127,7 @@ impl Ruleset for SceneRules {
     fn hash(&self) -> Hash {
         Hash([0x5c; 32])
     }
-    fn evaluate(&self, _: &Path, _: &[PlanFile]) -> RulesetVerdict {
+    fn evaluate(&self, _: &cv_publish::preflight::PreflightArtifacts<'_>) -> RulesetVerdict {
         RulesetVerdict::default()
     }
 }
@@ -145,13 +147,14 @@ impl DeliveryAdapter for LostOutcome {
 }
 
 pub(super) fn config(target: Target, adapter: &str, destination: &str) -> TargetConfig {
-    TargetConfig::new(
-        target,
-        "boris.json",
-        "https://example.test/",
-        adapter,
-        destination,
-    )
+    // Only static-dist is an unhosted copy. Hosted and record targets seed
+    // with a real configuration shape rather than a falsely empty base.
+    let base = if target == Target::StaticDist {
+        ""
+    } else {
+        "https://example.test/"
+    };
+    TargetConfig::default_html(target, base, adapter, destination)
 }
 
 pub(super) fn open<'a>(root: &Path, engine: &'a CapturedBuild) -> Publisher<'a> {
@@ -288,4 +291,136 @@ pub fn degraded(wb: &mut Workbench) {
         corrupt(root);
     });
     wb.select_row(0);
+}
+
+/// What a scene's writable port publishes with: the captured build,
+/// the shipped Audit packs, a fixed clock.
+pub fn writer(root: &Path) -> super::write::Writer {
+    super::write::Writer {
+        engine: Box::new(CapturedBuild {
+            root: root.into(),
+            check: ExitClass::Ok,
+        }),
+        rules: Box::new(super::write::AuditRules::shipped()),
+        clock: Box::new(CLOCK),
+        ids: Box::new(SeqIdGen::new("run")),
+    }
+}
+
+/// Touches the folder, then loses the outcome: an `unknown` copy run.
+struct LostCopy;
+
+impl DeliveryAdapter for LostCopy {
+    fn id(&self) -> &str {
+        COPY_TO_FOLDER
+    }
+    fn deliver(&self, _: &Delivery<'_>) -> Result<Delivered, TransportFailure> {
+        Err(TransportFailure::after_contact(
+            "the app quit while copying into the folder",
+        ))
+    }
+}
+
+/// One static-dist run, approved and dispatched through [`LostCopy`]:
+/// unknown, with nothing at its destination.
+pub fn seed_unknown_copy(root: &Path) {
+    let engine = CapturedBuild {
+        root: root.into(),
+        check: ExitClass::Ok,
+    };
+    let cfg = super::write::delivery_config(Target::StaticDist).expect("static-dist delivers");
+    let mut p = open(root, &engine).with_adapter(LostCopy);
+    let run = granted(p.preflight(
+        &PreflightRequest {
+            config: cfg.clone(),
+        },
+        &SceneRules,
+        &mut SeqIdGen::new("lost"),
+    ));
+    p.approve(&run, "local").expect("scene approval");
+    p.publish(&run, &cfg, &SceneRules).expect("scene dispatch");
+}
+
+/// Replace one sealed page of every run's preflight output.
+pub fn tamper(root: &Path) {
+    let runs = root.join(".cv/publish");
+    for e in std::fs::read_dir(&runs).expect("scene runs").flatten() {
+        let page = e.path().join("site/index.html");
+        if page.exists() {
+            std::fs::write(page, "<p>edited after preflight</p>").expect("scene tamper");
+        }
+    }
+}
+
+/// A writable workspace kept on disk while `drive` runs its commands.
+fn drive(
+    wb: &mut Workbench,
+    prepare: impl FnOnce(&Path),
+    drive: impl FnOnce(&mut Workbench, &Path),
+) {
+    let dir = Scratch::new();
+    prepare(&dir.0);
+    *wb = crate::init_with(Box::new(DiskPort::writable(&dir.0, writer(&dir.0))));
+    crate::boot(wb);
+    wb.run_command("shell.goto.publish");
+    drive(wb, &dir.0);
+}
+
+const PREFLIGHT_STATIC: &str = "publish.preflight.static-dist";
+
+/// Preflight sealed a static-dist run; its approval dialog is open.
+pub fn approve(wb: &mut Workbench) {
+    drive(
+        wb,
+        |_| {},
+        |wb, _| {
+            wb.run_command(PREFLIGHT_STATIC);
+            wb.run_command("publish.approve");
+        },
+    );
+}
+
+/// Preflight → approve → dispatch: copied to the folder, complete.
+pub fn delivered(wb: &mut Workbench) {
+    drive(
+        wb,
+        |_| {},
+        |wb, _| {
+            wb.run_command(PREFLIGHT_STATIC);
+            wb.run_command("publish.approve");
+            wb.dialog_act("approve");
+            wb.run_command("publish.dispatch");
+        },
+    );
+}
+
+/// A sealed page changed after preflight: dispatch refuses.
+pub fn refused(wb: &mut Workbench) {
+    drive(
+        wb,
+        |_| {},
+        |wb, root| {
+            wb.run_command(PREFLIGHT_STATIC);
+            wb.run_command("publish.approve");
+            wb.dialog_act("approve");
+            tamper(root);
+            wb.run_command("publish.dispatch");
+        },
+    );
+}
+
+/// An unknown copy run reconciled by the read-only probe.
+pub fn reconciled(wb: &mut Workbench) {
+    drive(wb, seed_unknown_copy, |wb, _| {
+        wb.set_nav("unresolved");
+        wb.select_row(0);
+        wb.run_command("publish.reconcile");
+        let probe = wb
+            .dialogs
+            .open()
+            .and_then(|d| d.visible_choices().iter().position(|(id, _)| id == "probe"));
+        if let Some(row) = probe {
+            wb.dialog_choose(row);
+        }
+    });
 }

@@ -32,6 +32,9 @@ pub mod verbs;
 pub mod watch;
 pub mod write;
 
+#[cfg(test)]
+mod test_support;
+
 pub use engine::{EngineConfig, ProcessEngine};
 pub use error::EngineError;
 pub use scheduler::{EngineScheduler, RecoveryBuild, SeatPolicy};

@@ -1,0 +1,130 @@
+{
+  "format": "boris-publication-claims",
+  "schema_version": 1,
+  "target": "default",
+  "artifact_inventory": {
+    "path": "_boris/proof/artifacts.json",
+    "bytes": 2014,
+    "sha256": "c66a203f7a16e332d6be25bb7c5b0d822ff73971c4f15e30eff735e8a4e35054",
+    "format": "boris-publication-artifacts",
+    "schema_version": 1,
+    "target": "default",
+    "artifact_count": 5
+  },
+  "publication_checks": {
+    "path": "_boris/proof/checks.json",
+    "bytes": 2805,
+    "sha256": "4eef126f25d546f4177a57234777f84e8be2d7c677436c55389a1b8dbe7f1a84",
+    "format": "boris-publication-checks",
+    "schema_version": 1,
+    "target": "default",
+    "check_count": 3,
+    "finding_count": 1
+  },
+  "claims": [
+    {
+      "id": "committed-artifacts-match-inventory",
+      "statement": "Every committed artifact record selected by the artifact-integrity check was inspected and matched its declared byte count and SHA-256 digest.",
+      "status": "verified",
+      "evidence": {
+        "check_id": "artifact-integrity",
+        "check_status": "passed",
+        "coverage": "complete",
+        "counts": {"eligible": 5, "checked": 5, "findings": 0},
+        "subject_sha256": "93de07d541a8d1b16bebabb12844e063c3dac8dd121968f8f31c23a9955d1c5f",
+        "supporting_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "checks_report_sha256": "4eef126f25d546f4177a57234777f84e8be2d7c677436c55389a1b8dbe7f1a84",
+        "reason": null
+      },
+      "scope": {
+        "subject_statuses": ["committed"],
+        "subject_kinds": [],
+        "supporting_statuses": [],
+        "supporting_kinds": []
+      },
+      "limitation_ids": ["target-local-only","no-deployment-verification","no-accessibility-verification","no-prose-quality-verification","no-universal-reproducibility-claim"]
+    },
+    {
+      "id": "rendered-html-passed-declared-audit",
+      "statement": "Every committed HTML page selected by the rendered-html check completed the declared structural, route, fragment, and duplicate-ID audit within that check's scope.",
+      "status": "failed",
+      "evidence": {
+        "check_id": "rendered-html",
+        "check_status": "failed",
+        "coverage": "complete",
+        "counts": {"eligible": 3, "checked": 3, "findings": 1},
+        "subject_sha256": "787c91f660a6dae8856faca41be70bf3b9b5f895b0a79492fc5ee18d3d855442",
+        "supporting_sha256": "93de07d541a8d1b16bebabb12844e063c3dac8dd121968f8f31c23a9955d1c5f",
+        "checks_report_sha256": "4eef126f25d546f4177a57234777f84e8be2d7c677436c55389a1b8dbe7f1a84",
+        "reason": "check-failed"
+      },
+      "scope": {
+        "subject_statuses": ["committed"],
+        "subject_kinds": ["html-page"],
+        "supporting_statuses": ["committed"],
+        "supporting_kinds": []
+      },
+      "limitation_ids": ["target-local-only","no-deployment-verification","no-accessibility-verification","no-prose-quality-verification","no-universal-reproducibility-claim"]
+    },
+    {
+      "id": "rendered-search-matches-selected-html",
+      "statement": "The single selected rendered-search artifact matched the committed HTML page set and derived rendered-search content inspected by the rendered-search check.",
+      "status": "verified",
+      "evidence": {
+        "check_id": "rendered-search",
+        "check_status": "passed",
+        "coverage": "complete",
+        "counts": {"eligible": 1, "checked": 1, "findings": 0},
+        "subject_sha256": "8e67d24c2cfc746595221d01ea0fd09d8e2fd18e5d5ef0d450a5856831bede0a",
+        "supporting_sha256": "787c91f660a6dae8856faca41be70bf3b9b5f895b0a79492fc5ee18d3d855442",
+        "checks_report_sha256": "4eef126f25d546f4177a57234777f84e8be2d7c677436c55389a1b8dbe7f1a84",
+        "reason": null
+      },
+      "scope": {
+        "subject_statuses": ["committed"],
+        "subject_kinds": ["rendered-search"],
+        "supporting_statuses": ["committed"],
+        "supporting_kinds": ["html-page"]
+      },
+      "limitation_ids": ["target-local-only","no-deployment-verification","no-accessibility-verification","no-prose-quality-verification","no-universal-reproducibility-claim","omitted-projections-not-certified"]
+    }
+  ],
+  "limitations": [
+    {
+      "id": "target-local-only",
+      "statement": "These claims describe one selected local HTML target after its commit and say nothing about any other target or environment.",
+      "applies_to_claims": ["committed-artifacts-match-inventory","rendered-html-passed-declared-audit","rendered-search-matches-selected-html"],
+      "source": "docs/contracts/publication-checks.md#authority-and-transaction-boundary"
+    },
+    {
+      "id": "no-deployment-verification",
+      "statement": "No deployment was performed or verified; local generation cannot verify deployed behavior.",
+      "applies_to_claims": ["committed-artifacts-match-inventory","rendered-html-passed-declared-audit","rendered-search-matches-selected-html"],
+      "source": "docs/contracts/publication-model.md#verification-vocabulary-and-claims"
+    },
+    {
+      "id": "no-accessibility-verification",
+      "statement": "No accessibility audit was performed for any page or artifact in this target.",
+      "applies_to_claims": ["committed-artifacts-match-inventory","rendered-html-passed-declared-audit","rendered-search-matches-selected-html"],
+      "source": "docs/contracts/publication-model.md#projections"
+    },
+    {
+      "id": "no-prose-quality-verification",
+      "statement": "No prose, writing, or documentation-quality judgment was made.",
+      "applies_to_claims": ["committed-artifacts-match-inventory","rendered-html-passed-declared-audit","rendered-search-matches-selected-html"],
+      "source": "docs/contracts/publication-model.md#verification-vocabulary-and-claims"
+    },
+    {
+      "id": "no-universal-reproducibility-claim",
+      "statement": "Deterministic bytes on one recorded environment are not universal reproducibility.",
+      "applies_to_claims": ["committed-artifacts-match-inventory","rendered-html-passed-declared-audit","rendered-search-matches-selected-html"],
+      "source": "docs/contracts/publication-model.md#verification-vocabulary-and-claims"
+    },
+    {
+      "id": "omitted-projections-not-certified",
+      "statement": "An omitted or unselected projection remains explicitly unverified and is not certified by this report.",
+      "applies_to_claims": ["rendered-search-matches-selected-html"],
+      "source": "docs/contracts/publication-model.md#the-conductor-rule"
+    }
+  ]
+}

@@ -41,6 +41,11 @@ pub fn init() -> Workbench {
     init_with(Box::new(publish::DiskPort::ephemeral()))
 }
 
+/// [`init`] with `publish` as the Publish module's port.
+pub fn init_with_publish(publish: Box<dyn cv_model::modules::publish::PublishPort>) -> Workbench {
+    init_with(publish)
+}
+
 fn init_with(publish: Box<dyn cv_model::modules::publish::PublishPort>) -> Workbench {
     init_ports(publish, Box::new(migrate::DiskPort::none()))
 }
@@ -57,8 +62,8 @@ fn init_ports(
     Workbench::new(Registry::with_all()).with_store(Box::new(StubStore::new()))
 }
 
-/// The publish ledger is shown read-only; one that cannot be trusted is
-/// disclosed like any other corrupt sidecar store.
+/// A publish ledger that cannot be trusted is disclosed like any other
+/// corrupt sidecar store.
 fn publish_warning(port: &publish::DiskPort) -> Option<String> {
     port.error()
         .map(|e| format!("publish ledger unreadable: {e}"))
@@ -275,7 +280,15 @@ pub fn open_workspace(
             }
         }
     }
-    let publish = publish::DiskPort::open(&root);
+    let publish = publish::DiskPort::writable(
+        &root,
+        publish::write::Writer {
+            engine: Box::new(live::SlotEngine(slot.clone())),
+            rules: Box::new(publish::write::AuditRules::shipped()),
+            clock: Box::new(SystemClock),
+            ids: Box::new(cv_core::sys::SeqIdGen::new("run")),
+        },
+    );
     let publish_err = publish_warning(&publish);
     opened.ledger.error = publish.error().map(str::to_string);
     cv_model::modules::publish::install(Box::new(publish));
@@ -718,6 +731,10 @@ pub const SCENES: &[Scene] = &[
     ("doctor-engine-absent", doctor::scene::engine_absent),
     ("doctor-version-mismatch", doctor::scene::version_mismatch),
     ("doctor-watch-dead", doctor::scene::watch_dead),
+    ("publish-approve", publish::scene::approve),
+    ("publish-delivered", publish::scene::delivered),
+    ("publish-refused", publish::scene::refused),
+    ("publish-reconciled", publish::scene::reconciled),
     ("migrate-empty", migrate::scene::empty),
     ("migrate", migrate::scene::runs),
     ("migrate-review", migrate::scene::review),
@@ -730,6 +747,10 @@ pub const SCENES: &[Scene] = &[
     ("verb-check-audit", verbs::scene::check),
 ];
 
+fn import_native(wb: &mut cv_model::workbench::Workbench, job: cv_model::command::ImportJob) {
+    let _ = migrate::spawn_import(wb, job);
+}
+
 pub fn launch() -> Launch {
     Launch {
         title: "Capture Vector",
@@ -738,6 +759,7 @@ pub fn launch() -> Launch {
         open: open_native,
         create: new_workspace::create_native,
         edit: editor::edit_page,
+        import: import_native,
         scenes: SCENES,
     }
 }
