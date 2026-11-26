@@ -8,6 +8,7 @@ use cv_core::engine::CancelToken;
 use cv_engine::locate::Locator;
 use cv_fixtures::lab::StubLab;
 use cv_model::adoption::{AdoptionJob, AdoptionRequest, AdoptionTarget};
+use cv_model::modules::engine::EnginePort;
 use cv_store::imports::{self as store, Finished, RecordedLab, RunRecord};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -233,4 +234,56 @@ fn reopen_after_profile_input_change_refreshes_the_watch_args() {
     {
         sched.stop_watch_session(&w);
     }
+}
+
+#[cfg(unix)]
+#[test]
+fn a_failed_reopen_refresh_makes_adoption_and_palette_refuse_before_any_write() {
+    let (boris_dir, boris) = fake_boris_holding_watch(false);
+    let ws_tmp = tempfile::tempdir().unwrap();
+    let ws = ws_tmp.path().canonicalize().unwrap();
+    write(
+        &ws.join("content/index.md"),
+        b"---\ntitle: Home\n---\nHome\n",
+    );
+    let recent_tmp = tempfile::tempdir().unwrap();
+    let env = env_for(&boris, &recent_tmp.path().join("recent.json"));
+    seed_long_run(&ws, "failed-refresh", 5);
+
+    let mut wb = cv_app::init();
+    open_workspace(&mut wb, ws.clone(), &env)
+        .expect("first boot starts")
+        .join()
+        .unwrap();
+    write(&boris_dir.path().join("version.txt"), b"0.8.2\n");
+    open_workspace(&mut wb, ws.clone(), &env)
+        .expect("failed reopen boot starts")
+        .join()
+        .unwrap();
+
+    let slot = cv_app::slots::slot_for(&ws).expect("stable slot remains");
+    assert!(
+        cv_app::live::SlotVerbs(slot).unavailable().is_some(),
+        "a failed refresh must make the palette unavailable like fresh open"
+    );
+    let worker = cv_app::migrate::adopt::adopt(
+        &mut wb,
+        AdoptionJob {
+            source_root: ws.clone(),
+            request: AdoptionRequest {
+                run_id: "failed-refresh".into(),
+                target: AdoptionTarget::ExistingWorkspace {
+                    subfolder: "imported".into(),
+                },
+            },
+            cancel: CancelToken::new(),
+        },
+        &env,
+    )
+    .expect("adoption worker starts");
+    worker.join().unwrap();
+    assert!(
+        !ws.join("content/imported").exists(),
+        "zombie engine adoption wrote content after the refresh failure"
+    );
 }

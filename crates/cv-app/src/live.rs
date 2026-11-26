@@ -63,6 +63,12 @@ impl EngineSlot {
         self.sched.get()
     }
 
+    /// Why the current serialized engine incarnation is unavailable.
+    /// Readiness is scheduler-owned gate evidence, not a fresh probe.
+    pub fn unready(&self) -> Option<String> {
+        self.get().and_then(|s| s.readiness().err())
+    }
+
     fn route(&self) -> Option<VerbRoute> {
         self.verbs.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
@@ -79,6 +85,9 @@ impl EngineSlot {
     /// A request made after a lifecycle mutation is guaranteed to run after
     /// that mutation even if an older scan is already in flight.
     pub fn request_resync(&self) {
+        if self.unready().is_some() {
+            return;
+        }
         if let Some(route) = self.route() {
             route.delivery.resyncer.request();
         }
@@ -89,6 +98,9 @@ impl EngineSlot {
     /// never a raw inbox channel that would skip those invariants.
     /// `None` while the engine has not passed its gate.
     pub fn live_sink(&self) -> Option<EventSink> {
+        if self.unready().is_some() {
+            return None;
+        }
         let route = self.route()?;
         Some(route.delivery.resync_sink(|deliver, env| deliver(env)))
     }
@@ -103,17 +115,23 @@ impl EngineSlot {
         let (Some(sched), Some(route)) = (self.sched.get().cloned(), self.route()) else {
             return;
         };
-        let Some(stopped) = before.filter(|_| sched.watch_session().is_none()) else {
+        if self.unready().is_some() || sched.watch_session().is_some() {
             return;
-        };
-        if route.delivery.inbox.send(Inbound::WatchStopped(stopped)) {
-            start_workspace_watch(
-                sched.clone(),
-                route.delivery.clone(),
-                route.warning.clone(),
-                Some(format!("{outcome} · watch resumed")),
-            );
         }
+        // `before` is only evidence for retiring the old UI handle. Whether
+        // to restore is decided from current scheduler state: replacement
+        // may have stopped the old session before this gate began and then
+        // had its own fresh session stopped by the gate build. In every
+        // such interleaving the open workspace's watch converges live.
+        if let Some(stopped) = before {
+            let _ = route.delivery.inbox.send(Inbound::WatchStopped(stopped));
+        }
+        start_workspace_watch(
+            sched.clone(),
+            route.delivery.clone(),
+            route.warning.clone(),
+            Some(format!("{outcome} · watch resumed")),
+        );
     }
 
     /// Run a palette verb through the scheduler on a worker. Its events
@@ -124,6 +142,9 @@ impl EngineSlot {
         let (Some(sched), Some(route)) = (self.sched.get().cloned(), self.route()) else {
             return Err(absent().to_string());
         };
+        if let Err(e) = sched.readiness() {
+            return Err(format!("the workspace engine is not ready: {e}"));
+        }
         std::thread::Builder::new()
             .name("cv-engine-verb".into())
             .spawn(move || route.run(&sched, run))
@@ -175,9 +196,7 @@ pub struct SlotVerbs(pub EngineSlot);
 
 impl EnginePort for SlotVerbs {
     fn unavailable(&self) -> Option<String> {
-        self.0
-            .get()
-            .is_none()
+        (self.0.get().is_none() || self.0.unready().is_some())
             .then(|| "Boris has not passed its version gate for this workspace (see Doctor)".into())
     }
     fn start(&mut self, run: VerbRun) -> Result<(), String> {

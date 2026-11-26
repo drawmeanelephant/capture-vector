@@ -94,6 +94,11 @@ pub struct EngineScheduler<E: Engine + Sync> {
     /// the workspace's durable mutation identity; the engine behind it may
     /// be refreshed when a workspace is reopened with changed config.
     engine: RwLock<Arc<E>>,
+    /// Last gate/probe outcome for the installed incarnation. This is
+    /// evidence state owned by the serialization identity, never a
+    /// re-probe: a failed refresh closes every engine route until a later
+    /// serialized refresh succeeds.
+    readiness: RwLock<Result<(), String>>,
     policy: SeatPolicy,
     /// The HTML output tree a live watch writes (Boris default `dist`).
     seat: RwLock<String>,
@@ -106,6 +111,7 @@ impl<E: Engine + Sync> EngineScheduler<E> {
     pub fn new(engine: Arc<E>, policy: SeatPolicy) -> Self {
         Self {
             engine: RwLock::new(engine),
+            readiness: RwLock::new(Ok(())),
             policy,
             seat: RwLock::new("dist".into()),
             rw: RwLock::new(()),
@@ -128,6 +134,22 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         read(&self.engine).clone()
     }
 
+    /// Readiness evidence for the current scheduler identity. `Err` means
+    /// the latest serialized refresh failed; operations must refuse even
+    /// though the previous engine object is still retained for identity.
+    pub fn readiness(&self) -> Result<(), String> {
+        read(&self.readiness).clone()
+    }
+
+    fn ready(&self) -> cv_core::Result<()> {
+        self.readiness().map_err(|e| {
+            EngineError::Refused(format!(
+                "the workspace engine is not ready after its latest refresh: {e}"
+            ))
+            .into()
+        })
+    }
+
     /// Construct and install a refreshed engine as one serialized mutation.
     /// Unlike constructing first and swapping later, there is no gap in
     /// which another batch can use the old incarnation while the probe's
@@ -135,16 +157,24 @@ impl<E: Engine + Sync> EngineScheduler<E> {
     /// watch is stopped before the constructor can touch the input tree.
     /// A constructor error leaves the old engine installed and disclosed
     /// to the caller, with the watch stopped as reopen's restart contract.
-    pub fn replace_engine_with<X>(
+    pub fn replace_engine_with<X: std::fmt::Display>(
         &self,
         make: impl FnOnce() -> Result<(Arc<E>, String), X>,
     ) -> Result<Arc<E>, X> {
         let _w = write(&self.rw);
         self.stop_watch();
-        let (engine, html_dir) = make()?;
-        *write(&self.engine) = engine.clone();
-        *write(&self.seat) = html_dir;
-        Ok(engine)
+        match make() {
+            Ok((engine, html_dir)) => {
+                *write(&self.engine) = engine.clone();
+                *write(&self.seat) = html_dir;
+                *write(&self.readiness) = Ok(());
+                Ok(engine)
+            }
+            Err(e) => {
+                *write(&self.readiness) = Err(e.to_string());
+                Err(e)
+            }
+        }
     }
 
     fn seat(&self) -> String {
@@ -163,6 +193,7 @@ impl<E: Engine + Sync> EngineScheduler<E> {
     /// races an in-flight build for `dist/`.
     pub fn start_watch(&self, sink: EventSink) -> cv_core::Result<SessionId> {
         let _w = write(&self.rw);
+        self.ready()?;
         let mut slot = mutex(&self.watch);
         if slot.is_some() {
             return Err(crate::EngineError::WatchAlreadyLive.into());
@@ -228,6 +259,7 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         cause: Option<&EventId>,
     ) -> cv_core::Result<RecoveryBuild> {
         let _w = write(&self.rw);
+        self.ready()?;
         if let Some(session) = self
             .watch
             .lock()
@@ -263,6 +295,7 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         };
         if !is_mutating(verb) {
             let _r = read(&self.rw);
+            self.ready()?;
             check_seat(&self.seat())?;
             let engine = self.engine();
             let exit = run(engine.as_ref(), verb)?;
@@ -273,6 +306,7 @@ impl<E: Engine + Sync> EngineScheduler<E> {
             });
         }
         let _w = write(&self.rw);
+        self.ready()?;
         check_seat(&self.seat())?;
         let mut stopped_watch = None;
         let mut out_dir = own;
@@ -329,12 +363,14 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         base: Option<Fingerprint>,
     ) -> cv_core::Result<WriteOutcome> {
         let _w = write(&self.rw);
+        self.ready()?;
         self.engine().write_content(draft, base)
     }
 
     /// Serialized fingerprint-checked delete.
     pub fn remove_content(&self, path: &str, base: Fingerprint) -> cv_core::Result<RemoveOutcome> {
         let _w = write(&self.rw);
+        self.ready()?;
         self.engine().remove_content(path, base)
     }
 
@@ -342,12 +378,14 @@ impl<E: Engine + Sync> EngineScheduler<E> {
     /// covered by one writer lock against every other engine mutation.
     pub fn move_content(&self, mv: &PageMove) -> cv_core::Result<MoveOutcome> {
         let _w = write(&self.rw);
+        self.ready()?;
         self.engine().move_content(mv)
     }
 
     /// Disk truth; a read, so it runs alongside other reads.
     pub fn snapshot(&self) -> cv_core::Result<ArtifactSet> {
         let _r = read(&self.rw);
+        self.ready()?;
         self.engine().snapshot()
     }
 }
@@ -517,6 +555,39 @@ mod tests {
             "a verb write interleaved with the in-flight mutation batch"
         );
         assert_eq!(p.max_writes.load(Ordering::SeqCst), 1);
+    }
+
+    /// A failed refresh is closed evidence owned by the scheduler: even
+    /// though the old engine object remains installed for identity, no
+    /// engine route may use it until a later serialized replacement passes.
+    #[test]
+    fn failed_engine_replacement_closes_routes_until_a_serialized_retry_succeeds() {
+        let sched = EngineScheduler::new(
+            Arc::new(Fake(Arc::new(Probe::default()))),
+            SeatPolicy::StopWatch,
+        );
+        assert!(sched.readiness().is_ok());
+
+        let err = sched
+            .replace_engine_with(|| -> Result<(Arc<Fake>, String), &'static str> {
+                Err("replacement probe failed")
+            })
+            .err()
+            .expect("the replacement probe fails");
+        assert_eq!(err, "replacement probe failed");
+        assert!(sched.readiness().is_err());
+        assert!(
+            sched.run(&Verb::Build, noop()).is_err(),
+            "a route must not keep using the retained engine after a failed refresh"
+        );
+
+        let retry = sched
+            .replace_engine_with(|| -> Result<(Arc<Fake>, String), &'static str> {
+                Ok((Arc::new(Fake(Arc::new(Probe::default()))), "dist".into()))
+            })
+            .expect("serialized retry installs a healthy incarnation");
+        assert!(Arc::ptr_eq(&retry, &sched.engine()));
+        assert!(sched.readiness().is_ok());
     }
 
     /// Config refresh must reuse the scheduler's serialization identity,

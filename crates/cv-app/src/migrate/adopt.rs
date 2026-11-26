@@ -232,6 +232,12 @@ fn execute(
             // that serialization point is entered; a pre-lock snapshot
             // would be exactly the stale state the batch exists to exclude.
             let tx = batch_watch_safe(&slot, &sched, || {
+                if let Err(e) = sched.readiness() {
+                    let _ = e;
+                    return Err(adopt::AdoptError::Run(
+                        "the workspace engine is not ready; nothing was written".into(),
+                    ));
+                }
                 let input = crate::snapshot::content_input(&root);
                 let ids = existing_ids(&root);
                 adopt::transact(

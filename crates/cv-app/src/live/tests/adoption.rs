@@ -194,3 +194,53 @@ esac
         drop(wb);
     }
 }
+
+/// Engine replacement can stop the old watch before the adoption gate
+/// records its snapshot. `None` then means "no session was visible yet",
+/// not "the reopened workspace asked for no watch": restoration consults
+/// current state and converges to a live session.
+#[cfg(unix)]
+#[test]
+fn restore_watch_without_a_prerecorded_session_still_converges_live() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let root = tempfile::tempdir().unwrap();
+    let bin = root.path().join("boris");
+    std::fs::write(
+        &bin,
+        r#"#!/bin/sh
+case "$1" in
+watch) echo '{"event":"hello","watch_events_schema":1,"compiler":"boris/0.9.0"}' >&2; sleep 30;;
+*) exit 2;;
+esac
+"#,
+    )
+    .unwrap();
+    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+    let wb = Workbench::new(Registry::with_all());
+    let delivery = super::test_delivery(root.path(), WatchMode::Native, &wb);
+    let sched = Arc::new(EngineScheduler::new(
+        delivery.engine.clone(),
+        SeatPolicy::StopWatch,
+    ));
+    let slot = EngineSlot::default();
+    let _ = slot.sched.set(sched.clone());
+    slot.install_verbs(VerbRoute {
+        delivery: delivery.clone(),
+        warning: None,
+    });
+
+    slot.restore_watch(None, "adoption gate".into());
+    let deadline = std::time::Instant::now() + Duration::from_secs(3);
+    while sched.watch_session().is_none() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "restore converged to a live watch"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let live = sched.watch_session().unwrap();
+    assert!(sched.stop_watch_session(&live));
+    drop(wb);
+}
