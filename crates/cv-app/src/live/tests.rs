@@ -15,6 +15,7 @@ use std::sync::mpsc;
 
 mod adoption;
 mod generation;
+mod generation_attack;
 
 /// Never write the executable inode in this process: a sibling fork could
 /// inherit that fd and make Linux exec fail with ETXTBSY

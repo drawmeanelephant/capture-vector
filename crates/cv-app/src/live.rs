@@ -218,11 +218,17 @@ impl VerbRoute {
     fn run(&self, sched: &Arc<Scheduler>, run: VerbRun) {
         let name = run.verb.name();
         let watching = sched.watch_session();
-        let result = sched.run_reported(
+        let generation_gate = self.clone();
+        let result = match sched.run_reported_admission(
             &run.verb,
             self.delivery.resync_sink(|deliver, env| deliver(env)),
             &run.cancel,
-        );
+            move || generation_gate.is_current(),
+        ) {
+            Ok(Some(report)) => Ok(report),
+            Ok(None) => return,
+            Err(e) => Err(e),
+        };
         let outcome = match &result {
             Ok(r) if r.exit == ExitClass::Ok => format!("boris {name} finished"),
             Ok(_) => format!("boris {name} failed · see Activity › Errors"),
@@ -813,13 +819,18 @@ fn run(b: EngineBoot, shell_generation: u64) {
         // evidence rather than raced against an adoption batch. Replacement
         // then takes the same writer lock, stops the old-config watch, and
         // swaps engine + output-seat atomically against scheduler users.
-        let engine = match sched.replace_engine_with(|| {
-            ProcessEngine::start(cfg).map(|engine| {
-                let html_dir = engine.html_dir().to_string();
-                (Arc::new(engine), html_dir)
-            })
-        }) {
-            Ok(engine) => engine,
+        let generation_gate = slot.clone();
+        let engine = match sched.replace_engine_with_admission(
+            || {
+                ProcessEngine::start(cfg).map(|engine| {
+                    let html_dir = engine.html_dir().to_string();
+                    (Arc::new(engine), html_dir)
+                })
+            },
+            move || generation_gate.generation() == shell_generation,
+        ) {
+            Ok(Some(engine)) => engine,
+            Ok(None) => return,
             Err(e) => {
                 doctor.update(|f| f.engine = crate::doctor::engine_state(&e));
                 let status = format!("{}: {e}", root.display());

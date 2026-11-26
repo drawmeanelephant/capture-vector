@@ -170,14 +170,31 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         &self,
         make: impl FnOnce() -> Result<(Arc<E>, String), X>,
     ) -> Result<Arc<E>, X> {
+        self.replace_engine_with_admission(make, || true)
+            .map(|engine| engine.expect("unconditional admission installs"))
+    }
+
+    /// Construct and install a refreshed engine only when `admission` still
+    /// accepts the worker inside the serialized writer critical section.
+    /// `Ok(None)` means the worker was stale before it touched the watch
+    /// seat or engine incarnation. Checking here rather than before locking
+    /// linearizes admission with every other scheduler mutation.
+    pub fn replace_engine_with_admission<X: std::fmt::Display>(
+        &self,
+        make: impl FnOnce() -> Result<(Arc<E>, String), X>,
+        admission: impl FnOnce() -> bool,
+    ) -> Result<Option<Arc<E>>, X> {
         let _w = write(&self.rw);
+        if !admission() {
+            return Ok(None);
+        }
         self.stop_watch();
         match make() {
             Ok((engine, html_dir)) => {
                 *write(&self.engine) = engine.clone();
                 *write(&self.seat) = html_dir;
                 *write(&self.readiness) = Ok(());
-                Ok(engine)
+                Ok(Some(engine))
             }
             Err(e) => {
                 *write(&self.readiness) = Err(e.to_string());
@@ -310,6 +327,21 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         self.dispatch(verb, |e, v| e.run_reported(v, sink, cancel))
     }
 
+    /// A user-requested run admitted by a caller-owned generation/ownership
+    /// rule. Admission is evaluated after the scheduler serialization lock
+    /// is acquired and before seat policy can stop or redirect the watch;
+    /// `Ok(None)` means a stale worker was refused without a scheduler-side
+    /// effect.
+    pub fn run_reported_admission(
+        &self,
+        verb: &Verb,
+        sink: EventSink,
+        cancel: &CancelToken,
+        admission: impl FnOnce() -> bool,
+    ) -> cv_core::Result<Option<RunReport>> {
+        self.dispatch_admission(verb, |e, v| e.run_reported(v, sink, cancel), admission)
+    }
+
     /// Run the fatal-watch diagnostic without ordinary stop-current-watch
     /// seat policy. The writer lock is held for the whole build, so
     /// `start_watch` cannot interleave once the empty-seat check passes.
@@ -341,6 +373,16 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         verb: &Verb,
         run: impl FnOnce(&E, &Verb) -> cv_core::Result<ExitClass>,
     ) -> cv_core::Result<RunReport> {
+        self.dispatch_admission(verb, run, || true)
+            .map(|report| report.expect("unconditional admission runs"))
+    }
+
+    fn dispatch_admission(
+        &self,
+        verb: &Verb,
+        run: impl FnOnce(&E, &Verb) -> cv_core::Result<ExitClass>,
+        admission: impl FnOnce() -> bool,
+    ) -> cv_core::Result<Option<RunReport>> {
         let own = own_out_dir(verb);
         let check_seat = |seat: &str| -> cv_core::Result<()> {
             if let Some(dir) = &own
@@ -357,17 +399,23 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         };
         if !is_mutating(verb) {
             let _r = read(&self.rw);
+            if !admission() {
+                return Ok(None);
+            }
             self.ready()?;
             check_seat(&self.seat())?;
             let engine = self.engine();
             let exit = run(engine.as_ref(), verb)?;
-            return Ok(RunReport {
+            return Ok(Some(RunReport {
                 exit,
                 stopped_watch: None,
                 out_dir: None,
-            });
+            }));
         }
         let _w = write(&self.rw);
+        if !admission() {
+            return Ok(None);
+        }
         self.ready()?;
         check_seat(&self.seat())?;
         let mut stopped_watch = None;
@@ -395,11 +443,11 @@ impl<E: Engine + Sync> EngineScheduler<E> {
         }
         let engine = self.engine();
         let exit = run(engine.as_ref(), &verb)?;
-        Ok(RunReport {
+        Ok(Some(RunReport {
             exit,
             stopped_watch,
             out_dir,
-        })
+        }))
     }
 
     /// Run one logical mutation batch under the writer lock, so a

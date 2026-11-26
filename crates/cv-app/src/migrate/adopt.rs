@@ -57,9 +57,10 @@ fn run_gate_live(
         .get()
         .cloned()
         .ok_or_else(|| "the workspace engine is not ready".to_string())?;
-    if slot.live_sink().is_none() {
-        return Err("the workspace engine is not ready".into());
-    }
+    // Shell-generation retirement is not adoption cancellation. The gate
+    // is a workspace operation serialized by the stable scheduler; while a
+    // reopen is between generations its sink is a no-op, and once the new
+    // generation installs delivery it receives the remaining events.
     let watching = sched.watch_session();
     let run = |verb: Verb, sink: EventSink| sched.run_reported(&verb, sink, cancel).map(|r| r.exit);
     let sink = || {
