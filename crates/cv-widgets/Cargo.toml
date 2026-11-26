@@ -33,6 +33,12 @@ harness = []
 reference = ["dep:rune-ref", "dep:png"]
 effects = ["dep:rune-fx", "dep:wgpu"]
 
+[build-dependencies]
+flate2.workspace = true
+sha2.workspace = true
+
 [dev-dependencies]
 cv-fixtures.workspace = true
+flate2.workspace = true
+sha2.workspace = true
 tempfile.workspace = true

@@ -160,6 +160,22 @@ fn copy_exe(from: &Path, to: &Path) -> Result<(), String> {
         .map_err(|e| format!("copy {} -> {}: {e}", from.display(), to.display()))
 }
 
+/// Third-party notices binary recipients need. The root NOTICE covers
+/// every bundled notice in one visible place; the font licenses carry
+/// the Apache-2.0 text required with Droid Sans Fallback and the OFL
+/// text required with Inter.
+fn copy_release_notices(root: &Path, pkg: &Path) -> Result<(), String> {
+    copy_exe(&root.join("NOTICE"), &pkg.join("NOTICE"))?;
+    copy_exe(
+        &root.join("crates/cv-widgets/assets/fonts/DroidSansFallback-LICENSE.txt"),
+        &pkg.join("licenses/DroidSansFallback-LICENSE.txt"),
+    )?;
+    copy_exe(
+        &root.join("licenses/Inter-LICENSE.txt"),
+        &pkg.join("licenses/Inter-LICENSE.txt"),
+    )
+}
+
 /// `fetch-boris [--src <checkout>]`: clone (or reuse) boris at the pinned
 /// tag, refuse any other commit, zig-build it, gate it, stage it.
 pub fn fetch_boris(root: &Path, args: &[String]) -> Result<PathBuf, String> {
@@ -258,7 +274,7 @@ fn git_vcs(root: &Path) -> Result<String, String> {
 }
 
 /// `release [--out <dir>]`: build cv-app (release, version-stamped),
-/// lay out `<name>/{cv-app, engines/boris, VERSION, build-info.json}`,
+/// lay out `<name>/{cv-app, engines/boris, VERSION, NOTICE, licenses/, build-info.json}`,
 /// verify the packaged binary resolves its bundled engine, and archive.
 pub fn release(root: &Path, args: &[String]) -> Result<PathBuf, String> {
     let engine = staged_engine(root);
@@ -319,6 +335,7 @@ pub fn release(root: &Path, args: &[String]) -> Result<PathBuf, String> {
         serde_json::from_str(&raw).map_err(|e| format!("cv-app --build-info: {e}: {raw}"))?;
     check_build_info(&info, &version, &vcs, &bundled, PINNED)?;
     std::fs::write(pkg.join("build-info.json"), format!("{raw}\n")).map_err(|e| e.to_string())?;
+    copy_release_notices(root, &pkg)?;
 
     let archive = out.join(format!("{name}.tar.gz"));
     status(
@@ -405,6 +422,32 @@ mod tests {
         let mut wrong_rev = ok;
         wrong_rev["engine"]["vcsRevision"] = json!("ce40d78");
         assert!(check_build_info(&wrong_rev, "0.1.0", "abc123", e, PINNED).is_err());
+    }
+
+    #[test]
+    fn release_notices_are_copied_into_the_package_layout() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let font = root.join("crates/cv-widgets/assets/fonts");
+        std::fs::create_dir_all(&font).unwrap();
+        std::fs::write(root.join("NOTICE"), "root notices\n").unwrap();
+        std::fs::write(font.join("DroidSansFallback-LICENSE.txt"), "apache text\n").unwrap();
+        std::fs::create_dir_all(root.join("licenses")).unwrap();
+        std::fs::write(root.join("licenses/Inter-LICENSE.txt"), "ofl text\n").unwrap();
+        let pkg = dir.path().join("pkg");
+        copy_release_notices(&root, &pkg).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(pkg.join("NOTICE")).unwrap(),
+            "root notices\n"
+        );
+        assert_eq!(
+            std::fs::read_to_string(pkg.join("licenses/DroidSansFallback-LICENSE.txt")).unwrap(),
+            "apache text\n"
+        );
+        assert_eq!(
+            std::fs::read_to_string(pkg.join("licenses/Inter-LICENSE.txt")).unwrap(),
+            "ofl text\n"
+        );
     }
 
     #[test]

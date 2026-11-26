@@ -40,7 +40,7 @@ fn sketch_view(src: &String, _cx: &mut Cx<String>) -> El {
 
 /// Visible text runs of the sketch for `body` (headless).
 pub fn sketch_texts(body: &str) -> Vec<String> {
-    let mut rt = Runtime::new(
+    let mut rt = Runtime::with_text(
         body.to_string(),
         sketch_view,
         (900.0, 6000.0),
@@ -48,6 +48,7 @@ pub fn sketch_texts(body: &str) -> Vec<String> {
             system_dark: true,
             scale: 1.0,
         },
+        crate::fonts::text_system(),
     );
     rt.frame(0.0);
     rt.elements().into_iter().filter_map(|e| e.text).collect()

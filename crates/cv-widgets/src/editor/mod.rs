@@ -479,6 +479,8 @@ pub type Scene = (&'static str, fn(&mut EditorWindow));
 pub fn run_scenes(scenes: &'static [Scene]) {
     crate::keys::pin_keycaps(rune::KeyPlatform::Mac);
     rune::App::new(rune::AppSpec {
+        fonts: crate::fonts::FONTS,
+        families: crate::fonts::FAMILIES,
         scenes,
         poll: Some(poll),
         on_key: Some(on_key),
@@ -503,7 +505,7 @@ pub fn runtime(w: EditorWindow) -> Runtime<EditorWindow> {
         scale: 1.0,
     };
     crate::keys::pin_keycaps(rune::KeyPlatform::Mac);
-    let mut rt = Runtime::new(w, view, SIZE, env);
+    let mut rt = Runtime::with_text(w, view, SIZE, env, crate::fonts::text_system());
     rt.poll = Some(poll);
     rt.on_key = Some(on_key);
     rt.frame(0.0);
