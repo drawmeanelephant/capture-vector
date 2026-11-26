@@ -320,6 +320,7 @@ pub fn open_workspace(
     let feed = doctor::install(Some(&root));
     feed.update(|f| f.store = doctor::store(&root, &opened));
     wb.reset_project(workspace_registry());
+    wb.workspace_key = Some(slots::workspace_key(&root));
     wb.workspace = Some(root.clone());
     show(wb, "pages");
     let warning = research_err
@@ -417,6 +418,7 @@ pub fn boot_without_workspace(wb: &mut Workbench, demo: bool) {
         format!("No workspace open — showing the fixture demo. {how}")
     } else {
         cv_model::modules::engine::detach();
+        wb.workspace_key = None;
         wb.reset_project(workspace_registry());
         format!("No workspace open. {how}")
     };

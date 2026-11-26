@@ -6,21 +6,29 @@
 use crate::adoption::AdoptionJob;
 use crate::app_state::AppState;
 use crate::cascade;
-use crate::command::{CommandSpec, ImportJob, Intent, Palette};
-use crate::dialog::{Dialogs, FileFilter, PickPurpose, SecretPort};
+use crate::command::{CommandSpec, Intent, Palette};
+use crate::dialog::{Dialogs, PickPurpose, SecretPort};
 use crate::module::{Link, ProjectSnapshot, Registry, RowModel};
 use crate::modules::activity;
-use crate::new_workspace::{self, Archetypes, Notices, ShellNotice, WorkspaceCreation};
+use crate::new_workspace::{self, Archetypes, Notices, ShellNotice};
 use crate::theme::{Mode, Theme};
 use crate::windows::{CloseOutcome, PRIMARY, WindowId, Windows};
+use crate::workspace_key::WorkspaceKey;
+mod input;
+mod outcome_retention;
 use cv_core::engine::{CancelToken, EventSink, WatchHandle};
 use cv_core::events::Envelope;
 use cv_core::events::shell::{DegradedReason, ShellEvent};
 use cv_core::events::{AppEvent, Cursor, EventId, SessionId, SnapshotEpoch};
 use cv_core::id::{Selection, StableId, WorkspaceId};
 use cv_core::store::{Namespace, Store};
+pub use input::{KeyInput, KeyPress, ShellRequest};
+use outcome_retention::{
+    MAX_PENDING_OUTCOME_BYTES, MAX_PENDING_OUTCOMES, enforce_outcome_retention,
+};
 use std::collections::BTreeSet;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, Mutex};
 
@@ -47,8 +55,8 @@ pub enum Inbound {
 /// queue holds a marker where the first undrained one was sent.
 #[allow(clippy::large_enum_variant)] // every message was an unboxed `Inbound` before the marker existed
 enum Queued {
-    Msg(Inbound),
-    Snapshot,
+    Msg { seq: u64, msg: Inbound },
+    Snapshot { seq: u64 },
 }
 
 /// The latest snapshot not yet drained.
@@ -78,6 +86,7 @@ pub struct Inbox {
     tx: Sender<Queued>,
     snapshot: Slot,
     waker: Arc<Mutex<Option<Waker>>>,
+    causal: Arc<AtomicU64>,
 }
 
 impl Inbox {
@@ -107,7 +116,8 @@ impl Inbox {
                 }
                 // Queued under the slot lock, so no other sender can fill
                 // the slot and queue messages ahead of this marker.
-                match self.tx.send(Queued::Snapshot) {
+                let seq = self.causal.fetch_add(1, Ordering::SeqCst) + 1;
+                match self.tx.send(Queued::Snapshot { seq }) {
                     Ok(()) => true,
                     Err(_) => {
                         let snap = slot.latest.take().expect("stored above");
@@ -115,15 +125,18 @@ impl Inbox {
                     }
                 }
             }
-            m => match self.tx.send(Queued::Msg(m)) {
-                Ok(()) => true,
-                Err(e) => {
-                    let Queued::Msg(m) = e.0 else {
-                        unreachable!("watch messages are never snapshot markers")
-                    };
-                    return Err(Box::new(m));
+            m => {
+                let seq = self.causal.fetch_add(1, Ordering::SeqCst) + 1;
+                match self.tx.send(Queued::Msg { seq, msg: m }) {
+                    Ok(()) => true,
+                    Err(e) => {
+                        let Queued::Msg { msg, .. } = e.0 else {
+                            unreachable!("watch messages are never snapshot markers")
+                        };
+                        return Err(Box::new(msg));
+                    }
                 }
-            },
+            }
         };
         if ok
             && let Some(w) = self
@@ -144,74 +157,36 @@ impl Inbox {
     }
 }
 
-/// Requests only the windowing layer can carry out (native dialogs) or
-/// the composition root owns (opening a workspace).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ShellRequest {
-    PickWorkspace,
-    /// Native file picker; the answer lands in `Workbench::picked`.
-    PickFile {
-        filters: Vec<FileFilter>,
-        purpose: PickPurpose,
-    },
-    PickFolder {
-        purpose: PickPurpose,
-    },
-    OpenWorkspace(PathBuf),
-    /// Run `boris init` for the New workspace form; the outcome comes
-    /// back as `ShellNotice::Created`.
-    CreateWorkspace(WorkspaceCreation),
-    /// Adopt a migration run into the open workspace or a new one.
-    AdoptRun(AdoptionJob),
-    /// Run a migration inventory or import in the background for Migrate.
-    RunImport(ImportJob),
-    /// Open a page (relative to the content input) in an editor window.
-    EditPage(String),
-    /// Put text on the system clipboard.
-    Copy(String),
-}
-
-/// Toolkit-neutral key input; `cv-widgets` maps rune keys onto it.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum KeyInput {
-    Char(char),
-    /// Primary-modifier chord (⌘ on macOS, Ctrl elsewhere), lowercased.
-    Command(char),
-    Up,
-    Down,
-    Enter,
-    Escape,
-    Backspace,
-    Tab,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct KeyPress {
-    pub key: KeyInput,
-    pub shift: bool,
-}
-
-impl KeyPress {
-    pub fn new(key: KeyInput) -> Self {
-        Self { key, shift: false }
-    }
-}
-
 /// Generation-independent terminal engine outcomes. Unlike [`Inbox`], this
 /// queue deliberately survives `reset_project`: workspace-stable operations
 /// such as migration adoption can finish while the shell is between
-/// generations, and their outcomes are committed by whichever generation
-/// the user ends in. Delivery of the same envelope through a live inbox is
-/// deduplicated by the normal commit idempotency key.
+/// generations, and their outcomes are committed by whichever generation of
+/// the owning workspace instance the user ends in. The sequence is causal
+/// data shared with live delivery, not a drain-order policy; replays reuse
+/// the first minted sequence. Delivery of the same envelope through a live
+/// inbox is deduplicated by the normal commit idempotency key.
 #[derive(Clone)]
 pub struct OutcomeSink {
-    tx: Sender<Envelope>,
+    tx: Sender<(u64, WorkspaceKey, Envelope)>,
     waker: Arc<Mutex<Option<Waker>>>,
+    causal: Arc<AtomicU64>,
 }
 
 impl OutcomeSink {
-    pub fn send(&self, env: Envelope) {
-        if self.tx.send(env).is_ok()
+    /// Send an outcome and return its causal sequence. Journal replays must
+    /// reuse that returned stamp with [`OutcomeSink::send_stamped_for`]:
+    /// replay time is not the event's causal time.
+    pub fn send_for(&self, workspace: WorkspaceKey, env: Envelope) -> u64 {
+        let seq = self.causal.fetch_add(1, Ordering::SeqCst) + 1;
+        self.send_stamped_for(seq, workspace, env);
+        seq
+    }
+
+    /// Republish an outcome with the causal sequence minted when its terminal
+    /// fact first occurred. This is for journal replay only; fresh outcomes
+    /// must use [`OutcomeSink::send_for`].
+    pub fn send_stamped_for(&self, seq: u64, workspace: WorkspaceKey, env: Envelope) {
+        if self.tx.send((seq, workspace, env)).is_ok()
             && let Some(w) = self
                 .waker
                 .lock()
@@ -244,6 +219,8 @@ pub struct Workbench {
     pub status: String,
     /// Root of the open workspace, if any.
     pub workspace: Option<PathBuf>,
+    /// Instance identity of `workspace`, shared with scheduler registration.
+    pub workspace_key: Option<WorkspaceKey>,
     /// Recently opened workspaces, newest first (palette entries).
     pub recent: Vec<PathBuf>,
     /// Pending requests for the windowing layer; drained by its poll.
@@ -256,17 +233,20 @@ pub struct Workbench {
     pub(crate) create_cancel: Option<CancelToken>,
     notice_tx: Sender<ShellNotice>,
     notice_rx: Receiver<ShellNotice>,
-    outcome_tx: Sender<Envelope>,
-    outcome_rx: Receiver<Envelope>,
+    outcome_tx: Sender<(u64, WorkspaceKey, Envelope)>,
+    outcome_rx: Receiver<(u64, WorkspaceKey, Envelope)>,
     /// Outcomes whose owning workspace is not currently open; retained so a
-    /// foreign workspace never receives them as unattributed facts.
-    pending_outcomes: Vec<Envelope>,
+    /// foreign workspace never receives them as unattributed facts. Retention
+    /// is bounded (64 outcomes and about 1 MiB serialized); oldest foreign
+    /// outcomes are evicted with a status disclosure when either bound is hit.
+    pending_outcomes: Vec<(u64, WorkspaceKey, Envelope)>,
     /// `(event_id, envelope digest)` — the contract's idempotency key.
     seen: BTreeSet<(String, u64)>,
     /// Applied but not yet journaled (store write failed); retried on replay.
     unjournaled: BTreeSet<String>,
     tx: Sender<Queued>,
     rx: Receiver<Queued>,
+    causal: Arc<AtomicU64>,
     snapshot: Slot,
     waker: Arc<Mutex<Option<Waker>>>,
     store: Option<Box<dyn Store>>,
@@ -281,6 +261,7 @@ impl Workbench {
         let (tx, rx) = channel();
         let (notice_tx, notice_rx) = channel();
         let (outcome_tx, outcome_rx) = channel();
+        let causal = Arc::new(AtomicU64::new(1));
         let nav = registry
             .iter()
             .map(|m| m.nav().items.first().map(|i| i.key.clone()))
@@ -299,6 +280,7 @@ impl Workbench {
             debug_windows: false,
             status: String::new(),
             workspace: None,
+            workspace_key: None,
             recent: Vec::new(),
             requests: Vec::new(),
             archetypes: Err(new_workspace::LOCATING.into()),
@@ -313,6 +295,7 @@ impl Workbench {
             unjournaled: BTreeSet::new(),
             tx,
             rx,
+            causal,
             snapshot: Slot::default(),
             waker: Arc::new(Mutex::new(None)),
             store: None,
@@ -366,6 +349,7 @@ impl Workbench {
         OutcomeSink {
             tx: self.outcome_tx.clone(),
             waker: self.waker.clone(),
+            causal: self.causal.clone(),
         }
     }
 
@@ -374,6 +358,7 @@ impl Workbench {
             tx: self.tx.clone(),
             snapshot: self.snapshot.clone(),
             waker: self.waker.clone(),
+            causal: self.causal.clone(),
         }
     }
 
@@ -403,65 +388,106 @@ impl Workbench {
 
     /// Drain pending envelopes. Returns true when visible state changed.
     pub fn drain(&mut self) -> bool {
+        enum Item {
+            Inbox(Queued),
+            Outcome(Envelope),
+        }
+
+        fn queued_seq(q: &Queued) -> u64 {
+            match q {
+                Queued::Msg { seq, .. } | Queued::Snapshot { seq } => *seq,
+            }
+        }
+
         let mut changed = false;
         while let Ok(n) = self.notice_rx.try_recv() {
             self.notice(n);
             changed = true;
         }
-        // Outcome copies are already in completion order. Commit them before
-        // generation-scoped live copies: retirement may have dropped the
-        // older live outcome while the newer one reached the replacement
-        // inbox, and commit order is Activity's causal order. Outcomes whose
-        // owning workspace is not current remain held rather than polluting
-        // a foreign workspace.
+
+        // Live and generation-spanning outcome paths share one logical
+        // enqueue clock. Merge by that sequence rather than applying a fixed
+        // queue-first/live-first policy: either side may be causally first,
+        // and the sequence is the data that says which. Foreign outcomes
+        // stay held for their owning workspace instead of entering the merge.
         let mut pending = std::mem::take(&mut self.pending_outcomes);
         while let Ok(env) = self.outcome_rx.try_recv() {
             pending.push(env);
         }
         let mut keep = Vec::new();
-        for env in pending {
-            let current = self
-                .workspace
+        let mut ordered: Vec<(u64, Item)> = Vec::new();
+        for (seq, key, env) in pending {
+            let current_key = self.workspace_key.clone();
+            let current = current_key
                 .as_ref()
-                .is_some_and(|root| root.to_string_lossy() == env.workspace.0);
+                .is_some_and(|current| current.same_instance(&key));
             if current {
-                changed |= self.commit(&env);
+                ordered.push((seq, Item::Outcome(env)));
+            } else if current_key
+                .as_ref()
+                .is_some_and(|current| current.path() == key.path())
+            {
+                // Same spelling but a different device+file-index instance means
+                // the owning directory was destroyed and replaced. That instance
+                // cannot return, so retaining its truth would only be a leak.
+                self.status = format!(
+                    "discarded a stale outcome for {}; that workspace instance was replaced",
+                    key.path().display()
+                );
+                changed = true;
             } else {
-                keep.push(env);
+                keep.push((seq, key, env));
             }
+        }
+        let evicted = enforce_outcome_retention(&mut keep);
+        if evicted > 0 {
+            self.status = format!(
+                "discarded {evicted} held outcome(s): retention is bounded to {MAX_PENDING_OUTCOMES} outcomes or {MAX_PENDING_OUTCOME_BYTES} bytes"
+            );
+            changed = true;
         }
         self.pending_outcomes = keep;
         while let Ok(q) = self.rx.try_recv() {
-            let m = match q {
-                Queued::Msg(m) => m,
-                Queued::Snapshot => match lock(&self.snapshot).latest.take() {
-                    Some(snap) => Inbound::Snapshot(snap),
-                    None => continue,
-                },
-            };
-            changed |= match m {
-                Inbound::Envelope(env) => self.commit(&env),
-                Inbound::Snapshot(snap) => self.load_snapshot(&snap),
-                Inbound::Watch(h) => {
-                    self.stop_watch();
-                    self.watch = Some(h);
-                    false
+            ordered.push((queued_seq(&q), Item::Inbox(q)));
+        }
+        ordered.sort_by_key(|(seq, _)| *seq);
+
+        for (_, item) in ordered {
+            match item {
+                Item::Outcome(env) => changed |= self.commit(&env),
+                Item::Inbox(q) => {
+                    let m = match q {
+                        Queued::Msg { msg, .. } => msg,
+                        Queued::Snapshot { .. } => match lock(&self.snapshot).latest.take() {
+                            Some(snap) => Inbound::Snapshot(snap),
+                            None => continue,
+                        },
+                    };
+                    changed |= match m {
+                        Inbound::Envelope(env) => self.commit(&env),
+                        Inbound::Snapshot(snap) => self.load_snapshot(&snap),
+                        Inbound::Watch(h) => {
+                            self.stop_watch();
+                            self.watch = Some(h);
+                            false
+                        }
+                        Inbound::WatchStopped(session) => {
+                            if self.watch.as_ref().is_some_and(|h| *h.session() == session) {
+                                self.watch = None;
+                            }
+                            false
+                        }
+                        Inbound::Degraded(reason) => {
+                            let env = self.degraded_envelope(reason);
+                            self.commit(&env)
+                        }
+                        Inbound::Status(s) => {
+                            self.status = s;
+                            true
+                        }
+                    };
                 }
-                Inbound::WatchStopped(session) => {
-                    if self.watch.as_ref().is_some_and(|h| *h.session() == session) {
-                        self.watch = None;
-                    }
-                    false
-                }
-                Inbound::Degraded(reason) => {
-                    let env = self.degraded_envelope(reason);
-                    self.commit(&env)
-                }
-                Inbound::Status(s) => {
-                    self.status = s;
-                    true
-                }
-            };
+            }
         }
         changed
     }
@@ -538,7 +564,11 @@ impl Workbench {
     /// Disclose a degraded state through the same commit path as engine events.
     pub fn disclose(&mut self, reason: DegradedReason) {
         let env = self.degraded_envelope(reason);
-        let _ = self.tx.send(Queued::Msg(Inbound::Envelope(env)));
+        let seq = self.causal.fetch_add(1, Ordering::SeqCst) + 1;
+        let _ = self.tx.send(Queued::Msg {
+            seq,
+            msg: Inbound::Envelope(env),
+        });
         self.drain();
     }
 
@@ -1119,74 +1149,4 @@ impl Drop for Workbench {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn watch_restart_is_offered_only_while_the_watch_is_dead() {
-        let mut wb = Workbench::new(Registry::with_all());
-        assert!(wb.commands().iter().all(|c| c.id != "watch.restart"));
-        wb.disclose(DegradedReason::WatchDead);
-        assert!(wb.commands().iter().any(|c| c.id == "watch.restart"));
-        wb.apply(Intent::Recover);
-        assert!(wb.commands().iter().all(|c| c.id != "watch.restart"));
-    }
-
-    #[test]
-    fn watch_restart_reopens_the_workspace() {
-        let mut wb = Workbench::new(Registry::with_all());
-        wb.workspace = Some(PathBuf::from("/ws"));
-        wb.run_command("watch.restart");
-        assert_eq!(
-            wb.requests,
-            vec![ShellRequest::OpenWorkspace(PathBuf::from("/ws"))]
-        );
-    }
-
-    #[test]
-    fn watch_restart_without_a_workspace_only_notes_the_status() {
-        let mut wb = Workbench::new(Registry::with_all());
-        wb.run_command("watch.restart");
-        assert!(wb.requests.is_empty());
-        assert_eq!(wb.status, "no workspace open");
-    }
-
-    struct DropWatch {
-        session: SessionId,
-        dropped: Arc<std::sync::atomic::AtomicBool>,
-    }
-
-    impl WatchHandle for DropWatch {
-        fn session(&self) -> &SessionId {
-            &self.session
-        }
-        fn stop(&mut self) {}
-    }
-
-    impl Drop for DropWatch {
-        fn drop(&mut self) {
-            self.dropped
-                .store(true, std::sync::atomic::Ordering::SeqCst);
-        }
-    }
-
-    #[test]
-    fn failed_try_send_returns_the_watch_message_instead_of_dropping_it() {
-        let mut wb = Workbench::new(Registry::with_all());
-        let inbox = wb.inbox();
-        wb.reset_project(Registry::default());
-        let dropped = Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let message = inbox
-            .try_send(Inbound::Watch(Box::new(DropWatch {
-                session: SessionId("dead-generation".into()),
-                dropped: dropped.clone(),
-            })))
-            .expect_err("the reset generation refuses the send");
-        assert!(
-            !dropped.load(std::sync::atomic::Ordering::SeqCst),
-            "try_send must not drop the cleanup-owning message inside the caller's critical section"
-        );
-        drop(message);
-        assert!(dropped.load(std::sync::atomic::Ordering::SeqCst));
-    }
-}
+mod tests;

@@ -18,6 +18,7 @@ use cv_engine::{EngineConfig, EngineScheduler, ProcessEngine, SeatPolicy};
 use cv_model::adoption::{AdoptionJob, AdoptionReport, AdoptionTarget};
 use cv_model::new_workspace::ShellNotice;
 use cv_model::workbench::{Inbox, OutcomeSink, Workbench};
+use cv_model::workspace_key::WorkspaceKey;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
@@ -54,44 +55,41 @@ fn terminal_outcome(env: &cv_core::events::Envelope) -> bool {
     )
 }
 
-type SharedOutcomes = Arc<Mutex<Vec<cv_core::events::Envelope>>>;
+type SharedOutcomes = Arc<Mutex<Vec<(u64, cv_core::events::Envelope)>>>;
 
-/// Terminal outcomes recorded by one verb's sink. `validate_then_build`
-/// owns a fresh sink per verb, so dropping this recorder is the exact verb
-/// boundary: outcomes are republished per verb, not only after the whole
-/// adoption gate converges. The shared gate journal republishes them once
-/// more when the gate ends; workbench idempotency collapses that replay in
-/// an uninterrupted generation, while a retirement during the gate makes it
-/// the copy that reaches the replacement generation.
+/// Terminal outcomes recorded by one verb's sink. The generation-spanning
+/// copy is published when the terminal envelope itself is emitted, because
+/// that emission is the causal fact Activity must order. The shared gate
+/// journal republishes the same envelopes once more when the gate ends;
+/// workbench idempotency collapses those replays in an uninterrupted
+/// generation, while a retirement during the gate makes a surviving copy
+/// reach the replacement generation.
 struct OutcomeRecorder {
     outcomes: OutcomeSink,
-    recorded: Vec<cv_core::events::Envelope>,
+    workspace: WorkspaceKey,
     journal: SharedOutcomes,
 }
 
 impl OutcomeRecorder {
     fn record(&mut self, env: &cv_core::events::Envelope) {
-        self.recorded.push(env.clone());
+        let seq = self.outcomes.send_for(self.workspace.clone(), env.clone());
         self.journal
             .lock()
             .unwrap_or_else(|e| e.into_inner())
-            .push(env.clone());
+            .push((seq, env.clone()));
     }
 }
 
-impl Drop for OutcomeRecorder {
-    fn drop(&mut self) {
-        for env in self.recorded.drain(..) {
-            self.outcomes.send(env);
-        }
-    }
-}
-
-fn recording_sink(inner: EventSink, outcomes: &OutcomeSink, journal: SharedOutcomes) -> EventSink {
+fn recording_sink(
+    inner: EventSink,
+    outcomes: &OutcomeSink,
+    workspace: &WorkspaceKey,
+    journal: SharedOutcomes,
+) -> EventSink {
     let mut inner = inner;
     let mut recorder = OutcomeRecorder {
         outcomes: outcomes.clone(),
-        recorded: Vec::new(),
+        workspace: workspace.clone(),
         journal,
     };
     Box::new(move |env| {
@@ -102,14 +100,14 @@ fn recording_sink(inner: EventSink, outcomes: &OutcomeSink, journal: SharedOutco
     })
 }
 
-fn publish_journal(outcomes: &OutcomeSink, journal: &SharedOutcomes) {
+fn publish_journal(outcomes: &OutcomeSink, workspace: &WorkspaceKey, journal: &SharedOutcomes) {
     let journal: Vec<_> = journal
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .drain(..)
         .collect();
-    for env in journal {
-        outcomes.send(env);
+    for (seq, env) in journal {
+        outcomes.send_stamped_for(seq, workspace.clone(), env);
     }
 }
 
@@ -121,6 +119,7 @@ fn run_gate_live(
     slot: &crate::live::EngineSlot,
     cancel: &cv_core::engine::CancelToken,
     outcomes: &OutcomeSink,
+    workspace: &WorkspaceKey,
 ) -> Result<(ExitClass, Option<ExitClass>), String> {
     let sched = slot
         .get()
@@ -141,10 +140,10 @@ fn run_gate_live(
         let inner = slot
             .live_sink()
             .unwrap_or_else(|| Box::new(|_: cv_core::events::Envelope| {}));
-        recording_sink(inner, outcomes, journal.clone())
+        recording_sink(inner, outcomes, workspace, journal.clone())
     };
     let result = adopt::validate_then_build(&run, &sink).map_err(|e| e.to_string());
-    publish_journal(outcomes, &journal);
+    publish_journal(outcomes, workspace, &journal);
     let outcome = match &result {
         Ok((v, b)) => format!(
             "adoption gate: validate {}, build {}",
@@ -168,6 +167,7 @@ fn run_gate_fresh(
     inbox: &Inbox,
     cancel: &cv_core::engine::CancelToken,
     outcomes: &OutcomeSink,
+    workspace: &WorkspaceKey,
 ) -> Result<(ExitClass, Option<ExitClass>), String> {
     let mut cfg = EngineConfig::new(root);
     cfg.locator = locator.clone();
@@ -176,9 +176,9 @@ fn run_gate_fresh(
     let run =
         |verb: Verb, sink: EventSink| scheduler.run_reported(&verb, sink, cancel).map(|r| r.exit);
     let journal: SharedOutcomes = Arc::new(Mutex::new(Vec::new()));
-    let sink = || recording_sink(inbox.sink(), outcomes, journal.clone());
+    let sink = || recording_sink(inbox.sink(), outcomes, workspace, journal.clone());
     let result = adopt::validate_then_build(&run, &sink).map_err(|e| e.to_string());
-    publish_journal(outcomes, &journal);
+    publish_journal(outcomes, workspace, &journal);
     result
 }
 
@@ -338,7 +338,13 @@ fn execute(
             // disk truth explicitly so Pages reflects the merge even
             // before the watch's own rebuild lands.
             slot.request_resync();
-            let gate = run_gate_live(&slot, &cv_core::engine::CancelToken::new(), outcomes)?;
+            let workspace_key = slots::workspace_key(&root);
+            let gate = run_gate_live(
+                &slot,
+                &cv_core::engine::CancelToken::new(),
+                outcomes,
+                &workspace_key,
+            )?;
             Ok(finish_report(&root, &tx, gate, false))
         }
         AdoptionTarget::NewWorkspace(creation) => {
@@ -381,7 +387,15 @@ fn execute(
                         .into(),
                 );
             }
-            let gate = run_gate_fresh(&root, &locator, inbox, &creation.cancel, outcomes)?;
+            let workspace_key = slots::workspace_key(&root);
+            let gate = run_gate_fresh(
+                &root,
+                &locator,
+                inbox,
+                &creation.cancel,
+                outcomes,
+                &workspace_key,
+            )?;
             if creation.cancel.is_cancelled() {
                 return Err(
                     "adoption cancelled during validation; the workspace is adopted but was not opened"

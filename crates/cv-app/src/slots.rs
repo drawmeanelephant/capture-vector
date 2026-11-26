@@ -3,13 +3,21 @@
 //! scheduler the watch uses instead of spawning a competing engine.
 
 use crate::live::{EngineSlot, Scheduler};
+use cv_model::workspace_key::WorkspaceKey;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Arc, Mutex, OnceLock};
 
-static SLOTS: OnceLock<Mutex<HashMap<PathBuf, EngineSlot>>> = OnceLock::new();
+static SLOTS: OnceLock<Mutex<HashMap<WorkspaceKey, EngineSlot>>> = OnceLock::new();
 
-fn slots() -> &'static Mutex<HashMap<PathBuf, EngineSlot>> {
+/// The process-local workspace-instance key shared by scheduler identity
+/// and outcome ownership. Exact paths remain the fallback on filesystems
+/// with no device+file-index evidence.
+pub fn workspace_key(root: &Path) -> WorkspaceKey {
+    WorkspaceKey::new(root.to_path_buf(), cv_engine::file_identity::identity(root))
+}
+
+fn slots() -> &'static Mutex<HashMap<WorkspaceKey, EngineSlot>> {
     SLOTS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
@@ -17,7 +25,7 @@ pub fn register_slot(root: &Path, slot: &EngineSlot) {
     slots()
         .lock()
         .unwrap_or_else(|e| e.into_inner())
-        .insert(root.to_path_buf(), slot.clone());
+        .insert(workspace_key(root), slot.clone());
 }
 
 /// The workspace's stable slot, creating and registering it atomically
@@ -26,7 +34,7 @@ pub fn slot_or_register(root: &Path) -> EngineSlot {
     slots()
         .lock()
         .unwrap_or_else(|e| e.into_inner())
-        .entry(root.to_path_buf())
+        .entry(workspace_key(root))
         .or_default()
         .clone()
 }
@@ -37,7 +45,7 @@ pub fn slot_for(root: &Path) -> Option<EngineSlot> {
     slots()
         .lock()
         .unwrap_or_else(|e| e.into_inner())
-        .get(root)
+        .get(&workspace_key(root))
         .cloned()
 }
 
@@ -47,6 +55,6 @@ pub fn scheduler_for(root: &Path) -> Option<Arc<Scheduler>> {
     slots()
         .lock()
         .unwrap_or_else(|e| e.into_inner())
-        .get(root)
+        .get(&workspace_key(root))
         .and_then(|slot| slot.get().cloned())
 }
