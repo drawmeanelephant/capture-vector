@@ -3,8 +3,13 @@
 //! - `<run-id>/run.json`: what Capture Vector asked the lab to do and how
 //!   the process ended ([`RunRecord`]), written before the spawn and
 //!   rewritten when it finishes;
+//! - `<run-id>/run.lock`: the per-run write capability. Every Capture
+//!   Vector write inside the run directory borrows it; the file itself is
+//!   never deleted or truncated;
+//! - `<run-id>/stderr.log`: raw process stderr bytes when a process ended;
+//!   `run.json` carries only their length and sha256;
 //! - `<run-id>/out/`: the lab's `--out`, exactly as the lab wrote it;
-//! - `review.jsonl`: the triage lifecycle of review items (the lab's
+//! - `review.lock` + `review.jsonl`: the triage lifecycle of review items (the lab's
 //!   `human_review` / `unsupported` entries), one record per transition,
 //!   last record per `(run, item)` wins. Triage never blocks anything.
 //!
@@ -16,30 +21,44 @@ use crate::sidecar::{self, ADOPT_UNSTAMPED, Namespace, SidecarError};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-use std::fs::{File, OpenOptions};
+use std::fs::{File, OpenOptions, TryLockError};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Component, Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 pub const DIR: &str = ".cv/imports";
 pub const RECORD: &str = "run.json";
 pub const OUT: &str = "out";
 pub const REVIEW: &str = "review.jsonl";
+pub const REVIEW_LOCK: &str = "review.lock";
+pub const RUN_LOCK: &str = "run.lock";
+pub const STDERR_LOG: &str = "stderr.log";
 /// `format` of a [`RunRecord`].
 pub const RECORD_FORMAT: &str = "cv-import-run";
-pub const SCHEMA_VERSION: u32 = 1;
+/// Version of `<run-id>/run.json`. Version 2 moves stderr evidence out of
+/// the JSON record; version-1 records are refused explicitly rather than
+/// silently losing fields during a rewrite.
+pub const RECORD_SCHEMA_VERSION: u32 = 2;
+/// Version of the imports namespace layout. This is intentionally
+/// independent of both the run-record and review-record schemas.
+pub const NAMESPACE_SCHEMA_VERSION: u32 = 1;
+/// Version of one line in `review.jsonl`.
+pub const REVIEW_SCHEMA_VERSION: u32 = 1;
 pub const SCHEMA: Namespace = Namespace {
     name: "imports",
     dir: DIR,
-    current: SCHEMA_VERSION,
+    current: NAMESPACE_SCHEMA_VERSION,
     migrations: &[ADOPT_UNSTAMPED],
 };
 
 /// One lab input as the run used it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RecordedInput {
     /// The lab flag, e.g. `--root`.
     pub flag: String,
-    /// Canonical path the lab was given.
+    /// Validated absolute path spelling the lab was given; not a canonical
+    /// identity.
     pub path: String,
     /// sha256 of `path` (the path string, not the content).
     pub path_sha256: String,
@@ -47,6 +66,7 @@ pub struct RecordedInput {
 
 /// The lab binary that ran, as its `--version` gate saw it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RecordedLab {
     pub tool_id: String,
     /// How it was located (`PATH`, `CV_MIGRATION_LAB_BIN`, …).
@@ -54,18 +74,48 @@ pub struct RecordedLab {
     pub path: String,
 }
 
+/// Terminal classes Capture Vector may record. This is broader than the
+/// lab's own exit classes because `cancelled` is an app-side process outcome.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "lowercase")]
+pub enum FinishedExit {
+    Ok,
+    Usage,
+    Io,
+    Cancelled,
+}
+
+impl FinishedExit {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Ok => "ok",
+            Self::Usage => "usage",
+            Self::Io => "io",
+            Self::Cancelled => "cancelled",
+        }
+    }
+}
+
+impl std::fmt::Display for FinishedExit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Finished {
     /// `None` when the process ended by signal.
     pub exit_code: Option<i32>,
-    /// The lab's exit class: `ok`, `usage` or `io`.
-    pub exit: String,
+    pub exit: FinishedExit,
     /// How the process ended, e.g. `exited 0` or `signal 9`.
     pub outcome: String,
     pub duration_ms: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Adopted {
     pub at_ms: i64,
     pub workspace: String,
@@ -73,6 +123,7 @@ pub struct Adopted {
 
 /// `<run-id>/run.json`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RunRecord {
     pub format: String,
     pub schema_version: u32,
@@ -88,8 +139,13 @@ pub struct RunRecord {
     pub started_ms: i64,
     /// `None` while the lab runs (or when the app stopped before it ended).
     pub finished: Option<Finished>,
-    /// The adapter refused the run before spawning, with its reason.
+    /// The adapter or lab refused the run, in plain language.
     pub refused: Option<String>,
+    /// sha256 of raw `<run>/stderr.log` bytes, when process evidence exists.
+    pub stderr_sha256: Option<String>,
+    /// Byte length of raw `<run>/stderr.log`; the bytes themselves stay out
+    /// of the JSON record so scanning does not decode or lossy-convert them.
+    pub stderr_bytes: Option<u64>,
     pub adopted: Option<Adopted>,
 }
 
@@ -102,7 +158,7 @@ impl RunRecord {
     ) -> Self {
         Self {
             format: RECORD_FORMAT.into(),
-            schema_version: SCHEMA_VERSION,
+            schema_version: RECORD_SCHEMA_VERSION,
             run_id: run_id.into(),
             mode: mode.into(),
             inputs: Vec::new(),
@@ -112,6 +168,8 @@ impl RunRecord {
             started_ms,
             finished: None,
             refused: None,
+            stderr_sha256: None,
+            stderr_bytes: None,
             adopted: None,
         }
     }
@@ -142,6 +200,19 @@ pub enum Error {
     Io(std::io::Error),
     Symlink(PathBuf),
     RunId(String),
+    /// A run-id claim lost to an existing file, directory or symlink.
+    RunExists(PathBuf),
+    /// Adoption can only lock an existing run directory.
+    RunMissing(PathBuf),
+    /// The existing run-id path is not a directory.
+    NotDirectory(PathBuf),
+    /// Another live writer holds this lock.
+    LockHeld(PathBuf),
+    /// A write was attempted with a lock for another run.
+    LockMismatch {
+        lock: String,
+        record: String,
+    },
     Json(serde_json::Error),
     Schema(SidecarError),
 }
@@ -152,6 +223,21 @@ impl std::fmt::Display for Error {
             Error::Io(e) => write!(f, "{e}"),
             Error::Symlink(p) => write!(f, "refusing symlinked {}", p.display()),
             Error::RunId(id) => write!(f, "run id {id:?} must be one plain path segment"),
+            Error::RunExists(p) => write!(
+                f,
+                "run id path {} already exists; this import was not started",
+                p.display()
+            ),
+            Error::RunMissing(p) => write!(f, "run directory {} does not exist", p.display()),
+            Error::NotDirectory(p) => write!(f, "run path {} is not a directory", p.display()),
+            Error::LockHeld(p) => write!(
+                f,
+                "lock acquisition failed because the operation would block: {}",
+                p.display()
+            ),
+            Error::LockMismatch { lock, record } => {
+                write!(f, "run lock {lock:?} cannot write a record for {record:?}")
+            }
             Error::Json(e) => write!(f, "{e}"),
             Error::Schema(e) => write!(f, "{e}"),
         }
@@ -199,21 +285,271 @@ pub fn run_dir(root: &Path, run_id: &str) -> Result<PathBuf, Error> {
     Ok(root.join(DIR).join(run_id))
 }
 
-/// Write (or rewrite) `record` atomically; returns the run directory.
-pub fn write(root: &Path, record: &RunRecord) -> Result<PathBuf, Error> {
-    let dir = run_dir(root, &record.run_id)?;
-    let path = dir.join(RECORD);
-    let tmp = dir.join(format!("{RECORD}.tmp"));
-    refuse_symlinks(&[&root.join(".cv"), &root.join(DIR), &dir, &path, &tmp])?;
+/// A held exclusive lock on one run directory's `run.lock`.
+///
+/// This is a capability, not a cache: the file stays open exactly as long as
+/// the operation that claimed or adopted the run. Construction is possible
+/// only through [`claim_run`] or [`lock_run`], and run writes borrow it, so
+/// the type system makes writes outside a held operation unrepresentable.
+///
+/// Documented limitation: a same-user process can delete or replace
+/// `run.lock` externally while it is held, splitting the capability from
+/// the path a later probe observes. That requires deliberate local
+/// interference inside `.cv` — and a same-user attacker can already modify
+/// or delete the run's artifacts directly — so it is accepted rather than
+/// structurally closed for the import boundary.
+#[derive(Debug)]
+pub struct RunLock {
+    root: PathBuf,
+    run_id: String,
+    dir: PathBuf,
+    _file: File,
+}
+
+impl RunLock {
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
+    pub fn run_id(&self) -> &str {
+        &self.run_id
+    }
+
+    pub fn dir(&self) -> &Path {
+        &self.dir
+    }
+}
+
+/// What [`probe_run`] observed without creating anything.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RunProbe {
+    /// A live writer holds `run.lock`.
+    Held,
+    /// `run.lock` exists and can be locked. The probe releases it at once.
+    Free,
+    /// The run directory or its lock file does not exist.
+    Missing,
+}
+
+fn lock_exclusive(file: &File, path: &Path) -> Result<(), Error> {
+    crate::lock::try_lock_settled(file).map_err(|e| match e {
+        TryLockError::WouldBlock => Error::LockHeld(path.to_path_buf()),
+        TryLockError::Error(e) => Error::Io(e),
+    })
+}
+
+fn ensure_imports_schema(root: &Path) -> Result<(), Error> {
+    let cv = root.join(".cv");
+    let base = root.join(DIR);
+    refuse_symlinks(&[&cv, &base])?;
     sidecar::ensure(root, &SCHEMA).map_err(Error::Schema)?;
-    std::fs::create_dir_all(&dir)?;
+    // The namespace directory is created by `ensure`; re-check after that
+    // write window rather than following a swapped symlink onwards.
+    refuse_symlinks(&[&cv, &base])?;
+    Ok(())
+}
+
+/// Claim a fresh run id for one import operation.
+///
+/// The atomic correctness mechanism is `create_dir`: if two windows choose
+/// the same id exactly one creates `<run-id>`, and the loser writes no
+/// record. The winner then creates `run.lock` exclusively and locks it for
+/// the operation lifetime. Failure after the directory creation is
+/// fail-closed: the empty claim stays behind rather than letting another
+/// writer reuse ambiguous output.
+pub fn claim_run(root: &Path, run_id: &str) -> Result<RunLock, Error> {
+    let dir = run_dir(root, run_id)?;
+    let cv = root.join(".cv");
+    let base = root.join(DIR);
+    refuse_symlinks(&[&cv, &base, &dir])?;
+    ensure_imports_schema(root)?;
+    if is_symlink(&dir)? {
+        return Err(Error::Symlink(dir));
+    }
+    if let Err(e) = std::fs::create_dir(&dir) {
+        if e.kind() == std::io::ErrorKind::AlreadyExists {
+            if is_symlink(&dir)? {
+                return Err(Error::Symlink(dir));
+            }
+            return Err(Error::RunExists(dir));
+        }
+        return Err(e.into());
+    }
+    let lock_path = dir.join(RUN_LOCK);
+    refuse_symlinks(&[&lock_path])?;
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create_new(true)
+        .open(&lock_path)?;
+    lock_exclusive(&file, &lock_path)?;
+    Ok(RunLock {
+        root: root.to_path_buf(),
+        run_id: run_id.into(),
+        dir,
+        _file: file,
+    })
+}
+
+/// Lock an existing run for a future adoption operation.
+///
+/// Runs written before per-run locks existed may not have `run.lock` yet;
+/// adoption creates that lock file exclusively inside the already-existing
+/// run directory and then locks it. The run directory itself is never
+/// created here, and a symlinked lock path is refused rather than followed.
+pub fn lock_run(root: &Path, run_id: &str) -> Result<RunLock, Error> {
+    let dir = run_dir(root, run_id)?;
+    let lock_path = dir.join(RUN_LOCK);
+    refuse_symlinks(&[&root.join(".cv"), &root.join(DIR), &dir, &lock_path])?;
+    let meta = match std::fs::symlink_metadata(&dir) {
+        Ok(m) => m,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return Err(Error::RunMissing(dir));
+        }
+        Err(e) => return Err(e.into()),
+    };
+    if !meta.is_dir() {
+        return Err(Error::NotDirectory(dir));
+    }
+    let file = crate::open::open_create_no_follow(&lock_path)?;
+    refuse_symlinks(&[&lock_path])?;
+    lock_exclusive(&file, &lock_path)?;
+    Ok(RunLock {
+        root: root.to_path_buf(),
+        run_id: run_id.into(),
+        dir,
+        _file: file,
+    })
+}
+
+/// Observe a run lock without creating or modifying anything.
+///
+/// A successful `Free` probe is released before returning. Lock-open or
+/// lock-read errors are errors rather than a fail-open "free" answer, so a
+/// caller that needs the lock must refuse the operation.
+pub fn probe_run(root: &Path, run_id: &str) -> Result<RunProbe, Error> {
+    let dir = run_dir(root, run_id)?;
+    let lock_path = dir.join(RUN_LOCK);
+    refuse_symlinks(&[&root.join(".cv"), &root.join(DIR), &dir, &lock_path])?;
+    match std::fs::symlink_metadata(&dir) {
+        Ok(m) if m.file_type().is_symlink() => return Err(Error::Symlink(dir)),
+        Ok(_) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(RunProbe::Missing),
+        Err(e) => return Err(e.into()),
+    }
+    match std::fs::symlink_metadata(&lock_path) {
+        Ok(m) if m.file_type().is_symlink() => return Err(Error::Symlink(lock_path)),
+        Ok(_) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(RunProbe::Missing),
+        Err(e) => return Err(e.into()),
+    }
+    // Windows lock acquisition may require a write-capable handle. The open
+    // is non-creating, non-truncating, and final-component no-follow on every
+    // platform; mutation is impossible because the probe only lock-tests and
+    // closes the handle.
+    let file = match crate::open::open_existing_no_follow(&lock_path, cfg!(windows)) {
+        Ok(f) => f,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(RunProbe::Missing),
+        Err(e) => return Err(e.into()),
+    };
+    match file.try_lock() {
+        Ok(()) => Ok(RunProbe::Free),
+        Err(TryLockError::WouldBlock) => Ok(RunProbe::Held),
+        Err(TryLockError::Error(e)) => Err(e.into()),
+    }
+}
+
+static TMP_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn unique_tmp(dir: &Path, target: &str) -> PathBuf {
+    let n = TMP_COUNTER.fetch_add(1, Ordering::Relaxed);
+    dir.join(format!(".{target}.tmp-{}-{n}", std::process::id()))
+}
+
+#[cfg(unix)]
+fn sync_dir(dir: &Path) -> Result<(), Error> {
+    File::open(dir)?.sync_all()?;
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn sync_dir(_dir: &Path) -> Result<(), Error> {
+    // Windows directory fsync is not represented by opening the directory as
+    // a std File. Atomic rename still gives process-crash atomicity there;
+    // power-loss durability is platform-dependent and not claimed.
+    Ok(())
+}
+
+/// Write bytes through a unique temporary sibling, fsync the file, then
+/// rename. This is process-crash atomic; on Unix the directory is fsynced
+/// too. Each temporary name is unique and created exclusively; only a temp
+/// file created by this call is removed after a failed write, while fixed
+/// foreign `*.tmp` entries are never deletion or truncation vectors.
+fn write_atomic_in_run(dir: &Path, target: &str, bytes: &[u8]) -> Result<(), Error> {
+    let path = dir.join(target);
+    refuse_symlinks(&[&path])?;
+    for _ in 0..100 {
+        let tmp = unique_tmp(dir, target);
+        let mut f = match OpenOptions::new().write(true).create_new(true).open(&tmp) {
+            Ok(f) => f,
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(e) => return Err(e.into()),
+        };
+        let written = f.write_all(bytes).and_then(|()| f.sync_all());
+        drop(f);
+        if let Err(e) = written {
+            let _ = std::fs::remove_file(&tmp);
+            return Err(e.into());
+        }
+        if let Err(e) = std::fs::rename(&tmp, &path) {
+            let _ = std::fs::remove_file(&tmp);
+            return Err(e.into());
+        }
+        sync_dir(dir)?;
+        return Ok(());
+    }
+    Err(std::io::Error::new(
+        std::io::ErrorKind::AlreadyExists,
+        format!("could not allocate a unique temporary name for {target}"),
+    )
+    .into())
+}
+
+/// Write raw process stderr bytes inside the locked run and return
+/// `(byte_len, sha256)` metadata for `run.json`.
+pub fn write_stderr(lock: &RunLock, bytes: &[u8]) -> Result<(u64, String), Error> {
+    refuse_symlinks(&[
+        &lock.root.join(".cv"),
+        &lock.root.join(DIR),
+        &lock.dir,
+        &lock.dir.join(STDERR_LOG),
+    ])?;
+    sidecar::ensure(&lock.root, &SCHEMA).map_err(Error::Schema)?;
+    write_atomic_in_run(&lock.dir, STDERR_LOG, bytes)?;
+    Ok((bytes.len() as u64, sha256_hex(bytes)))
+}
+
+/// Write (or rewrite) `record` atomically inside the run locked by `lock`;
+/// returns the run directory. The lock is both the operation lifetime proof
+/// and the run identity, so a caller cannot accidentally write one run's
+/// record while holding another run's lock. Atomicity is a process-crash
+/// boundary, not a claim that every platform survives power loss.
+pub fn write(lock: &RunLock, record: &RunRecord) -> Result<PathBuf, Error> {
+    if record.run_id != lock.run_id {
+        return Err(Error::LockMismatch {
+            lock: lock.run_id.clone(),
+            record: record.run_id.clone(),
+        });
+    }
+    let root = &lock.root;
+    let dir = &lock.dir;
+    let path = dir.join(RECORD);
+    refuse_symlinks(&[&root.join(".cv"), &root.join(DIR), dir, &path])?;
+    sidecar::ensure(root, &SCHEMA).map_err(Error::Schema)?;
     let mut bytes = serde_json::to_vec_pretty(record).map_err(Error::Json)?;
     bytes.push(b'\n');
-    let mut f = File::create(&tmp)?;
-    f.write_all(&bytes)?;
-    f.sync_all()?;
-    std::fs::rename(&tmp, &path)?;
-    Ok(dir)
+    write_atomic_in_run(dir, RECORD, &bytes)?;
+    Ok(dir.clone())
 }
 
 /// One `<run-id>/` directory as found on disk.
@@ -249,9 +585,9 @@ fn read_record(path: &Path) -> Result<RunRecord, String> {
             h.format
         ));
     }
-    if h.schema_version != u64::from(SCHEMA_VERSION) {
+    if h.schema_version != u64::from(RECORD_SCHEMA_VERSION) {
         return Err(format!(
-            "{RECORD} schema_version {} is not supported (this build reads {SCHEMA_VERSION})",
+            "{RECORD} schema_version {} is not supported (this build reads {RECORD_SCHEMA_VERSION})",
             h.schema_version
         ));
     }
@@ -313,78 +649,129 @@ pub struct Scan {
     pub torn_bytes: u64,
 }
 
-/// `.cv/imports/review.jsonl`, append-only. A torn tail is truncated on
-/// open; undecodable or other-schema lines are counted and skipped.
+/// `.cv/imports/review.jsonl`, append-only. Opening is pure observation:
+/// it never creates the imports directory, lock, or log and never repairs
+/// or truncates a torn tail. Each append is an explicit operation-scoped
+/// mutation: create/acquire `review.lock`, append one complete record (first
+/// terminating an undecodable partial tail with a newline when necessary),
+/// fsync, and release the lock when the operation ends. No window holds a
+/// session-long review writer capability.
 pub struct ReviewLog {
-    file: File,
+    root: PathBuf,
     path: PathBuf,
 }
 
+fn open_review_lock_for_append(lock_path: &Path) -> Result<File, Error> {
+    refuse_symlinks(&[lock_path])?;
+    let file = crate::open::open_create_no_follow(lock_path)?;
+    refuse_symlinks(&[lock_path])?;
+    Ok(file)
+}
+
+fn parse_review_states(buf: &[u8], good: usize, scan: &mut Scan) -> ReviewStates {
+    let mut out: ReviewStates = Vec::new();
+    let mut at: HashMap<(String, String), usize> = HashMap::new();
+    for line in buf[..good].split(|b| *b == b'\n') {
+        if line.iter().all(u8::is_ascii_whitespace) {
+            continue;
+        }
+        scan.lines += 1;
+        let rec = match serde_json::from_slice::<ReviewRecord>(line) {
+            Ok(r) if r.schema_version == REVIEW_SCHEMA_VERSION => r,
+            Ok(_) => {
+                scan.unsupported += 1;
+                continue;
+            }
+            Err(_) => {
+                scan.undecodable += 1;
+                continue;
+            }
+        };
+        let key = (rec.run, rec.item);
+        match at.get(&key) {
+            Some(&i) => out[i].1 = rec.to,
+            None => {
+                at.insert(key.clone(), out.len());
+                out.push((key, rec.to));
+            }
+        }
+    }
+    out
+}
+
 impl ReviewLog {
+    /// Open the review sidecar read-only. A missing log is an empty log;
+    /// opening itself creates nothing. Bytes after the final newline are
+    /// reported as torn and ignored rather than repaired.
     pub fn open(root: &Path) -> Result<(Self, ReviewStates, Scan), Error> {
         let base = root.join(DIR);
         let path = base.join(REVIEW);
-        refuse_symlinks(&[&root.join(".cv"), &base, &path])?;
-        sidecar::ensure(root, &SCHEMA).map_err(Error::Schema)?;
-        let mut file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(false)
-            .open(&path)?;
-        let mut buf = Vec::new();
-        file.read_to_end(&mut buf)?;
+        let lock_path = base.join(REVIEW_LOCK);
+        refuse_symlinks(&[&root.join(".cv"), &base, &path, &lock_path])?;
+        let buf = match std::fs::read(&path) {
+            Ok(bytes) => bytes,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Vec::new(),
+            Err(e) => return Err(e.into()),
+        };
         let good = buf.iter().rposition(|b| *b == b'\n').map_or(0, |i| i + 1);
         let mut scan = Scan {
             torn_bytes: (buf.len() - good) as u64,
             ..Scan::default()
         };
-        if scan.torn_bytes > 0 {
-            file.set_len(good as u64)?;
-            file.sync_all()?;
-        }
-        file.seek(SeekFrom::End(0))?;
-        let mut out: ReviewStates = Vec::new();
-        let mut at: HashMap<(String, String), usize> = HashMap::new();
-        for line in buf[..good].split(|b| *b == b'\n') {
-            if line.iter().all(u8::is_ascii_whitespace) {
-                continue;
-            }
-            scan.lines += 1;
-            let rec = match serde_json::from_slice::<ReviewRecord>(line) {
-                Ok(r) if r.schema_version == SCHEMA_VERSION => r,
-                Ok(_) => {
-                    scan.unsupported += 1;
-                    continue;
-                }
-                Err(_) => {
-                    scan.undecodable += 1;
-                    continue;
-                }
-            };
-            let key = (rec.run, rec.item);
-            match at.get(&key) {
-                Some(&i) => out[i].1 = rec.to,
-                None => {
-                    at.insert(key.clone(), out.len());
-                    out.push((key, rec.to));
-                }
-            }
-        }
-        Ok((Self { file, path }, out, scan))
+        let states = parse_review_states(&buf, good, &mut scan);
+        Ok((
+            Self {
+                root: root.to_path_buf(),
+                path,
+            },
+            states,
+            scan,
+        ))
     }
 
+    /// Append one triage transition under a lock held only for this
+    /// operation. Concurrent windows may both append in sequence; their
+    /// last-write-per-item data model remains explicit, while a lock that
+    /// stays contested beyond the bounded acquisition attempt refuses the
+    /// operation instead of writing unlocked.
     pub fn append(&mut self, run: &str, item: &str, to: ReviewState) -> Result<(), Error> {
+        let base = self.root.join(DIR);
+        let lock_path = base.join(REVIEW_LOCK);
+        refuse_symlinks(&[&self.root.join(".cv"), &base, &self.path, &lock_path])?;
+        // Schema/imports creation is part of this explicit mutation, never
+        // part of opening or scanning. The schema lock serializes its own
+        // stamp independently of this review operation lock.
+        ensure_imports_schema(&self.root)?;
+        refuse_symlinks(&[&self.root.join(".cv"), &base, &self.path, &lock_path])?;
+        let lock_file = open_review_lock_for_append(&lock_path)?;
+        lock_exclusive(&lock_file, &lock_path)?;
+        refuse_symlinks(&[&self.root.join(".cv"), &base, &self.path, &lock_path])?;
+        let mut file = crate::open::open_create_no_follow(&self.path)?;
+        let len = file.metadata()?.len();
+        if len > 0 {
+            file.seek(SeekFrom::End(-1))?;
+            let mut last = [0u8; 1];
+            file.read_exact(&mut last)?;
+            file.seek(SeekFrom::End(0))?;
+            if last[0] != b'\n' {
+                // Do not truncate or rewrite foreign bytes. Terminating the
+                // partial line keeps it visible as undecodable evidence while
+                // preventing the new JSON record from concatenating with it.
+                file.write_all(b"\n")?;
+            }
+        } else {
+            file.seek(SeekFrom::End(0))?;
+        }
         let rec = ReviewRecord {
-            schema_version: SCHEMA_VERSION,
+            schema_version: REVIEW_SCHEMA_VERSION,
             run: run.into(),
             item: item.into(),
             to,
         };
         let mut line = serde_json::to_vec(&rec).map_err(Error::Json)?;
         line.push(b'\n');
-        self.file.write_all(&line)?;
-        self.file.sync_data()?;
+        file.write_all(&line)?;
+        file.sync_data()?;
         Ok(())
     }
 
@@ -393,282 +780,12 @@ impl ReviewLog {
     }
 }
 
-/// `adoption.json` in a run directory: the page-level link from adopted
-/// Boris content back to the lab run and source input. This is Capture
-/// Vector evidence, not a lab mirror; the copied lab documents remain the
-/// authoritative conversion provenance.
-pub const ADOPTION: &str = "adoption.json";
-pub const ADOPTION_FORMAT: &str = "cv-import-adoption";
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AdoptedPage {
-    /// The lab's entity id for the emitted page.
-    pub entity_id: String,
-    /// Page path relative to the target workspace's content input.
-    pub path: String,
-    /// Source path exactly as the lab report names it, when it does.
-    pub source: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AdoptionRecord {
-    pub format: String,
-    pub schema_version: u32,
-    pub run_id: String,
-    pub mode: String,
-    pub at_ms: i64,
-    pub workspace: String,
-    /// `new` or `existing`.
-    pub target: String,
-    /// Subfolder below the content input for an existing-workspace merge.
-    pub content_subfolder: Option<String>,
-    /// External inputs the run consumed; they are referenced, never copied.
-    pub inputs: Vec<RecordedInput>,
-    pub pages: Vec<AdoptedPage>,
-}
-
-impl AdoptionRecord {
-    pub fn new(
-        run_id: impl Into<String>,
-        mode: impl Into<String>,
-        at_ms: i64,
-        workspace: impl Into<String>,
-        target: impl Into<String>,
-    ) -> Self {
-        Self {
-            format: ADOPTION_FORMAT.into(),
-            schema_version: SCHEMA_VERSION,
-            run_id: run_id.into(),
-            mode: mode.into(),
-            at_ms,
-            workspace: workspace.into(),
-            target: target.into(),
-            content_subfolder: None,
-            inputs: Vec::new(),
-            pages: Vec::new(),
-        }
-    }
-}
-
-fn write_json_atomic(path: &Path, bytes: &[u8]) -> Result<(), Error> {
-    let tmp = path.with_extension("json.tmp");
-    refuse_symlinks(&[path, &tmp])?;
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    let mut f = File::create(&tmp)?;
-    f.write_all(bytes)?;
-    f.sync_all()?;
-    std::fs::rename(&tmp, path)?;
-    Ok(())
-}
-
-/// Write `<run>/adoption.json` atomically under the imports schema stamp.
-pub fn write_adoption(root: &Path, rec: &AdoptionRecord) -> Result<PathBuf, Error> {
-    let dir = run_dir(root, &rec.run_id)?;
-    refuse_symlinks(&[&root.join(".cv"), &root.join(DIR), &dir])?;
-    sidecar::ensure(root, &SCHEMA).map_err(Error::Schema)?;
-    std::fs::create_dir_all(&dir)?;
-    let mut bytes = serde_json::to_vec_pretty(rec).map_err(Error::Json)?;
-    bytes.push(b'\n');
-    let path = dir.join(ADOPTION);
-    write_json_atomic(&path, &bytes)?;
-    Ok(path)
-}
-
-fn read_adoption(path: &Path) -> Result<AdoptionRecord, String> {
-    if is_symlink(path).map_err(|e| e.to_string())? {
-        return Err(format!("{ADOPTION} is a symlink"));
-    }
-    let bytes = std::fs::read(path).map_err(|e| format!("{ADOPTION}: {e}"))?;
-    #[derive(Deserialize)]
-    struct Header {
-        format: String,
-        schema_version: u64,
-    }
-    let h: Header =
-        serde_json::from_slice(&bytes).map_err(|e| format!("{ADOPTION} is not valid: {e}"))?;
-    if h.format != ADOPTION_FORMAT {
-        return Err(format!(
-            "{ADOPTION} format {:?} is not {ADOPTION_FORMAT}",
-            h.format
-        ));
-    }
-    if h.schema_version != u64::from(SCHEMA_VERSION) {
-        return Err(format!(
-            "{ADOPTION} schema_version {} is not supported (this build reads {SCHEMA_VERSION})",
-            h.schema_version
-        ));
-    }
-    serde_json::from_slice(&bytes).map_err(|e| format!("{ADOPTION} is not valid: {e}"))
-}
-
-/// Valid adoption records under `.cv/imports/`, sorted by run id. Missing
-/// records simply mean the run has not been adopted; undecodable records
-/// are skipped here and stay visible in the run's ordinary scan problem.
-pub fn scan_adoptions(root: &Path) -> Result<Vec<AdoptionRecord>, Error> {
-    let base = root.join(DIR);
-    refuse_symlinks(&[&root.join(".cv"), &base])?;
-    let entries = match std::fs::read_dir(&base) {
-        Ok(e) => e,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
-        Err(e) => return Err(e.into()),
-    };
-    let mut out = Vec::new();
-    for e in entries {
-        let e = e?;
-        if !e.file_type()?.is_dir() {
-            continue;
-        }
-        let path = e.path().join(ADOPTION);
-        if !path.exists() {
-            continue;
-        }
-        if let Ok(rec) = read_adoption(&path) {
-            out.push(rec);
-        }
-    }
-    out.sort_by(|a, b| a.run_id.cmp(&b.run_id));
-    Ok(out)
-}
-
-/// `adoption-pending.json` in a run directory: the crash-recovery unit of
-/// an in-progress adoption. It is written before the first content byte
-/// lands and deleted only after the adoption sidecar and run record are
-/// durable. Its presence means a previous attempt was interrupted: a
-/// retry with the same target shape resumes byte-identical files instead
-/// of refusing them as collisions, while any different bytes still refuse.
-pub const PENDING: &str = "adoption-pending.json";
-pub const PENDING_FORMAT: &str = "cv-import-adoption-pending";
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PendingFile {
-    /// Workspace-relative staged-write target, `/`-separated.
-    pub target: String,
-    pub sha256: String,
-    pub bytes: u64,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PendingAdoption {
-    pub format: String,
-    pub schema_version: u32,
-    pub run_id: String,
-    /// `new` or `existing`.
-    pub target: String,
-    pub content_input: String,
-    pub content_subfolder: Option<String>,
-    pub files: Vec<PendingFile>,
-    /// Byte evidence of every file the starter tree held when the journal
-    /// landed, workspace-relative like [`PendingFile::target`]. Only files
-    /// proven byte-identical to this manifest may ever be deleted by the
-    /// starter replacement; anything else is foreign and refuses the
-    /// resume. Empty for existing-workspace merges (nothing is replaced)
-    /// and for journals written before the manifest existed — in which
-    /// case nothing may be deleted either, because there is no proof.
-    #[serde(default)]
-    pub starter: Vec<PendingFile>,
-}
-
-impl PendingAdoption {
-    pub fn new(
-        run_id: impl Into<String>,
-        target: impl Into<String>,
-        content_input: impl Into<String>,
-    ) -> Self {
-        Self {
-            format: PENDING_FORMAT.into(),
-            schema_version: SCHEMA_VERSION,
-            run_id: run_id.into(),
-            target: target.into(),
-            content_input: content_input.into(),
-            content_subfolder: None,
-            files: Vec::new(),
-            starter: Vec::new(),
-        }
-    }
-
-    /// True when a retry names the same target shape; any other shape is a
-    /// different operation that must not resume this one.
-    pub fn matches(&self, target: &str, content_input: &str, subfolder: Option<&str>) -> bool {
-        self.target == target
-            && self.content_input == content_input
-            && self.content_subfolder.as_deref() == subfolder
-    }
-}
-
-/// Write the recovery unit atomically inside the run directory.
-pub fn write_pending(root: &Path, rec: &PendingAdoption) -> Result<PathBuf, Error> {
-    let dir = run_dir(root, &rec.run_id)?;
-    refuse_symlinks(&[&root.join(".cv"), &root.join(DIR), &dir])?;
-    sidecar::ensure(root, &SCHEMA).map_err(Error::Schema)?;
-    std::fs::create_dir_all(&dir)?;
-    let mut bytes = serde_json::to_vec_pretty(rec).map_err(Error::Json)?;
-    bytes.push(b'\n');
-    let path = dir.join(PENDING);
-    write_json_atomic(&path, &bytes)?;
-    Ok(path)
-}
-
-/// The interrupted adoption recorded for `run`, if one is durable and
-/// decodable. An undecodable or foreign journal is an error, never a
-/// silent fresh start: resuming over unknown partial state could mix two
-/// different target shapes. Errors are strings like [`read_record`]'s.
-pub fn read_pending(root: &Path, run: &str) -> Result<Option<PendingAdoption>, String> {
-    let dir = run_dir(root, run).map_err(|e| e.to_string())?;
-    let path = dir.join(PENDING);
-    if is_symlink(&path).map_err(|e| e.to_string())? {
-        return Err(format!("{PENDING} is a symlink"));
-    }
-    let bytes = match std::fs::read(&path) {
-        Ok(b) => b,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(e) => return Err(format!("{PENDING}: {e}")),
-    };
-    #[derive(Deserialize)]
-    struct Header {
-        format: String,
-        schema_version: u64,
-    }
-    let h: Header =
-        serde_json::from_slice(&bytes).map_err(|e| format!("{PENDING} is not valid: {e}"))?;
-    if h.format != PENDING_FORMAT {
-        return Err(format!(
-            "{PENDING} format {:?} is not {PENDING_FORMAT}",
-            h.format
-        ));
-    }
-    if h.schema_version != u64::from(SCHEMA_VERSION) {
-        return Err(format!(
-            "{PENDING} schema_version {} is not supported (this build reads {SCHEMA_VERSION})",
-            h.schema_version
-        ));
-    }
-    let parsed: PendingAdoption =
-        serde_json::from_slice(&bytes).map_err(|e| format!("{PENDING} is not valid: {e}"))?;
-    // The journal lives inside the run's own directory; if the embedded
-    // run id names anything else, the file is foreign or tampered and
-    // must never drive a recovery decision for this run.
-    if parsed.run_id != run {
-        return Err(format!(
-            "{PENDING} names run {:?} but lies in {run:?}'s directory",
-            parsed.run_id
-        ));
-    }
-    Ok(Some(parsed))
-}
-
-/// Delete the recovery unit after the adoption it covers is durable.
-pub fn clear_pending(root: &Path, run: &str) -> Result<(), Error> {
-    let dir = run_dir(root, run)?;
-    let path = dir.join(PENDING);
-    refuse_symlinks(&[&root.join(".cv"), &root.join(DIR), &dir, &path])?;
-    match std::fs::remove_file(&path) {
-        Ok(()) => Ok(()),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(e.into()),
-    }
-}
+mod adoption;
+pub use adoption::{
+    ADOPTION, ADOPTION_FORMAT, ADOPTION_SCHEMA_VERSION, AdoptedPage, AdoptionRecord, PENDING,
+    PENDING_FORMAT, PENDING_SCHEMA_VERSION, PendingAdoption, PendingFile, clear_pending,
+    read_pending, scan_adoptions, write_adoption, write_pending,
+};
 
 #[cfg(test)]
 mod tests {
@@ -682,26 +799,144 @@ mod tests {
         }
     }
 
+    fn record(id: &str) -> RunRecord {
+        RunRecord::started(id, "hugo", lab(), 5)
+    }
+
+    fn legacy_run(root: &Path, id: &str) -> PathBuf {
+        let dir = run_dir(root, id).unwrap();
+        std::fs::create_dir_all(dir.join(OUT)).unwrap();
+        let mut bytes = serde_json::to_vec_pretty(&record(id)).unwrap();
+        bytes.push(b'\n');
+        std::fs::write(dir.join(RECORD), bytes).unwrap();
+        dir
+    }
+
     #[test]
     fn a_written_record_scans_back_beside_its_output() {
         let d = tempfile::tempdir().unwrap();
-        let mut rec = RunRecord::started("r1", "hugo", lab(), 5);
+        let lock = claim_run(d.path(), "r1").unwrap();
+        let mut rec = record("r1");
         rec.inputs.push(input("--root", "/src/site"));
-        let dir = write(d.path(), &rec).unwrap();
+        let dir = write(&lock, &rec).unwrap();
         std::fs::create_dir_all(dir.join(OUT)).unwrap();
         rec.finished = Some(Finished {
             exit_code: Some(0),
-            exit: "ok".into(),
+            exit: FinishedExit::Ok,
             outcome: "exited 0".into(),
             duration_ms: 12,
         });
-        write(d.path(), &rec).unwrap();
+        write(&lock, &rec).unwrap();
         let runs = scan(d.path()).unwrap();
         assert_eq!(runs.len(), 1);
         assert_eq!(runs[0].id, "r1");
         assert_eq!(runs[0].record.as_ref().unwrap(), &rec);
         assert_eq!(runs[0].out(), dir.join(OUT));
         assert_eq!(rec.inputs[0].path_sha256.len(), 64);
+    }
+
+    #[test]
+    fn two_thread_claims_for_one_run_id_have_exactly_one_writer() {
+        let d = tempfile::tempdir().unwrap();
+        let root = d.path().to_path_buf();
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let mut threads = Vec::new();
+        for _ in 0..2 {
+            let root = root.clone();
+            let barrier = barrier.clone();
+            threads.push(std::thread::spawn(move || {
+                barrier.wait();
+                claim_run(&root, "same")
+            }));
+        }
+        let results: Vec<_> = threads.into_iter().map(|t| t.join().unwrap()).collect();
+        assert_eq!(results.iter().filter(|r| r.is_ok()).count(), 1);
+        assert_eq!(
+            results
+                .iter()
+                .filter(|r| matches!(r, Err(Error::RunExists(_))))
+                .count(),
+            1,
+            "results: {results:?}"
+        );
+        let winner = results.into_iter().find_map(Result::ok).unwrap();
+        assert!(!winner.dir().join(RECORD).exists());
+        write(&winner, &record("same")).unwrap();
+        assert_eq!(scan(d.path()).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn preexisting_file_and_directory_run_ids_are_refused_without_a_write() {
+        let d = tempfile::tempdir().unwrap();
+        let base = d.path().join(DIR);
+        std::fs::create_dir_all(&base).unwrap();
+        std::fs::write(base.join("file-id"), b"foreign").unwrap();
+        std::fs::create_dir(base.join("dir-id")).unwrap();
+        assert!(matches!(
+            claim_run(d.path(), "file-id"),
+            Err(Error::RunExists(_))
+        ));
+        assert!(matches!(
+            claim_run(d.path(), "dir-id"),
+            Err(Error::RunExists(_))
+        ));
+        assert!(!base.join("file-id").join(RUN_LOCK).exists());
+        assert!(!base.join("dir-id").join(RUN_LOCK).exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn preexisting_symlinked_run_id_and_lock_are_refused() {
+        let d = tempfile::tempdir().unwrap();
+        let elsewhere = tempfile::tempdir().unwrap();
+        let base = d.path().join(DIR);
+        std::fs::create_dir_all(&base).unwrap();
+        std::os::unix::fs::symlink(elsewhere.path(), base.join("link-id")).unwrap();
+        assert!(matches!(
+            claim_run(d.path(), "link-id"),
+            Err(Error::Symlink(_))
+        ));
+        assert!(!elsewhere.path().join(RUN_LOCK).exists());
+
+        let dir = legacy_run(d.path(), "legacy");
+        let target = elsewhere.path().join("target.lock");
+        std::fs::write(&target, b"").unwrap();
+        std::os::unix::fs::symlink(&target, dir.join(RUN_LOCK)).unwrap();
+        assert!(matches!(
+            lock_run(d.path(), "legacy"),
+            Err(Error::Symlink(_))
+        ));
+        assert!(matches!(
+            probe_run(d.path(), "legacy"),
+            Err(Error::Symlink(_))
+        ));
+    }
+
+    #[test]
+    fn lock_run_adopts_a_legacy_lock_path_and_probe_follows_hold_release() {
+        let d = tempfile::tempdir().unwrap();
+        let dir = legacy_run(d.path(), "legacy");
+        assert_eq!(probe_run(d.path(), "legacy").unwrap(), RunProbe::Missing);
+        let lock = lock_run(d.path(), "legacy").unwrap();
+        assert_eq!(probe_run(d.path(), "legacy").unwrap(), RunProbe::Held);
+        write(&lock, &record("legacy")).unwrap();
+        drop(lock);
+        assert_eq!(probe_run(d.path(), "legacy").unwrap(), RunProbe::Free);
+        assert!(
+            dir.join(RUN_LOCK).is_file(),
+            "the lock file is never removed"
+        );
+    }
+
+    #[test]
+    fn a_run_lock_cannot_write_another_runs_record() {
+        let d = tempfile::tempdir().unwrap();
+        let lock = claim_run(d.path(), "r1").unwrap();
+        assert!(matches!(
+            write(&lock, &record("r2")),
+            Err(Error::LockMismatch { .. })
+        ));
+        assert!(!run_dir(d.path(), "r2").unwrap().exists());
     }
 
     #[test]
@@ -738,40 +973,11 @@ mod tests {
     fn run_ids_are_one_plain_segment() {
         let d = tempfile::tempdir().unwrap();
         for bad in ["", ".", "..", "a/b", "a\\b"] {
-            let rec = RunRecord::started(bad, "hugo", lab(), 0);
             assert!(
-                matches!(write(d.path(), &rec), Err(Error::RunId(_))),
+                matches!(claim_run(d.path(), bad), Err(Error::RunId(_))),
                 "{bad}"
             );
         }
-    }
-
-    #[test]
-    fn review_states_persist_last_write_wins() {
-        let d = tempfile::tempdir().unwrap();
-        let (mut log, got, _) = ReviewLog::open(d.path()).unwrap();
-        assert!(got.is_empty());
-        log.append("r1", "a", ReviewState::Accepted).unwrap();
-        log.append("r1", "b", ReviewState::Deferred).unwrap();
-        log.append("r1", "a", ReviewState::Open).unwrap();
-        drop(log);
-        let mut f = OpenOptions::new()
-            .append(true)
-            .open(d.path().join(DIR).join(REVIEW))
-            .unwrap();
-        write!(f, "{{\"torn").unwrap();
-        drop(f);
-        let (_, got, scan) = ReviewLog::open(d.path()).unwrap();
-        assert!(scan.torn_bytes > 0);
-        assert_eq!(
-            got,
-            vec![
-                (("r1".into(), "a".into()), ReviewState::Open),
-                (("r1".into(), "b".into()), ReviewState::Deferred),
-            ]
-        );
-        // The stamp and log are not run directories.
-        assert!(super::scan(d.path()).unwrap().is_empty());
     }
 
     #[test]
@@ -791,5 +997,80 @@ mod tests {
         std::os::unix::fs::symlink(elsewhere.path(), d.path().join(DIR)).unwrap();
         assert!(matches!(scan(d.path()), Err(Error::Symlink(_))));
         assert!(matches!(ReviewLog::open(d.path()), Err(Error::Symlink(_))));
+    }
+
+    #[test]
+    fn unknown_or_legacy_run_record_fields_are_refused_not_dropped() {
+        let d = tempfile::tempdir().unwrap();
+        let lock = claim_run(d.path(), "strict").unwrap();
+        write(&lock, &record("strict")).unwrap();
+        let path = lock.dir().join(RECORD);
+        let original = std::fs::read(&path).unwrap();
+
+        let mut json: serde_json::Value = serde_json::from_slice(&original).unwrap();
+        json["future_field"] = serde_json::json!("foreign evidence");
+        std::fs::write(&path, serde_json::to_vec_pretty(&json).unwrap()).unwrap();
+        let err = scan(d.path()).unwrap()[0]
+            .record
+            .as_ref()
+            .unwrap_err()
+            .clone();
+        assert!(err.contains("unknown field"), "{err}");
+
+        let mut json: serde_json::Value = serde_json::from_slice(&original).unwrap();
+        json["lab"]["future_field"] = serde_json::json!("foreign evidence");
+        std::fs::write(&path, serde_json::to_vec_pretty(&json).unwrap()).unwrap();
+        let err = scan(d.path()).unwrap()[0]
+            .record
+            .as_ref()
+            .unwrap_err()
+            .clone();
+        assert!(err.contains("unknown field"), "{err}");
+
+        let mut json: serde_json::Value = serde_json::from_slice(&original).unwrap();
+        json["schema_version"] = serde_json::json!(1);
+        std::fs::write(&path, serde_json::to_vec_pretty(&json).unwrap()).unwrap();
+        let err = scan(d.path()).unwrap()[0]
+            .record
+            .as_ref()
+            .unwrap_err()
+            .clone();
+        assert!(err.contains("schema_version 1 is not supported"), "{err}");
+    }
+
+    #[test]
+    fn fixed_run_json_tmp_is_not_a_collision_or_deletion_vector() {
+        let d = tempfile::tempdir().unwrap();
+        let lock = claim_run(d.path(), "tmp").unwrap();
+        let fixed = lock.dir().join(format!("{RECORD}.tmp"));
+        std::fs::write(&fixed, b"foreign fixed tmp").unwrap();
+        write(&lock, &record("tmp")).unwrap();
+        assert_eq!(std::fs::read(&fixed).unwrap(), b"foreign fixed tmp");
+        assert!(lock.dir().join(RECORD).is_file());
+        let leftovers = std::fs::read_dir(lock.dir())
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_name().to_string_lossy().contains(".tmp-"))
+            .count();
+        assert_eq!(leftovers, 0, "successful atomic writes leave no temp files");
+    }
+
+    #[test]
+    fn stderr_evidence_is_raw_bytes_with_hash_and_length_not_inline_lossy_text() {
+        let d = tempfile::tempdir().unwrap();
+        let lock = claim_run(d.path(), "stderr").unwrap();
+        let raw = b"ok\ninvalid:\xff\xfeend\n";
+        let (len, sha256) = write_stderr(&lock, raw).unwrap();
+        assert_eq!(len, raw.len() as u64);
+        let mut rec = record("stderr");
+        rec.stderr_bytes = Some(len);
+        rec.stderr_sha256 = Some(sha256.clone());
+        write(&lock, &rec).unwrap();
+        assert_eq!(std::fs::read(lock.dir().join(STDERR_LOG)).unwrap(), raw);
+        let json: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(lock.dir().join(RECORD)).unwrap()).unwrap();
+        assert!(json.get("stderr").is_none(), "inline lossy stderr is gone");
+        assert_eq!(json["stderr_bytes"], serde_json::json!(raw.len()));
+        assert_eq!(json["stderr_sha256"], serde_json::json!(sha256));
     }
 }

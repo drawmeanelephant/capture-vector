@@ -158,7 +158,12 @@ pub fn source(root: &Path, run_id: &str) -> Result<AdoptionSource, AdoptError> {
         .find(|r| r.id == run_id)
         .ok_or_else(|| AdoptError::Run(format!("no import run {run_id:?}")))?;
     let record = run.record.map_err(AdoptError::Run)?;
-    if record.refused.is_some() || record.finished.as_ref().is_none_or(|f| f.exit != "ok") {
+    if record.refused.is_some()
+        || record
+            .finished
+            .as_ref()
+            .is_none_or(|f| f.exit != store::FinishedExit::Ok)
+    {
         return Err(AdoptError::Run(format!(
             "run {run_id} has not finished successfully"
         )));
@@ -703,10 +708,12 @@ fn provenance_paths(out: &Path) -> Result<Vec<PathBuf>, AdoptError> {
 /// `.cv/imports/<run>/`, preserving `provenance/` nesting. Existing bytes
 /// that are identical are reused; different bytes are a refusal, never an
 /// overwrite.
-pub fn copy_provenance(src: &AdoptionSource, target_root: &Path) -> Result<usize, AdoptError> {
-    let base = store::run_dir(target_root, &src.run_id)?;
-    store::write(target_root, &src.record)?;
-    std::fs::create_dir_all(&base)?;
+pub fn copy_provenance(
+    src: &AdoptionSource,
+    target_root: &Path,
+    lock: &store::RunLock,
+) -> Result<usize, AdoptError> {
+    store::write(lock, &src.record)?;
     let mut copied = 0;
     for source in provenance_paths(&src.out)? {
         let rel = source.strip_prefix(&src.out).map_err(|_| {
@@ -745,6 +752,7 @@ pub fn copy_provenance(src: &AdoptionSource, target_root: &Path) -> Result<usize
 pub fn record_adoption(
     src: &AdoptionSource,
     target_root: &Path,
+    lock: &store::RunLock,
     at_ms: i64,
     target_kind: &str,
     subfolder_name: Option<&str>,
@@ -767,10 +775,10 @@ pub fn record_adoption(
             })
         })
         .collect();
-    store::write_adoption(target_root, &rec)?;
+    store::write_adoption(lock, &rec)?;
     let mut run = src.record.clone();
     run.adopted = Some(store::Adopted { at_ms, workspace });
-    store::write(target_root, &run)?;
+    store::write(lock, &run)?;
     Ok(())
 }
 
@@ -809,6 +817,18 @@ pub struct TxReport {
     /// exactly these bytes.
     pub resumed: usize,
     pub provenance_copied: usize,
+}
+
+/// Acquire the target workspace's per-run capability for the whole adoption
+/// operation. A mirrored run in a new workspace is claimed fresh; an existing
+/// or crash-mirrored run is locked in place. `RunExists` is the ordinary race
+/// between those two probes, never a reason to write outside the capability.
+fn adoption_lock(target_root: &Path, run_id: &str) -> Result<store::RunLock, AdoptError> {
+    match store::claim_run(target_root, run_id) {
+        Ok(lock) => Ok(lock),
+        Err(store::Error::RunExists(_)) => Ok(store::lock_run(target_root, run_id)?),
+        Err(e) => Err(e.into()),
+    }
 }
 
 /// One crash-aware adoption transaction: preflight, journal, content,
@@ -856,6 +876,7 @@ pub fn transact(
     existing_ids: &BTreeMap<String, String>,
     at_ms: i64,
 ) -> Result<TxReport, AdoptError> {
+    let lock = adoption_lock(target_root, &src.run_id)?;
     let subfolder_name = match merge_subfolder {
         Some(raw) => Some(subfolder(raw)?),
         None => None,
@@ -971,7 +992,7 @@ pub fn transact(
         if with_starter {
             journal.starter = starter_manifest(target_root, input_norm)?;
         }
-        store::write_pending(target_root, &journal)?;
+        store::write_pending(&lock, &journal)?;
         Ok(journal)
     };
 
@@ -1010,16 +1031,17 @@ pub fn transact(
     };
 
     let (written, skipped) = copy_content(target_root, &planned, &needs_copy)?;
-    let provenance = copy_provenance(src, target_root)?;
+    let provenance = copy_provenance(src, target_root, &lock)?;
     record_adoption(
         src,
         target_root,
+        &lock,
         at_ms,
         target_kind,
         subfolder_name.as_deref(),
         &planned,
     )?;
-    store::clear_pending(target_root, &src.run_id)?;
+    store::clear_pending(&lock)?;
     Ok(TxReport {
         planned: planned.len(),
         written,

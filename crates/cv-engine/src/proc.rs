@@ -280,12 +280,16 @@ fn run_captured_with_limit(
             let mut stderr = None;
             let mut exited_at = None;
             loop {
-                if cancel.is_cancelled() {
-                    return Err(EngineError::Cancelled);
-                }
                 stdout = take_capture(&mut out)?.or(stdout);
                 stderr = take_capture(&mut err)?.or(stderr);
-                if child.try_wait()?.is_some() {
+                // Terminal exit is latched before cancellation is consulted:
+                // a process observed dead must not have its outcome rewritten
+                // to cancellation by a token arriving in the same poll window.
+                let exited = child.try_wait()?.is_some();
+                if !exited && cancel.is_cancelled() {
+                    return Err(EngineError::Cancelled);
+                }
+                if exited {
                     if out.is_none()
                         && err.is_none()
                         && input.as_ref().is_none_or(|t| t.is_finished())
@@ -467,7 +471,7 @@ mod tests {
     }
 
     #[test]
-    fn cancellation_still_applies_while_draining_after_leader_exit() {
+    fn cancellation_does_not_rewrite_terminal_exit_while_draining() {
         let cancel = CancelToken::new();
         let c2 = cancel.clone();
         let t = std::thread::spawn(move || {
@@ -475,15 +479,43 @@ mod tests {
             c2.cancel();
         });
         // The leader exits normally while a finite background task still
-        // holds the pipes. Capture must not stop observing cancellation.
+        // holds the pipes. Once terminal exit is observed it remains the
+        // process outcome; cancellation cannot rewrite it retroactively.
         // Windows: `start /b` leaves a grandchild holding the pipe handles.
         #[cfg(unix)]
-        let script = "sleep 2 & exit 0";
+        let script = "sleep 1 & exit 0";
         #[cfg(windows)]
-        let script = "start /b ping -n 5 127.0.0.1 & exit 0";
-        let result = run_captured(shell_command(script), None, &cancel);
+        let script = "start /b ping -n 3 127.0.0.1 & exit 0";
+        let result = run_captured(shell_command(script), None, &cancel).unwrap();
         t.join().unwrap();
-        assert!(matches!(result, Err(EngineError::Cancelled)));
+        assert!(matches!(result.outcome, ExitOutcome::Exited { code: 0 }));
+    }
+
+    #[test]
+    fn rapid_cancellation_race_never_rewrites_an_observed_exit() {
+        // The exact interleaving is scheduler-dependent, so repeat a fast
+        // exit/cancel race. Either pre-exit cancellation wins legitimately,
+        // or an observed zero exit must remain zero rather than becoming
+        // cancellation retroactively. The deterministic draining regression
+        // above covers the terminal-exit side even on machines where every
+        // fast race is pre-cancelled.
+        for _ in 0..40 {
+            let cancel = CancelToken::new();
+            let c2 = cancel.clone();
+            let t = std::thread::spawn(move || c2.cancel());
+            #[cfg(unix)]
+            let script = "exit 0";
+            #[cfg(windows)]
+            let script = "exit 0";
+            match run_captured(shell_command(script), None, &cancel) {
+                Ok(c) => {
+                    assert!(matches!(c.outcome, ExitOutcome::Exited { code: 0 }));
+                }
+                Err(EngineError::Cancelled) => {}
+                Err(e) => panic!("unexpected capture error: {e}"),
+            }
+            t.join().unwrap();
+        }
     }
 
     #[test]

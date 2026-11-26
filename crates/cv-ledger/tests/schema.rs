@@ -25,7 +25,7 @@ fn seed(root: &std::path::Path) {
 fn fresh_journal_is_stamped() {
     let ws = tempfile::tempdir().unwrap();
     drop(Journal::open(ws.path()).unwrap());
-    assert_eq!(read_version(ws.path(), &SIDECAR).unwrap(), Some(1));
+    assert_eq!(read_version(ws.path(), &SIDECAR).unwrap(), Some(2));
 }
 
 #[test]
@@ -36,7 +36,7 @@ fn unstamped_journal_is_upgraded_and_keeps_its_records() {
     assert_eq!(read_version(ws.path(), &SIDECAR).unwrap(), Some(0));
     let j = Journal::open(ws.path()).unwrap();
     assert_eq!(j.records().len(), 1);
-    assert_eq!(read_version(ws.path(), &SIDECAR).unwrap(), Some(1));
+    assert_eq!(read_version(ws.path(), &SIDECAR).unwrap(), Some(2));
 }
 
 #[test]
@@ -58,7 +58,7 @@ fn newer_ledger_schema_fails_without_touching_the_journal() {
         LedgerError::Schema(SidecarError::TooNew {
             namespace: "ledger",
             found: 5,
-            supported: 1
+            supported: 2
         })
     ));
     assert_eq!(std::fs::read(&path).unwrap(), before);

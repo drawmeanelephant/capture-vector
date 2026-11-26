@@ -3,13 +3,15 @@
 //! script, so these run on Unix only.
 #![cfg(unix)]
 
+mod common;
+
+use common::install_executable;
 use cv_core::engine::EngineSource;
 use cv_engine::error::EngineError;
 use cv_engine::exit::ExitOutcome;
 use cv_engine::lab::{self, LabError, LabExit, LabIdentity, LabRun, PINNED};
 use cv_engine::locate::Locator;
 use cv_engine::proc::CancelToken;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -24,8 +26,7 @@ impl FakeLab {
     fn new(version: &str) -> Self {
         let dir = tempfile::tempdir().unwrap();
         let bin = dir.path().join(lab::exe_name());
-        std::fs::write(&bin, STUB).unwrap();
-        std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+        install_executable(&bin, STUB);
         let f = Self { dir, bin };
         f.set("version.txt", &format!("{version}\n"));
         f
@@ -72,6 +73,7 @@ fn jekyll(root: &Path, out: PathBuf) -> LabRun {
     LabRun {
         mode: lab::mode("jekyll").unwrap(),
         inputs: vec![("--root".into(), root.to_path_buf())],
+        extras: Vec::new(),
         out,
     }
 }
@@ -113,11 +115,10 @@ fn another_tool_id_is_a_typed_mismatch() {
 fn a_failing_version_probe_does_not_pass_the_gate() {
     let fake = FakeLab::new(PINNED.tool_id);
     // Valid stdout, but the probe exits 3.
-    std::fs::write(
+    install_executable(
         &fake.bin,
-        format!("#!/bin/sh\necho {}\nexit 3\n", PINNED.tool_id),
-    )
-    .unwrap();
+        &format!("#!/bin/sh\necho {}\nexit 3\n", PINNED.tool_id),
+    );
     assert!(matches!(
         lab::gate(EngineSource::Path, &fake.bin, fake.dir.path(), PINNED),
         Err(LabError::Engine(EngineError::Abnormal(
@@ -127,17 +128,19 @@ fn a_failing_version_probe_does_not_pass_the_gate() {
 }
 
 #[test]
-fn the_lab_receives_canonical_paths_and_runs_beside_its_output() {
+fn the_lab_receives_the_validated_spelling_and_runs_beside_its_output() {
     let fake = FakeLab::new(PINNED.tool_id);
     let ws = linked();
-    let out = ws.link.join(".cv").join("imports").join("run-1");
+    let out = ws.real.join(".cv").join("imports").join("run-1");
     let done = lab::run(
         &fake.identity(),
-        &jekyll(&ws.link.join("site"), out),
+        &jekyll(&ws.real.join("site"), out),
         &CancelToken::new(),
     )
     .unwrap();
     let want_out = ws.real.join(".cv").join("imports").join("run-1");
+    // argv carries the validated spelling verbatim: the adapter proves the
+    // spelling symlink-free instead of canonicalizing the evidence away.
     assert_eq!(
         fake.read("argv.log").unwrap(),
         format!(
@@ -152,6 +155,44 @@ fn the_lab_receives_canonical_paths_and_runs_beside_its_output() {
     );
     assert_eq!(done.run.out, want_out);
     assert_eq!(done.exit, LabExit::Ok);
+}
+
+#[test]
+fn symlinked_input_and_output_spellings_are_refused_before_the_spawn() {
+    let fake = FakeLab::new(PINNED.tool_id);
+    let id = fake.identity();
+    let ws = linked();
+
+    // `ws.link` is a symlink component in both spellings: the run must be
+    // refused, not flattened into `ws.real`.
+    let err = lab::run(
+        &id,
+        &jekyll(
+            &ws.link.join("site"),
+            ws.real.join(".cv").join("imports").join("run-1"),
+        ),
+        &CancelToken::new(),
+    )
+    .unwrap_err();
+    assert!(matches!(err, LabError::InputSymlink { .. }), "{err:?}");
+
+    let err = lab::run(
+        &id,
+        &jekyll(
+            &ws.real.join("site"),
+            ws.link.join(".cv").join("imports").join("run-1"),
+        ),
+        &CancelToken::new(),
+    )
+    .unwrap_err();
+    assert!(matches!(err, LabError::OutPath { .. }), "{err:?}");
+
+    // Neither refusal ever reached a spawn.
+    assert_eq!(
+        fake.read("argv.log").unwrap(),
+        "--version
+"
+    );
 }
 
 #[test]
@@ -213,9 +254,11 @@ fn a_refused_run_never_spawns_the_lab() {
     let id = fake.identity();
     std::fs::remove_file(fake.dir.path().join("argv.log")).unwrap();
     let ws = linked();
+    // Output nested inside the input: an overlap refusal even when both
+    // spellings are honest and symlink-free.
     let err = lab::run(
         &id,
-        &jekyll(&ws.link.join("site"), ws.link.join("site").join("out")),
+        &jekyll(&ws.real.join("site"), ws.real.join("site").join("out")),
         &CancelToken::new(),
     )
     .unwrap_err();
@@ -259,4 +302,24 @@ fn the_lab_child_env_is_the_engine_allowlist() {
     let env = fake.read("env.log").unwrap();
     assert!(!env.contains("shouldnotleak"));
     assert!(env.lines().any(|l| l.starts_with("PATH=")));
+}
+
+#[test]
+fn installing_while_sibling_spawns_never_trips_text_busy() {
+    let probe = FakeLab::new(PINNED.tool_id);
+    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let worker = {
+        let stop = stop.clone();
+        std::thread::spawn(move || {
+            while !stop.load(std::sync::atomic::Ordering::Relaxed) {
+                probe.identity();
+            }
+        })
+    };
+    for _ in 0..40 {
+        let fake = FakeLab::new(PINNED.tool_id);
+        fake.identity();
+    }
+    stop.store(true, std::sync::atomic::Ordering::Relaxed);
+    worker.join().unwrap();
 }

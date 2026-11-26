@@ -4,15 +4,18 @@
 //! ([`run_lab`]): the spawn itself stays in `cv_engine::lab::run`.
 
 pub mod adopt;
+pub mod job;
 pub mod scene;
 
 use cv_contracts::lab::{Disposition, Document, Inventory, Report};
 use cv_core::engine::EngineSource;
+use cv_engine::error::EngineError;
 use cv_engine::lab::{self as engine_lab, LabError, LabExit, LabIdentity, LabRun, ModeSpec};
 use cv_engine::proc::CancelToken;
 use cv_model::modules::doctor::source_label;
 use cv_model::modules::migrate::{
-    Family, ImportRun, Imports, LabState, MigratePort, ReviewItem, ReviewState, RunStatus,
+    Family, ImportExtra, ImportExtraKind, ImportInput, ImportInputKind, ImportMode, ImportRun,
+    ImportRunInput, Imports, LabState, MigratePort, ReviewItem, ReviewState, RunStatus,
 };
 use cv_store::imports::{self as store, ReviewLog, RunDir, RunRecord};
 use std::collections::HashMap;
@@ -25,8 +28,6 @@ const MAX_DOC_BYTES: u64 = 32 << 20;
 
 /// The Markdown reports a run may carry, in the order one is picked.
 const REPORTS_MD: &[&str] = &["REPORT.md", "INVENTORY.md", "FRONTMATTER_REVIEW.md"];
-/// Mirrored documents that are not `report.json` / `inventory.json`.
-const OTHER_DOCS: &[&str] = &["link_audit.json", "frontmatter_review.json"];
 
 /// The family mailboxes, from the lab's mode table in `cv-engine`.
 pub fn families() -> Vec<Family> {
@@ -41,6 +42,86 @@ pub fn families() -> Vec<Family> {
 
 fn family_of(mode: &str) -> Option<String> {
     engine_lab::mode(mode).map(|m| m.family.key().to_string())
+}
+
+/// The pinned lab's mode table projected for the wizard. This is metadata
+/// only; `cv-engine` remains the sole validator of flags, path kinds, argv,
+/// overlap and output ownership.
+/// Issue #172 acceptance scope: one file-input mode (WordPress WXR) and one
+/// folder-input mode with inventory first (Hugo), plus cancellation. Every
+/// other emitting mode — including ones whose inventory contracts exist —
+/// stays hidden until its own issue widens the wizard. This is an explicit
+/// allowlist, not a decode-capability filter: what the wizard offers is a
+/// product decision, and #172 is exactly these two.
+const WIZARD_EMITTERS: &[&str] = &["wordpress", "hugo"];
+
+pub fn modes() -> Vec<ImportMode> {
+    let emitters = engine_lab::MODES
+        .iter()
+        .filter(|mode| WIZARD_EMITTERS.contains(&mode.name))
+        .map(|mode| mode.name)
+        .collect::<std::collections::HashSet<_>>();
+    engine_lab::MODES
+        .iter()
+        // An inventory companion whose emitting mode was filtered out is an
+        // orphan: without the emitter nothing can pair with it, and the
+        // wizard's companion-hiding is keyed on offered emitters — so it
+        // would surface as a selectable import in its own right. Orphans
+        // leave with their emitters.
+        .filter(|mode| {
+            WIZARD_EMITTERS.contains(&mode.name)
+                || (mode.name.ends_with("-inventory")
+                    && emitters.contains(mode.name.trim_end_matches("-inventory")))
+        })
+        .map(|mode| ImportMode {
+            name: mode.name.into(),
+            family: mode.family.key().into(),
+            description: mode.description().into(),
+            inputs: mode
+                .inputs
+                .iter()
+                .map(|input| ImportInput {
+                    flag: input.flag.into(),
+                    label: format!(
+                        "{} {}",
+                        input.flag.trim_start_matches('-'),
+                        match input.kind {
+                            engine_lab::InputKind::File => "file",
+                            engine_lab::InputKind::Dir => "folder",
+                        }
+                    ),
+                    kind: match input.kind {
+                        engine_lab::InputKind::File => ImportInputKind::File,
+                        engine_lab::InputKind::Dir => ImportInputKind::Folder,
+                    },
+                    required: input.required,
+                    extensions: engine_lab::input_extensions(input.flag)
+                        .iter()
+                        .map(|e| e.to_string())
+                        .collect(),
+                })
+                .collect(),
+            inventory: mode.inventory().map(str::to_string),
+            safety: mode
+                .safety_notes()
+                .into_iter()
+                .map(str::to_string)
+                .collect(),
+            extras: mode
+                .extras
+                .iter()
+                .map(|e| ImportExtra {
+                    flag: e.flag.into(),
+                    label: format!("{} ({})", e.label, e.flag),
+                    hint: e.hint.into(),
+                    kind: match e.kind {
+                        engine_lab::modes::ExtraKind::Text => ImportExtraKind::Text,
+                        engine_lab::modes::ExtraKind::Count => ImportExtraKind::Count,
+                    },
+                })
+                .collect(),
+        })
+        .collect()
 }
 
 /// Gate the lab for `root` with the production search order.
@@ -121,6 +202,12 @@ impl DiskPort {
     }
 
     /// Runs under `root/.cv/imports/`; triage persists beside them.
+    ///
+    /// Opening is read-only with respect to run directories: unfinished
+    /// records are projected from their per-run locks, never rewritten by a
+    /// workspace-wide sweep. Review-log opening is observational only;
+    /// triage appends take their own operation-scoped lock and never write
+    /// inside any run folder.
     pub fn open(root: &Path, lab: LabState) -> Self {
         let mut port = Self::detached(lab);
         port.root = Some(root.to_path_buf());
@@ -137,9 +224,31 @@ impl DiskPort {
 
 impl MigratePort for DiskPort {
     fn load(&mut self) -> Imports {
+        // A load is a rescan: re-read the review log so this window
+        // observes other windows' appends instead of serving only the
+        // states parsed at open. Re-opening is pure observation — it
+        // creates and repairs nothing. A failed re-open never regresses to
+        // less information: the states already held are kept, without a
+        // staleness marker — writes are unaffected either way, since append
+        // locking is operation-scoped and never depends on cached states.
+        if let Some(root) = self.root.clone() {
+            match ReviewLog::open(&root) {
+                Ok((log, states, _)) => {
+                    self.log = Some(log);
+                    self.states = states.into_iter().map(|(k, s)| (k, to_model(s))).collect();
+                    self.log_error = None;
+                }
+                Err(e) => {
+                    if self.log.is_none() {
+                        self.log_error = Some(e.to_string());
+                    }
+                }
+            }
+        }
         let mut out = Imports {
             lab: self.lab.clone(),
             families: families(),
+            modes: modes(),
             runs: Vec::new(),
             error: self.log_error.clone(),
             store: match (&self.log, &self.root) {
@@ -156,7 +265,7 @@ impl MigratePort for DiskPort {
                 out.runs = dirs
                     .iter()
                     .map(|d| {
-                        let mut r = project(d);
+                        let mut r = project(root, d);
                         for i in &mut r.review {
                             if let Some(s) = self.states.get(&(r.id.clone(), i.id.clone())) {
                                 i.state = *s;
@@ -172,26 +281,42 @@ impl MigratePort for DiskPort {
     }
 
     fn record(&mut self, run: &str, item: &str, to: ReviewState) -> Result<(), String> {
-        if let Some(log) = &mut self.log {
-            log.append(run, item, to_store(to))
-                .map_err(|e| e.to_string())?;
-        }
+        let Some(log) = &mut self.log else {
+            return Err(format!(
+                "review decisions are not persisted: {}",
+                self.log_error
+                    .as_deref()
+                    .unwrap_or("review log unavailable")
+            ));
+        };
+        log.append(run, item, to_store(to)).map_err(|e| {
+            format!(
+                "review decision was not written for {run}/{item}: {e}; the operation-scoped review lock was unavailable or the log could not be written"
+            )
+        })?;
         self.states.insert((run.into(), item.into()), to);
         Ok(())
     }
 }
 
-fn status(rec: &RunRecord) -> RunStatus {
+fn status(root: &Path, rec: &RunRecord) -> RunStatus {
     if rec.adopted.is_some() {
         return RunStatus::Adopted;
     }
     if rec.refused.is_some() {
         return RunStatus::Refused;
     }
-    match rec.finished.as_ref().map(|f| f.exit.as_str()) {
-        None => RunStatus::Running,
-        Some("ok") => RunStatus::Ok,
-        Some("usage") => RunStatus::Refused,
+    match rec.finished.as_ref().map(|f| f.exit) {
+        // A recorded outcome is authoritative even if lock state has changed
+        // since the worker wrote it. Only outcome-less records are projected
+        // through the per-run lock, read-only.
+        None => match store::probe_run(root, &rec.run_id) {
+            Ok(store::RunProbe::Held) => RunStatus::Running,
+            Ok(store::RunProbe::Free | store::RunProbe::Missing) | Err(_) => RunStatus::Unfinished,
+        },
+        Some(store::FinishedExit::Ok) => RunStatus::Ok,
+        Some(store::FinishedExit::Cancelled) => RunStatus::Cancelled,
+        Some(store::FinishedExit::Usage) => RunStatus::Refused,
         Some(_) => RunStatus::Failed,
     }
 }
@@ -381,18 +506,35 @@ fn items(entries: Vec<Entry<'_>>) -> Vec<ReviewItem> {
         .collect()
 }
 
+fn expected_lab_format(mode: &str) -> String {
+    format!(
+        "boris-{}-migration-lab",
+        mode.trim_end_matches("-inventory")
+    )
+}
+
 fn report_facts(r: &Report, run: &mut ImportRun) {
     let k = r.key();
     run.format = Some((k.format.into(), k.schema_version));
     run.tool_version = Some(r.tool_version().into());
+    let expected = expected_lab_format(&run.mode);
+    if k.format != expected {
+        run.problem = Some(format!(
+            "report.json is a {} document but this run is mode {}; a wrong-family report supplies no count evidence",
+            k.format, run.mode
+        ));
+        return;
+    }
     let pages = r.pages();
     match r {
         Report::Hugo(h) => {
             run.counts = class_counts(&h.summary.by_class);
+            run.count_evidence = true;
             run.totals = vec![("pages emitted".into(), h.summary.pages_emitted)];
         }
         Report::Jekyll(j) => {
             run.counts = class_counts(&j.summary.by_class);
+            run.count_evidence = true;
             run.totals = vec![
                 ("pages".into(), j.summary.pages),
                 ("not emitted".into(), j.summary.not_emitted),
@@ -406,6 +548,12 @@ fn report_facts(r: &Report, run: &mut ImportRun) {
     run.review = items(report_entries(r));
 }
 
+/// One of the disposition classes the pinned lab can emit. Unknown-only
+/// rows are a tampered or unsupported shape, not count evidence.
+fn known_class(d: &Disposition) -> bool {
+    CLASSES.iter().any(|c| *c == d.as_str())
+}
+
 fn inventory_facts(i: &Inventory, run: &mut ImportRun) {
     let (format, version, tool) = match i {
         Inventory::Hugo(x) => (&x.format, x.schema_version, &x.tool_version),
@@ -415,11 +563,34 @@ fn inventory_facts(i: &Inventory, run: &mut ImportRun) {
     };
     run.format = Some((format.clone(), version));
     run.tool_version = Some(tool.clone());
+    // Strict family/mode consistency: a decodable wrong-family inventory
+    // must never supply count evidence for this run. The mode stem names
+    // exactly one lab format family; anything else is a misplaced or
+    // tampered document and fails closed with a visible problem.
+    let stem = run.mode.trim_end_matches("-inventory");
+    let expected = format!("boris-{stem}-migration-lab");
+    if *format != expected {
+        run.problem = Some(format!(
+            "inventory.json is a {format} document but this run is mode {};              a wrong-family inventory supplies no count evidence",
+            run.mode
+        ));
+        return;
+    }
     run.counts = match i {
         Inventory::Hugo(h) => class_counts(&h.class_counts),
         Inventory::Jekyll(j) => tally(j.constructs.iter().map(|d| (&d.class, d.count))),
         Inventory::Substack(s) => tally(s.dispositions.iter().map(|d| (&d.class, d.count))),
         Inventory::Enex(e) => tally(e.dispositions.iter().map(|d| (&d.class, d.count))),
+    };
+    // Count-evidence provenance by family shape: Hugo's class_counts is a
+    // structurally required summary object — present even when every count
+    // is zero, so valid-zero is evidence. The tabled families only count as
+    // evidence when at least one row of a known class exists.
+    run.count_evidence = match i {
+        Inventory::Hugo(_) => true,
+        Inventory::Jekyll(j) => j.constructs.iter().any(|d| known_class(&d.class)),
+        Inventory::Substack(s) => s.dispositions.iter().any(|d| known_class(&d.class)),
+        Inventory::Enex(e) => e.dispositions.iter().any(|d| known_class(&d.class)),
     };
     run.review = items(inventory_entries(i));
 }
@@ -456,33 +627,106 @@ fn named(rel: &str, e: impl std::fmt::Display) -> String {
     }
 }
 
-/// Decode the run's main document; `Err` names the file and why.
-fn read_documents(out: &Path, run: &mut ImportRun) -> Result<(), String> {
-    let read = |rel: &str| read_capped(&out.join(rel), MAX_DOC_BYTES);
-    if let Some(bytes) = read("report.json") {
-        let bytes = bytes.map_err(|e| format!("report.json: {e}"))?;
-        let r = Report::decode(&bytes).map_err(|e| named("report.json", e))?;
-        report_facts(&r, run);
-        return Ok(());
+/// The one document authoritative for a run of `mode`. Role-specific
+/// authority: emit runs answer to exact-family `report.json`, inventory
+/// runs to exact-family `inventory.json`, link-audit runs to
+/// `link_audit.json` and frontmatter-review runs to
+/// `frontmatter_review.json`. Every other decodable document is at most
+/// auxiliary enrichment and can never substitute for a missing primary.
+fn authoritative_document(mode: &str) -> &'static str {
+    if mode.ends_with("-inventory") {
+        "inventory.json"
+    } else if mode == "link-audit" {
+        "link_audit.json"
+    } else if mode == "frontmatter-review" {
+        "frontmatter_review.json"
+    } else {
+        "report.json"
     }
-    if let Some(bytes) = read("inventory.json") {
-        let bytes = bytes.map_err(|e| format!("inventory.json: {e}"))?;
-        let i = Inventory::decode(&bytes).map_err(|e| named("inventory.json", e))?;
-        inventory_facts(&i, run);
-        return Ok(());
-    }
-    for rel in OTHER_DOCS {
-        if let Some(bytes) = read(rel) {
-            let bytes = bytes.map_err(|e| format!("{rel}: {e}"))?;
-            let d = Document::decode(rel, &bytes).map_err(|e| named(rel, e))?;
-            other_facts(&d, run);
-            return Ok(());
-        }
-    }
-    Ok(())
 }
 
-fn project(d: &RunDir) -> ImportRun {
+/// Decode the run's authoritative document; `Err` names the file and why.
+/// Returns `true` only when that primary document was decoded. A run that
+/// exits 0 but leaves its primary missing is missing the evidence every
+/// downstream decision rests on — the caller must surface that, not treat
+/// it as a valid zero-count outcome, no matter what auxiliary documents
+/// decode.
+fn read_documents(out: &Path, run: &mut ImportRun) -> Result<bool, String> {
+    let read = |rel: &str| read_capped(&out.join(rel), MAX_DOC_BYTES);
+    let inventory_mode = run.mode.ends_with("-inventory");
+    let primary = authoritative_document(&run.mode);
+    // The wrong-role pair exists only between the emit and inventory
+    // roles: each is the companion document of the other. Cross-cutting
+    // modes have no such pair; foreign documents in their output simply
+    // supply nothing.
+    let wrong_role = if inventory_mode {
+        Some(("report.json", "inventory"))
+    } else if primary == "report.json" {
+        Some(("inventory.json", "emit"))
+    } else {
+        None
+    };
+    let mut wrong_problem = None;
+    let mut wrong_exact_family = false;
+    if let Some((wrong_role, role)) = wrong_role
+        && let Some(bytes) = read(wrong_role)
+    {
+        let bytes = bytes.map_err(|e| format!("{wrong_role}: {e}"))?;
+        let decoded_family = if inventory_mode {
+            let r = Report::decode(&bytes).map_err(|e| named(wrong_role, e))?;
+            r.key().format.to_string()
+        } else {
+            let i = Inventory::decode(&bytes).map_err(|e| named(wrong_role, e))?;
+            match &i {
+                Inventory::Hugo(x) => x.format.clone(),
+                Inventory::Jekyll(x) => x.format.clone(),
+                Inventory::Substack(x) => x.format.clone(),
+                Inventory::Enex(x) => x.format.clone(),
+            }
+        };
+        let expected = expected_lab_format(&run.mode);
+        wrong_exact_family = decoded_family == expected;
+        let family = if wrong_exact_family {
+            "right-family"
+        } else {
+            "wrong-family"
+        };
+        wrong_problem = Some(format!(
+            "{wrong_role} is a {family} document but this is a {role} run in mode {}; wrong-role artifacts supply no count evidence",
+            run.mode
+        ));
+    }
+    let mut decoded = false;
+    if let Some(bytes) = read(primary) {
+        let bytes = bytes.map_err(|e| format!("{primary}: {e}"))?;
+        if inventory_mode {
+            let i = Inventory::decode(&bytes).map_err(|e| named(primary, e))?;
+            inventory_facts(&i, run);
+        } else if primary == "report.json" {
+            let r = Report::decode(&bytes).map_err(|e| named(primary, e))?;
+            report_facts(&r, run);
+        } else {
+            let d = Document::decode(primary, &bytes).map_err(|e| named(primary, e))?;
+            other_facts(&d, run);
+        }
+        decoded = true;
+    }
+    if let Some(problem) = wrong_problem {
+        // Emit modes can legitimately leave their exact-family inventory as
+        // auxiliary evidence beside the authoritative report. A wrong-role
+        // artifact only fails closed when it is all the run offers; a
+        // wrong-family artifact is always a visible mismatch.
+        if !decoded {
+            return Err(problem);
+        }
+        if !wrong_exact_family {
+            run.problem = Some(problem);
+        }
+    }
+    Ok(decoded)
+}
+
+fn project(root: &Path, d: &RunDir) -> ImportRun {
     let rel = format!("{}/{}", store::DIR, d.id);
     let rec = match &d.record {
         Ok(r) => r,
@@ -494,8 +738,17 @@ fn project(d: &RunDir) -> ImportRun {
             return run;
         }
     };
-    let mut run = ImportRun::new(&d.id, status(rec));
+    let mut run = ImportRun::new(&d.id, status(root, rec));
     run.mode = rec.mode.clone();
+    run.inputs = rec
+        .inputs
+        .iter()
+        .map(|i| ImportRunInput {
+            flag: i.flag.clone(),
+            path: i.path.clone(),
+            path_sha256: i.path_sha256.clone(),
+        })
+        .collect();
     run.family = family_of(&rec.mode);
     run.suggested_archetype =
         engine_lab::mode(&rec.mode).and_then(|m| m.archetype.map(str::to_string));
@@ -516,7 +769,7 @@ fn project(d: &RunDir) -> ImportRun {
     }
     run.out = format!("{rel}/{}", store::OUT);
     let out = d.out();
-    if run.status == RunStatus::Running {
+    if matches!(run.status, RunStatus::Running | RunStatus::Unfinished) {
         return run;
     }
     if out.join("provenance_manifest.json").is_file() {
@@ -524,8 +777,16 @@ fn project(d: &RunDir) -> ImportRun {
     } else if out.join("provenance").is_dir() {
         run.provenance = Some(format!("{}/provenance/", run.out));
     }
-    if let Err(e) = read_documents(&out, &mut run) {
-        run.problem = Some(e);
+    match read_documents(&out, &mut run) {
+        Err(e) => run.problem = Some(e),
+        Ok(false) if run.status == RunStatus::Ok => {
+            run.problem = Some(format!(
+                "the lab reported success but the output is missing {}, the authoritative document for this run; auxiliary documents never substitute for it",
+                authoritative_document(&run.mode)
+            ));
+        }
+        Ok(false) => {}
+        Ok(true) => {}
     }
     run.report = REPORTS_MD.iter().find_map(|name| {
         let bytes = read_capped(&out.join(name), MAX_REPORT_BYTES)?.ok()?;
@@ -546,11 +807,11 @@ fn outcome_text(o: cv_engine::exit::ExitOutcome) -> (Option<i32>, String) {
     }
 }
 
-fn exit_name(e: LabExit) -> &'static str {
+fn exit_name(e: LabExit) -> store::FinishedExit {
     match e {
-        LabExit::Ok => "ok",
-        LabExit::UsageError => "usage",
-        LabExit::IoFailure => "io",
+        LabExit::Ok => store::FinishedExit::Ok,
+        LabExit::UsageError => store::FinishedExit::Usage,
+        LabExit::IoFailure => store::FinishedExit::Io,
     }
 }
 
@@ -596,21 +857,186 @@ impl std::fmt::Display for RunError {
     }
 }
 
+fn show(path: &Path) -> String {
+    path.display().to_string()
+}
+
+/// Adapter refusals are mechanical safety failures, so translate the typed
+/// error once at the app boundary instead of exposing debug formatting.
+pub(crate) fn plain_prepare_refusal(e: &LabError) -> String {
+    match e {
+        LabError::MissingInput { mode, flag } => {
+            format!("Mode {mode} needs {flag}; choose that input before running it.")
+        }
+        LabError::FlagNotAllowed { mode, flag } => {
+            format!("Mode {mode} does not accept {flag}; the run was not started.")
+        }
+        LabError::DuplicateInput { flag } => {
+            format!("{flag} was given more than once; the run was not started.")
+        }
+        LabError::InputPath { flag, path, source } => format!(
+            "{flag} at {} could not be read ({source}); the run was not started.",
+            show(path)
+        ),
+        LabError::InputKind {
+            flag,
+            path,
+            expected,
+        } => format!(
+            "{flag} must be a {}, but {} is not; the run was not started.",
+            expected.noun(),
+            show(path)
+        ),
+        LabError::InputRelative { flag, path } => format!(
+            "{flag} must be an absolute path, but {} is relative — it cannot be interpreted without guessing. Type or pick the full path; the run was not started.",
+            show(path)
+        ),
+        LabError::InputSymlink {
+            flag,
+            input,
+            component,
+        } => format!(
+            "{flag} at {} contains the symlink {}; the migration lab refuses symlinked inputs because they can redirect reads outside the tree you chose. Choose the real path instead; the run was not started.",
+            show(input),
+            show(component)
+        ),
+        LabError::OutPath { path, reason } => format!(
+            "The output path {} cannot be used because it {reason}; the run was not started.",
+            show(path)
+        ),
+        LabError::Overlap { flag, input, out } => format!(
+            "The output path {} overlaps {flag} input {}. Choose an output outside the input; the run was not started.",
+            show(out),
+            show(input)
+        ),
+        other => other.to_string(),
+    }
+}
+
+/// The lab reports refusals with a stable error name on stderr; the exit
+/// code is mode-dependent (2 when mode-specific validation fires first,
+/// 3 once validateRoots runs — both proven against the real pinned lab),
+/// so the name, not the exit code, is the refusal signal.
+/// Keep raw stderr bytes in `stderr.log` and put the actionable explanation,
+/// including the relevant path, in `refused`.
+/// The pinned lab's refusal error names, as `migration-lab (<mode>)
+/// failed: <Name>` on stderr at the pinned commit.
+pub(crate) fn lab_refusal_name(stderr: &str) -> Option<&'static str> {
+    [
+        ("InputSymlink", "InputSymlink"),
+        ("OutputSymlink", "OutputSymlink"),
+        ("InputOutputOverlap", "InputOutputOverlap"),
+        ("OutputNotOwned", "OutputNotOwned"),
+        ("OutputNotDirectory", "OutputNotDirectory"),
+    ]
+    .into_iter()
+    .find(|(name, _)| stderr.contains(name))
+    .map(|(_, full)| full)
+}
+
+pub(crate) fn plain_lab_refusal(stderr: &str, out: &Path) -> String {
+    let path = show(out);
+    if stderr.contains("InputSymlink") {
+        return "The migration lab refused the run because a symlink appears in an input path. Choose the real path instead of a symlink; nothing was read or written.".to_string();
+    }
+    if stderr.contains("OutputSymlink") {
+        return format!(
+            "The migration lab refused to write to {path} because a symlink appears in that output path. Nothing was written there."
+        );
+    }
+    if stderr.contains("InputOutputOverlap") || stderr.contains("overlap") {
+        return format!(
+            "The migration lab refused to write because the output path {path} overlaps an input path. Choose an output outside the input."
+        );
+    }
+    if stderr.contains("OutputNotOwned")
+        || stderr.contains("OutputNotEmpty")
+        || stderr.contains("non-empty")
+        || stderr.contains("not empty")
+    {
+        return format!(
+            "The migration lab refused to write to {path} because it is not empty and is not owned by an earlier lab run. That folder was left unchanged."
+        );
+    }
+    let detail = stderr
+        .lines()
+        .find(|l| !l.trim().is_empty())
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .unwrap_or("the lab rejected the command line or paths");
+    format!("The migration lab refused the run for {path}: {detail}")
+}
+
+/// Claim the first available candidate for an import run. The model picks
+/// ids from a possibly stale projection, so `RunExists` is an expected
+/// collision: advance the numeric wizard candidate where possible rather
+/// than turning it into a catastrophic start failure. Suspicious symlinks
+/// and lock/io errors remain hard refusals.
+pub(crate) fn claim_import_run(
+    root: &Path,
+    preferred: &str,
+    mode: &str,
+) -> Result<(store::RunLock, String), store::Error> {
+    let root = &std::fs::canonicalize(root)?;
+    let numbered = preferred
+        .strip_prefix("import-")
+        .and_then(|rest| rest.strip_suffix(&format!("-{mode}")))
+        .and_then(|n| n.parse::<u32>().ok());
+    for attempt in 0..10_000u32 {
+        let candidate = if attempt == 0 {
+            preferred.to_string()
+        } else if let Some(n) = numbered {
+            format!("import-{}-{mode}", n + attempt)
+        } else {
+            format!("{preferred}-{}", attempt + 1)
+        };
+        match store::claim_run(root, &candidate) {
+            Ok(lock) => return Ok((lock, candidate)),
+            Err(store::Error::RunExists(_)) => continue,
+            Err(e) => return Err(e),
+        }
+    }
+    Err(store::Error::RunExists(
+        root.join(store::DIR).join(preferred),
+    ))
+}
+
 /// Run `mode` into `<root>/.cv/imports/<run_id>/out`, recording the run
 /// before the spawn and again when it ends. A run the adapter refuses
-/// (bad input, overlap, symlinked path) is recorded as refused.
+/// (bad input, overlap, symlinked path) is recorded as refused. `run_id`
+/// is the preferred candidate; if a possibly stale projection collides,
+/// the returned record carries the actual collision-resolved id.
 pub fn run_lab(
     root: &Path,
     run_id: &str,
     lab: &LabIdentity,
     mode: &'static ModeSpec,
     inputs: Vec<(String, PathBuf)>,
+    extras: Vec<(String, String)>,
     cancel: &CancelToken,
 ) -> Result<RunRecord, RunError> {
-    let dir = store::run_dir(root, run_id).map_err(RunError::Store)?;
+    let (lock, run_id) = claim_import_run(root, run_id, mode.name).map_err(RunError::Store)?;
+    run_lab_with_lock(lock, &run_id, lab, mode, inputs, extras, cancel)
+}
+
+/// Execute one import under a run claim already held by its operation. The
+/// lock is claimed before any lab process is spawned and remains the same
+/// capability used for start, refusal, cancellation, and completion writes.
+pub(crate) fn run_lab_with_lock(
+    lock: store::RunLock,
+    run_id: &str,
+    lab: &LabIdentity,
+    mode: &'static ModeSpec,
+    inputs: Vec<(String, PathBuf)>,
+    extras: Vec<(String, String)>,
+    cancel: &CancelToken,
+) -> Result<RunRecord, RunError> {
+    let root = lock.root();
+    let dir = lock.dir().to_path_buf();
     let run = LabRun {
         mode,
         inputs,
+        extras,
         out: dir.join(store::OUT),
     };
     let mut rec = started_record(run_id, mode.name, lab, now_ms());
@@ -619,15 +1045,27 @@ pub fn run_lab(
         .iter()
         .map(|(f, p)| store::input(f, &p.display().to_string()))
         .collect();
-    std::fs::create_dir_all(&dir).map_err(|e| RunError::Store(e.into()))?;
     let prepared = match run.prepare() {
         Ok(p) => p,
         Err(e) => {
-            rec.refused = Some(e.to_string());
-            store::write(root, &rec).map_err(RunError::Store)?;
+            rec.refused = Some(plain_prepare_refusal(&e));
+            store::write(&lock, &rec).map_err(RunError::Store)?;
             return Ok(rec);
         }
     };
+    // Confinement is a hard invariant, proven here rather than assumed:
+    // after every normalization the output must still be exactly the run's
+    // own directory inside this workspace's `.cv/imports`.
+    let confined = root.join(".cv").join("imports").join(run_id);
+    if !prepared.out.starts_with(&confined) {
+        rec.refused = Some(format!(
+            "The output path {} escaped {} after normalization; the run was not started.",
+            prepared.out.display(),
+            confined.display()
+        ));
+        store::write(&lock, &rec).map_err(RunError::Store)?;
+        return Ok(rec);
+    }
     rec.inputs = prepared
         .inputs
         .iter()
@@ -638,18 +1076,56 @@ pub fn run_lab(
         .iter()
         .map(|a| a.to_string_lossy().into_owned())
         .collect();
-    store::write(root, &rec).map_err(RunError::Store)?;
-    let out = engine_lab::run(lab, &run, cancel).map_err(RunError::Lab)?;
+    store::write(&lock, &rec).map_err(RunError::Store)?;
+    let wait_started = std::time::Instant::now();
+    let out = match engine_lab::run(lab, &run, cancel) {
+        Ok(out) => out,
+        Err(LabError::Engine(e)) => {
+            let cancelled = matches!(e, EngineError::Cancelled) && cancel.is_cancelled();
+            rec.finished = Some(store::Finished {
+                exit_code: None,
+                exit: if cancelled {
+                    store::FinishedExit::Cancelled
+                } else {
+                    store::FinishedExit::Io
+                },
+                outcome: e.to_string(),
+                duration_ms: wait_started.elapsed().as_millis() as u64,
+            });
+            store::write(&lock, &rec).map_err(RunError::Store)?;
+            return Ok(rec);
+        }
+        Err(e) => {
+            // Input or output state can change between the first validation
+            // and cv-engine's validation immediately before the spawn. That
+            // is still a pre-spawn refusal, not a lab failure.
+            rec.refused = Some(plain_prepare_refusal(&e));
+            store::write(&lock, &rec).map_err(RunError::Store)?;
+            return Ok(rec);
+        }
+    };
     let (exit_code, outcome) = outcome_text(out.outcome);
+    let (len, sha256) = store::write_stderr(&lock, &out.stderr_bytes).map_err(RunError::Store)?;
+    rec.stderr_bytes = Some(len);
+    rec.stderr_sha256 = Some(sha256);
+    // The pinned lab reports safety refusals as exit 3 (its io_error code)
+    // with a stable error name on stderr; exit 2 is a usage failure. Either
+    // way the run never emitted, so both read as refusals — but only the
+    // named cases are user-actionable path refusals.
+    if out.exit == LabExit::UsageError || lab_refusal_name(&out.stderr).is_some() {
+        rec.refused = Some(plain_lab_refusal(&out.stderr, &out.run.out));
+    }
     rec.finished = Some(store::Finished {
         exit_code,
-        exit: exit_name(out.exit).into(),
+        exit: exit_name(out.exit),
         outcome,
         duration_ms: out.duration_ms,
     });
-    store::write(root, &rec).map_err(RunError::Store)?;
+    store::write(&lock, &rec).map_err(RunError::Store)?;
     Ok(rec)
 }
+
+pub use job::{run_stub_lab, spawn_import, spawn_import_with};
 
 #[cfg(test)]
 mod tests;

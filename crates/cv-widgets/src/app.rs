@@ -4,6 +4,7 @@
 use crate::editor;
 use crate::shell::view;
 use cv_model::adoption::AdoptionJob;
+use cv_model::command::ImportJob;
 use cv_model::dialog::PickPurpose;
 use cv_model::module::ReadingModel;
 use cv_model::new_workspace::WorkspaceCreation;
@@ -35,6 +36,8 @@ pub struct Launch {
     pub adopt: fn(&mut Workbench, AdoptionJob),
     /// Open a page (relative to the content input) in an editor window.
     pub edit: fn(&mut Workbench, &str),
+    /// Run a migration inventory/import in the background.
+    pub import: fn(&mut Workbench, ImportJob),
     pub scenes: &'static [Scene],
 }
 
@@ -43,6 +46,7 @@ static OPEN: OnceLock<fn(&mut Workbench, PathBuf)> = OnceLock::new();
 static CREATE: OnceLock<fn(&mut Workbench, WorkspaceCreation)> = OnceLock::new();
 static ADOPT: OnceLock<fn(&mut Workbench, AdoptionJob)> = OnceLock::new();
 static EDIT: OnceLock<fn(&mut Workbench, &str)> = OnceLock::new();
+static IMPORT: OnceLock<fn(&mut Workbench, ImportJob)> = OnceLock::new();
 static WAKE: OnceLock<Waker> = OnceLock::new();
 static BOOTED: AtomicBool = AtomicBool::new(false);
 
@@ -291,6 +295,16 @@ fn serve_requests(s: &mut Workbench, tx: &mut Tx) -> bool {
                 Some(edit) => edit(s, &page),
                 None => s.status = "this build cannot edit pages".into(),
             },
+            ShellRequest::RunImport(job) => match IMPORT.get() {
+                Some(import) => import(s, job),
+                None if cfg!(feature = "harness") => {
+                    // Headless tests drive the composition boundary by hand:
+                    // leave the job queued so they can execute it against
+                    // StubLab or a fake lab and send the completion notice.
+                    s.requests.push(ShellRequest::RunImport(job));
+                }
+                None => s.status = "this build cannot run migration imports".into(),
+            },
             ShellRequest::Copy(text) => tx.copy(text),
         }
     }
@@ -349,6 +363,7 @@ pub fn run(l: Launch) {
     let _ = CREATE.set(l.create);
     let _ = ADOPT.set(l.adopt);
     let _ = EDIT.set(l.edit);
+    let _ = IMPORT.set(l.import);
     // `rune::run` without the hooks: quitting must stop the engine watch.
     let app = rune::App::new(AppSpec {
         scenes: l.scenes,

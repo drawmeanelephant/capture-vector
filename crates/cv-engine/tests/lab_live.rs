@@ -33,6 +33,7 @@ fn run(lab: &LabIdentity, mode: &str, flag: &str, fixture: &str, out: PathBuf) -
     let run = LabRun {
         mode: lab::mode(mode).unwrap(),
         inputs: vec![(flag.into(), lab_fixture(lab, fixture))],
+        extras: Vec::new(),
         out,
     };
     lab::run(lab, &run, &CancelToken::new()).unwrap()
@@ -58,6 +59,59 @@ fn live_pinned_lab_converts_one_fixture_into_a_temp_dir() {
         assert!(done.run.out.join(f).exists(), "{f}");
     }
     assert!(done.stderr.contains("wrote"), "{}", done.stderr);
+}
+
+/// Probes recorded against the real pinned lab at
+/// ce40d78a0cd20f3e36550c7a85391903672bcb5a: symlinked spellings are refused
+/// with a stable error name on stderr, and nothing is written. The exit
+/// code varies by mode (2 for mode-specific input validation, 3 once
+/// validateRoots runs) — the error NAME is the stable refusal signal,
+/// which is why the adapter keys refusal detection on it instead of the
+/// exit code. WordPress probes use `mini-wxr` so validateRoots itself fires.
+/// Unix-only: the probe is built on `std::os::unix::fs::symlink`. Windows
+/// cancellation and symlink behavior remain honestly unproven.
+#[cfg(unix)]
+#[test]
+#[ignore = "needs the pinned lab via CV_MIGRATION_LAB_BIN"]
+fn live_pinned_lab_refuses_symlinked_input_and_output() {
+    let lab = pinned_lab();
+    let tmp = tempfile::tempdir().unwrap();
+    let root = std::fs::canonicalize(tmp.path()).unwrap();
+    let wxr = lab_fixture(&lab, "mini-wxr/export.xml");
+
+    // Symlinked input spelling: InputSymlink refusal, nothing written.
+    let link_in = root.join("link-export.xml");
+    std::os::unix::fs::symlink(&wxr, &link_in).unwrap();
+    let out1 = root.join("out-input");
+    let output = std::process::Command::new(&lab.path)
+        .arg("--mode=wordpress")
+        .arg(format!("--wxr={}", link_in.display()))
+        .arg(format!("--out={}", out1.display()))
+        .output()
+        .unwrap();
+    let code = output.status.code().unwrap();
+    assert!(code == 2 || code == 3, "exit {code}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("InputSymlink"), "{stderr}");
+    assert!(!out1.exists());
+
+    // Symlinked output spelling: OutputSymlink refusal, nothing written —
+    // including through the symlink target.
+    let real_parent = root.join("real-parent");
+    std::fs::create_dir_all(&real_parent).unwrap();
+    let link_parent = root.join("link-parent");
+    std::os::unix::fs::symlink(&real_parent, &link_parent).unwrap();
+    let output = std::process::Command::new(&lab.path)
+        .arg("--mode=wordpress")
+        .arg(format!("--wxr={}", wxr.display()))
+        .arg(format!("--out={}", link_parent.join("out2").display()))
+        .output()
+        .unwrap();
+    let code = output.status.code().unwrap();
+    assert!(code == 2 || code == 3, "exit {code}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("OutputSymlink"), "{stderr}");
+    assert!(!real_parent.join("out2").exists());
 }
 
 #[test]

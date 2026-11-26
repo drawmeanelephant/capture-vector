@@ -454,3 +454,39 @@ fn drifted_proof_schema_is_refused_not_lifted() {
         "unexpected error: {err}"
     );
 }
+
+/// The crash window after the pre-contact delivery append but before any
+/// state append: contact is possible, so the read model must already say
+/// `Unknown` — never `Approved` — even before a writer recovers the run.
+#[test]
+fn a_delivery_only_crash_reads_as_unknown_before_any_writer_recovers_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut j = Journal::open(dir.path()).unwrap();
+    j.append(
+        Timestamp(0),
+        Entry::Approved {
+            run: run(),
+            by: "local".into(),
+            grant_digest: Hash([1; 32]),
+        },
+    )
+    .unwrap();
+    j.append(
+        Timestamp(1),
+        Entry::Delivery(cv_ledger::nouns::DeliveryNoun {
+            id: StableId("delivery-1".into()),
+            run: run(),
+            target: "static-dist".into(),
+            adapter: "copy-to-folder".into(),
+            plan_hash: Hash([2; 32]),
+            files: 1,
+            bytes: 1,
+        }),
+    )
+    .unwrap();
+    let v = runs(j.records());
+    let view = v.get(&run()).unwrap();
+    assert_eq!(view.phase(), RunPhase::Unknown);
+    assert!(view.is_unresolved());
+    assert!(view.was_dispatched());
+}

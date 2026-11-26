@@ -15,6 +15,7 @@ cv-model.workspace = true
 cv-notes.workspace = true
 # default-features=false keeps the mock secret backend out of the shipped binary.
 cv-publish = { workspace = true, default-features = false }
+cv-rules.workspace = true
 cv-store.workspace = true
 # default-features=false keeps the QA harness out of the shipped binary.
 cv-widgets = { workspace = true, default-features = false }

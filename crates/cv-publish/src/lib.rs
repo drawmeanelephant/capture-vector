@@ -19,6 +19,7 @@ mod error;
 pub mod exports;
 pub mod plan;
 pub mod preflight;
+mod proofeval;
 pub mod publisher;
 pub mod secrets;
 pub mod targets;

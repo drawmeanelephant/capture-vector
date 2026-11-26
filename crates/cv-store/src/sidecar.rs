@@ -203,12 +203,7 @@ pub fn ensure(root: &Path, ns: &Namespace) -> Result<Outcome, SidecarError> {
     if let Some(parent) = lock.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let file = std::fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .truncate(false)
-        .open(&lock)?;
+    let file = crate::open::open_create_no_follow(&lock)?;
     file.lock()?;
     // Re-read under the lock: another opener may have stamped or migrated.
     ensure_locked(root, ns)

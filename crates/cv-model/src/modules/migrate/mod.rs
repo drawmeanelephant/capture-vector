@@ -9,12 +9,13 @@
 //! items are triaged (open, accepted, deferred) like Audit findings and
 //! never block anything.
 
+mod adopt;
 #[cfg(test)]
 mod tests;
+mod wizard;
 
-use crate::adoption::{AdoptionRequest, AdoptionTarget};
 use crate::command::{CommandSpec, Intent};
-use crate::dialog::{ActionTone, CHOICE, Choice, DialogAnswer, DialogKind, DialogSpec, Field};
+use crate::dialog::DialogAnswer;
 use crate::module::{
     Chip, InspectorModel, Module, ModuleSpec, NavItem, NavModel, ReadingLine, ReadingModel,
     Registry, RowModel, Slot, Tone,
@@ -32,8 +33,6 @@ pub const ADOPT_EXISTING: &str = "migrate.adopt.existing";
 pub const ACCEPT: &str = "migrate.review.accept";
 pub const DEFER: &str = "migrate.review.defer";
 pub const REOPEN: &str = "migrate.review.reopen";
-
-const NEW_UNAVAILABLE: &str = "starting an import from Capture Vector is not in this build yet";
 
 /// Which lab binary this window found, as the `--version` gate saw it.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -76,7 +75,10 @@ pub struct Family {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RunStatus {
     Running,
+    /// No outcome is recorded and no live writer holds the run lock.
+    Unfinished,
     Ok,
+    Cancelled,
     Refused,
     Failed,
     Adopted,
@@ -85,8 +87,10 @@ pub enum RunStatus {
 impl RunStatus {
     pub fn label(self) -> &'static str {
         match self {
-            Self::Running => "running",
+            Self::Running => "lock held",
+            Self::Unfinished => "unfinished",
             Self::Ok => "ok",
+            Self::Cancelled => "cancelled",
             Self::Refused => "refused",
             Self::Failed => "failed",
             Self::Adopted => "adopted",
@@ -96,7 +100,7 @@ impl RunStatus {
         match self {
             Self::Running => Tone::Dim,
             Self::Ok | Self::Adopted => Tone::Ok,
-            Self::Refused => Tone::Warn,
+            Self::Cancelled | Self::Refused | Self::Unfinished => Tone::Warn,
             Self::Failed => Tone::Error,
         }
     }
@@ -134,11 +138,21 @@ pub struct ReviewItem {
     pub state: ReviewState,
 }
 
+/// One input exactly as the run record stores it: path plus the hash of
+/// that path. Contents are never copied into `.cv/`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportRunInput {
+    pub flag: String,
+    pub path: String,
+    pub path_sha256: String,
+}
+
 /// One run directory under `.cv/imports/`, as read from disk.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportRun {
     pub id: String,
     pub mode: String,
+    pub inputs: Vec<ImportRunInput>,
     pub family: Option<String>,
     /// Display name of the input (its last path segment).
     pub source: String,
@@ -162,6 +176,13 @@ pub struct ImportRun {
     pub suggested_archetype: Option<String>,
     /// Count per disposition, in the order the lab reports them.
     pub counts: Vec<(String, u64)>,
+    /// Positive evidence that count data exists in the decoded document in
+    /// the shape this family carries it: Hugo's structurally required
+    /// `class_counts` (valid even when every count is zero), or at least one
+    /// count row of a known class in the Jekyll/Substack/ENEX tables. This
+    /// is provenance, not inference from the aggregate — a decodable but
+    /// row-less or wrong-class document is not evidence.
+    pub count_evidence: bool,
     /// Other totals the main document states (pages emitted, …).
     pub totals: Vec<(String, u64)>,
     /// `(file name, body)` of the run's Markdown report.
@@ -178,6 +199,7 @@ impl ImportRun {
         Self {
             id: id.into(),
             mode: String::new(),
+            inputs: Vec::new(),
             family: None,
             source: String::new(),
             status,
@@ -194,6 +216,7 @@ impl ImportRun {
             provenance: None,
             suggested_archetype: None,
             counts: Vec::new(),
+            count_evidence: false,
             totals: Vec::new(),
             report: None,
             problem: None,
@@ -203,11 +226,61 @@ impl ImportRun {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImportInputKind {
+    File,
+    Folder,
+}
+
+/// One path-valued mode input, projected from `cv-engine`'s mode table.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportInput {
+    pub flag: String,
+    pub label: String,
+    pub kind: ImportInputKind,
+    pub required: bool,
+    pub extensions: Vec<String>,
+}
+
+/// One scalar pass-through option a mode accepts, projected for the
+/// wizard. Type validation happens at this boundary and again in
+/// `cv-engine`; what the value *means* is the lab's business.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportExtra {
+    pub flag: String,
+    pub label: String,
+    pub hint: String,
+    pub kind: ImportExtraKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImportExtraKind {
+    Text,
+    Count,
+}
+
+/// One pinned migration-lab mode, projected for the wizard. The strings are
+/// metadata, not behavior: validation and execution stay in `cv-engine`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportMode {
+    pub name: String,
+    pub family: String,
+    pub description: String,
+    pub inputs: Vec<ImportInput>,
+    /// Read-only companion mode to run before emitting, when one exists.
+    pub inventory: Option<String>,
+    pub safety: Vec<String>,
+    /// Optional scalar extras (`--locale`, `--max-pages`, `--relation-map`);
+    /// process-changing options are never projected.
+    pub extras: Vec<ImportExtra>,
+}
+
 /// Everything the module shows.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Imports {
     pub lab: LabState,
     pub families: Vec<Family>,
+    pub modes: Vec<ImportMode>,
     pub runs: Vec<ImportRun>,
     /// `.cv/imports/` itself could not be read.
     pub error: Option<String>,
@@ -288,6 +361,7 @@ enum Target<'a> {
 pub struct MigrateModule {
     port: Box<dyn MigratePort>,
     imports: Imports,
+    wizard: wizard::Wizard,
     selected: Option<String>,
 }
 
@@ -338,6 +412,7 @@ impl MigrateModule {
         Self {
             port,
             imports,
+            wizard: wizard::Wizard::default(),
             selected: None,
         }
     }
@@ -479,7 +554,7 @@ impl MigrateModule {
             parts.push(why.clone());
         } else {
             for (k, n) in &r.counts {
-                if *n > 0 {
+                if *n > 0 || r.count_evidence {
                     parts.push(format!("{n} {k}"));
                 }
             }
@@ -499,7 +574,7 @@ impl MigrateModule {
         let rail = match (r.problem.is_some(), r.status) {
             (true, _) => Some(Tone::Warn),
             (_, RunStatus::Failed) => Some(Tone::Error),
-            (_, RunStatus::Refused) => Some(Tone::Warn),
+            (_, RunStatus::Refused | RunStatus::Unfinished) => Some(Tone::Warn),
             _ => None,
         };
         let badge = if r.problem.is_some() && r.status == RunStatus::Ok {
@@ -631,7 +706,23 @@ impl MigrateModule {
         }
         if r.status == RunStatus::Running {
             lines.push(note(
-                "No exit was recorded yet. A run whose app quit before the lab ended stays running.",
+                "No exit was recorded yet. This run's lock appears held; the lab may still be active, or its holder may not have finished recording the outcome.",
+            ));
+        }
+        if r.status == RunStatus::Unfinished {
+            lines.push(note(
+                "No outcome was recorded and no live run lock was observed. Capture Vector may have quit or crashed before the lab reported, or the lock may no longer be inspectable. The output may be partial. This run cannot be adopted; start a new import to retry. On macOS and Linux, quitting is not cancelling, so the lab may continue writing this run's output.",
+            ));
+        }
+        for input in &r.inputs {
+            lines.push(mono(
+                &input.flag,
+                format!("{} · path sha256 {}", input.path, input.path_sha256),
+            ));
+        }
+        if !r.inputs.is_empty() {
+            lines.push(note(
+                "Inputs stayed at those paths; only path strings and path hashes are recorded.",
             ));
         }
         for (k, n) in &r.totals {
@@ -695,137 +786,6 @@ impl MigrateModule {
             breadcrumbs: vec!["Migrate".into(), "Needs review".into(), r.id.clone()],
             markdown: None,
         }
-    }
-
-    fn selected_run(&self) -> Option<&ImportRun> {
-        self.selected
-            .as_deref()
-            .and_then(|key| key.strip_prefix("run:"))
-            .and_then(|id| self.imports.runs.iter().find(|r| r.id == id))
-    }
-
-    fn adopt_unavailable(run: Option<&ImportRun>) -> Option<String> {
-        let Some(run) = run else {
-            return Some("select a finished import run first".into());
-        };
-        if !matches!(run.status, RunStatus::Ok | RunStatus::Adopted) {
-            return Some(format!("run {} has not finished successfully", run.id));
-        }
-        if run.problem.is_some() {
-            return Some(format!("run {} is not readable", run.id));
-        }
-        None
-    }
-
-    fn adopt(&mut self) -> Vec<Intent> {
-        let Some(run) = self.selected_run().cloned() else {
-            return vec![Intent::Status("select a finished import run first".into())];
-        };
-        if let Some(why) = Self::adopt_unavailable(Some(&run)) {
-            return vec![Intent::Status(format!("Adopt: {why}"))];
-        }
-        vec![Intent::dialog(
-            DialogSpec::new(
-                ADOPT,
-                format!("Adopt {}", run.id),
-                DialogKind::Choose(vec![
-                    Choice {
-                        id: "new".into(),
-                        label: "New workspace".into(),
-                    },
-                    Choice {
-                        id: "existing".into(),
-                        label: "Existing workspace (merge into a subfolder)".into(),
-                    },
-                ]),
-            )
-            .body("Choose where the candidate content should become a Boris workspace. Provenance stays in .cv/imports/ and never enters frontmatter.")
-            .context(run.id)
-            .cancel("Cancel")
-            .action("continue", "Continue", ActionTone::Primary),
-        )]
-    }
-
-    fn adopt_answer(&mut self, a: &DialogAnswer) -> Vec<Intent> {
-        if a.action.is_none() {
-            return Vec::new();
-        }
-        let Some(run_id) = a.context.clone() else {
-            return vec![Intent::Status("adoption lost its run context".into())];
-        };
-        let run = self.imports.runs.iter().find(|r| r.id == run_id).cloned();
-        let Some(run) = run else {
-            return vec![Intent::Status(format!(
-                "import run {run_id} is no longer present"
-            ))];
-        };
-        match a.text(CHOICE) {
-            Some("new") => vec![Intent::PrepareAdoptNew {
-                run_id,
-                suggested_archetype: run.suggested_archetype,
-            }],
-            Some("existing") => vec![Intent::dialog(
-                DialogSpec::new(
-                    ADOPT_EXISTING,
-                    format!("Merge {}", run.id),
-                    DialogKind::Form(vec![
-                        Field::text("subfolder", "Content subfolder", "")
-                            .placeholder("imported/site")
-                            .hint("The candidate tree is copied below content/<subfolder>; existing paths or page ids refuse the whole merge before anything is written."),
-                    ]),
-                )
-                .body("Choose a new subfolder inside this workspace's content input. Nothing is overwritten silently.")
-                .context(run_id)
-                .cancel("Cancel")
-                .action("adopt", "Adopt", ActionTone::Primary),
-            )],
-            _ => vec![Intent::Status("choose New workspace or Existing workspace".into())],
-        }
-    }
-
-    fn adopt_existing_answer(&mut self, a: &DialogAnswer) -> Vec<Intent> {
-        if a.action.is_none() {
-            return Vec::new();
-        }
-        let Some(run_id) = a.context.clone() else {
-            return vec![Intent::Status("adoption lost its run context".into())];
-        };
-        let typed = a.text("subfolder").unwrap_or_default();
-        // Trailing slashes are the same folder; leading ones make it
-        // absolute and must be refused, never silently rewritten.
-        let subfolder = typed.trim_end_matches('/');
-        let bad = typed != typed.trim()
-            || typed.starts_with(['/', '\\'])
-            || subfolder.is_empty()
-            || subfolder.split('/').any(|part| {
-                part.is_empty()
-                    || part == "."
-                    || part == ".."
-                    || part.contains(['\\', ':', '<', '>', '"', '|', '?', '*'])
-                    || part.ends_with(['.', ' '])
-            });
-        if bad {
-            return vec![Intent::dialog(
-                DialogSpec::new(
-                    ADOPT_EXISTING,
-                    format!("Merge {}", run_id),
-                    DialogKind::Form(vec![
-                        Field::text("subfolder", "Content subfolder", subfolder)
-                            .placeholder("imported/site"),
-                    ]),
-                )
-                .error("Choose a portable relative subfolder without '..' or path separators in a name.")
-                .context(run_id)
-                .cancel("Cancel")
-                .action("adopt", "Adopt", ActionTone::Primary),
-            )];
-        }
-        vec![Intent::AdoptRun(AdoptionRequest {
-            run_id,
-            target: AdoptionTarget::ExistingWorkspace {
-                subfolder: subfolder.to_string(),
-            },
-        })]
     }
 
     fn transition(&mut self, to: ReviewState) -> Vec<Intent> {
@@ -914,14 +874,23 @@ impl Module for MigrateModule {
         };
         match self.target(&key) {
             Some(Target::Lab) => self.lab_row(),
-            Some(Target::New) => RowModel {
-                key,
-                title: "New import…".into(),
-                detail: NEW_UNAVAILABLE.into(),
-                tone: Tone::Dim,
-                badge: Some(Chip::new("unavailable", Tone::Dim)),
-                ..RowModel::default()
-            },
+            Some(Target::New) => {
+                let unavailable = self.new_unavailable();
+                RowModel {
+                    key,
+                    title: "New import…".into(),
+                    detail: unavailable.clone().unwrap_or_else(|| {
+                        "choose a source, pick its file or folder, inventory first when supported, then emit".into()
+                    }),
+                    tone: if unavailable.is_some() { Tone::Dim } else { Tone::Normal },
+                    badge: Some(if unavailable.is_some() {
+                        Chip::new("unavailable", Tone::Dim)
+                    } else {
+                        Chip::new("wizard", Tone::Ok)
+                    }),
+                    ..RowModel::default()
+                }
+            }
             Some(Target::Run(r)) => Self::run_row(r),
             Some(Target::Item(r, i)) => Self::item_row(r, i),
             None => RowModel::default(),
@@ -935,17 +904,31 @@ impl Module for MigrateModule {
     fn reading(&self, key: &str) -> ReadingModel {
         match self.target(key) {
             Some(Target::Lab) => self.lab_reading(),
-            Some(Target::New) => ReadingModel {
-                title: "New import".into(),
-                lines: vec![
-                    note(format!("Not available: {NEW_UNAVAILABLE}.")),
-                    note(
-                        "Runs written under .cv/imports/<run-id>/ (a run.json beside the lab's out/) appear in Runs. Run Reload import runs (mod+K) after adding one.",
-                    ),
-                ],
-                breadcrumbs: vec!["Migrate".into()],
-                markdown: None,
-            },
+            Some(Target::New) => {
+                let lines = if let Some(why) = self.new_unavailable() {
+                    vec![
+                        note(format!("Not available: {why}.")),
+                        note(
+                            "Runs written under .cv/imports/<run-id>/ (a run.json beside the lab's out/) appear in Runs.",
+                        ),
+                    ]
+                } else {
+                    vec![
+                        note(
+                            "Run New import… (mod+K → migrate.new) to choose a source family and mode, pick the export file or folder, inventory first when the lab supports it, then emit.",
+                        ),
+                        note(
+                            "Inputs are never copied into the workspace or repository. Output is staged under .cv/imports/<run-id>/out.",
+                        ),
+                    ]
+                };
+                ReadingModel {
+                    title: "New import".into(),
+                    lines,
+                    breadcrumbs: vec!["Migrate".into()],
+                    markdown: None,
+                }
+            }
             Some(Target::Run(r)) => self.run_reading(r),
             Some(Target::Item(r, i)) => Self::item_reading(r, i),
             None => {
@@ -996,10 +979,19 @@ impl Module for MigrateModule {
                     badges,
                     fields,
                     diagnostics: Vec::new(),
-                    lists: vec![(
-                        "Counts".into(),
-                        r.counts.iter().map(|(k, n)| format!("{k}: {n}")).collect(),
-                    )],
+                    lists: vec![
+                        (
+                            "Inputs".into(),
+                            r.inputs
+                                .iter()
+                                .map(|i| format!("{} {} ({})", i.flag, i.path, i.path_sha256))
+                                .collect(),
+                        ),
+                        (
+                            "Counts".into(),
+                            r.counts.iter().map(|(k, n)| format!("{k}: {n}")).collect(),
+                        ),
+                    ],
                 }
             }
             Some(Target::Item(r, i)) => InspectorModel {
@@ -1036,7 +1028,7 @@ impl Module for MigrateModule {
 
     fn commands(&self) -> Vec<CommandSpec> {
         vec![
-            CommandSpec::new(NEW, "New import…").disabled(Some(NEW_UNAVAILABLE.into())),
+            CommandSpec::new(NEW, "New import…").disabled(self.new_unavailable()),
             CommandSpec::new(REFRESH, "Reload import runs"),
             CommandSpec::new(ACCEPT, "Accept review item"),
             CommandSpec::new(DEFER, "Defer review item"),
@@ -1058,7 +1050,7 @@ impl Module for MigrateModule {
                     self.imports.runs.len()
                 ))]
             }
-            NEW => vec![Intent::Status(format!("New import: {NEW_UNAVAILABLE}"))],
+            NEW => self.begin_import(),
             ADOPT => self.adopt(),
             _ => Vec::new(),
         }
@@ -1068,8 +1060,16 @@ impl Module for MigrateModule {
         match command {
             ADOPT => self.adopt_answer(answer),
             ADOPT_EXISTING => self.adopt_existing_answer(answer),
-            _ => Vec::new(),
+            _ => self.answer_wizard(command, answer),
         }
+    }
+
+    fn import_started(&mut self, requested: &str, job: &crate::command::ImportJob) -> Vec<Intent> {
+        self.retarget_started_import(requested, job)
+    }
+
+    fn import_finished(&mut self, job: &crate::command::ImportJob) -> Vec<Intent> {
+        self.finish_import_job(job)
     }
 
     fn contains(&self, key: &str) -> bool {

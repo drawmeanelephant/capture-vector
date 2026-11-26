@@ -455,10 +455,11 @@ mod tests {
         let dir = temp.path();
         #[cfg(unix)]
         let bin = {
-            use std::os::unix::fs::PermissionsExt;
             let bin = dir.join("boris");
-            std::fs::write(&bin, include_str!("../tests/fake-boris/boris")).unwrap();
-            std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+            crate::test_support::install_executable(
+                &bin,
+                include_str!("../tests/fake-boris/boris"),
+            );
             bin
         };
         #[cfg(windows)]

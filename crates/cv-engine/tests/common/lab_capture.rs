@@ -69,6 +69,7 @@ pub fn capture(tools: &Tools, spec: &LabCaptureSpec, root: &Path) -> Result<LabT
     let run = LabRun {
         mode: lab::mode(spec.mode).ok_or_else(|| format!("{} is not allowlisted", spec.mode))?,
         inputs,
+        extras: Vec::new(),
         out: spec.out(root),
     };
     let done = lab::run(&tools.lab, &run, &CancelToken::new())?;

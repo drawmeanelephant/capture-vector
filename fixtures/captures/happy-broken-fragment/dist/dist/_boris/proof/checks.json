@@ -1,0 +1,70 @@
+{
+  "format": "boris-publication-checks",
+  "schema_version": 1,
+  "target": "default",
+  "artifact_inventory": {
+    "path": "_boris/proof/artifacts.json",
+    "bytes": 2014,
+    "sha256": "c66a203f7a16e332d6be25bb7c5b0d822ff73971c4f15e30eff735e8a4e35054",
+    "format": "boris-publication-artifacts",
+    "schema_version": 1,
+    "target": "default",
+    "artifact_count": 5
+  },
+  "checks": [
+    {
+      "id": "artifact-integrity",
+      "eligible": true,
+      "ran": true,
+      "status": "passed",
+      "coverage": "complete",
+      "scope": {
+        "subject_statuses": ["committed"],
+        "subject_kinds": [],
+        "subject_sha256": "93de07d541a8d1b16bebabb12844e063c3dac8dd121968f8f31c23a9955d1c5f",
+        "supporting_statuses": [],
+        "supporting_kinds": [],
+        "supporting_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "counts": {"eligible": 5, "checked": 5, "findings": 0},
+      "finding_offset": 0
+    },
+    {
+      "id": "rendered-html",
+      "eligible": true,
+      "ran": true,
+      "status": "failed",
+      "coverage": "complete",
+      "scope": {
+        "subject_statuses": ["committed"],
+        "subject_kinds": ["html-page"],
+        "subject_sha256": "787c91f660a6dae8856faca41be70bf3b9b5f895b0a79492fc5ee18d3d855442",
+        "supporting_statuses": ["committed"],
+        "supporting_kinds": [],
+        "supporting_sha256": "93de07d541a8d1b16bebabb12844e063c3dac8dd121968f8f31c23a9955d1c5f"
+      },
+      "counts": {"eligible": 3, "checked": 3, "findings": 1},
+      "finding_offset": 0
+    },
+    {
+      "id": "rendered-search",
+      "eligible": true,
+      "ran": true,
+      "status": "passed",
+      "coverage": "complete",
+      "scope": {
+        "subject_statuses": ["committed"],
+        "subject_kinds": ["rendered-search"],
+        "subject_sha256": "8e67d24c2cfc746595221d01ea0fd09d8e2fd18e5d5ef0d450a5856831bede0a",
+        "supporting_statuses": ["committed"],
+        "supporting_kinds": ["html-page"],
+        "supporting_sha256": "787c91f660a6dae8856faca41be70bf3b9b5f895b0a79492fc5ee18d3d855442"
+      },
+      "counts": {"eligible": 1, "checked": 1, "findings": 0},
+      "finding_offset": 1
+    }
+  ],
+  "findings": [
+    {"code":"HTML_FRAGMENT_MISSING","domain":"rendered_html","severity":"error","confidence":"certain","owner":"unknown","subject":{"kind":"page","id":"index","target":"default"},"source_location":null,"output_location":{"path":"index.html","line":56,"column":4},"configuration_location":null,"evidence":{"observed":"href=\"guides/getting-started.html#does-not-exist\"","expected":"a fragment matching a rendered id on the target page","related":[]},"remediation":"Point the rendered reference at an id present on the target page.","fixability":"not_actionable"}
+  ]
+}

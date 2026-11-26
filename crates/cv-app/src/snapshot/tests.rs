@@ -630,6 +630,17 @@ fn regular_text_does_not_follow_a_link_swapped_in_after_the_type_check() {
         Some("Body")
     );
 }
+fn write_adoption_for(root: &Path, rec: &cv_store::imports::AdoptionRecord) {
+    let lock = match cv_store::imports::claim_run(root, &rec.run_id) {
+        Ok(lock) => lock,
+        Err(cv_store::imports::Error::RunExists(_)) => {
+            cv_store::imports::lock_run(root, &rec.run_id).unwrap()
+        }
+        Err(e) => panic!("adoption test lock: {e}"),
+    };
+    cv_store::imports::write_adoption(&lock, rec).unwrap();
+}
+
 /// Blocker-3 probe: provenance is keyed by the stable entity id, so
 /// it survives the file being renamed — and a different page moved
 /// onto the adopted page's old path must not inherit it.
@@ -648,7 +659,7 @@ fn provenance_survives_rename_and_never_follows_the_path() {
         path: "posts/old-name.md".into(),
         source: Some("hugo-export/post/hello-world.md".into()),
     });
-    cv_store::imports::write_adoption(root, &rec).unwrap();
+    write_adoption_for(root, &rec);
 
     let snap = workspace_snapshot(root, "dist", None, 1);
     let page = snap
@@ -705,7 +716,7 @@ fn adopt_record(root: &Path, entity_id: &str, path: &str) {
         path: path.into(),
         source: Some("export/post.md".into()),
     });
-    cv_store::imports::write_adoption(root, &rec).unwrap();
+    write_adoption_for(root, &rec);
 }
 
 /// Review probe: an unrelated page with no explicit id gets the

@@ -3,9 +3,11 @@
 
 use crate::adoption::AdoptionRequest;
 use crate::dialog::{DialogSpec, Pick};
+use cv_core::engine::CancelToken;
 use cv_core::events::pages::PagesEvent;
 use cv_core::events::shell::DegradedReason;
 use serde::Serialize;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CommandSpec {
@@ -42,6 +44,40 @@ impl Intent {
     pub fn dialog(spec: DialogSpec) -> Self {
         Self::Dialog(Box::new(spec))
     }
+}
+
+/// One migration-lab execution the shell is asked to run for Migrate.
+///
+/// The workspace is filled in by the shell when it accepts the intent, so
+/// the module remains workspace-agnostic. Input paths are canonicalized and
+/// validated inside `cv-engine`; they are never copied into the workspace.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImportPhase {
+    Inventory,
+    Emit,
+}
+
+impl ImportPhase {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Inventory => "inventory",
+            Self::Emit => "import",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportJob {
+    pub workspace: PathBuf,
+    pub run_id: String,
+    pub mode: String,
+    pub phase: ImportPhase,
+    /// `(flag, path)` pairs. Only path metadata is transported; contents stay
+    /// at the user-selected location.
+    pub inputs: Vec<(String, PathBuf)>,
+    /// `(flag, value)` scalar pass-through options; empty means lab defaults.
+    pub extras: Vec<(String, String)>,
+    pub cancel: CancelToken,
 }
 
 /// What a module asks the shell to do. Modules emit intents; the shell
@@ -87,6 +123,10 @@ pub enum Intent {
     },
     /// Carry out a validated adoption request in the open workspace.
     AdoptRun(AdoptionRequest),
+    /// Run one migration-lab inventory or emit job in the background. The
+    /// composition root owns the worker and reports completion as a shell
+    /// notice; process execution remains inside `cv-engine`.
+    RunImport(ImportJob),
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]

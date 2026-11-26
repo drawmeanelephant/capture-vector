@@ -25,6 +25,7 @@ pub struct FileDescriptor {
 
 /// `boris-publication-artifacts` (artifacts.json).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ArtifactIndex {
     pub format: String,
     pub schema_version: u32,
@@ -33,6 +34,7 @@ pub struct ArtifactIndex {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Artifact {
     pub path: String,
     pub kind: String,
@@ -53,6 +55,7 @@ pub struct Artifact {
 
 /// `boris-publication-checks` (checks.json).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ChecksFile {
     pub format: String,
     pub schema_version: u32,

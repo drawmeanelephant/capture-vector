@@ -9,6 +9,8 @@
 //! however a run is started, what lands in `.cv/imports/<run-id>/` must
 //! be exactly what adoption consumes.
 
+mod common;
+
 use cv_core::engine::{CancelToken, EventSink, Verb};
 use cv_engine::adopt;
 use cv_engine::lab as engine_lab;
@@ -24,20 +26,13 @@ fn write(path: &Path, bytes: &[u8]) {
     std::fs::write(path, bytes).unwrap();
 }
 
-#[cfg(unix)]
-fn executable(path: &Path) {
-    use std::os::unix::fs::PermissionsExt;
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
-}
-
 /// A temp dir holding the fake lab shim plus the pinned version record
 /// and the captured hugo output tree as its replay.
 #[cfg(unix)]
 fn fake_lab() -> (tempfile::TempDir, PathBuf) {
     let dir = tempfile::tempdir().unwrap();
     let bin = dir.path().join(engine_lab::exe_name());
-    std::fs::write(&bin, LAB_SHIM).unwrap();
-    executable(&bin);
+    common::install_executable(&bin, LAB_SHIM);
     write(
         &dir.path().join("version.txt"),
         format!("{}\n", engine_lab::PINNED.tool_id).as_bytes(),
@@ -61,8 +56,7 @@ fn fake_lab() -> (tempfile::TempDir, PathBuf) {
 fn fake_boris() -> (tempfile::TempDir, PathBuf) {
     let dir = tempfile::tempdir().unwrap();
     let bin = dir.path().join("boris");
-    std::fs::write(&bin, BORIS_SHIM).unwrap();
-    executable(&bin);
+    common::install_executable(&bin, BORIS_SHIM);
     let raw =
         std::fs::read_to_string(cv_fixtures::fixtures_root().join("engine-version.txt")).unwrap();
     let build_info = raw
@@ -113,13 +107,14 @@ fn import_run_produced_by_run_lab_is_adoptable_end_to_end() {
         &lab,
         engine_lab::mode("hugo").unwrap(),
         vec![("--root".into(), input)],
+        Vec::new(),
         &CancelToken::new(),
     )
     .expect("run_lab executes");
     assert_eq!(rec.refused, None, "the run is not refused");
     assert_eq!(
-        rec.finished.as_ref().map(|f| f.exit.as_str()),
-        Some("ok"),
+        rec.finished.as_ref().map(|f| f.exit),
+        Some(cv_store::imports::FinishedExit::Ok),
         "the run finishes ok: {rec:?}"
     );
 

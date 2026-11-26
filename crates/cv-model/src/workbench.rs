@@ -6,7 +6,7 @@
 use crate::adoption::AdoptionJob;
 use crate::app_state::AppState;
 use crate::cascade;
-use crate::command::{CommandSpec, Intent, Palette};
+use crate::command::{CommandSpec, ImportJob, Intent, Palette};
 use crate::dialog::{Dialogs, FileFilter, PickPurpose, SecretPort};
 use crate::module::{Link, ProjectSnapshot, Registry, RowModel};
 use crate::modules::activity;
@@ -146,6 +146,8 @@ pub enum ShellRequest {
     CreateWorkspace(WorkspaceCreation),
     /// Adopt a migration run into the open workspace or a new one.
     AdoptRun(AdoptionJob),
+    /// Run a migration inventory or import in the background for Migrate.
+    RunImport(ImportJob),
     /// Open a page (relative to the content input) in an editor window.
     EditPage(String),
     /// Put text on the system clipboard.
@@ -911,6 +913,16 @@ impl Workbench {
                 })),
                 None => self.status = "open the workspace that owns this import run first".into(),
             },
+            Intent::RunImport(mut job) => {
+                if job.workspace.as_os_str().is_empty() {
+                    let Some(root) = self.workspace.clone() else {
+                        self.status = "no workspace open; the import cannot start".into();
+                        return;
+                    };
+                    job.workspace = root;
+                }
+                self.requests.push(ShellRequest::RunImport(job));
+            }
         }
     }
 

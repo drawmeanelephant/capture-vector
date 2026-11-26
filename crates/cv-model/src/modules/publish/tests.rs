@@ -1,4 +1,5 @@
 use super::*;
+use crate::dialog::{ActionTone, DialogKind, DialogSpec};
 use crate::modules::activity::tests::assert_index_matches_scan;
 use cv_core::sys::Hash;
 
@@ -9,6 +10,7 @@ fn targets() -> Vec<TargetInfo> {
         verified,
         secret: secret.map(str::to_string),
         hosts_html,
+        delivery: (id == "static-dist").then(|| "copy-to-folder → deployed".into()),
     };
     vec![
         t("github-pages", "GitHub Pages", true, None, true),
@@ -319,5 +321,334 @@ fn unregistered_module_has_no_workspace() {
     let r = Registry::with_all();
     let m = r.get(r.index_of(ID).unwrap()).unwrap();
     assert_eq!(m.row(None, 0).title, "No workspace open");
-    assert!(m.commands().is_empty(), "read-only: no verbs");
+    assert!(
+        m.commands()
+            .iter()
+            .all(|c| c.disabled.as_deref() == Some("open a workspace first")),
+        "no workspace: every verb is disabled"
+    );
+}
+
+// ── verbs ────────────────────────────────────────────────────────────
+
+use crate::dialog::{CHOICE, Value};
+use std::cell::RefCell as Shared;
+use std::rc::Rc;
+
+#[derive(Default)]
+struct Script {
+    ledger: Ledger,
+    calls: Vec<String>,
+    refuse_dispatch: Option<String>,
+}
+
+struct FakePort(Rc<Shared<Script>>);
+
+impl FakePort {
+    fn set(s: &mut Script, run: &str, f: impl FnOnce(&mut RunRecord)) {
+        f(s.ledger.runs.iter_mut().find(|r| r.id == run).unwrap());
+    }
+}
+
+impl PublishPort for FakePort {
+    fn targets(&self) -> Vec<TargetInfo> {
+        targets()
+    }
+    fn ledger(&mut self) -> LedgerRead {
+        LedgerRead::Read(self.0.borrow().ledger.clone())
+    }
+    fn describe(&self) -> String {
+        "scripted".into()
+    }
+    fn adapters(&self) -> Vec<String> {
+        vec!["copy-to-folder".into()]
+    }
+    fn preflight(&mut self, target: &str) -> Result<Done, String> {
+        let mut s = self.0.borrow_mut();
+        s.calls.push(format!("preflight {target}"));
+        s.ledger.runs.push(run("run-new", target, Phase::Granted));
+        Ok(Done {
+            run: "run-new".into(),
+            status: "sealed".into(),
+        })
+    }
+    fn approve(&mut self, id: &str) -> Result<Done, String> {
+        let mut s = self.0.borrow_mut();
+        s.calls.push(format!("approve {id}"));
+        Self::set(&mut s, id, |r| {
+            r.phase = Phase::Approved;
+            r.approved_by = Some("local".into());
+        });
+        Ok(Done {
+            run: id.into(),
+            status: "approved".into(),
+        })
+    }
+    fn dispatch(&mut self, id: &str) -> Result<Done, String> {
+        let mut s = self.0.borrow_mut();
+        s.calls.push(format!("dispatch {id}"));
+        if let Some(why) = s.refuse_dispatch.clone() {
+            Self::set(&mut s, id, |r| r.refusals.push(why.clone()));
+            return Err(why);
+        }
+        Self::set(&mut s, id, |r| r.phase = Phase::Complete);
+        Ok(Done {
+            run: id.into(),
+            status: "complete".into(),
+        })
+    }
+    fn reconcile(&mut self, id: &str, how: Observed) -> Result<Done, String> {
+        let mut s = self.0.borrow_mut();
+        s.calls.push(format!("reconcile {id} {how:?}"));
+        Self::set(&mut s, id, |r| r.phase = Phase::Failed);
+        Ok(Done {
+            run: id.into(),
+            status: "reconciled".into(),
+        })
+    }
+    fn discard(&mut self, id: &str) -> Result<Done, String> {
+        let mut s = self.0.borrow_mut();
+        s.calls.push(format!("discard {id}"));
+        Self::set(&mut s, id, |r| r.phase = Phase::Discarded);
+        Ok(Done {
+            run: id.into(),
+            status: "discarded".into(),
+        })
+    }
+}
+
+fn scripted(l: Ledger) -> (PublishModule, Rc<Shared<Script>>) {
+    let s = Rc::new(Shared::new(Script {
+        ledger: l,
+        ..Default::default()
+    }));
+    (PublishModule::new(Box::new(FakePort(s.clone()))), s)
+}
+
+fn command(m: &PublishModule, id: &str) -> CommandSpec {
+    m.commands().into_iter().find(|c| c.id == id).unwrap()
+}
+
+fn dialog(intents: &[Intent]) -> &DialogSpec {
+    match intents {
+        [Intent::Dialog(d)] => d,
+        other => panic!("expected one dialog, got {other:?}"),
+    }
+}
+
+fn reveals(intents: &[Intent], key: &str) -> bool {
+    intents
+        .iter()
+        .any(|i| matches!(i, Intent::Reveal { module, key: k } if module == ID && k == key))
+}
+
+fn status_of(intents: &[Intent]) -> String {
+    intents
+        .iter()
+        .find_map(|i| match i {
+            Intent::Status(s) => Some(s.clone()),
+            _ => None,
+        })
+        .unwrap_or_default()
+}
+
+fn confirmed(spec: &DialogSpec, action: &str) -> DialogAnswer {
+    DialogAnswer {
+        action: Some(action.into()),
+        context: spec.context.clone(),
+        ..Default::default()
+    }
+}
+
+#[test]
+fn only_a_target_with_a_configured_delivery_can_be_preflighted() {
+    let (m, _) = scripted(ledger());
+    assert_eq!(command(&m, "publish.preflight.static-dist").disabled, None);
+    for t in ["github-pages", "standard-site"] {
+        let why = command(&m, &format!("publish.preflight.{t}"))
+            .disabled
+            .unwrap();
+        assert!(why.contains("pending #185"), "{t}: {why}");
+    }
+    let closed = module(LedgerRead::NoWorkspace);
+    assert!(
+        closed
+            .commands()
+            .iter()
+            .all(|c| c.disabled.as_deref() == Some("open a workspace first"))
+    );
+}
+
+#[test]
+fn preflight_asks_the_port_and_selects_the_run_it_recorded() {
+    let (mut m, s) = scripted(ledger());
+    let out = m.run("publish.preflight.static-dist");
+    assert_eq!(s.borrow().calls, ["preflight static-dist"]);
+    assert!(reveals(&out, "run-new"), "{out:?}");
+    assert!(m.contains("run-new"), "the ledger is read again");
+    assert!(m.run("publish.preflight.github-pages")[0] == Intent::Status(
+        "GitHub Pages delivery is pending #185: which delivery adapters ship in v1 is not decided yet".into()
+    ));
+    assert_eq!(
+        s.borrow().calls.len(),
+        1,
+        "a pending target never reaches the port"
+    );
+}
+
+#[test]
+fn approval_confirms_the_sealed_hashes_file_count_and_advisory_findings() {
+    let mut l = ledger();
+    let mut granted = run("run-5", "static-dist", Phase::Granted);
+    granted.advisory = vec!["SEO-META-DESCRIPTION on index · heuristic".into()];
+    l.runs.push(granted);
+    let (mut m, s) = scripted(l);
+    m.select(Some("run-5"));
+    let out = m.run(APPROVE);
+    let spec = dialog(&out);
+    assert_eq!(spec.kind, DialogKind::Confirm);
+    let body = spec.body.as_deref().unwrap();
+    assert!(
+        body.contains("10 files · 2048 B by copy-to-folder to deployed"),
+        "{body}"
+    );
+    assert!(body.contains(&format!("plan: {}…", &Hash([3; 32]).to_hex()[..16])));
+    assert!(body.contains("boris: boris/0.9.0"));
+    assert!(body.contains("advisory · SEO-META-DESCRIPTION on index · heuristic"));
+    assert!(body.contains("never block"));
+    assert!(
+        s.borrow().calls.is_empty(),
+        "nothing is approved before the answer"
+    );
+
+    let spec = spec.clone();
+    let out = m.answer(APPROVE, &confirmed(&spec, "approve"));
+    assert_eq!(s.borrow().calls, ["approve run-5"]);
+    assert!(reveals(&out, "run-5"));
+    assert_eq!(m.reading("run-5").title, "Static dist · approved");
+
+    m.select(Some("run-5"));
+    let out = m.run(DISPATCH);
+    assert_eq!(s.borrow().calls, ["approve run-5", "dispatch run-5"]);
+    assert_eq!(status_of(&out), "complete");
+    assert_eq!(m.reading("run-5").title, "Static dist · complete");
+}
+
+#[test]
+fn approve_and_dispatch_records_the_approval_first() {
+    let mut l = ledger();
+    l.runs.push(run("run-5", "static-dist", Phase::Granted));
+    let (mut m, s) = scripted(l);
+    m.select(Some("run-5"));
+    let spec = dialog(&m.run(APPROVE)).clone();
+    m.answer(APPROVE, &confirmed(&spec, "approve-dispatch"));
+    assert_eq!(s.borrow().calls, ["approve run-5", "dispatch run-5"]);
+    m.answer(APPROVE, &DialogAnswer::default());
+    assert_eq!(s.borrow().calls.len(), 2, "a cancelled dialog does nothing");
+}
+
+#[test]
+fn a_refused_dispatch_is_shown_and_the_run_keeps_its_refusal() {
+    let (mut m, s) = scripted(ledger());
+    s.borrow_mut()
+        .ledger
+        .runs
+        .push(run("run-5", "static-dist", Phase::Approved));
+    s.borrow_mut().refuse_dispatch = Some("seal broken: artifact_set, plan".into());
+    m.reload();
+    m.select(Some("run-5"));
+    let out = m.run(DISPATCH);
+    assert_eq!(
+        status_of(&out),
+        "dispatch to Static dist refused: seal broken: artifact_set, plan"
+    );
+    assert!(reveals(&out, "run-5"));
+    assert!(
+        m.reading("run-5")
+            .lines
+            .iter()
+            .any(|l| l.label.as_deref() == Some("refused") && l.text.contains("seal broken"))
+    );
+}
+
+#[test]
+fn a_run_for_an_undecided_target_cannot_be_approved_or_dispatched() {
+    let mut l = ledger();
+    let mut r = run("run-5", "standard-site", Phase::Granted);
+    r.plan.as_mut().unwrap().adapter = "http-post".into();
+    l.runs.push(r);
+    let (mut m, s) = scripted(l);
+    m.select(Some("run-5"));
+    assert!(status_of(&m.run(APPROVE)).contains("pending #185"));
+    assert!(s.borrow().calls.is_empty());
+    let next = m
+        .reading("run-5")
+        .lines
+        .into_iter()
+        .find(|l| l.label.as_deref() == Some("next"))
+        .unwrap();
+    assert!(next.text.contains("pending #185") && next.tone == Tone::Dim);
+}
+
+#[test]
+fn an_unknown_run_reconciles_from_a_choice_and_is_never_redispatched() {
+    let (mut m, s) = scripted(ledger());
+    m.select(Some("run-2"));
+    let spec = dialog(&m.run(RECONCILE)).clone();
+    let DialogKind::Choose(choices) = &spec.kind else {
+        panic!("{spec:?}")
+    };
+    let ids: Vec<&str> = choices.iter().map(|c| c.id.as_str()).collect();
+    assert_eq!(ids, ["probe", "complete", "partial", "not-delivered"]);
+    let mut a = confirmed(&spec, "record");
+    a.values
+        .insert(CHOICE.into(), Value::Choice("not-delivered".into()));
+    let out = m.answer(RECONCILE, &a);
+    assert_eq!(s.borrow().calls, ["reconcile run-2 NotDelivered"]);
+    assert!(reveals(&out, "run-2"));
+    assert_eq!(m.reading("run-2").title, "Static dist · failed");
+    assert!(!s.borrow().calls.iter().any(|c| c.starts_with("dispatch")));
+    m.select(Some("run-2"));
+    assert!(status_of(&m.run(RECONCILE)).contains("only an unresolved run"));
+}
+
+#[test]
+fn a_grant_is_discarded_only_through_a_danger_confirm() {
+    let (mut m, s) = scripted(ledger());
+    m.select(Some("run-3"));
+    let out = m.run(DISCARD);
+    let spec = dialog(&out).clone();
+    assert!(
+        spec.actions
+            .iter()
+            .any(|a| a.id == "discard" && a.tone == ActionTone::Danger)
+    );
+    m.answer(DISCARD, &confirmed(&spec, "discard"));
+    assert_eq!(s.borrow().calls, ["discard run-3"]);
+    assert_eq!(m.reading("run-3").title, "GitHub Pages · discarded");
+    assert_eq!(keys(&m, COMPLETED), ["run-3", "run-0"]);
+}
+
+#[test]
+fn a_blocking_ruleset_finding_is_not_linked_into_an_absent_audit_row() {
+    let key = format!("A11Y-HTML-LANG|page:index|{}", Hash([7; 32]).to_hex());
+    let mut l = ledger();
+    let mut blocked = run("run-5", "static-dist", Phase::PreflightBlocked);
+    blocked.blocks = vec![format!("ruleset: {key}"), "check: ContentFailure".into()];
+    l.runs.push(blocked);
+    let (m, _) = scripted(l);
+    assert!(
+        m.link("run-5").is_none(),
+        "publish must not reveal a row Audit does not contain"
+    );
+    let r = m.reading("run-5");
+    assert!(
+        r.lines
+            .iter()
+            .any(|l| l.text.starts_with("A11Y-HTML-LANG on index"))
+    );
+    assert!(
+        m.link("run-1").is_none(),
+        "an engine block has no finding to reveal"
+    );
 }

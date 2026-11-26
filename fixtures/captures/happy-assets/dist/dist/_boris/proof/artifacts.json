@@ -1,0 +1,85 @@
+{
+  "format": "boris-publication-artifacts",
+  "schema_version": 1,
+  "target": "default",
+  "artifacts": [
+    {
+      "path": "_boris/search/search-index.json",
+      "kind": "rendered-search",
+      "producer": "rendered-search",
+      "required": true,
+      "status": "committed",
+      "bytes": 3484,
+      "sha256": "162f67bdc3eec598dfd637472d12b20965457796c7418c07574c81c7c5e661f3",
+      "format_version": "1",
+      "dimensions": null,
+      "semantics": null,
+      "advertised": null
+    },
+    {
+      "path": "assets/css/boris.css",
+      "kind": "theme-asset",
+      "producer": "theme-assets",
+      "required": true,
+      "status": "committed",
+      "bytes": 1483,
+      "sha256": "ac4dc197bb46ade5432be1a4ed5d0a958c4834f386909577c3b5f1b74e8d219e",
+      "format_version": null,
+      "dimensions": null,
+      "semantics": "static",
+      "advertised": null
+    },
+    {
+      "path": "guides/getting-started.assets/manual.html",
+      "kind": "content-asset",
+      "producer": "content-assets",
+      "required": true,
+      "status": "committed",
+      "bytes": 67,
+      "sha256": "ba75482b0e2dd997eca19d141734f0da2b056230f2004e7cfc548739bd176f6f",
+      "format_version": null,
+      "dimensions": null,
+      "semantics": "content-reference",
+      "advertised": null
+    },
+    {
+      "path": "guides/getting-started.html",
+      "kind": "html-page",
+      "producer": "html-render",
+      "required": true,
+      "status": "committed",
+      "bytes": 2789,
+      "sha256": "2d8b6ac75081c0cfb358f74c82e8bbfb194577926a15d1355742becb9b9c2cda",
+      "format_version": null,
+      "dimensions": null,
+      "semantics": null,
+      "advertised": true
+    },
+    {
+      "path": "guides/publishing.html",
+      "kind": "html-page",
+      "producer": "html-render",
+      "required": true,
+      "status": "committed",
+      "bytes": 2552,
+      "sha256": "e952ee8e8e64c23b766507fcd9ec398865514ff54a05772b2f976bc670aead55",
+      "format_version": null,
+      "dimensions": null,
+      "semantics": null,
+      "advertised": true
+    },
+    {
+      "path": "index.html",
+      "kind": "html-page",
+      "producer": "html-render",
+      "required": true,
+      "status": "committed",
+      "bytes": 2292,
+      "sha256": "df35843613ebf220d714fbec1f7da975941de84ea4f9b236fc7cca22dee65e3e",
+      "format_version": null,
+      "dimensions": null,
+      "semantics": null,
+      "advertised": true
+    }
+  ]
+}

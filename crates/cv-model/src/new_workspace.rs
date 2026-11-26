@@ -5,7 +5,7 @@
 //! What a starter holds, and which folders may take one, is Boris's.
 
 use crate::adoption::{ADOPT_NEW_DIALOG, AdoptionRequest, AdoptionTarget};
-use crate::command::Intent;
+use crate::command::{ImportJob, Intent};
 use crate::dialog::{ActionTone, DialogAnswer, DialogKind, DialogSpec, Field, Pick, Progress};
 use crate::workbench::{ShellRequest, Waker, Workbench};
 use cv_core::engine::CancelToken;
@@ -90,6 +90,19 @@ pub enum ShellNotice {
     Adopted {
         run_id: String,
         result: Result<crate::adoption::AdoptionReport, String>,
+    },
+    ImportStarted {
+        /// The candidate id the wizard staged before the atomic filesystem
+        /// claim resolved collisions.
+        requested: String,
+        /// The job whose id was actually claimed and is now running.
+        job: ImportJob,
+    },
+    ImportFinished {
+        job: ImportJob,
+        /// An error means the composition root could not even record the
+        /// attempt; ordinary lab failures are recorded in the run itself.
+        result: Result<(), String>,
     },
 }
 
@@ -364,6 +377,52 @@ impl Workbench {
                         self.dialogs.push(spec);
                     }
                     (Err(e), Err(_)) => self.status = e,
+                }
+            }
+            ShellNotice::ImportStarted { requested, job } => {
+                if self.workspace.as_ref() != Some(&job.workspace) {
+                    return;
+                }
+                let Some(i) = self.registry.index_of(crate::modules::migrate::ID) else {
+                    return;
+                };
+                let intents = self
+                    .registry
+                    .get_mut(i)
+                    .map(|m| m.import_started(&requested, &job))
+                    .unwrap_or_default();
+                for it in intents {
+                    self.apply(it);
+                }
+            }
+            ShellNotice::ImportFinished { job, result } => {
+                // Validate applicability before touching anything: a
+                // completion belongs to exactly one operation in exactly
+                // one workspace, and a foreign or stale completion must not
+                // close the active cancellation control.
+                if self.workspace.as_ref() != Some(&job.workspace) {
+                    self.status = format!(
+                        "{} finished for a workspace that is no longer open",
+                        job.phase.label()
+                    );
+                    return;
+                }
+                let Some(i) = self.registry.index_of(crate::modules::migrate::ID) else {
+                    return;
+                };
+                let intents = self
+                    .registry
+                    .get_mut(i)
+                    .map(|m| m.import_finished(&job))
+                    .unwrap_or_default();
+                for it in intents {
+                    self.apply(it);
+                }
+                if i == self.active {
+                    self.revalidate_selection();
+                }
+                if let Err(e) = result {
+                    self.status = format!("{} could not be recorded: {e}", job.phase.label());
                 }
             }
         }

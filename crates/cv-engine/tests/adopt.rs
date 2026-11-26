@@ -13,6 +13,24 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
+fn test_lock(root: &Path, run_id: &str) -> store::RunLock {
+    match store::claim_run(root, run_id) {
+        Ok(lock) => lock,
+        Err(store::Error::RunExists(_)) => store::lock_run(root, run_id).unwrap(),
+        Err(e) => panic!("test run lock: {e}"),
+    }
+}
+
+fn write_record(root: &Path, rec: &RunRecord) {
+    let lock = test_lock(root, &rec.run_id);
+    store::write(&lock, rec).expect("run record");
+}
+
+fn write_pending_for(root: &Path, journal: &store::PendingAdoption) {
+    let lock = test_lock(root, &journal.run_id);
+    store::write_pending(&lock, journal).unwrap();
+}
+
 fn seed_run(root: &Path, mode: &str, started_ms: i64) -> String {
     let id = format!("{started_ms}-{mode}");
     let root = &root.canonicalize().expect("run root");
@@ -40,11 +58,11 @@ fn seed_run(root: &Path, mode: &str, started_ms: i64) -> String {
     rec.argv = t.argv.clone();
     rec.finished = Some(Finished {
         exit_code: Some(t.exit_code),
-        exit: "ok".into(),
+        exit: store::FinishedExit::Ok,
         outcome: format!("exited {}", t.exit_code),
         duration_ms: 0,
     });
-    store::write(root, &rec).expect("run record");
+    write_record(root, &rec);
     id
 }
 
@@ -261,7 +279,7 @@ fn interrupted_adoption_resumes_byte_identical_files_and_converges() {
             bytes: bytes.len() as u64,
         });
     }
-    store::write_pending(&root, &journal).unwrap();
+    write_pending_for(&root, &journal);
     let n = 2.min(planned.len());
     let (pre_written, _) =
         adopt::copy_content(&root, &planned[..n], &[true; 2][..n.min(2)]).unwrap();
@@ -307,7 +325,7 @@ fn resume_tolerates_its_own_ids_in_the_workspace_scan() {
     let planned = adopt::plan(&src, "content", Some("imported")).unwrap();
 
     let journal = pending_for(&root, &run_id, &src);
-    store::write_pending(&root, &journal).unwrap();
+    write_pending_for(&root, &journal);
     let n = 2.min(planned.len());
     adopt::copy_content(&root, &planned[..n], &[true; 2][..n]).unwrap();
 
@@ -348,7 +366,7 @@ fn resume_still_refuses_ids_owned_elsewhere() {
     let src = adopt::source(source_ws.path(), &run_id).unwrap();
 
     let journal = pending_for(&root, &run_id, &src);
-    store::write_pending(&root, &journal).unwrap();
+    write_pending_for(&root, &journal);
 
     let first = src.pages[0].entity_id.clone();
     let mut ids = BTreeMap::new();
@@ -398,7 +416,7 @@ fn a_journal_naming_a_different_run_is_rejected() {
     let root = target.path().canonicalize().unwrap();
     let src = adopt::source(source_ws.path(), &run_id).unwrap();
     let mut journal = pending_for(&root, &run_id, &src);
-    store::write_pending(&root, &journal).unwrap();
+    write_pending_for(&root, &journal);
     // Rewrite the file with a foreign embedded id.
     journal.run_id = "somebody-else".into();
     let dir = store::run_dir(&root, &run_id).unwrap();
@@ -422,7 +440,7 @@ fn a_journal_with_an_unportable_target_refuses_the_resume() {
     let src = adopt::source(source_ws.path(), &run_id).unwrap();
     let mut journal = pending_for(&root, &run_id, &src);
     journal.files[0].target = "../escape.md".into();
-    store::write_pending(&root, &journal).unwrap();
+    write_pending_for(&root, &journal);
 
     let err = adopt::transact(
         &root,
@@ -450,7 +468,7 @@ fn a_journal_with_a_different_file_set_refuses_the_resume() {
     let src = adopt::source(source_ws.path(), &run_id).unwrap();
     let mut journal = pending_for(&root, &run_id, &src);
     journal.files.pop();
-    store::write_pending(&root, &journal).unwrap();
+    write_pending_for(&root, &journal);
 
     let err = adopt::transact(
         &root,
@@ -478,7 +496,7 @@ fn a_journal_whose_hashes_differ_from_the_source_refuses_the_resume() {
     let src = adopt::source(source_ws.path(), &run_id).unwrap();
     let mut journal = pending_for(&root, &run_id, &src);
     journal.files[0].sha256 = store::sha256_hex(b"not the real bytes");
-    store::write_pending(&root, &journal).unwrap();
+    write_pending_for(&root, &journal);
 
     let err = adopt::transact(
         &root,
@@ -504,7 +522,7 @@ fn a_faithful_journal_still_resumes() {
     let root = target.path().canonicalize().unwrap();
     let src = adopt::source(source_ws.path(), &run_id).unwrap();
     let journal = pending_for(&root, &run_id, &src);
-    store::write_pending(&root, &journal).unwrap();
+    write_pending_for(&root, &journal);
     // Land one byte-identical file as the interrupted attempt did.
     let planned = adopt::plan(&src, "content", Some("imported")).unwrap();
     adopt::copy_content(&root, &planned[..1], &[true]).unwrap();
@@ -539,7 +557,7 @@ fn adopt_to_new_crash_after_clearing_resumes_to_convergence() {
     // journal (starter manifest included), starter already deleted,
     // one incoming file written — then silence.
     let journal = new_workspace_journal(&root, &run_id, &src);
-    store::write_pending(&root, &journal).unwrap();
+    write_pending_for(&root, &journal);
     std::fs::remove_dir_all(root.join("content")).unwrap();
     let planned = adopt::plan(&src, "content", None).unwrap();
     adopt::copy_content(&root, &planned[..1], &[true]).unwrap();
@@ -606,7 +624,7 @@ fn a_foreign_file_written_after_the_crash_survives_and_refuses_the_resume() {
     let src = adopt::source(source_ws.path(), &run_id).unwrap();
 
     let journal = new_workspace_journal(&root, &run_id, &src);
-    store::write_pending(&root, &journal).unwrap();
+    write_pending_for(&root, &journal);
     std::fs::remove_dir_all(root.join("content")).unwrap();
     let planned = adopt::plan(&src, "content", None).unwrap();
     adopt::copy_content(&root, &planned[..1], &[true]).unwrap();
@@ -656,7 +674,7 @@ fn a_file_named_like_write_debris_is_user_data_and_survives() {
     let src = adopt::source(source_ws.path(), &run_id).unwrap();
 
     let journal = new_workspace_journal(&root, &run_id, &src);
-    store::write_pending(&root, &journal).unwrap();
+    write_pending_for(&root, &journal);
     std::fs::remove_dir_all(root.join("content")).unwrap();
     std::fs::create_dir_all(root.join("content")).unwrap();
     std::fs::write(
@@ -691,7 +709,7 @@ fn staged_write_debris_refuses_safely_until_the_user_cleans_it() {
     let src = adopt::source(source_ws.path(), &run_id).unwrap();
 
     let journal = new_workspace_journal(&root, &run_id, &src);
-    store::write_pending(&root, &journal).unwrap();
+    write_pending_for(&root, &journal);
     std::fs::remove_dir_all(root.join("content")).unwrap();
     std::fs::create_dir_all(root.join("content")).unwrap();
     std::fs::write(root.join("content/.cv-write-x7f2.tmp"), "partial bytes").unwrap();
@@ -726,7 +744,7 @@ fn a_starter_file_edited_after_the_crash_is_foreign_and_survives() {
     let src = adopt::source(source_ws.path(), &run_id).unwrap();
 
     let journal = new_workspace_journal(&root, &run_id, &src);
-    store::write_pending(&root, &journal).unwrap();
+    write_pending_for(&root, &journal);
     // Crash BEFORE the clear even ran: the starter tree is intact.
     // The user then edits the starter page.
     std::fs::write(
@@ -761,7 +779,7 @@ fn foreign_bytes_at_a_planned_path_refuse_but_identical_output_skips() {
     let planned = adopt::plan(&src, "content", None).unwrap();
 
     let journal = new_workspace_journal(&root, &run_id, &src);
-    store::write_pending(&root, &journal).unwrap();
+    write_pending_for(&root, &journal);
     std::fs::remove_dir_all(root.join("content")).unwrap();
 
     // Foreign squat at planned[0]: bytes differ from the incoming source.
@@ -926,7 +944,7 @@ fn resume_refuses_targets_whose_bytes_differ() {
     let planned = adopt::plan(&src, "content", Some("imported")).unwrap();
 
     let journal = pending_for(&root, &run_id, &src);
-    store::write_pending(&root, &journal).unwrap();
+    write_pending_for(&root, &journal);
     let victim = root.join(&planned[0].target);
     std::fs::create_dir_all(victim.parent().unwrap()).unwrap();
     std::fs::write(&victim, b"user edited this after the crash").unwrap();
@@ -963,7 +981,7 @@ fn mismatched_pending_journal_refuses_the_retry() {
 
     let mut journal = store::PendingAdoption::new(&run_id, "existing", "content");
     journal.content_subfolder = Some("first-attempt".into());
-    store::write_pending(&root, &journal).unwrap();
+    write_pending_for(&root, &journal);
 
     let err = adopt::transact(
         &root,
@@ -976,6 +994,41 @@ fn mismatched_pending_journal_refuses_the_retry() {
     )
     .unwrap_err();
     assert!(err.to_string().contains("interrupted adoption"), "{err}");
+}
+
+#[test]
+fn inventory_only_runs_are_not_adoptable() {
+    let ws = tempfile::tempdir().unwrap();
+    let run_id = seed_run(ws.path(), "hugo-inventory", 1_764_000_000_001);
+    let err = adopt::source(ws.path(), &run_id).unwrap_err();
+    assert!(
+        err.to_string().contains("report.json") || err.to_string().contains("content"),
+        "inventory-only output has no adoptable emit evidence: {err}"
+    );
+}
+
+#[test]
+fn a_held_run_lock_refuses_adoption_before_any_write() {
+    let (source_ws, run_id) = hugo_source();
+    let root = source_ws.path().canonicalize().unwrap();
+    let src = adopt::source(&root, &run_id).unwrap();
+    let held = store::lock_run(&root, &run_id).unwrap();
+    let err = adopt::transact(
+        &root,
+        &src,
+        "content",
+        Some("imported"),
+        "existing",
+        &BTreeMap::new(),
+        7,
+    )
+    .unwrap_err();
+    assert!(
+        matches!(err, AdoptError::Store(store::Error::LockHeld(_))),
+        "the contested per-run lock refuses adoption: {err}"
+    );
+    drop(held);
+    assert!(!root.join("content/imported").exists());
 }
 
 #[test]
@@ -1009,7 +1062,7 @@ fn unfinished_runs_are_not_adoptable() {
         },
         0,
     );
-    store::write(&root, &rec).unwrap();
+    write_record(&root, &rec);
     assert!(adopt::source(&root, "r1").is_err());
 }
 

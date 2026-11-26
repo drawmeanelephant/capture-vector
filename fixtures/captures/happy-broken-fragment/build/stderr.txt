@@ -1,0 +1,8 @@
+  wrote dist/guides/getting-started.html
+  wrote dist/guides/publishing.html
+  wrote dist/index.html
+warning: EFRAGMENTMISSING: index.html:56: href="guides/getting-started.html#does-not-exist" resolves to a published page, but its #fragment matches no rendered id there [update the fragment, or point the reference at an anchor the page emits]
+warning: publication check 'rendered-html' for target 'default' reported status 'failed'; per-finding detail lives in _boris/proof/checks.json findings[] and the claim mirrors it in _boris/proof/claims.json
+ok: wrote HTML for 1 target(s):
+  target default: out=dist layout=themes/boris/layouts/main.html rules=0
+  checks: 2/3 — rendered-html failed: 1 error — deploy blocks
