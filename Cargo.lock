@@ -854,6 +854,7 @@ name = "cv-store"
 version = "0.0.0"
 dependencies = [
  "cv-core",
+ "libc",
  "serde",
  "serde_json",
  "sha2",

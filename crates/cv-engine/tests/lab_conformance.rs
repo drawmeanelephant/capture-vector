@@ -88,6 +88,7 @@ fn stub_lab_equals_process_lab_over_a_replaying_fake() {
         let run = LabRun {
             mode,
             inputs,
+            extras: Vec::new(),
             out: spec.out(&root),
         };
         let done = lab::run(&identity, &run, &CancelToken::new()).unwrap();

@@ -730,6 +730,10 @@ pub const SCENES: &[Scene] = &[
     ("verb-check-audit", verbs::scene::check),
 ];
 
+fn import_native(wb: &mut cv_model::workbench::Workbench, job: cv_model::command::ImportJob) {
+    let _ = migrate::spawn_import(wb, job);
+}
+
 pub fn launch() -> Launch {
     Launch {
         title: "Capture Vector",
@@ -738,6 +742,7 @@ pub fn launch() -> Launch {
         open: open_native,
         create: new_workspace::create_native,
         edit: editor::edit_page,
+        import: import_native,
         scenes: SCENES,
     }
 }
