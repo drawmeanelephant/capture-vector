@@ -170,6 +170,7 @@ pub struct OutcomeSink {
     tx: Sender<(u64, WorkspaceKey, Envelope)>,
     waker: Arc<Mutex<Option<Waker>>>,
     causal: Arc<AtomicU64>,
+    send_lock: Arc<Mutex<()>>,
 }
 
 impl OutcomeSink {
@@ -177,8 +178,12 @@ impl OutcomeSink {
     /// reuse that returned stamp with [`OutcomeSink::send_stamped_for`]:
     /// replay time is not the event's causal time.
     pub fn send_for(&self, workspace: WorkspaceKey, env: Envelope) -> u64 {
-        let seq = self.causal.fetch_add(1, Ordering::SeqCst) + 1;
-        self.send_stamped_for(seq, workspace, env);
+        let (seq, sent) = {
+            let _send = self.send_lock.lock().unwrap_or_else(|e| e.into_inner());
+            let seq = self.causal.fetch_add(1, Ordering::SeqCst) + 1;
+            (seq, self.publish(seq, workspace, env))
+        };
+        self.wake(sent);
         seq
     }
 
@@ -186,7 +191,19 @@ impl OutcomeSink {
     /// fact first occurred. This is for journal replay only; fresh outcomes
     /// must use [`OutcomeSink::send_for`].
     pub fn send_stamped_for(&self, seq: u64, workspace: WorkspaceKey, env: Envelope) {
-        if self.tx.send((seq, workspace, env)).is_ok()
+        let sent = {
+            let _send = self.send_lock.lock().unwrap_or_else(|e| e.into_inner());
+            self.publish(seq, workspace, env)
+        };
+        self.wake(sent);
+    }
+
+    fn publish(&self, seq: u64, workspace: WorkspaceKey, env: Envelope) -> bool {
+        self.tx.send((seq, workspace, env)).is_ok()
+    }
+
+    fn wake(&self, sent: bool) {
+        if sent
             && let Some(w) = self
                 .waker
                 .lock()
@@ -235,6 +252,7 @@ pub struct Workbench {
     notice_rx: Receiver<ShellNotice>,
     outcome_tx: Sender<(u64, WorkspaceKey, Envelope)>,
     outcome_rx: Receiver<(u64, WorkspaceKey, Envelope)>,
+    outcome_send_lock: Arc<Mutex<()>>,
     /// Outcomes whose owning workspace is not currently open; retained so a
     /// foreign workspace never receives them as unattributed facts. Retention
     /// is bounded (64 outcomes and about 1 MiB serialized); oldest foreign
@@ -290,6 +308,7 @@ impl Workbench {
             notice_rx,
             outcome_tx,
             outcome_rx,
+            outcome_send_lock: Arc::new(Mutex::new(())),
             pending_outcomes: Vec::new(),
             seen: BTreeSet::new(),
             unjournaled: BTreeSet::new(),
@@ -350,6 +369,7 @@ impl Workbench {
             tx: self.outcome_tx.clone(),
             waker: self.waker.clone(),
             causal: self.causal.clone(),
+            send_lock: self.outcome_send_lock.clone(),
         }
     }
 
@@ -423,38 +443,25 @@ impl Workbench {
                 .is_some_and(|current| current.same_instance(&key));
             if current {
                 ordered.push((seq, Item::Outcome(env)));
-            } else if current_key
-                .as_ref()
-                .is_some_and(|current| current.path() == key.path())
-            {
-                // Same spelling but a different device+file-index instance means
-                // the owning directory was destroyed and replaced. That instance
-                // cannot return, so retaining its truth would only be a leak.
-                self.status = format!(
-                    "discarded a stale outcome for {}; that workspace instance was replaced",
-                    key.path().display()
-                );
-                changed = true;
             } else {
                 keep.push((seq, key, env));
             }
         }
         let evicted = enforce_outcome_retention(&mut keep);
-        if evicted > 0 {
-            self.status = format!(
+        let disclosure = (evicted > 0).then(|| {
+            format!(
                 "discarded {evicted} held outcome(s): retention is bounded to {MAX_PENDING_OUTCOMES} outcomes or {MAX_PENDING_OUTCOME_BYTES} bytes"
-            );
-            changed = true;
-        }
+            )
+        });
         self.pending_outcomes = keep;
         while let Ok(q) = self.rx.try_recv() {
             ordered.push((queued_seq(&q), Item::Inbox(q)));
         }
         ordered.sort_by_key(|(seq, _)| *seq);
 
-        for (_, item) in ordered {
+        for (seq, item) in ordered {
             match item {
-                Item::Outcome(env) => changed |= self.commit(&env),
+                Item::Outcome(env) => changed |= self.commit(&env, seq),
                 Item::Inbox(q) => {
                     let m = match q {
                         Queued::Msg { msg, .. } => msg,
@@ -464,7 +471,7 @@ impl Workbench {
                         },
                     };
                     changed |= match m {
-                        Inbound::Envelope(env) => self.commit(&env),
+                        Inbound::Envelope(env) => self.commit(&env, seq),
                         Inbound::Snapshot(snap) => self.load_snapshot(&snap),
                         Inbound::Watch(h) => {
                             self.stop_watch();
@@ -479,7 +486,7 @@ impl Workbench {
                         }
                         Inbound::Degraded(reason) => {
                             let env = self.degraded_envelope(reason);
-                            self.commit(&env)
+                            self.commit(&env, seq)
                         }
                         Inbound::Status(s) => {
                             self.status = s;
@@ -488,6 +495,10 @@ impl Workbench {
                     };
                 }
             }
+        }
+        if let Some(disclosure) = disclosure {
+            self.status = disclosure;
+            changed = true;
         }
         changed
     }
@@ -507,7 +518,7 @@ impl Workbench {
         }
     }
 
-    fn commit(&mut self, env: &Envelope) -> bool {
+    fn commit(&mut self, env: &Envelope, causal: u64) -> bool {
         if !self.seen.insert((env.event_id.0.clone(), digest(env))) {
             if self.unjournaled.contains(&env.event_id.0) {
                 self.journal(env);
@@ -517,7 +528,7 @@ impl Workbench {
         self.journal(env);
         let mut changed = cascade::dispatch(&mut self.app, env);
         for m in self.registry.iter_mut() {
-            changed |= m.ingest(env);
+            changed |= m.ingest_stamped(env, causal);
         }
         let owed: Vec<Intent> = self
             .registry
@@ -964,7 +975,8 @@ impl Workbench {
             Intent::Degrade(reason) => self.disclose(reason),
             Intent::Pages(ev) => {
                 let env = self.local_envelope(AppEvent::Pages(ev));
-                self.commit(&env);
+                let causal = self.causal.fetch_add(1, Ordering::SeqCst) + 1;
+                self.commit(&env, causal);
             }
             Intent::Recover => self.app.degraded = None,
             Intent::Status(s) => self.status = s,

@@ -253,6 +253,12 @@ pub trait Module {
     fn spec(&self) -> ModuleSpec;
     /// Apply one committed envelope; return true when visible state changed.
     fn ingest(&mut self, env: &Envelope) -> bool;
+    /// Apply one committed envelope together with its causal delivery stamp.
+    /// Modules whose presentation is causally ordered override this; the
+    /// default preserves the ordinary envelope-only contract.
+    fn ingest_stamped(&mut self, env: &Envelope, _causal: u64) -> bool {
+        self.ingest(env)
+    }
     fn nav(&self) -> NavModel;
     fn list_len(&self, nav: Option<&str>) -> usize;
     fn row(&self, nav: Option<&str>, index: usize) -> RowModel;

@@ -14,6 +14,7 @@ use cv_core::events::engine::{BuildPhase, EngineEvent, VerbReport, WatchEndReaso
 use cv_core::events::shell::{DegradedReason, ShellEvent};
 use cv_core::events::{AppEvent, Envelope};
 use cv_core::id::{AccountId, AttrValue, NounAttrRow, NounId, NounKind, StableId, noun_kind};
+use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub const ID: &str = "activity";
@@ -102,6 +103,9 @@ pub enum EntryKind {
 pub struct Occurrence {
     pub event: String,
     pub build: Option<String>,
+    /// Workbench-local causal delivery stamp. Commit/arrival order is not
+    /// causal order; read-time row ordering uses this key.
+    pub causal: u64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -186,6 +190,8 @@ const WARNINGS: &str = "warnings";
 const BUILDS: &str = "builds";
 const FILE: &str = "file:";
 
+type CausalOrderCache = RefCell<BTreeMap<Option<String>, (u64, Vec<usize>)>>;
+
 #[derive(Default)]
 pub struct ActivityModule {
     entries: Vec<Entry>,
@@ -202,6 +208,11 @@ pub struct ActivityModule {
     verb_outcomes: BTreeMap<(u8, String, String), usize>,
     /// Built from `views` only, so `push` is its one invalidation point.
     nav_cache: NavCache,
+    /// Bumped whenever ingestion can change an entry's causal ordering key.
+    causal_version: Cell<u64>,
+    /// Mailbox → (causal version, causal-ascending entry indices). Kept so
+    /// virtualized row reads do not re-sort the river for every visible row.
+    order_cache: CausalOrderCache,
 }
 
 impl ActivityModule {
@@ -215,6 +226,46 @@ impl ActivityModule {
             .iter()
             .flat_map(|e| e.occurrences.iter().map(|o| o.event.clone()))
             .collect()
+    }
+
+    fn with_causal_order<R>(&self, nav: Option<&str>, f: impl FnOnce(&[usize]) -> R) -> R {
+        let key = nav.map(str::to_string);
+        let version = self.causal_version.get();
+        let mut cache = self.order_cache.borrow_mut();
+        if cache.get(&key).is_none_or(|(v, _)| *v != version) {
+            let mut order = self.view(nav).to_vec();
+            order.sort_by_key(|&i| {
+                let causal = self.entries[i]
+                    .occurrences
+                    .iter()
+                    .map(|o| o.causal)
+                    .max()
+                    .unwrap_or(0);
+                (causal, i)
+            });
+            cache.insert(key.clone(), (version, order));
+        }
+        f(&cache.get(&key).expect("just cached").1)
+    }
+
+    fn causal_entry_index(&self, nav: Option<&str>, newest_first_row: usize) -> Option<usize> {
+        self.with_causal_order(nav, |order| {
+            order
+                .len()
+                .checked_sub(newest_first_row + 1)
+                .map(|causal_index| order[causal_index])
+        })
+    }
+
+    fn causal_row_index(&self, nav: Option<&str>, entry_index: usize) -> Option<usize> {
+        self.with_causal_order(nav, |order| {
+            let causal_index = order.iter().position(|&i| i == entry_index)?;
+            Some(order.len() - 1 - causal_index)
+        })
+    }
+
+    fn ingest_causal(&mut self, env: &Envelope, causal: u64) -> bool {
+        self.ingest_inner(env, causal)
     }
 
     fn view(&self, nav: Option<&str>) -> &[usize] {
@@ -381,83 +432,12 @@ impl ActivityModule {
             }
         }
     }
-}
-
-const IR_FALLBACK_DETAIL: &str =
-    "Pages keeps the last published Boris IR; when none exists, it keeps marked source fields";
-
-fn ir_verb_detail(verb: &str, outcome: &str) -> String {
-    if verb == "ir" && outcome != "Ok" {
-        format!("{outcome} · {IR_FALLBACK_DETAIL}")
-    } else {
-        outcome.into()
-    }
-}
-
-/// `exit 1`, or the class when a signal ended the process.
-fn exit_code(r: &VerbReport) -> String {
-    r.code
-        .map_or_else(|| format!("{:?}", r.exit), |c| format!("exit {c}"))
-}
-
-/// Shown per stream in a run's reading view; the event keeps the rest.
-const MAX_STREAM_LINES: usize = 400;
-
-/// One reading line per output line, labelled once, verbatim.
-fn stream_lines(label: &str, text: &str, tone: Tone) -> Vec<ReadingLine> {
-    let all: Vec<&str> = text.lines().collect();
-    let mut out: Vec<ReadingLine> = all
-        .iter()
-        .take(MAX_STREAM_LINES)
-        .enumerate()
-        .map(|(i, l)| ReadingLine {
-            label: (i == 0).then(|| label.to_string()),
-            text: (*l).to_string(),
-            tone,
-            mono: true,
-        })
-        .collect();
-    if all.len() > MAX_STREAM_LINES {
-        out.push(ReadingLine {
-            label: None,
-            text: format!(
-                "… {} more {label} lines in the journaled event",
-                all.len() - MAX_STREAM_LINES
-            ),
-            tone: Tone::Dim,
-            mono: false,
-        });
-    }
-    out
-}
-
-fn run_diagnostics(r: &VerbReport) -> Vec<Diagnostic> {
-    r.stderr
-        .lines()
-        .filter_map(StderrDiagnostic::parse)
-        .map(|d| Diagnostic::from(&d))
-        .collect()
-}
-
-fn location_file(d: &Diagnostic) -> String {
-    d.span
-        .as_ref()
-        .map_or_else(|| "(project)".into(), |s| s.path.clone())
-}
-
-impl Module for ActivityModule {
-    fn spec(&self) -> ModuleSpec {
-        ModuleSpec {
-            id: ID,
-            title: "Activity",
-            slot: Slot::Activity,
-        }
-    }
-
-    fn ingest(&mut self, env: &Envelope) -> bool {
+    fn ingest_inner(&mut self, env: &Envelope, causal: u64) -> bool {
+        self.causal_version.set(self.causal_version.get() + 1);
         let occ = Occurrence {
             event: env.event_id.0.clone(),
             build: env.build_id.as_ref().map(|b| b.0.clone()),
+            causal,
         };
         let boundary = |s: &mut Self, kind| {
             s.last_build = None;
@@ -541,6 +521,86 @@ impl Module for ActivityModule {
         }
         true
     }
+}
+
+const IR_FALLBACK_DETAIL: &str =
+    "Pages keeps the last published Boris IR; when none exists, it keeps marked source fields";
+
+fn ir_verb_detail(verb: &str, outcome: &str) -> String {
+    if verb == "ir" && outcome != "Ok" {
+        format!("{outcome} · {IR_FALLBACK_DETAIL}")
+    } else {
+        outcome.into()
+    }
+}
+
+/// `exit 1`, or the class when a signal ended the process.
+fn exit_code(r: &VerbReport) -> String {
+    r.code
+        .map_or_else(|| format!("{:?}", r.exit), |c| format!("exit {c}"))
+}
+
+/// Shown per stream in a run's reading view; the event keeps the rest.
+const MAX_STREAM_LINES: usize = 400;
+
+/// One reading line per output line, labelled once, verbatim.
+fn stream_lines(label: &str, text: &str, tone: Tone) -> Vec<ReadingLine> {
+    let all: Vec<&str> = text.lines().collect();
+    let mut out: Vec<ReadingLine> = all
+        .iter()
+        .take(MAX_STREAM_LINES)
+        .enumerate()
+        .map(|(i, l)| ReadingLine {
+            label: (i == 0).then(|| label.to_string()),
+            text: (*l).to_string(),
+            tone,
+            mono: true,
+        })
+        .collect();
+    if all.len() > MAX_STREAM_LINES {
+        out.push(ReadingLine {
+            label: None,
+            text: format!(
+                "… {} more {label} lines in the journaled event",
+                all.len() - MAX_STREAM_LINES
+            ),
+            tone: Tone::Dim,
+            mono: false,
+        });
+    }
+    out
+}
+
+fn run_diagnostics(r: &VerbReport) -> Vec<Diagnostic> {
+    r.stderr
+        .lines()
+        .filter_map(StderrDiagnostic::parse)
+        .map(|d| Diagnostic::from(&d))
+        .collect()
+}
+
+fn location_file(d: &Diagnostic) -> String {
+    d.span
+        .as_ref()
+        .map_or_else(|| "(project)".into(), |s| s.path.clone())
+}
+
+impl Module for ActivityModule {
+    fn spec(&self) -> ModuleSpec {
+        ModuleSpec {
+            id: ID,
+            title: "Activity",
+            slot: Slot::Activity,
+        }
+    }
+
+    fn ingest(&mut self, env: &Envelope) -> bool {
+        self.ingest_causal(env, 0)
+    }
+
+    fn ingest_stamped(&mut self, env: &Envelope, causal: u64) -> bool {
+        self.ingest_causal(env, causal)
+    }
 
     fn nav(&self) -> NavModel {
         self.nav_cache.get_or_build(|| self.build_nav())
@@ -550,14 +610,12 @@ impl Module for ActivityModule {
         self.view(nav).len()
     }
 
-    /// Newest first.
+    /// Newest first by causal stamp, not commit/arrival order.
     fn row(&self, nav: Option<&str>, i: usize) -> RowModel {
-        let v = self.view(nav);
-        let Some(e) = v
-            .len()
-            .checked_sub(i + 1)
-            .and_then(|j| self.entries.get(v[j]))
-        else {
+        let Some(entry_index) = self.causal_entry_index(nav, i) else {
+            return RowModel::default();
+        };
+        let Some(e) = self.entries.get(entry_index) else {
             return RowModel::default();
         };
         let sev = e.severity();
@@ -578,10 +636,7 @@ impl Module for ActivityModule {
         if self.entries.get(n)?.key != key {
             return None;
         }
-        // `push` appends each entry once per view, in entry order.
-        let v = self.view(nav);
-        let j = v.binary_search(&n).ok()?;
-        Some(v.len() - 1 - j)
+        self.causal_row_index(nav, n)
     }
 
     fn reading(&self, key: &str) -> ReadingModel {

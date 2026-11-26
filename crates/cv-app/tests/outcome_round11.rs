@@ -604,14 +604,14 @@ fn r11_firmlink_alias_of_the_owning_workspace_must_drain_held_outcome() {
         cv_app::migrate::adopt::adopt(&mut wb, adoption_job(&ws, "r11firmlink", "imported"), &env)
             .expect("adoption starts");
     wait_for_argv(boris_dir.path(), "validate", 1);
-    join_with_timeout(
-        open_workspace(&mut wb, alias_canon.clone(), &env_alias).expect("alias boot starts"),
-        Duration::from_secs(8),
-        "alias boot",
-    );
+    let alias_boot =
+        open_workspace(&mut wb, alias_canon.clone(), &env_alias).expect("alias boot starts");
     settle(&mut wb, Duration::from_millis(100));
     std::fs::remove_file(boris_dir.path().join("verbs/validate/hold")).unwrap();
     join_with_timeout(adoption, Duration::from_secs(12), "adoption worker");
+    // The alias shares the owning workspace's scheduler, so its serialized
+    // replacement boot may wait for the adoption gate to leave the mutation lane.
+    join_with_timeout(alias_boot, Duration::from_secs(8), "alias boot");
     settle(&mut wb, Duration::from_millis(500));
     let alias_rows = validate_rows(&wb).len();
     let rows_at_alias = print_rows("R11-FIRMLINK-ALIAS", &wb);
@@ -794,4 +794,167 @@ fn r10_multiple_adoptions_across_one_retirement_exactly_once_per_run() {
     }
     assert!(ok, "final generation unhealthy: {state}");
     stop_all(&ws);
+}
+
+/// build is still held, the replacement generation commits a causally later
+/// shell-truth event. The final gate journal then replays the old validate
+/// into the replacement. Correct causal order keeps validate older than that
+/// replacement-generation truth; commit-order replay cannot express that.
+#[test]
+fn r12_pre_reset_validate_replay_precesses_after_causally_later_watch_build() {
+    let (boris_dir, boris) = fake_boris();
+    let (_w, ws) = workspace();
+    let recent = tempfile::tempdir().unwrap();
+    let env = env_for(&boris, &recent.path().join("recent.json"));
+    seed_unique_run(&ws, "r12precession");
+    let mut wb = cv_app::init();
+    join_with_timeout(
+        open_workspace(&mut wb, ws.clone(), &env).expect("initial boot starts"),
+        Duration::from_secs(8),
+        "initial boot",
+    );
+    settle(&mut wb, Duration::from_millis(150));
+
+    write(&boris_dir.path().join("verbs/build/hold"), b"");
+    let adoption = cv_app::migrate::adopt::adopt(
+        &mut wb,
+        adoption_job(&ws, "r12precession", "imported"),
+        &env,
+    )
+    .expect("adoption starts");
+    wait_for_argv(boris_dir.path(), "build", 1);
+    settle(&mut wb, Duration::from_millis(350));
+    let before = exact_rows(&wb, "validate finished").len();
+    println!("R12-PRECESSION validate_rows_before_reset={before}");
+    assert_eq!(
+        before, 1,
+        "harness precondition: validate must commit before reset"
+    );
+
+    let boot = open_workspace(&mut wb, ws.clone(), &env).expect("replacement boot starts");
+    wb.disclose(cv_core::events::shell::DegradedReason::StoreCorrupt);
+    let pre_rows = print_rows("R12-PRECESSION-BEFORE-RELEASE", &wb);
+    let ideg = pre_rows
+        .iter()
+        .position(|(_, t, _)| t == "Degraded: StoreCorrupt");
+    println!("R12-PRECESSION replacement_truth_committed_before_release={ideg:?}");
+    assert!(
+        ideg.is_some(),
+        "harness precondition: replacement shell truth must commit first"
+    );
+
+    std::fs::remove_file(boris_dir.path().join("verbs/build/hold")).unwrap();
+    join_with_timeout(adoption, Duration::from_secs(12), "adoption worker");
+    join_with_timeout(boot, Duration::from_secs(12), "replacement boot");
+    settle(&mut wb, Duration::from_millis(700));
+    let rows = print_rows("R12-PRECESSION-FINAL", &wb);
+    let iv = rows.iter().position(|(_, t, _)| t == "validate finished");
+    let idg = rows
+        .iter()
+        .position(|(_, t, _)| t == "Degraded: StoreCorrupt");
+    let ia = rows.iter().position(|(_, t, _)| t == "build finished");
+    println!(
+        "R12-PRECESSION validate_index={iv:?} replacement_truth_index={idg:?} adoption_build_index={ia:?} status={:?}",
+        wb.status
+    );
+    assert!(iv.is_some(), "validate terminal missing after replay");
+    assert!(idg.is_some(), "replacement-generation shell truth missing");
+    assert!(
+        iv.unwrap() > idg.unwrap(),
+        "validate causally preceded replacement-generation truth but replay made it newer: {rows:?}"
+    );
+    stop_all(&ws);
+}
+
+/// Renaming the owning workspace must not make its held outcome stale. This
+/// attack reuses the vacated spelling before the moved owner is reopened:
+/// path-only stale detection then falsely claims the still-existing moved
+/// instance was replaced and drops its terminal truth.
+#[cfg(unix)]
+#[test]
+fn r12_moved_workspace_outcome_must_survive_old_path_reuse() {
+    let (boris_dir, boris) = fake_boris();
+    write(&boris_dir.path().join("verbs/validate/exit-code.txt"), b"1");
+    let (_foreign_boris_dir, foreign_boris) = fake_boris();
+    let (_foreign_tmp, foreign) = workspace();
+    let base = tempfile::tempdir().unwrap();
+    let original_uncanon = base.path().join("original");
+    std::fs::create_dir_all(&original_uncanon).unwrap();
+    write(
+        &original_uncanon.join("content/index.md"),
+        b"---\ntitle: Original\n---\nOriginal\n",
+    );
+    let original = original_uncanon.canonicalize().unwrap();
+    let recent = tempfile::tempdir().unwrap();
+    let env_a = env_for(&boris, &recent.path().join("recent-a.json"));
+    let env_b = env_for(&foreign_boris, &recent.path().join("recent-b.json"));
+    seed_unique_run(&original, "r12move");
+    let mut wb = cv_app::init();
+    join_with_timeout(
+        open_workspace(&mut wb, original.clone(), &env_a).expect("original boot starts"),
+        Duration::from_secs(8),
+        "original boot",
+    );
+    settle(&mut wb, Duration::from_millis(150));
+    write(&boris_dir.path().join("verbs/validate/hold"), b"");
+    let adoption = cv_app::migrate::adopt::adopt(
+        &mut wb,
+        adoption_job(&original, "r12move", "imported"),
+        &env_a,
+    )
+    .expect("adoption starts");
+    wait_for_argv(boris_dir.path(), "validate", 1);
+    join_with_timeout(
+        open_workspace(&mut wb, foreign.clone(), &env_b).expect("foreign boot starts"),
+        Duration::from_secs(8),
+        "foreign boot",
+    );
+    settle(&mut wb, Duration::from_millis(100));
+    std::fs::remove_file(boris_dir.path().join("verbs/validate/hold")).unwrap();
+    join_with_timeout(adoption, Duration::from_secs(12), "adoption worker");
+    settle(&mut wb, Duration::from_millis(350));
+    assert_eq!(
+        validate_rows(&wb).len(),
+        0,
+        "harness precondition: owner outcome must remain held while foreign"
+    );
+
+    let moved_uncanon = base.path().join("moved");
+    std::fs::rename(&original, &moved_uncanon).unwrap();
+    let moved = moved_uncanon.canonicalize().unwrap();
+    std::fs::create_dir_all(&original).unwrap();
+    write(
+        &original.join("content/index.md"),
+        b"---\ntitle: Replacement\n---\nReplacement\n",
+    );
+    join_with_timeout(
+        open_workspace(&mut wb, original.clone(), &env_a)
+            .expect("old-path replacement boot starts"),
+        Duration::from_secs(8),
+        "old-path replacement boot",
+    );
+    settle(&mut wb, Duration::from_millis(350));
+    let status_at_replacement = wb.status.clone();
+    let rows_at_replacement = print_rows("R12-MOVE-REUSED-PATH", &wb);
+    println!("R12-MOVE replacement_status={status_at_replacement:?} rows={rows_at_replacement:?}");
+
+    join_with_timeout(
+        open_workspace(&mut wb, moved.clone(), &env_a).expect("moved owner boot starts"),
+        Duration::from_secs(8),
+        "moved owner boot",
+    );
+    settle(&mut wb, Duration::from_millis(500));
+    let rows = print_rows("R12-MOVE-FINAL", &wb);
+    let got = validate_rows(&wb).len();
+    println!(
+        "R12-MOVE original={original:?} moved={moved:?} validate_rows_at_moved_owner={got} final_status={:?}",
+        wb.status
+    );
+    assert_eq!(
+        got, 1,
+        "held outcome for the still-existing moved workspace was falsely discarded as stale: {rows:?}"
+    );
+    stop_all(&original);
+    stop_all(&moved);
+    stop_all(&foreign);
 }
