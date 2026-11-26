@@ -75,7 +75,15 @@ impl EngineSlot {
     }
 
     fn route(&self) -> Option<VerbRoute> {
-        self.verbs.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.verbs
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+            .filter(|route| route.is_current())
+    }
+
+    fn generation(&self) -> u64 {
+        self.generations.load(Ordering::SeqCst)
     }
 
     /// Install the delivery for one shell generation. Scheduler identity is
@@ -91,9 +99,18 @@ impl EngineSlot {
         }
     }
 
-    fn install_verbs(&self, mut route: VerbRoute) {
+    fn install_verbs(&self, mut route: VerbRoute, boot_generation: u64) -> bool {
+        let mut verbs = self.verbs.lock().unwrap_or_else(|e| e.into_inner());
+        // A rapid reopen can retire this boot's shell while its engine probe
+        // is still serialized behind the boot mutex. Do not resurrect that
+        // dead inbox as the current route when the stale probe eventually
+        // finishes; the newest open owns the next generation instead.
+        if self.generations.load(Ordering::SeqCst) != boot_generation {
+            return false;
+        }
         route.generation = self.generations.fetch_add(1, Ordering::SeqCst) + 1;
-        *self.verbs.lock().unwrap_or_else(|e| e.into_inner()) = Some(route);
+        *verbs = Some(route);
+        true
     }
 
     /// Invalidate the installed shell delivery without waiting for the next
@@ -101,7 +118,9 @@ impl EngineSlot {
     /// old inbox immediately, and clones of its route must know they are
     /// stale before they construct a new watch-owner publication.
     pub fn retire_verbs(&self) {
+        let mut verbs = self.verbs.lock().unwrap_or_else(|e| e.into_inner());
         self.generations.fetch_add(1, Ordering::SeqCst);
+        *verbs = None;
     }
 
     /// Queue a convergent disk-truth scan when the workspace engine booted.
@@ -164,8 +183,13 @@ impl EngineSlot {
     /// workbench like any engine envelope. A build that took the watch's
     /// seat restarts the watch afterwards, so the workspace stays live.
     pub fn start_verb(&self, run: VerbRun) -> Result<(), String> {
-        let (Some(sched), Some(route)) = (self.sched.get().cloned(), self.route()) else {
+        let Some(sched) = self.sched.get().cloned() else {
             return Err(absent().to_string());
+        };
+        let Some(route) = self.route() else {
+            return Err(
+                "the workspace shell is reloading; Boris verbs are temporarily unavailable".into(),
+            );
         };
         if let Err(e) = sched.readiness() {
             return Err(format!("the workspace engine is not ready: {e}"));
@@ -229,8 +253,14 @@ pub struct SlotVerbs(pub EngineSlot);
 
 impl EnginePort for SlotVerbs {
     fn unavailable(&self) -> Option<String> {
-        (self.0.get().is_none() || self.0.unready().is_some())
-            .then(|| "Boris has not passed its version gate for this workspace (see Doctor)".into())
+        if self.0.get().is_none() || self.0.unready().is_some() {
+            return Some(
+                "Boris has not passed its version gate for this workspace (see Doctor)".into(),
+            );
+        }
+        self.0.route().is_none().then(|| {
+            "the workspace shell is reloading; Boris verbs are temporarily unavailable".into()
+        })
     }
     fn start(&mut self, run: VerbRun) -> Result<(), String> {
         self.0.start_verb(run)
@@ -424,9 +454,10 @@ pub fn spawn(b: EngineBoot) -> Option<JoinHandle<()>> {
     let notice = b.notice.clone();
     let root = b.cfg.root.clone();
     let doctor = b.doctor.clone();
+    let shell_generation = b.slot.generation();
     match std::thread::Builder::new()
         .name("cv-engine-boot".into())
-        .spawn(move || run(b))
+        .spawn(move || run(b, shell_generation))
     {
         Ok(handle) => Some(handle),
         Err(e) => {
@@ -752,7 +783,7 @@ fn recover_build(
     );
 }
 
-fn run(b: EngineBoot) {
+fn run(b: EngineBoot, shell_generation: u64) {
     let EngineBoot {
         cfg,
         slot,
@@ -813,7 +844,12 @@ fn run(b: EngineBoot) {
             epoch,
             resyncer,
         };
-        slot.install_verbs(slot.verb_route(delivery.clone(), warning.clone()));
+        if !slot.install_verbs(
+            slot.verb_route(delivery.clone(), warning.clone()),
+            shell_generation,
+        ) {
+            return;
+        }
         let route = slot.route().expect("installed above");
         let _ = inbox.send(Inbound::Snapshot(workspace_snapshot(
             &root,
@@ -855,7 +891,12 @@ fn run(b: EngineBoot) {
             resyncer,
         }
     };
-    slot.install_verbs(slot.verb_route(delivery.clone(), warning.clone()));
+    if !slot.install_verbs(
+        slot.verb_route(delivery.clone(), warning.clone()),
+        shell_generation,
+    ) {
+        return;
+    }
     let route = slot.route().expect("installed above");
     let _ = slot.sched.set(sched.clone());
     start_workspace_watch_gated(sched, delivery, warning, notice, move || route.is_current());

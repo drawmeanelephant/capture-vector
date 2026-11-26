@@ -4,11 +4,11 @@
 mod common;
 
 use cv_app::{WorkspaceEnv, open_workspace};
-use cv_core::engine::CancelToken;
+use cv_core::engine::{CancelToken, Verb};
 use cv_engine::locate::Locator;
 use cv_fixtures::lab::StubLab;
 use cv_model::adoption::{AdoptionJob, AdoptionRequest, AdoptionTarget};
-use cv_model::modules::engine::EnginePort;
+use cv_model::modules::engine::{EnginePort, VerbRun};
 use cv_store::imports::{self as store, Finished, RecordedLab, RunRecord};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -267,6 +267,147 @@ Docs
         && let Some(w) = sched.watch_session()
     {
         sched.stop_watch_session(&w);
+    }
+}
+
+fn build_count(dir: &Path) -> usize {
+    std::fs::read_to_string(dir.join("argv.log"))
+        .unwrap_or_default()
+        .lines()
+        .filter(|l| *l == "build")
+        .count()
+}
+
+/// Round-7 direct seam: while replacement boot is still probing, the
+/// retired generation's route must not accept a verb even if the stable
+/// scheduler itself is ready.
+#[cfg(unix)]
+#[test]
+fn a_retired_generation_route_refuses_a_direct_verb_start() {
+    let reps: usize = std::env::var("R7_REPS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(2);
+    for rep in 0..reps {
+        let (boris_dir, boris) = fake_boris_holding_watch_with_version_delay(true, true);
+        let ws_tmp = tempfile::tempdir().unwrap();
+        let ws = ws_tmp.path().canonicalize().unwrap();
+        write(
+            &ws.join("content/index.md"),
+            b"---
+title: Home
+---
+Home
+",
+        );
+        let recent_tmp = tempfile::tempdir().unwrap();
+        let env = env_for(&boris, &recent_tmp.path().join("recent.json"));
+        let mut wb = cv_app::init();
+        join_with_timeout(
+            open_workspace(&mut wb, ws.clone(), &env).expect("first boot starts"),
+            Duration::from_secs(5),
+            "first boot",
+        );
+        settle(&mut wb, Duration::from_millis(150));
+
+        write(
+            &boris_dir.path().join("version-delay"),
+            b"1
+",
+        );
+        let before = build_count(boris_dir.path());
+        let boot = open_workspace(&mut wb, ws.clone(), &env).expect("reopen boot starts");
+        let slot = cv_app::slots::slot_for(&ws).expect("stable workspace slot");
+        let mut port = cv_app::live::SlotVerbs(slot.clone());
+        let unavailable = port.unavailable();
+        let started = port.start(VerbRun {
+            verb: Verb::Build,
+            cancel: CancelToken::new(),
+        });
+        join_with_timeout(boot, Duration::from_secs(5), "replacement boot");
+        settle(&mut wb, Duration::from_millis(250));
+        assert!(
+            unavailable.is_some() && started.is_err() && build_count(boris_dir.path()) == before,
+            "rep {rep}: a retired generation accepted a direct verb start (unavailable={unavailable:?}, started={started:?})"
+        );
+        if let Some(sched) = cv_app::slots::scheduler_for(&ws)
+            && let Some(w) = sched.watch_session()
+        {
+            sched.stop_watch_session(&w);
+        }
+    }
+}
+
+/// Round-7 natural user shape: a palette click in the same-root reopen
+/// boot window must not execute through the dead shell generation and
+/// strand its progress dialog forever.
+#[cfg(unix)]
+#[test]
+fn a_palette_verb_during_reopen_boot_cannot_report_into_a_dead_generation() {
+    let reps: usize = std::env::var("R7_REPS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(2);
+    for rep in 0..reps {
+        let (boris_dir, boris) = fake_boris_holding_watch_with_version_delay(true, true);
+        let ws_tmp = tempfile::tempdir().unwrap();
+        let ws = ws_tmp.path().canonicalize().unwrap();
+        write(
+            &ws.join("content/index.md"),
+            b"---
+title: Home
+---
+Home
+",
+        );
+        let recent_tmp = tempfile::tempdir().unwrap();
+        let env = env_for(&boris, &recent_tmp.path().join("recent.json"));
+        let mut wb = cv_app::init();
+        join_with_timeout(
+            open_workspace(&mut wb, ws.clone(), &env).expect("first boot starts"),
+            Duration::from_secs(5),
+            "first boot",
+        );
+        settle(&mut wb, Duration::from_millis(150));
+
+        write(
+            &boris_dir.path().join("version-delay"),
+            b"1
+",
+        );
+        let before = build_count(boris_dir.path());
+        let boot = open_workspace(&mut wb, ws.clone(), &env).expect("reopen boot starts");
+        let command = wb
+            .commands()
+            .into_iter()
+            .find(|c| c.id == "engine.build")
+            .expect("build command exists");
+        let boot_window_disabled = command.disabled.is_some();
+        wb.run_command("engine.build");
+        join_with_timeout(boot, Duration::from_secs(5), "replacement boot");
+        settle(&mut wb, Duration::from_millis(350));
+        let dialog = wb.dialogs.open().map(|d| d.spec.id.clone());
+        let after = build_count(boris_dir.path());
+        let final_enabled = wb
+            .commands()
+            .into_iter()
+            .find(|c| c.id == "engine.build")
+            .is_some_and(|c| c.disabled.is_none());
+        assert_eq!(
+            (
+                boot_window_disabled,
+                after == before,
+                dialog.is_none(),
+                final_enabled
+            ),
+            (true, true, true, true),
+            "rep {rep}: boot-window palette verb state is false (builds {before}->{after}, dialog={dialog:?})"
+        );
+        if let Some(sched) = cv_app::slots::scheduler_for(&ws)
+            && let Some(w) = sched.watch_session()
+        {
+            sched.stop_watch_session(&w);
+        }
     }
 }
 
