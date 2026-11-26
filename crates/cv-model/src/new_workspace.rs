@@ -276,7 +276,10 @@ impl Workbench {
                 }
             }
             ShellNotice::ImportFinished { job, result } => {
-                self.dialogs.close(crate::modules::migrate::IMPORT_PROGRESS);
+                // Validate applicability before touching anything: a
+                // completion belongs to exactly one operation in exactly
+                // one workspace, and a foreign or stale completion must not
+                // close the active cancellation control.
                 if self.workspace.as_ref() != Some(&job.workspace) {
                     self.status = format!(
                         "{} finished for a workspace that is no longer open",
@@ -290,7 +293,7 @@ impl Workbench {
                 let intents = self
                     .registry
                     .get_mut(i)
-                    .map(|m| m.run(crate::modules::migrate::FINISHED))
+                    .map(|m| m.import_finished(&job))
                     .unwrap_or_default();
                 for it in intents {
                     self.apply(it);

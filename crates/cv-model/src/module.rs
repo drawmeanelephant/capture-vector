@@ -288,6 +288,16 @@ pub trait Module {
     ) -> Vec<Intent> {
         Vec::new()
     }
+    /// A migration worker ended. `job` carries the operation's stable
+    /// identity in its cancellation token — shared by the original job and
+    /// every collision-retargeted clone, where the run id is not. Modules
+    /// correlate the token with their in-flight operation before applying
+    /// anything; a completion that belongs to another operation or another
+    /// module instance must leave the wizard, progress dialog and
+    /// cancellation control untouched.
+    fn import_finished(&mut self, _job: &crate::command::ImportJob) -> Vec<Intent> {
+        Vec::new()
+    }
     /// Intents an `ingest` left owing (a finished run closes its
     /// progress dialog); the shell applies them after each commit.
     fn take_owed(&mut self) -> Vec<Intent> {

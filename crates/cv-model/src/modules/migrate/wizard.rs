@@ -585,16 +585,36 @@ impl MigrateModule {
         Vec::new()
     }
 
-    pub(crate) fn finish_import_job(&mut self) -> Vec<Intent> {
+    pub(crate) fn finish_import_job(&mut self, job: &ImportJob) -> Vec<Intent> {
         self.imports = self.port.load();
-        let Some(stage) = (match &self.wizard.stage {
-            WizardStage::Running { .. } => Some(self.wizard.stage.clone()),
-            _ => None,
-        }) else {
+        // A completion applies only to the operation it belongs to. The
+        // cancellation token is that operation's stable identity — shared
+        // by the original job and every collision-retargeted clone, which
+        // the run id is not — so token identity, never the run id, decides
+        // correlation. A foreign or stale completion still refreshes Runs
+        // but leaves the wizard, progress dialog and cancellation control
+        // untouched.
+        let correlated = matches!(
+            &self.wizard.stage,
+            WizardStage::Running { cancel, .. } if *cancel == job.cancel
+        );
+        if !correlated {
             return vec![Intent::Status(format!(
                 "{} import run(s) loaded",
                 self.imports.runs.len()
             ))];
+        }
+        let mut out = vec![Intent::CloseDialog(PROGRESS.into())];
+        out.extend(self.complete_running_import());
+        out
+    }
+
+    fn complete_running_import(&mut self) -> Vec<Intent> {
+        let Some(stage) = (match &self.wizard.stage {
+            WizardStage::Running { .. } => Some(self.wizard.stage.clone()),
+            _ => None,
+        }) else {
+            return Vec::new();
         };
         let WizardStage::Running {
             phase,
@@ -696,7 +716,11 @@ impl MigrateModule {
                 // Zero exit is not verification: the lab may have exited 0
                 // yet left no readable report or output evidence, which
                 // projection records as a problem. That is a durable
-                // could-not-verify state, never "finished".
+                // could-not-verify state, never "finished". This relies on
+                // projection's role-specific authority invariant: any run
+                // whose authoritative document is missing, undecodable, or
+                // wrong-family carries a visible problem, so its absence
+                // here means the authoritative document decoded cleanly.
                 if let Some(problem) = &run.problem {
                     return vec![
                         Intent::Status(format!(

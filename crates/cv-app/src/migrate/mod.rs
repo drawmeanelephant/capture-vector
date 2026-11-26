@@ -227,7 +227,9 @@ impl MigratePort for DiskPort {
         // observes other windows' appends instead of serving only the
         // states parsed at open. Re-opening is pure observation — it
         // creates and repairs nothing. A failed re-open never regresses to
-        // less information: the states already held are kept.
+        // less information: the states already held are kept, without a
+        // staleness marker — writes are unaffected either way, since append
+        // locking is operation-scoped and never depends on cached states.
         if let Some(root) = self.root.clone() {
             match ReviewLog::open(&root) {
                 Ok((log, states, _)) => {

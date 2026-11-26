@@ -388,3 +388,128 @@ fn switching_workspaces_during_import_keeps_the_run_lock_and_record_intact() {
         "the worker releases only its per-run lock at the end"
     );
 }
+
+/// Re-seed the migrate module after a real workspace switch so the wizard
+/// can drive with the fixture lab state. The switch itself already happened
+/// through the production `open_workspace` path — module state recreated,
+/// dialogs cleared — this only replaces the post-switch lab gate the test
+/// environment cannot satisfy, mirroring the initial harness install.
+fn reseed_fixture_migrate(h: &mut Harness, root: &Path) {
+    h.state_mut().registry.remove(migrate_module::ID);
+    migrate_module::install(Box::new(DiskPort::open(
+        root,
+        LabState::Fixture {
+            tool_id: cv_fixtures::lab::StubLab::new().tool_id(),
+        },
+    )));
+    migrate_module::register(&mut h.state_mut().registry);
+}
+
+fn drive_hugo_inventory(h: &mut Harness, root: &Path) -> ImportJob {
+    h.script(&["cmd:migrate.new"]);
+    choose(h, "static");
+    choose(h, "hugo");
+    h.state_mut().dialog_browse(0);
+    let request = take_request(h);
+    let ShellRequest::PickFolder { purpose } = request else {
+        panic!("hugo --root must pick a folder");
+    };
+    h.state_mut()
+        .picked(purpose, Some(root.join("hugo-source")));
+    h.settle();
+    h.script(&["key:enter"]);
+    take_import(h)
+}
+
+#[test]
+fn foreign_workspace_completion_does_not_close_the_active_cancellation_dialog() {
+    let (_t, root_a) = workspace();
+    let (_t2, root_b) = workspace();
+    for root in [&root_a, &root_b] {
+        std::fs::create_dir_all(root.join("hugo-source").join("content")).unwrap();
+    }
+    let env = |other: &Path| cv_app::WorkspaceEnv {
+        locator: Some(cv_engine::locate::Locator::default()),
+        recent_file: Some(other.join("recent-workspaces.json")),
+    };
+
+    // Start an import in workspace A, then switch to B while it continues —
+    // an explicitly supported sequence. Only the job object is needed: the
+    // notice routing under test does not depend on a real worker.
+    let mut h = harness(&root_a);
+    let job_a = drive_hugo_inventory(&mut h, &root_a);
+    assert_eq!(job_a.workspace, root_a);
+    if let Some(boot) = cv_app::open_workspace(h.state_mut(), root_b.clone(), &env(&root_b)) {
+        boot.join().unwrap();
+    }
+    reseed_fixture_migrate(&mut h, &root_b);
+
+    // Start an import in B: its wizard is Running and its progress dialog
+    // is the user's cancellation control.
+    let _job_b = drive_hugo_inventory(&mut h, &root_b);
+    assert!(
+        h.has("dialog-progress"),
+        "B progress dialog is the active cancellation control"
+    );
+
+    // A finishes: a foreign completion must not close B's dialog, reset B's
+    // wizard, or otherwise touch the current operation.
+    h.state().notices().send(ShellNotice::ImportFinished {
+        job: job_a,
+        result: Ok(()),
+    });
+    h.settle();
+    assert!(
+        h.has("dialog-progress"),
+        "a foreign workspace completion must leave the cancellation control open"
+    );
+}
+
+#[test]
+fn stale_completion_after_reopen_does_not_complete_the_wrong_wizard() {
+    let (_t, root) = workspace();
+    let (_t2, other) = workspace();
+    std::fs::create_dir_all(root.join("hugo-source").join("content")).unwrap();
+    let env = |dir: &Path| cv_app::WorkspaceEnv {
+        locator: Some(cv_engine::locate::Locator::default()),
+        recent_file: Some(dir.join("recent-workspaces.json")),
+    };
+
+    // Start import A in W, then switch away and reopen W: the module and
+    // wizard state are recreated, while shell notices survive the switch.
+    let mut h = harness(&root);
+    let job_a = drive_hugo_inventory(&mut h, &root);
+    if let Some(boot) = cv_app::open_workspace(h.state_mut(), other.clone(), &env(&other)) {
+        boot.join().unwrap();
+    }
+    if let Some(boot) = cv_app::open_workspace(h.state_mut(), root.clone(), &env(&root)) {
+        boot.join().unwrap();
+    }
+    reseed_fixture_migrate(&mut h, &root);
+
+    // Start import B in the reopened workspace. Nothing was ever written to
+    // disk, so B stages the same candidate run id A had — the run id cannot
+    // discriminate the two operations; only the cancellation token can.
+    let _job_b = drive_hugo_inventory(&mut h, &root);
+    assert!(
+        h.has("dialog-progress"),
+        "B progress dialog is the active cancellation control"
+    );
+
+    // A's completion arrives late. Same workspace, but a different
+    // operation: it must not complete, reset, or close anything of B's.
+    h.state().notices().send(ShellNotice::ImportFinished {
+        job: job_a,
+        result: Ok(()),
+    });
+    h.settle();
+    assert!(
+        h.has("dialog-progress"),
+        "a stale completion must leave the running wizard's cancellation control open"
+    );
+    assert!(
+        !h.state().status.contains("ended before"),
+        "B's wizard must not be reset by A's completion: {}",
+        h.state().status
+    );
+}

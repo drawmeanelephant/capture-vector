@@ -12,7 +12,6 @@
 #[cfg(test)]
 mod tests;
 mod wizard;
-pub(crate) use wizard::PROGRESS as IMPORT_PROGRESS;
 
 use crate::command::{CommandSpec, Intent};
 use crate::module::{
@@ -27,7 +26,6 @@ use std::collections::BTreeMap;
 pub const ID: &str = "migrate";
 pub const NEW: &str = "migrate.new";
 pub const REFRESH: &str = "migrate.refresh";
-pub(crate) const FINISHED: &str = "migrate.import.finished";
 pub const ADOPT: &str = "migrate.adopt";
 pub const ACCEPT: &str = "migrate.review.accept";
 pub const DEFER: &str = "migrate.review.defer";
@@ -1047,7 +1045,6 @@ impl Module for MigrateModule {
                     self.imports.runs.len()
                 ))]
             }
-            FINISHED => self.finish_import_job(),
             NEW => self.begin_import(),
             ADOPT => vec![Intent::Status(format!("Adopt: {ADOPT_UNAVAILABLE}"))],
             _ => Vec::new(),
@@ -1060,6 +1057,10 @@ impl Module for MigrateModule {
 
     fn import_started(&mut self, requested: &str, job: &crate::command::ImportJob) -> Vec<Intent> {
         self.retarget_started_import(requested, job)
+    }
+
+    fn import_finished(&mut self, job: &crate::command::ImportJob) -> Vec<Intent> {
+        self.finish_import_job(job)
     }
 
     fn contains(&self, key: &str) -> bool {

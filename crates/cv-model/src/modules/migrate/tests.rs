@@ -368,7 +368,7 @@ fn dynamic_wizard_module() -> (
     (MigrateModule::new(Box::new(port)), appeared)
 }
 
-fn drive_hugo_to_inventory(m: &mut MigrateModule) -> String {
+fn drive_hugo_to_inventory_job(m: &mut MigrateModule) -> crate::command::ImportJob {
     m.run(NEW);
     m.answer(FAMILY, &answer(Some("choose"), &[(CHOICE, "static-site")]));
     m.answer(MODE, &answer(Some("choose"), &[(CHOICE, "hugo")]));
@@ -376,10 +376,11 @@ fn drive_hugo_to_inventory(m: &mut MigrateModule) -> String {
         INPUT,
         &answer(Some("go"), &[("root", abs("elsewhere/site"))]),
     );
-    import_job(&out)
-        .expect("hugo starts its inventory")
-        .run_id
-        .clone()
+    import_job(&out).expect("hugo starts its inventory").clone()
+}
+
+fn drive_hugo_to_inventory(m: &mut MigrateModule) -> String {
+    drive_hugo_to_inventory_job(m).run_id
 }
 
 use crate::dialog::{CHOICE, DialogAnswer, Value};
@@ -557,10 +558,10 @@ fn inventory_lands(appeared: &std::rc::Rc<std::cell::RefCell<Vec<ImportRun>>>, r
 #[test]
 fn inventory_completion_never_emits_without_an_explicit_decision() {
     let (mut m, appeared) = dynamic_wizard_module();
-    let run_id = drive_hugo_to_inventory(&mut m);
-    inventory_lands(&appeared, &run_id);
+    let job = drive_hugo_to_inventory_job(&mut m);
+    inventory_lands(&appeared, &job.run_id);
 
-    let finished = m.run(FINISHED);
+    let finished = m.import_finished(&job);
     assert!(
         import_job(&finished).is_none(),
         "finishing the inventory must not emit on its own: {finished:?}"
@@ -645,9 +646,9 @@ fn stale_inventory_emit_answer_does_not_start_concurrent_emit() {
 #[test]
 fn choosing_emit_after_the_inventory_starts_the_emitting_mode() {
     let (mut m, appeared) = dynamic_wizard_module();
-    let run_id = drive_hugo_to_inventory(&mut m);
-    inventory_lands(&appeared, &run_id);
-    m.run(FINISHED);
+    let inventory = drive_hugo_to_inventory_job(&mut m);
+    inventory_lands(&appeared, &inventory.run_id);
+    m.import_finished(&inventory);
     let out = m.answer(INVENTORY, &answer(Some("emit"), &[]));
     let job = import_job(&out).expect("an explicit emit starts the import");
     assert_eq!(job.mode, "hugo");
@@ -665,18 +666,18 @@ fn choosing_emit_after_the_inventory_starts_the_emitting_mode() {
 #[test]
 fn a_zero_exit_emit_without_output_evidence_is_never_finished() {
     let (mut m, appeared) = dynamic_wizard_module();
-    let run_id = drive_hugo_to_inventory(&mut m);
-    inventory_lands(&appeared, &run_id);
-    m.run(FINISHED);
+    let inventory = drive_hugo_to_inventory_job(&mut m);
+    inventory_lands(&appeared, &inventory.run_id);
+    m.import_finished(&inventory);
     let out = m.answer(INVENTORY, &answer(Some("emit"), &[]));
-    let job = import_job(&out).expect("emit starts");
+    let job = import_job(&out).expect("emit starts").clone();
     // The lab exits zero but leaves no readable report: projection records
     // a problem on an otherwise Ok run.
     let mut done = ImportRun::new(&job.run_id, RunStatus::Ok);
     done.mode = "hugo".into();
     done.problem = Some("the lab reported success but the output contains no report.json".into());
     appeared.borrow_mut().push(done);
-    let finished = m.run(FINISHED);
+    let finished = m.import_finished(&job);
     let text = format!("{finished:?}");
     assert!(
         text.contains("could not be verified"),
@@ -845,7 +846,9 @@ fn count_extras_are_type_checked_and_passed_through() {
         INPUT,
         &answer(Some("go"), &[("root", abs("site")), ("max-pages", "12")]),
     );
-    let inv = import_job(&out).expect("valid extras start the inventory");
+    let inv = import_job(&out)
+        .expect("valid extras start the inventory")
+        .clone();
     assert_eq!(inv.mode, "hugo-inventory");
     assert!(inv.extras.is_empty(), "{:?}", inv.extras);
     // After the inventory, the explicit emit passes the extra verbatim
@@ -855,7 +858,7 @@ fn count_extras_are_type_checked_and_passed_through() {
     done.counts = vec![("transformed".into(), 3)];
     done.count_evidence = true;
     appeared.borrow_mut().push(done);
-    m.run(FINISHED);
+    m.import_finished(&inv);
     let out = m.answer(INVENTORY, &answer(Some("emit"), &[]));
     let job = import_job(&out).expect("an explicit emit starts the import");
     assert_eq!(job.mode, "hugo");
@@ -868,13 +871,13 @@ fn count_extras_are_type_checked_and_passed_through() {
 #[test]
 fn inventory_with_unreadable_report_blocks_emit() {
     let (mut m, appeared) = dynamic_wizard_module();
-    let run_id = drive_hugo_to_inventory(&mut m);
-    let mut done = ImportRun::new(&run_id, RunStatus::Ok);
+    let job = drive_hugo_to_inventory_job(&mut m);
+    let mut done = ImportRun::new(&job.run_id, RunStatus::Ok);
     done.mode = "hugo-inventory".into();
     done.problem = Some("report.json could not be decoded".into());
     appeared.borrow_mut().push(done);
 
-    let finished = m.run(FINISHED);
+    let finished = m.import_finished(&job);
     assert!(
         import_job(&finished).is_none(),
         "no emit without counts: {finished:?}"
@@ -900,15 +903,15 @@ fn inventory_with_unreadable_report_blocks_emit() {
 #[test]
 fn inventory_with_no_decoded_counts_blocks_emit_even_without_a_problem() {
     let (mut m, appeared) = dynamic_wizard_module();
-    let run_id = drive_hugo_to_inventory(&mut m);
+    let job = drive_hugo_to_inventory_job(&mut m);
     // The inventory exits 0 but leaves no decodable count evidence — the
     // absent-report case. Projection may not always surface a problem, so
     // the wizard gate itself must require positive count evidence.
-    let mut done = ImportRun::new(&run_id, RunStatus::Ok);
+    let mut done = ImportRun::new(&job.run_id, RunStatus::Ok);
     done.mode = "hugo-inventory".into();
     appeared.borrow_mut().push(done);
 
-    let finished = m.run(FINISHED);
+    let finished = m.import_finished(&job);
     assert!(
         import_job(&finished).is_none(),
         "no emit without count evidence: {finished:?}"
