@@ -408,7 +408,106 @@ fn adoption_gate_outcomes_survive_reopen_generation_retirement() {
                 (1, want_build),
                 "rep {rep}, exit {exit}, retirement {retirement}: workspace-stable adoption gate outcome was dropped; activity={titles:?}"
             );
+            if exit == "0" {
+                let iv = titles
+                    .iter()
+                    .position(|t| t == "validate finished")
+                    .unwrap();
+                let ib = titles.iter().position(|t| t == "build finished").unwrap();
+                assert!(
+                    iv > ib,
+                    "rep {rep}, retirement {retirement}: newest-first Activity inverted completion order: {titles:?}"
+                );
+            }
             if let Some(sched) = cv_app::slots::scheduler_for(&ws)
+                && let Some(w) = sched.watch_session()
+            {
+                sched.stop_watch_session(&w);
+            }
+        }
+    }
+}
+
+/// Round-10 scoping: a surviving workspace-A adoption outcome is held for
+/// workspace A rather than committed as unattributed truth in foreign
+/// workspace B. Returning to A drains it exactly once.
+#[cfg(unix)]
+#[test]
+fn adoption_outcomes_wait_for_their_owning_workspace_across_a_foreign_switch() {
+    let reps: usize = std::env::var("R10_REPS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1);
+    for rep in 0..reps {
+        let (boris_a_dir, boris_a) = fake_boris_with_controlled_verb_holds();
+        let (_boris_b_dir, boris_b) = fake_boris_holding_watch(true);
+        let wa = tempfile::tempdir().unwrap();
+        let ws_a = wa.path().canonicalize().unwrap();
+        let wb_tmp = tempfile::tempdir().unwrap();
+        let ws_b = wb_tmp.path().canonicalize().unwrap();
+        write(&ws_a.join("content/index.md"), b"---\ntitle: A\n---\nA\n");
+        write(&ws_b.join("content/index.md"), b"---\ntitle: B\n---\nB\n");
+        let recent = tempfile::tempdir().unwrap();
+        let env_a = env_for(&boris_a, &recent.path().join("recent-a.json"));
+        let env_b = env_for(&boris_b, &recent.path().join("recent-b.json"));
+        let run_id = format!("r10-foreign-{rep}");
+        seed_long_run(&ws_a, &run_id, 1);
+        let mut wb = cv_app::init();
+        join_with_timeout(
+            open_workspace(&mut wb, ws_a.clone(), &env_a).expect("workspace A boot starts"),
+            Duration::from_secs(5),
+            "workspace A boot",
+        );
+        write(&boris_a_dir.path().join("verbs/validate/hold"), b"");
+        let worker = cv_app::migrate::adopt::adopt(
+            &mut wb,
+            AdoptionJob {
+                source_root: ws_a.clone(),
+                request: AdoptionRequest {
+                    run_id: run_id.clone(),
+                    target: AdoptionTarget::ExistingWorkspace {
+                        subfolder: "imported".into(),
+                    },
+                },
+                cancel: CancelToken::new(),
+            },
+            &env_a,
+        )
+        .expect("adoption starts");
+        wait_for_argv(boris_a_dir.path(), "validate");
+        join_with_timeout(
+            open_workspace(&mut wb, ws_b.clone(), &env_b).expect("workspace B boot starts"),
+            Duration::from_secs(5),
+            "workspace B boot",
+        );
+        std::fs::remove_file(boris_a_dir.path().join("verbs/validate/hold")).unwrap();
+        join_with_timeout(worker, Duration::from_secs(8), "adoption worker");
+        settle(&mut wb, Duration::from_millis(400));
+        assert_eq!(wb.workspace.as_ref(), Some(&ws_b));
+        assert_eq!(
+            (
+                activity_title_count(&wb, "validate"),
+                activity_title_count(&wb, "build")
+            ),
+            (0, 0),
+            "workspace A outcomes polluted foreign workspace B"
+        );
+        join_with_timeout(
+            open_workspace(&mut wb, ws_a.clone(), &env_a).expect("workspace A reopen starts"),
+            Duration::from_secs(5),
+            "workspace A reopen",
+        );
+        settle(&mut wb, Duration::from_millis(400));
+        assert_eq!(
+            (
+                activity_title_count(&wb, "validate"),
+                activity_title_count(&wb, "build")
+            ),
+            (1, 1),
+            "owning workspace did not receive its held outcomes exactly once"
+        );
+        for root in [&ws_a, &ws_b] {
+            if let Some(sched) = cv_app::slots::scheduler_for(root)
                 && let Some(w) = sched.watch_session()
             {
                 sched.stop_watch_session(&w);

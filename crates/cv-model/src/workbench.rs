@@ -258,6 +258,9 @@ pub struct Workbench {
     notice_rx: Receiver<ShellNotice>,
     outcome_tx: Sender<Envelope>,
     outcome_rx: Receiver<Envelope>,
+    /// Outcomes whose owning workspace is not currently open; retained so a
+    /// foreign workspace never receives them as unattributed facts.
+    pending_outcomes: Vec<Envelope>,
     /// `(event_id, envelope digest)` — the contract's idempotency key.
     seen: BTreeSet<(String, u64)>,
     /// Applied but not yet journaled (store write failed); retried on replay.
@@ -305,6 +308,7 @@ impl Workbench {
             notice_rx,
             outcome_tx,
             outcome_rx,
+            pending_outcomes: Vec::new(),
             seen: BTreeSet::new(),
             unjournaled: BTreeSet::new(),
             tx,
@@ -404,6 +408,29 @@ impl Workbench {
             self.notice(n);
             changed = true;
         }
+        // Outcome copies are already in completion order. Commit them before
+        // generation-scoped live copies: retirement may have dropped the
+        // older live outcome while the newer one reached the replacement
+        // inbox, and commit order is Activity's causal order. Outcomes whose
+        // owning workspace is not current remain held rather than polluting
+        // a foreign workspace.
+        let mut pending = std::mem::take(&mut self.pending_outcomes);
+        while let Ok(env) = self.outcome_rx.try_recv() {
+            pending.push(env);
+        }
+        let mut keep = Vec::new();
+        for env in pending {
+            let current = self
+                .workspace
+                .as_ref()
+                .is_some_and(|root| root.to_string_lossy() == env.workspace.0);
+            if current {
+                changed |= self.commit(&env);
+            } else {
+                keep.push(env);
+            }
+        }
+        self.pending_outcomes = keep;
         while let Ok(q) = self.rx.try_recv() {
             let m = match q {
                 Queued::Msg(m) => m,
@@ -435,13 +462,6 @@ impl Workbench {
                     true
                 }
             };
-        }
-        // Live generation delivery keeps engine cursor order. Terminal
-        // outcomes owned across generations commit after that queue; when
-        // retirement dropped the live copy, this surviving copy is the one
-        // truthful representation.
-        while let Ok(env) = self.outcome_rx.try_recv() {
-            changed |= self.commit(&env);
         }
         changed
     }
