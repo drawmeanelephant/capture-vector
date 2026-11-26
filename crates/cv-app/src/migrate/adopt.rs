@@ -11,13 +11,14 @@ use crate::slots;
 use cv_core::engine::{EventSink, ExitClass, Verb};
 use cv_core::events::AppEvent;
 use cv_core::events::engine::EngineEvent;
+use cv_core::events::shell::DegradedReason;
 use cv_engine::adopt::{self, TxReport};
 use cv_engine::init::Initializer;
 use cv_engine::locate::{Locator, PINNED};
 use cv_engine::{EngineConfig, EngineScheduler, ProcessEngine, SeatPolicy};
 use cv_model::adoption::{AdoptionJob, AdoptionReport, AdoptionTarget};
 use cv_model::new_workspace::ShellNotice;
-use cv_model::workbench::{Inbox, OutcomeSink, Workbench};
+use cv_model::workbench::{Inbound, Inbox, OutcomeSink, Workbench};
 use cv_model::workspace_key::WorkspaceKey;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -214,31 +215,40 @@ impl Drop for WatchRestore<'_> {
 /// boundary under `catch_unwind` and are resumed only after the restore
 /// guard exists.
 #[cfg(test)]
-pub(crate) fn arm_batch_entry_probe(tx: std::sync::mpsc::Sender<()>) {
+pub(crate) fn arm_batch_entry_probe(
+    workspace: std::path::PathBuf,
+    tx: std::sync::mpsc::Sender<()>,
+) {
     batch_entry_probes()
         .lock()
         .unwrap_or_else(|e| e.into_inner())
-        .push(tx);
+        .push((workspace, tx));
 }
 
 #[cfg(test)]
-fn batch_entry_probes() -> &'static std::sync::Mutex<Vec<std::sync::mpsc::Sender<()>>> {
-    static PROBES: std::sync::Mutex<Vec<std::sync::mpsc::Sender<()>>> =
+fn batch_entry_probes()
+-> &'static std::sync::Mutex<Vec<(std::path::PathBuf, std::sync::mpsc::Sender<()>)>> {
+    static PROBES: std::sync::Mutex<Vec<(std::path::PathBuf, std::sync::mpsc::Sender<()>)>> =
         std::sync::Mutex::new(Vec::new());
     &PROBES
 }
 
 #[cfg(test)]
-fn notify_batch_entry_probe() {
+fn notify_batch_entry_probe(workspace: &std::path::Path) {
     if std::thread::current().name() != Some("cv-migrate-adopt") {
         return;
     }
-    for tx in batch_entry_probes()
+    let mut probes = batch_entry_probes()
         .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .drain(..)
-    {
-        let _ = tx.send(());
+        .unwrap_or_else(|e| e.into_inner());
+    let mut index = 0;
+    while index < probes.len() {
+        if probes[index].0 == workspace {
+            let (_, tx) = probes.remove(index);
+            let _ = tx.send(());
+        } else {
+            index += 1;
+        }
     }
 }
 
@@ -256,7 +266,7 @@ pub(crate) fn batch_watch_safe<R>(
     // so unwinding cannot strand the workspace unobserved or deadlock in
     // the guard.
     #[cfg(test)]
-    notify_batch_entry_probe();
+    notify_batch_entry_probe(sched.engine().root());
     let mut watching = None;
     let outcome = sched.mutation_batch(|| {
         watching = sched.watch_session();
@@ -303,6 +313,18 @@ fn execute(
     match &job.request.target {
         AdoptionTarget::ExistingWorkspace { subfolder } => {
             let root = job.source_root.clone();
+            // Diagnose malformed identity evidence before interpreting a
+            // necessarily failed registry lookup as a missing engine slot.
+            // The valid pre-corruption key cannot be trusted for mutation,
+            // so this stays fail-closed while entering the persistent
+            // degraded channel in the live generation.
+            let workspace_key = slots::workspace_key_lookup(&root);
+            if let Some(identity_error) = workspace_key.instance_error() {
+                inbox.send(Inbound::Degraded(DegradedReason::StoreCorrupt));
+                return Err(format!(
+                    "adoption refused: workspace identity evidence is malformed ({identity_error}); nothing was written"
+                ));
+            }
             let slot = slots::slot_for(&root)
                 .ok_or_else(|| "the workspace engine slot is not registered".to_string())?;
             let sched = slot.get().cloned().ok_or_else(|| {
@@ -312,7 +334,6 @@ fn execute(
             // This lookup must not mint or recreate the root if the workspace
             // moves mid-adoption; the captured evidence is the owner outcomes
             // are held for at the surviving path.
-            let workspace_key = slots::workspace_key_lookup(&root);
             let expected_instance = workspace_key
                 .instance_token()
                 .map(|token| {
@@ -335,13 +356,13 @@ fn execute(
                     ));
                 }
                 let input = crate::snapshot::content_input(&root);
-                let ids = existing_ids(&root);
+                let scan_root = root.clone();
                 adopt::transact_existing_with_identity(adopt::ExistingWorkspaceTransaction {
                     target_root: &root,
                     src: &src,
                     content_input: &input,
                     merge_subfolder: Some(subfolder),
-                    existing_ids: &ids,
+                    scan_existing_ids: Box::new(move || existing_ids(&scan_root)),
                     at_ms,
                     expected_instance: &expected_instance,
                 })

@@ -89,6 +89,7 @@ pub fn ensure(root: &Path) -> std::io::Result<String> {
     let lock = crate::open::open_create_no_follow(&path(root, LOCK))?;
     lock.lock()?;
     if let Some(id) = read_file(root)? {
+        crate::workspace_mutation::ensure_file(root)?;
         return Ok(id);
     }
 
@@ -107,6 +108,7 @@ pub fn ensure(root: &Path) -> std::io::Result<String> {
         f.sync_all()?;
     }
     std::fs::rename(&tmp, path(root, FILE))?;
+    crate::workspace_mutation::ensure_file(root)?;
     Ok(id)
 }
 

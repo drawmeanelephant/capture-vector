@@ -674,22 +674,39 @@ impl ExpectedWorkspaceInstance {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum IdentityCheckPhase {
+    BeforeWrites,
+    AfterContent,
+    AfterCommit,
+}
+
 fn revalidate_workspace_instance(
     target_root: &Path,
     expected: &ExpectedWorkspaceInstance,
+    phase: IdentityCheckPhase,
 ) -> Result<(), AdoptError> {
+    let consequence = match phase {
+        IdentityCheckPhase::BeforeWrites => "nothing was written",
+        IdentityCheckPhase::AfterContent => {
+            "content or provenance bytes may have been written before the change was detected; the adoption recovery journal was retained so the partial state can be inspected or completed deliberately"
+        }
+        IdentityCheckPhase::AfterCommit => {
+            "content, provenance, or adoption bookkeeping may have been written before the change was detected; the recovery journal may already have been cleared, so inspect the workspace and adoption sidecars before retrying"
+        }
+    };
     let current_file = crate::file_identity::identity(target_root);
     let current_token = cv_store::workspace_instance::read(target_root).map_err(|e| {
         AdoptError::Run(format!(
-            "adoption refused: workspace identity evidence could not be revalidated inside the mutation batch ({e}); nothing was written"
+            "adoption refused: workspace identity evidence could not be revalidated inside the mutation batch ({e}); {consequence}"
         ))
     })?;
     if current_token.as_deref() == Some(expected.token.as_str()) && current_file == expected.file {
         return Ok(());
     }
-    Err(AdoptError::Run(
-        "adoption refused: the workspace identity captured before the mutation batch no longer matches this path; nothing was written".into(),
-    ))
+    Err(AdoptError::Run(format!(
+        "adoption refused: the workspace identity captured before the mutation batch no longer matches this path; {consequence}"
+    )))
 }
 
 /// What one committed adoption transaction produced.
@@ -724,6 +741,7 @@ struct TxParams<'a> {
     existing_ids: &'a BTreeMap<String, String>,
     at_ms: i64,
     expected_instance: Option<&'a ExpectedWorkspaceInstance>,
+    workspace_mutation_lock: Option<cv_store::workspace_mutation::WorkspaceMutationLock>,
 }
 
 /// Inputs for an existing-workspace adoption whose captured instance must
@@ -734,7 +752,11 @@ pub struct ExistingWorkspaceTransaction<'a> {
     pub src: &'a AdoptionSource,
     pub content_input: &'a str,
     pub merge_subfolder: Option<&'a str>,
-    pub existing_ids: &'a BTreeMap<String, String>,
+    /// Reads the target's current explicit Boris ids. The engine invokes
+    /// this only after acquiring the workspace mutation lock and validating
+    /// instance identity, so collision evidence cannot be captured before
+    /// the serialized critical section.
+    pub scan_existing_ids: Box<dyn FnOnce() -> BTreeMap<String, String> + Send + 'a>,
     pub at_ms: i64,
     pub expected_instance: &'a ExpectedWorkspaceInstance,
 }
@@ -799,6 +821,7 @@ pub fn transact(
         existing_ids,
         at_ms,
         expected_instance: None,
+        workspace_mutation_lock: None,
     })
 }
 
@@ -810,15 +833,33 @@ pub fn transact(
 pub fn transact_existing_with_identity(
     tx: ExistingWorkspaceTransaction<'_>,
 ) -> Result<TxReport, AdoptError> {
+    // Lock order is fixed and documented: process-local scheduler batch
+    // (held by the composition root) -> workspace-instance mutation lock ->
+    // per-run lock. No adoption path acquires those capabilities in another
+    // order. The kernel releases this file lock even if a holder crashes;
+    // the carrier is never deleted, so there is no stale-lock payload to
+    // interpret or clean up.
+    let mutation_lock = cv_store::workspace_mutation::lock(tx.target_root).map_err(|e| {
+        AdoptError::Run(format!(
+            "adoption blocked: the workspace mutation lock is unavailable or held by a concurrent writer ({e}); nothing was written"
+        ))
+    })?;
+    revalidate_workspace_instance(
+        tx.target_root,
+        tx.expected_instance,
+        IdentityCheckPhase::BeforeWrites,
+    )?;
+    let existing_ids = (tx.scan_existing_ids)();
     transact_impl(TxParams {
         target_root: tx.target_root,
         src: tx.src,
         content_input: tx.content_input,
         merge_subfolder: tx.merge_subfolder,
         target_kind: "existing",
-        existing_ids: tx.existing_ids,
+        existing_ids: &existing_ids,
         at_ms: tx.at_ms,
         expected_instance: Some(tx.expected_instance),
+        workspace_mutation_lock: Some(mutation_lock),
     })
 }
 
@@ -832,9 +873,10 @@ fn transact_impl(params: TxParams<'_>) -> Result<TxReport, AdoptError> {
         existing_ids,
         at_ms,
         expected_instance,
+        workspace_mutation_lock: _workspace_mutation_lock,
     } = params;
     if let Some(expected) = expected_instance {
-        revalidate_workspace_instance(target_root, expected)?;
+        revalidate_workspace_instance(target_root, expected, IdentityCheckPhase::BeforeWrites)?;
     }
     let lock = adoption_lock(target_root, &src.run_id)?;
     let subfolder_name = match merge_subfolder {
@@ -1001,8 +1043,37 @@ fn transact_impl(params: TxParams<'_>) -> Result<TxReport, AdoptError> {
         needs_copy
     };
 
-    let (written, skipped) = copy_content(target_root, &planned, &needs_copy)?;
-    let provenance = copy_provenance(src, target_root, &lock)?;
+    let copied = (|| {
+        let (written, skipped) = copy_content(target_root, &planned, &needs_copy)?;
+        let provenance = copy_provenance(src, target_root, &lock)?;
+        Ok::<_, AdoptError>((written, skipped, provenance))
+    })();
+    let (written, skipped, provenance) = match copied {
+        Ok(copied) => copied,
+        Err(e) => {
+            // A rename-away can turn the first path-based write failure into
+            // a bare operating-system error. If identity evidence proves that
+            // shape, the identity diagnosis is the truthful cause and the
+            // partial-write/recovery disclosure must accompany it.
+            if let Some(expected) = expected_instance {
+                revalidate_workspace_instance(
+                    target_root,
+                    expected,
+                    IdentityCheckPhase::AfterContent,
+                )?;
+            }
+            return Err(e);
+        }
+    };
+    // POSIX cannot pin a directory against rename, so a swap after the
+    // pre-write validation is detection-not-prevention. Before durable
+    // success provenance is recorded or the recovery journal is cleared,
+    // prove the path still denotes the captured instance. Failure leaves
+    // the journal in place and reports partial-write truth rather than
+    // false success.
+    if let Some(expected) = expected_instance {
+        revalidate_workspace_instance(target_root, expected, IdentityCheckPhase::AfterContent)?;
+    }
     record_adoption(
         src,
         target_root,
@@ -1013,6 +1084,15 @@ fn transact_impl(params: TxParams<'_>) -> Result<TxReport, AdoptError> {
         &planned,
     )?;
     store::clear_pending(&lock)?;
+    // Final ownership check immediately before success is reported. The
+    // earlier post-content check preserves the recovery journal in the
+    // common detection shape; this final check closes as much of the
+    // bookkeeping window as POSIX permits. If interference wins even this
+    // race, the error is still honest rather than a false success, and its
+    // message says the journal may already be gone.
+    if let Some(expected) = expected_instance {
+        revalidate_workspace_instance(target_root, expected, IdentityCheckPhase::AfterCommit)?;
+    }
     Ok(TxReport {
         planned: planned.len(),
         written,

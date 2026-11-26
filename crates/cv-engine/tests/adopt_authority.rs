@@ -433,3 +433,302 @@ fn re_adoption_preserves_provenance_for_the_adoption_that_already_landed() {
     assert_eq!(rec.events[0].at_ms, 7);
     assert_eq!(rec.events[1].at_ms, 8);
 }
+
+// Round-17 workspace-mutation locking, post-write identity verification,
+// and residual filesystem-interference regressions.
+
+fn copy_tree_contents(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).unwrap();
+    for entry in std::fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let target = to.join(entry.file_name());
+        if entry.file_type().unwrap().is_dir() {
+            copy_tree_contents(&entry.path(), &target);
+        } else if entry.file_type().unwrap().is_file() {
+            std::fs::copy(entry.path(), target).unwrap();
+        }
+    }
+}
+
+fn hugo_source() -> (tempfile::TempDir, String) {
+    let source_ws = tempfile::tempdir().unwrap();
+    let run_id = "round17-hugo".to_string();
+    seed_hugo_evidence(source_ws.path(), &run_id, "hugo");
+    (source_ws, run_id)
+}
+fn add_large_payload(root: &Path, run_id: &str) {
+    let dir = store::run_dir(root, run_id).unwrap();
+    std::fs::write(
+        dir.join(store::OUT).join("content/aa-large.bin"),
+        vec![b'x'; 32 * 1024 * 1024],
+    )
+    .unwrap();
+}
+
+fn cross_process_child() {
+    if std::env::var_os("CV_ADOPT_ONCE_CHILD").is_none() {
+        return;
+    }
+    let root = std::path::PathBuf::from(std::env::var("CV_ADOPT_ONCE_ROOT").unwrap());
+    let run_id = std::env::var("CV_ADOPT_ONCE_RUN").unwrap();
+    let subfolder = std::env::var("CV_ADOPT_ONCE_SUBFOLDER").unwrap();
+    let token = cv_store::workspace_instance::read(&root).unwrap().unwrap();
+    let expected =
+        adopt::ExpectedWorkspaceInstance::new(token, cv_engine::file_identity::identity(&root));
+    let src = adopt::source(&root, &run_id).unwrap();
+    match adopt::transact_existing_with_identity(adopt::ExistingWorkspaceTransaction {
+        target_root: &root,
+        src: &src,
+        content_input: "content",
+        merge_subfolder: Some(&subfolder),
+        scan_existing_ids: Box::new(BTreeMap::new),
+        at_ms: 42,
+        expected_instance: &expected,
+    }) {
+        Ok(report) => println!("{run_id} ok {report:?}"),
+        Err(e) => {
+            println!("{run_id} err {e}");
+            std::process::exit(2);
+        }
+    }
+}
+
+#[test]
+fn cross_process_adoption_child_entry() {
+    cross_process_child();
+}
+
+#[test]
+fn concurrent_cross_process_adoptions_cannot_both_commit_duplicate_page_ids() {
+    if std::env::var_os("CV_ADOPT_ONCE_CHILD").is_some() {
+        return;
+    }
+    let base_tmp = tempfile::tempdir().unwrap();
+    let root = base_tmp.path().canonicalize().unwrap().join("workspace");
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    let run_a = "run-a".to_string();
+    let run_b = "run-b".to_string();
+    seed_hugo_evidence(&root, &run_a, "hugo");
+    seed_hugo_evidence(&root, &run_b, "hugo");
+    add_large_payload(&root, &run_a);
+    add_large_payload(&root, &run_b);
+    cv_store::workspace_instance::ensure(&root).unwrap();
+
+    let exe = std::env::current_exe().unwrap();
+    let spawn = |run_id: &str, subfolder: &str| {
+        std::process::Command::new(&exe)
+            .arg("cross_process_adoption_child_entry")
+            .arg("--exact")
+            .arg("--nocapture")
+            .env("CV_ADOPT_ONCE_CHILD", "1")
+            .env("CV_ADOPT_ONCE_ROOT", &root)
+            .env("CV_ADOPT_ONCE_RUN", run_id)
+            .env("CV_ADOPT_ONCE_SUBFOLDER", subfolder)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .unwrap()
+    };
+    let a = spawn(&run_a, "merge-a");
+    let b = spawn(&run_b, "merge-b");
+    let out_a = a.wait_with_output().unwrap();
+    let out_b = b.wait_with_output().unwrap();
+    let successes = [out_a.status.success(), out_b.status.success()]
+        .into_iter()
+        .filter(|ok| *ok)
+        .count();
+    let merge_a = root.join("content/merge-a/en.md");
+    let merge_b = root.join("content/merge-b/en.md");
+    println!(
+        "R17-CROSS-PROCESS successes={successes} a_status={} b_status={} merge_a={} merge_b={} a_out={} b_out={}",
+        out_a.status,
+        out_b.status,
+        merge_a.exists(),
+        merge_b.exists(),
+        String::from_utf8_lossy(&out_a.stdout),
+        String::from_utf8_lossy(&out_b.stdout)
+    );
+    assert!(
+        successes <= 1,
+        "two cross-process adoptions reported success in one workspace"
+    );
+    if merge_a.exists() && merge_b.exists() {
+        let a = std::fs::read_to_string(&merge_a).unwrap_or_default();
+        let b = std::fs::read_to_string(&merge_b).unwrap_or_default();
+        assert!(
+            !(a.contains("id: en") && b.contains("id: en")),
+            "duplicate explicit Boris page ids committed in one workspace"
+        );
+    }
+}
+
+/// A post-revalidation rename plus byte-copy-back cannot be prevented by
+/// POSIX directory locking. The transaction must nevertheless not report
+/// success: partial output is disclosed and the recovery journal remains
+/// with the surviving moved instance instead of being cleared.
+#[cfg(unix)]
+#[test]
+fn post_write_identity_reverification_reports_partial_write_instead_of_false_success() {
+    let base_tmp = tempfile::tempdir().unwrap();
+    let base = base_tmp.path().canonicalize().unwrap();
+    let root = base.join("workspace");
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    let (source_ws, run_id) = hugo_source();
+    add_large_payload(source_ws.path(), &run_id);
+    let token = cv_store::workspace_instance::ensure(&root).unwrap();
+    let expected =
+        adopt::ExpectedWorkspaceInstance::new(token, cv_engine::file_identity::identity(&root));
+    let src = adopt::source(source_ws.path(), &run_id).unwrap();
+    let moved = base.join("moved-survivor");
+
+    let interferer = std::thread::spawn({
+        let root = root.clone();
+        let moved = moved.clone();
+        let run_id = run_id.clone();
+        move || {
+            let pending = root.join(".cv/imports").join(run_id).join(store::PENDING);
+            for _ in 0..10_000 {
+                if pending.exists() {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(1));
+            }
+            assert!(pending.exists(), "interferer did not observe the journal");
+            std::fs::rename(&root, &moved).unwrap();
+            copy_tree_contents(&moved, &root);
+        }
+    });
+
+    let err = adopt::transact_existing_with_identity(adopt::ExistingWorkspaceTransaction {
+        target_root: &root,
+        src: &src,
+        content_input: "content",
+        merge_subfolder: Some("imported"),
+        scan_existing_ids: Box::new(BTreeMap::new),
+        at_ms: 42,
+        expected_instance: &expected,
+    })
+    .expect_err("post-write identity mismatch must not report success");
+    interferer.join().unwrap();
+    let message = err.to_string();
+    println!(
+        "R17-POSTWRITE err={message:?} replacement={} survivor={} survivor_pending={}",
+        root.join("content/imported").exists(),
+        moved.join("content/imported").exists(),
+        store::read_pending(&moved, &run_id).unwrap().is_some()
+    );
+    assert!(
+        message.contains("may have been written"),
+        "failure must disclose partial writes, not claim zero-write refusal: {message}"
+    );
+    assert!(
+        store::read_pending(&moved, &run_id).unwrap().is_some(),
+        "the surviving instance retains the recovery journal for inspection/retry"
+    );
+    assert!(
+        !moved.join("content/imported").exists(),
+        "path-bound writes must not follow the moved survivor"
+    );
+}
+
+/// Rename-away without a replacement is the other residual interference
+/// shape: path-based writes can recreate a partial zombie root. That root is
+/// not the captured instance, so the operation is an honestly diagnosed
+/// partial-write failure rather than a raw OS error or false success.
+#[cfg(unix)]
+#[test]
+fn rename_away_without_replacement_is_diagnosed_as_identity_loss_with_partial_state() {
+    let base_tmp = tempfile::tempdir().unwrap();
+    let base = base_tmp.path().canonicalize().unwrap();
+    let root = base.join("workspace");
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    let (source_ws, run_id) = hugo_source();
+    add_large_payload(source_ws.path(), &run_id);
+    let token = cv_store::workspace_instance::ensure(&root).unwrap();
+    let expected =
+        adopt::ExpectedWorkspaceInstance::new(token, cv_engine::file_identity::identity(&root));
+    let src = adopt::source(source_ws.path(), &run_id).unwrap();
+    let moved = base.join("moved-survivor");
+
+    let interferer = std::thread::spawn({
+        let root = root.clone();
+        let moved = moved.clone();
+        let run_id = run_id.clone();
+        move || {
+            let pending = root.join(".cv/imports").join(run_id).join(store::PENDING);
+            for _ in 0..10_000 {
+                if pending.exists() {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(1));
+            }
+            assert!(pending.exists(), "interferer did not observe the journal");
+            std::fs::rename(&root, &moved).unwrap();
+        }
+    });
+
+    let err = adopt::transact_existing_with_identity(adopt::ExistingWorkspaceTransaction {
+        target_root: &root,
+        src: &src,
+        content_input: "content",
+        merge_subfolder: Some("imported"),
+        scan_existing_ids: Box::new(BTreeMap::new),
+        at_ms: 42,
+        expected_instance: &expected,
+    })
+    .expect_err("rename-away must not report success");
+    interferer.join().unwrap();
+    let message = err.to_string();
+    println!(
+        "R17-RENAME-AWAY err={message:?} zombie={} survivor={} survivor_pending={}",
+        root.exists(),
+        moved.join("content/imported").exists(),
+        store::read_pending(&moved, &run_id).unwrap().is_some()
+    );
+    assert!(
+        message.contains("workspace identity") && message.contains("may have been written"),
+        "failure must name identity loss and partial-write truth: {message}"
+    );
+    assert!(
+        store::read_pending(&moved, &run_id).unwrap().is_some(),
+        "the surviving instance retains the recovery journal"
+    );
+    assert!(
+        !moved.join("content/imported").exists(),
+        "path-bound writes must not follow the moved survivor"
+    );
+}
+
+/// Collision evidence is gathered only after the workspace mutation lock is
+/// held. The probe attempts the same cross-process lock from inside the scan:
+/// if the scan were still a pre-lock snapshot, that probe would acquire.
+#[test]
+fn existing_id_scan_runs_inside_the_workspace_mutation_lock() {
+    let (source_ws, run_id) = hugo_source();
+    let target = tempfile::tempdir().unwrap();
+    let root = target.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    let token = cv_store::workspace_instance::ensure(&root).unwrap();
+    let expected =
+        adopt::ExpectedWorkspaceInstance::new(token, cv_engine::file_identity::identity(&root));
+    let src = adopt::source(source_ws.path(), &run_id).expect("adoptable hugo run");
+    let probe_root = root.to_path_buf();
+    let tx = adopt::transact_existing_with_identity(adopt::ExistingWorkspaceTransaction {
+        target_root: &root,
+        src: &src,
+        content_input: "content",
+        merge_subfolder: Some("imported"),
+        scan_existing_ids: Box::new(move || {
+            match cv_store::workspace_mutation::lock(&probe_root) {
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
+                Err(e) => panic!("unexpected mutation-lock probe error: {e}"),
+                Ok(_) => panic!("existing-id scan happened outside the mutation lock"),
+            }
+            BTreeMap::new()
+        }),
+        at_ms: 42,
+        expected_instance: &expected,
+    })
+    .unwrap();
+    assert!(tx.written > 0);
+}

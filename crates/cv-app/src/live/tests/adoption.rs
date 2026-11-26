@@ -87,7 +87,7 @@ esac
         cancel: cv_core::engine::CancelToken::new(),
     };
     let (batch_tx, batch_rx) = mpsc::channel();
-    crate::migrate::adopt::arm_batch_entry_probe(batch_tx);
+    crate::migrate::adopt::arm_batch_entry_probe(root.clone(), batch_tx);
     let worker = crate::migrate::adopt::adopt(&mut wb, job, &crate::WorkspaceEnv::native())
         .expect("adoption worker starts");
 
@@ -212,7 +212,7 @@ esac
     entered_rx.recv_timeout(Duration::from_secs(2)).unwrap();
 
     let (batch_tx, batch_rx) = mpsc::channel();
-    crate::migrate::adopt::arm_batch_entry_probe(batch_tx);
+    crate::migrate::adopt::arm_batch_entry_probe(root.clone(), batch_tx);
     let worker = crate::migrate::adopt::adopt(&mut wb, job, &crate::WorkspaceEnv::native())
         .expect("adoption worker starts");
 
@@ -380,4 +380,100 @@ esac
     let live = sched.watch_session().unwrap();
     assert!(sched.stop_watch_session(&live));
     drop(wb);
+}
+
+/// Round-16 adversarial probe: corruption that appears after the workspace
+/// has opened must still use the persistent degraded identity channel and
+/// must not be misreported as a missing engine slot.
+#[cfg(unix)]
+#[test]
+fn r16_malformed_identity_after_open_is_disclosed_as_store_corrupt() {
+    let root_tmp = tempfile::tempdir().unwrap();
+    let root = root_tmp.path().canonicalize().unwrap();
+    install_executable(
+        &root.join("boris"),
+        r#"#!/bin/sh
+case "$1" in
+watch) echo '{"event":"hello","watch_events_schema":1,"compiler":"boris/0.9.0"}' >&2; sleep 30;;
+*) exit 0;;
+esac
+"#,
+    );
+    std::fs::create_dir_all(root.join("content")).unwrap();
+
+    let run_id = "malformed-after-open-hugo";
+    let lock = cv_store::imports::claim_run(&root, run_id).unwrap();
+    let transcript = cv_fixtures::lab::StubLab::new()
+        .run("hugo", &lock.dir().join(cv_store::imports::OUT))
+        .unwrap();
+    let mut rec = cv_store::imports::RunRecord::started(
+        run_id,
+        "hugo",
+        cv_store::imports::RecordedLab {
+            tool_id: "boris-migration-lab/0.8.1".into(),
+            source: "fixture".into(),
+            path: "fixtures/captures/lab".into(),
+        },
+        7,
+    );
+    rec.argv = transcript.argv.clone();
+    rec.finished = Some(cv_store::imports::Finished {
+        exit_code: Some(0),
+        exit: cv_store::imports::FinishedExit::Ok,
+        outcome: "exited 0".into(),
+        duration_ms: 0,
+    });
+    cv_store::imports::write(&lock, &rec).unwrap();
+    drop(lock);
+
+    let mut wb = Workbench::new(Registry::with_all());
+    let delivery = test_delivery(&root, WatchMode::Native, &wb);
+    let sched = Arc::new(EngineScheduler::new(
+        delivery.engine.clone(),
+        SeatPolicy::StopWatch,
+    ));
+    let slot = EngineSlot::default();
+    let _ = slot.sched.set(sched.clone());
+    // Registration mints/uses valid evidence, exactly like the initial open.
+    crate::slots::register_slot(&root, &slot);
+
+    // External corruption after that open. The next adoption lookup computes
+    // a degraded error key rather than the registered valid-token key.
+    std::fs::write(
+        root.join(cv_store::workspace_instance::FILE),
+        "foreign-corruption\n",
+    )
+    .unwrap();
+
+    let job = cv_model::adoption::AdoptionJob {
+        source_root: root.clone(),
+        request: cv_model::adoption::AdoptionRequest {
+            run_id: run_id.into(),
+            target: cv_model::adoption::AdoptionTarget::ExistingWorkspace {
+                subfolder: "imported".into(),
+            },
+        },
+        cancel: cv_core::engine::CancelToken::new(),
+    };
+    let worker = crate::migrate::adopt::adopt(&mut wb, job, &crate::WorkspaceEnv::native())
+        .expect("adoption worker starts");
+    worker.join().unwrap();
+    wb.drain();
+    println!(
+        "R16-MALFORMED-AFTER-OPEN degraded={:?} status={:?} imported={}",
+        wb.app.degraded,
+        wb.status,
+        root.join("content/imported/en.md").exists()
+    );
+    assert!(!root.join("content/imported/en.md").exists());
+    assert_eq!(
+        wb.app.degraded,
+        Some(cv_core::events::shell::DegradedReason::StoreCorrupt),
+        "malformed workspace-instance evidence must use the persistent degraded channel"
+    );
+    assert!(
+        wb.status.contains("workspace identity") || wb.status.contains("instance evidence"),
+        "the refusal must name identity evidence, not a misleading missing slot: {:?}",
+        wb.status
+    );
 }

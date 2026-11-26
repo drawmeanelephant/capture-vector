@@ -107,7 +107,7 @@ fn existing_workspace_transaction_revalidates_captured_instance_before_writing()
         src: &src,
         content_input: "content",
         merge_subfolder: Some("imported"),
-        existing_ids: &BTreeMap::new(),
+        scan_existing_ids: Box::new(BTreeMap::new),
         at_ms: 42,
         expected_instance: &expected,
     })
