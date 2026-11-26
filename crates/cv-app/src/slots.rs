@@ -20,6 +20,17 @@ pub fn register_slot(root: &Path, slot: &EngineSlot) {
         .insert(root.to_path_buf(), slot.clone());
 }
 
+/// The workspace's stable slot, creating and registering it atomically
+/// when this root has never been opened in the process.
+pub fn slot_or_register(root: &Path) -> EngineSlot {
+    slots()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .entry(root.to_path_buf())
+        .or_default()
+        .clone()
+}
+
 /// The workspace's engine slot (scheduler, resync, verb delivery) as
 /// registered at open time, whether or not boot has finished.
 pub fn slot_for(root: &Path) -> Option<EngineSlot> {

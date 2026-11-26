@@ -23,7 +23,7 @@ esac
     // Finished, adoptable Hugo output mirrored in this workspace.
     let run_id = "preflight-race-hugo";
     let lock = cv_store::imports::claim_run(&root, run_id).unwrap();
-    cv_fixtures::lab::StubLab::new()
+    let transcript = cv_fixtures::lab::StubLab::new()
         .run("hugo", &lock.dir().join(cv_store::imports::OUT))
         .unwrap();
     let mut rec = cv_store::imports::RunRecord::started(
@@ -36,6 +36,7 @@ esac
         },
         7,
     );
+    rec.argv = transcript.argv.clone();
     rec.finished = Some(cv_store::imports::Finished {
         exit_code: Some(0),
         exit: cv_store::imports::FinishedExit::Ok,
@@ -85,19 +86,18 @@ esac
         },
         cancel: cv_core::engine::CancelToken::new(),
     };
+    let (batch_tx, batch_rx) = mpsc::channel();
+    crate::migrate::adopt::arm_batch_entry_probe(batch_tx);
     let worker = crate::migrate::adopt::adopt(&mut wb, job, &crate::WorkspaceEnv::native())
         .expect("adoption worker starts");
 
-    // Watch disappearance proves the worker passed the stale snapshot point
-    // and is queued inside batch_watch_safe behind the held mutation batch.
-    let deadline = std::time::Instant::now() + Duration::from_secs(3);
-    while sched.watch_session().is_some() {
-        assert!(
-            std::time::Instant::now() < deadline,
-            "worker did not reach the batch"
-        );
-        std::thread::sleep(Duration::from_millis(5));
-    }
+    // The test-only probe fires immediately before the worker asks for the
+    // batch writer lock. The colliding page is then written inside the
+    // already-held serialized mutation, so any id snapshot taken before
+    // that lock is necessarily stale.
+    batch_rx
+        .recv_timeout(Duration::from_secs(3))
+        .expect("worker did not reach the batch");
     release_tx.send(()).unwrap();
     mutation.join().unwrap();
     worker.join().unwrap();
@@ -112,4 +112,85 @@ esac
     }
     drop(session);
     drop(wb);
+}
+
+/// Round-2 probe: stopping the watch before taking the batch writer lock
+/// leaves a start-watch window. A queued watch start must never win that
+/// window and observe the mutation batch as unpaused.
+#[cfg(unix)]
+#[test]
+fn a_watch_start_cannot_enter_the_gap_between_pause_and_batch() {
+    for attempt in 0..8 {
+        let root_tmp = tempfile::tempdir().unwrap();
+        let root = root_tmp.path().canonicalize().unwrap();
+        install_executable(
+            &root.join("boris"),
+            r#"#!/bin/sh
+case "$1" in
+watch) echo '{"event":"hello","watch_events_schema":1,"compiler":"boris/0.9.0"}' >&2; sleep 30;;
+*) exit 0;;
+esac
+"#,
+        );
+        std::fs::create_dir_all(root.join("content")).unwrap();
+        let wb = Workbench::new(Registry::with_all());
+        let delivery = test_delivery(&root, WatchMode::Native, &wb);
+        let sched = Arc::new(EngineScheduler::new(
+            delivery.engine.clone(),
+            SeatPolicy::StopWatch,
+        ));
+        let slot = EngineSlot::default();
+        let _ = slot.sched.set(sched.clone());
+        slot.install_verbs(VerbRoute {
+            delivery: delivery.clone(),
+            warning: None,
+        });
+        let initial = sched.start_watch(Box::new(|_| {})).unwrap();
+
+        // Hold the writer lock. Queue the watch start first, then let the
+        // adoption-shaped batch pause the live watch and queue behind it.
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let blocker_sched = sched.clone();
+        let blocker = std::thread::spawn(move || {
+            blocker_sched.mutation_batch(|| {
+                entered_tx.send(()).unwrap();
+                release_rx.recv().unwrap();
+            });
+        });
+        entered_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+
+        let racer_sched = sched.clone();
+        let racer = std::thread::spawn(move || racer_sched.start_watch(Box::new(|_| {})));
+        std::thread::sleep(Duration::from_millis(20));
+
+        let batch_slot = slot.clone();
+        let batch_sched = sched.clone();
+        let batch = std::thread::spawn(move || {
+            let mut observed_watch = false;
+            crate::migrate::adopt::batch_watch_safe(&batch_slot, &batch_sched, || {
+                for _ in 0..5 {
+                    observed_watch |= batch_sched.watch_session().is_some();
+                    std::thread::sleep(Duration::from_millis(5));
+                }
+            });
+            observed_watch
+        });
+        std::thread::sleep(Duration::from_millis(20));
+        release_tx.send(()).unwrap();
+        blocker.join().unwrap();
+        let observed_watch = batch.join().unwrap();
+        let racer_result = racer.join().unwrap();
+
+        assert!(
+            !observed_watch,
+            "WATCH-START-RACE: attempt {attempt}: a watch queued before the adoption batch started inside the supposedly paused batch; racer_result={racer_result:?}"
+        );
+
+        if let Some(w) = sched.watch_session() {
+            sched.stop_watch_session(&w);
+        }
+        drop(initial);
+        drop(wb);
+    }
 }

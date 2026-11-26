@@ -199,10 +199,26 @@ pub fn open_workspace(
         );
         return None;
     }
+    // Do not rely on the shell having already drained the asynchronous
+    // watch-handle publication: closing/switching a workspace must stop
+    // the scheduler-owned watch directly before the shared scheduler can
+    // be reopened. Adoption batches tolerate this because they stop the
+    // same session inside their serialized mutation batch.
+    if let Some(previous) = wb.workspace.as_ref()
+        && let Some(sched) = slots::scheduler_for(previous)
+    {
+        sched.stop_watch();
+    }
     wb.stop_watch();
     wb.registry = Registry::default();
-    let slot = live::EngineSlot::default();
-    slots::register_slot(&root, &slot);
+    // Scheduler identity is workspace identity from the first open,
+    // including the boot window itself. Reopening this root reuses its
+    // slot/scheduler so long-running mutations serialized on it cannot
+    // split-brain against a replacement scheduler. A boot failure leaves
+    // the OnceLocks empty, so a later boot of the same stable slot can
+    // still retry; the slot's boot mutex prevents concurrent first boots
+    // from winning that race with duplicate engines.
+    let slot = slots::slot_or_register(&root);
     let input = snapshot::content_input(&root);
     cv_model::modules::engine::install(Box::new(live::SlotVerbs(slot.clone())));
     cv_model::modules::pages::install_in(

@@ -118,8 +118,15 @@ fn a_resync_requested_after_a_mutation_waits_behind_an_in_flight_scan() {
         started_tx.send(()).unwrap();
         release_rx.recv().unwrap();
     }));
+    let root = tempfile::tempdir().unwrap();
+    let wb = Workbench::new(Registry::with_all());
+    let mut delivery = test_delivery(root.path(), WatchMode::Native, &wb);
+    delivery.resyncer = resyncer.clone();
     let slot = EngineSlot::default();
-    let _ = slot.resyncer.set(resyncer.clone());
+    slot.install_verbs(VerbRoute {
+        delivery,
+        warning: None,
+    });
 
     resyncer.request();
     started_rx
@@ -857,7 +864,7 @@ esac
     ));
     let slot = EngineSlot::default();
     let _ = slot.sched.set(sched.clone());
-    let _ = slot.verbs.set(VerbRoute {
+    slot.install_verbs(VerbRoute {
         delivery: delivery.clone(),
         warning: None,
     });
@@ -931,7 +938,7 @@ esac
     ));
     let slot = EngineSlot::default();
     let _ = slot.sched.set(sched.clone());
-    let _ = slot.verbs.set(VerbRoute {
+    slot.install_verbs(VerbRoute {
         delivery: delivery.clone(),
         warning: None,
     });
@@ -980,7 +987,7 @@ esac
     ));
     let slot = EngineSlot::default();
     let _ = slot.sched.set(sched.clone());
-    let _ = slot.verbs.set(VerbRoute {
+    slot.install_verbs(VerbRoute {
         delivery: delivery.clone(),
         warning: None,
     });
@@ -1051,7 +1058,7 @@ esac
     ));
     let slot = EngineSlot::default();
     let _ = slot.sched.set(sched.clone());
-    let _ = slot.verbs.set(VerbRoute {
+    slot.install_verbs(VerbRoute {
         delivery: delivery.clone(),
         warning: None,
     });
@@ -1107,7 +1114,7 @@ esac
     ));
     let slot = EngineSlot::default();
     let _ = slot.sched.set(sched.clone());
-    let _ = slot.verbs.set(VerbRoute {
+    slot.install_verbs(VerbRoute {
         delivery: delivery.clone(),
         warning: None,
     });

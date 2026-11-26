@@ -148,6 +148,22 @@ fn scan_files(dir: &Path, prefix: &str, out: &mut Vec<ContentFile>) -> Result<()
     Ok(())
 }
 
+/// Exact mode-to-report authority for every emitting mode whose report
+/// contract this build mirrors. Membership in this table is the adoption
+/// allowlist; there is no normalization or suffix inference.
+fn adoptable_report_format(mode: &str) -> Option<&'static str> {
+    use cv_contracts::lab::format;
+    match mode {
+        "hugo" => Some(format::HUGO),
+        "jekyll" => Some(format::JEKYLL),
+        "substack" => Some(format::SUBSTACK),
+        "enex" => Some(format::ENEX),
+        "obsidian" => Some(format::OBSIDIAN),
+        "wordpress" => Some(format::WORDPRESS),
+        _ => None,
+    }
+}
+
 /// Read one successful run and decode its lab report. Inventory-only and
 /// cross-cutting reports have no `content/` tree and are refused here.
 pub fn source(root: &Path, run_id: &str) -> Result<AdoptionSource, AdoptError> {
@@ -168,9 +184,35 @@ pub fn source(root: &Path, run_id: &str) -> Result<AdoptionSource, AdoptError> {
             "run {run_id} has not finished successfully"
         )));
     }
-    if record.mode.ends_with("-inventory") {
+    // Adoption is an allowlist, never a syntactic inventory denylist.
+    // Unknown spellings, case/whitespace variants, inventory companions,
+    // cross-cutting analysis modes, and emitters without a mirrored report
+    // contract all refuse closed.
+    let Some(expected_format) = adoptable_report_format(&record.mode) else {
         return Err(AdoptError::Run(format!(
-            "run {run_id} is inventory-only and emits no adoptable content"
+            "run {run_id} mode {:?} is not an exact registered emitting mode",
+            record.mode
+        )));
+    };
+    // The directory name, embedded record identity, and spawned argv are
+    // three copies of the same fact. Adoption rewrites this record only
+    // after content/provenance work, so a mismatch must refuse here rather
+    // than become a deterministic post-copy lock-identity failure.
+    if record.run_id != run_id {
+        return Err(AdoptError::Run(format!(
+            "run.json names {:?} but lies in {run_id:?}'s directory",
+            record.run_id
+        )));
+    }
+    let expected_arg = format!("--mode={}", record.mode);
+    let mode_args: Vec<&str> = record
+        .argv
+        .iter()
+        .filter_map(|a| a.strip_prefix("--mode="))
+        .collect();
+    if mode_args != [record.mode.as_str()] || !record.argv.iter().any(|a| a == &expected_arg) {
+        return Err(AdoptError::Run(format!(
+            "run {run_id} argv does not carry exactly {expected_arg:?}"
         )));
     }
     let out = dir.join(store::OUT);
@@ -184,6 +226,13 @@ pub fn source(root: &Path, run_id: &str) -> Result<AdoptionSource, AdoptError> {
     let report_bytes = std::fs::read(&report_path)
         .map_err(|e| AdoptError::Report(format!("report.json is unreadable: {e}")))?;
     let report = Report::decode(&report_bytes).map_err(|e| AdoptError::Report(e.to_string()))?;
+    if report.key().format != expected_format {
+        return Err(AdoptError::Report(format!(
+            "report.json is a {} document but run {run_id} is mode {}",
+            report.key().format,
+            record.mode
+        )));
+    }
     let mut pages = Vec::new();
     for p in report.pages() {
         let Some(output) = p.output else { continue };
@@ -295,261 +344,9 @@ pub fn plan(
     Ok(out)
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CollisionKind {
-    Path,
-    Id,
-    /// A parent component of an intended target is a file, a link, or
-    /// unresolvable — a deterministic shape conflict detected before any
-    /// write rather than a mid-copy failure after partial content landed.
-    ParentShape,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Collision {
-    pub kind: CollisionKind,
-    /// The incoming path or entity id.
-    pub incoming: String,
-    /// The existing path or id owner.
-    pub existing: String,
-}
-
-impl std::fmt::Display for Collision {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.kind {
-            CollisionKind::Path => write!(
-                f,
-                "path {} already exists ({})",
-                self.incoming, self.existing
-            ),
-            CollisionKind::Id => write!(
-                f,
-                "page id {} is already used by {}",
-                self.incoming, self.existing
-            ),
-            CollisionKind::ParentShape => {
-                write!(
-                    f,
-                    "path {} cannot be written: {}",
-                    self.incoming, self.existing
-                )
-            }
-        }
-    }
-}
-
-/// True when the target already holds exactly the bytes adoption would
-/// write. Length is checked before content so large mismatches cost nothing.
-fn bytes_identical(target: &Path, source: &Path) -> bool {
-    let (Ok(t), Ok(s)) = (std::fs::read(target), std::fs::read(source)) else {
-        return false;
-    };
-    t == s
-}
-
-/// Refuse every path and id overlap before the first write. `existing_ids`
-/// is the composition root's current Boris-view of the target workspace
-/// (`id` → content-input-relative path); adoption itself never parses
-/// Boris frontmatter.
-///
-/// `resume` changes path semantics only: with a durable recovery journal,
-/// a target holding exactly the incoming bytes is evidence of the
-/// interrupted attempt's own staged write and is skipped, while different
-/// bytes can only be foreign data and still refuse. Without the journal,
-/// every existing target path is a collision — even byte-identical ones,
-/// because nothing distinguishes them from the user's own pre-existing
-/// content. Returns the files that still need copying in resume mode.
-/// Classification of one parent component of an intended target.
-/// Preflight must distinguish these exactly: an absent component will be
-/// created, an ordinary directory is fine, and everything else — an
-/// ordinary file, a link, or a resolution failure — is a deterministic
-/// conflict that must refuse the adoption *before the first write*,
-/// never surface as a mid-copy failure after partial content landed.
-fn blocked_parents(target_root: &Path, rel_targets: &[String]) -> Vec<Collision> {
-    let mut seen = BTreeSet::new();
-    let mut out = Vec::new();
-    for target in rel_targets {
-        let rel = Path::new(target);
-        let mut ancestors: Vec<&Path> = rel.ancestors().skip(1).collect();
-        ancestors.reverse();
-        for parent in ancestors {
-            if parent.as_os_str().is_empty() || !seen.insert(parent.to_path_buf()) {
-                continue;
-            }
-            let abs = target_root.join(parent);
-            match std::fs::symlink_metadata(&abs) {
-                Ok(meta) if meta.file_type().is_symlink() => {
-                    out.push(Collision {
-                        kind: CollisionKind::ParentShape,
-                        incoming: target.clone(),
-                        existing: format!(
-                            "{} is a link, so nothing may be written below it",
-                            parent.display()
-                        ),
-                    });
-                    break;
-                }
-                Ok(meta) if meta.is_dir() => {}
-                Ok(_) => {
-                    out.push(Collision {
-                        kind: CollisionKind::ParentShape,
-                        incoming: target.clone(),
-                        existing: format!(
-                            "{} is not a directory, so nothing may be written below it",
-                            parent.display()
-                        ),
-                    });
-                    break;
-                }
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                    // Absent components are created by the staged writer,
-                    // and nothing can exist below a missing directory.
-                    break;
-                }
-                Err(e) => {
-                    out.push(Collision {
-                        kind: CollisionKind::ParentShape,
-                        incoming: target.clone(),
-                        existing: format!("{} cannot be resolved: {e}", parent.display()),
-                    });
-                    break;
-                }
-            }
-        }
-    }
-    out
-}
-
-pub fn collisions(
-    target_root: &Path,
-    src: &AdoptionSource,
-    planned: &[PlannedFile],
-    existing_ids: &BTreeMap<String, String>,
-    resume: bool,
-) -> Result<Vec<bool>, AdoptError> {
-    let mut out = Vec::new();
-    let mut incoming_ids = BTreeSet::new();
-    let mut needs_copy = Vec::new();
-
-    // Parent-shape preflight over every byte the transaction intends to
-    // write: content targets, the provenance mirror, and the journal /
-    // sidecar files themselves. A file, link, or unresolvable component
-    // anywhere in those chains is a deterministic conflict and must
-    // surface here — before the journal and the first content byte —
-    // rather than as a mid-copy failure over partial output.
-    let mut rel_targets: Vec<String> = planned.iter().map(|p| p.target.clone()).collect();
-    rel_targets.push(format!("{}/{}/{}", store::DIR, src.run_id, store::PENDING));
-    for source in provenance_paths(&src.out)? {
-        let rel = source.strip_prefix(&src.out).map_err(|_| {
-            AdoptError::Content(format!("{} is outside the run output", source.display()))
-        })?;
-        rel_targets.push(format!(
-            "{}/{}/{}",
-            store::DIR,
-            src.run_id,
-            rel.to_string_lossy().replace('\\', "/")
-        ));
-    }
-    out.extend(blocked_parents(target_root, &rel_targets));
-
-    for p in planned {
-        let target = target_root.join(&p.target);
-        let metadata = match std::fs::symlink_metadata(&target) {
-            Ok(metadata) => Some(metadata),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
-            Err(e) => {
-                out.push(Collision {
-                    kind: CollisionKind::ParentShape,
-                    incoming: p.display.clone(),
-                    existing: format!("{} cannot be resolved: {e}", p.target),
-                });
-                None
-            }
-        };
-        let mut copy = true;
-        if let Some(metadata) = metadata {
-            // `symlink_metadata` is the no-follow final-component check: a
-            // link exactly at the target is existing foreign state, never an
-            // absent file merely because confined resolution refused it.
-            let ordinary_file = metadata.is_file() && !cv_store::paths::is_link(&metadata);
-            if resume && ordinary_file && bytes_identical(&target, &p.source) {
-                copy = false;
-            } else {
-                out.push(Collision {
-                    kind: CollisionKind::Path,
-                    incoming: p.display.clone(),
-                    existing: p.target.clone(),
-                });
-            }
-        }
-        needs_copy.push(copy);
-    }
-    for page in &src.pages {
-        if !incoming_ids.insert(page.entity_id.clone()) {
-            out.push(Collision {
-                kind: CollisionKind::Id,
-                incoming: page.entity_id.clone(),
-                existing: "another page in the same migration run".into(),
-            });
-        }
-        if let Some(existing) = existing_ids.get(&page.entity_id) {
-            // An owner at one of the adoption's own planned paths is the
-            // path preflight's case, not an id collision: fresh attempts
-            // already refuse it as a path collision, and in resume mode it
-            // is the interrupted attempt's own partial output — refusing
-            // it here too would make every real-world retry self-refusing.
-            let own = planned.iter().any(|pl| pl.display == *existing);
-            if !own {
-                out.push(Collision {
-                    kind: CollisionKind::Id,
-                    incoming: page.entity_id.clone(),
-                    existing: existing.clone(),
-                });
-            }
-        }
-    }
-    out.sort_by(|a, b| {
-        a.incoming
-            .cmp(&b.incoming)
-            .then(a.existing.cmp(&b.existing))
-    });
-    out.dedup();
-    if out.is_empty() {
-        Ok(needs_copy)
-    } else {
-        Err(AdoptError::Collisions(out))
-    }
-}
-
-/// Copy planned files byte-for-byte with `expected=None` staged writes.
-/// `needs_copy[i] == false` skips `planned[i]` (a verified resume skip);
-/// every written file still refuses a surprise predecessor instead of
-/// overwriting it. Returns `(written, skipped)`.
-pub fn copy_content(
-    target_root: &Path,
-    planned: &[PlannedFile],
-    needs_copy: &[bool],
-) -> Result<(usize, usize), AdoptError> {
-    let mut written = 0;
-    let mut skipped = 0;
-    for (p, needed) in planned.iter().zip(needs_copy) {
-        if !needed {
-            skipped += 1;
-            continue;
-        }
-        let bytes = std::fs::read(&p.source)?;
-        match write::write_staged(target_root, &p.target, &bytes, None)? {
-            WriteOutcome::Written { .. } => written += 1,
-            WriteOutcome::StaleBase { .. } => {
-                return Err(AdoptError::Stale(format!(
-                    "{} appeared or changed during adoption; nothing was overwritten",
-                    p.target
-                )));
-            }
-        }
-    }
-    Ok((written, skipped))
-}
+mod preflight;
+pub use preflight::{Collision, CollisionKind, collisions, copy_content};
+use preflight::{bytes_identical, incoming_id_collisions, preflight_write_target_shapes};
 
 /// Byte evidence of every file currently inside the content input,
 /// keyed by workspace-relative target — the starter manifest recorded
@@ -793,6 +590,38 @@ pub fn record_adoption(
             })
         })
         .collect();
+    let event = rec.event();
+    if let Some(prior) = store::scan_adoptions(target_root)?
+        .into_iter()
+        .find(|r| r.run_id == src.run_id)
+    {
+        let mut pages = prior.pages;
+        for page in rec.pages {
+            if !pages.contains(&page) {
+                pages.push(page);
+            }
+        }
+        rec.pages = pages;
+        rec.events = prior.events;
+    }
+    // Event identity is the adoption destination, not the wall-clock retry
+    // that completed it. A crash after the sidecar write but before journal
+    // cleanup leaves the same destination's event behind; the resumable
+    // retry completes that event rather than inventing a second adoption.
+    if let Some(prior_event) = rec.events.iter_mut().find(|e| {
+        e.workspace == event.workspace
+            && e.target == event.target
+            && e.content_subfolder == event.content_subfolder
+    }) {
+        for page in event.pages {
+            if !prior_event.pages.contains(&page) {
+                prior_event.pages.push(page);
+            }
+        }
+        prior_event.at_ms = event.at_ms;
+    } else {
+        rec.events.push(event);
+    }
     store::write_adoption(lock, &rec)?;
     let mut run = src.record.clone();
     run.adopted = Some(store::Adopted { at_ms, workspace });
@@ -900,6 +729,17 @@ pub fn transact(
         None => None,
     };
     let planned = plan(src, content_input, merge_subfolder)?;
+    let intrinsic = incoming_id_collisions(src);
+    if !intrinsic.is_empty() {
+        return Err(AdoptError::Collisions(intrinsic));
+    }
+    // Zero-write preflight precedes even the recovery journal: the journal
+    // is itself one of the transaction's writes, not a harmless prelude.
+    preflight_write_target_shapes(target_root, src, &planned)?;
+    // An existing adoption sidecar is evidence even when it is damaged:
+    // decode it before the first write so a later adoption can never
+    // silently overwrite provenance Capture Vector could not interpret.
+    store::read_adoption_record(target_root, &src.run_id).map_err(AdoptError::Report)?;
     let pending = store::read_pending(target_root, &src.run_id).map_err(AdoptError::Report)?;
     let input_norm = content_input.trim().trim_matches('/');
     let resume = match &pending {

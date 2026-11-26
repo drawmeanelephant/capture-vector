@@ -782,9 +782,9 @@ impl ReviewLog {
 
 mod adoption;
 pub use adoption::{
-    ADOPTION, ADOPTION_FORMAT, ADOPTION_SCHEMA_VERSION, AdoptedPage, AdoptionRecord, PENDING,
-    PENDING_FORMAT, PENDING_SCHEMA_VERSION, PendingAdoption, PendingFile, clear_pending,
-    read_pending, scan_adoptions, write_adoption, write_pending,
+    ADOPTION, ADOPTION_FORMAT, ADOPTION_SCHEMA_VERSION, AdoptedPage, AdoptionEvent, AdoptionRecord,
+    PENDING, PENDING_FORMAT, PENDING_SCHEMA_VERSION, PendingAdoption, PendingFile, clear_pending,
+    read_adoption_record, read_pending, scan_adoptions, write_adoption, write_pending,
 };
 
 #[cfg(test)]

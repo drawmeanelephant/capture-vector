@@ -12,7 +12,7 @@ use super::*;
 pub const ADOPTION: &str = "adoption.json";
 pub const ADOPTION_FORMAT: &str = "cv-import-adoption";
 /// Version of `<run-id>/adoption.json`, independent of the run-record schema.
-pub const ADOPTION_SCHEMA_VERSION: u32 = 1;
+pub const ADOPTION_SCHEMA_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AdoptedPage {
@@ -22,6 +22,19 @@ pub struct AdoptedPage {
     pub path: String,
     /// Source path exactly as the lab report names it, when it does.
     pub source: Option<String>,
+}
+
+/// One adoption event. Version-1 sidecars represented exactly one event
+/// in the top-level record; version 2 keeps this list so repeated merges
+/// of one run never erase the target/time evidence of an earlier adoption.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AdoptionEvent {
+    pub at_ms: i64,
+    pub workspace: String,
+    /// `new` or `existing`.
+    pub target: String,
+    pub content_subfolder: Option<String>,
+    pub pages: Vec<AdoptedPage>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -38,7 +51,12 @@ pub struct AdoptionRecord {
     pub content_subfolder: Option<String>,
     /// External inputs the run consumed; they are referenced, never copied.
     pub inputs: Vec<RecordedInput>,
+    /// Union of all adopted pages, retained as the cheap lookup projection.
     pub pages: Vec<AdoptedPage>,
+    /// Every adoption event, oldest first. Empty only in a caller-built
+    /// record before [`write_adoption`] normalizes it.
+    #[serde(default)]
+    pub events: Vec<AdoptionEvent>,
 }
 
 impl AdoptionRecord {
@@ -60,7 +78,50 @@ impl AdoptionRecord {
             content_subfolder: None,
             inputs: Vec::new(),
             pages: Vec::new(),
+            events: Vec::new(),
         }
+    }
+
+    /// The single event represented by this record's top-level target
+    /// fields. Version-1 records are normalized through this projection.
+    pub fn event(&self) -> AdoptionEvent {
+        AdoptionEvent {
+            at_ms: self.at_ms,
+            workspace: self.workspace.clone(),
+            target: self.target.clone(),
+            content_subfolder: self.content_subfolder.clone(),
+            pages: self.pages.clone(),
+        }
+    }
+
+    fn normalized(mut self) -> Self {
+        self.schema_version = ADOPTION_SCHEMA_VERSION;
+        if self.events.is_empty() {
+            // Version 1 is exactly one event stored in the top-level fields.
+            let event = self.event();
+            self.events.push(event);
+        } else {
+            // In version 2 the event list is authoritative and the
+            // top-level target/page fields are a derived compatibility
+            // projection. Rebuild that projection rather than trusting two
+            // potentially contradictory copies of the same evidence.
+            let mut pages = Vec::new();
+            for event in &self.events {
+                for page in &event.pages {
+                    if !pages.contains(page) {
+                        pages.push(page.clone());
+                    }
+                }
+            }
+            self.pages = pages;
+            if let Some(last) = self.events.last() {
+                self.at_ms = last.at_ms;
+                self.workspace = last.workspace.clone();
+                self.target = last.target.clone();
+                self.content_subfolder = last.content_subfolder.clone();
+            }
+        }
+        self
     }
 }
 
@@ -82,10 +143,33 @@ pub fn write_adoption(lock: &RunLock, rec: &AdoptionRecord) -> Result<PathBuf, E
     let path = dir.join(ADOPTION);
     refuse_symlinks(&[&root.join(".cv"), &root.join(DIR), dir, &path])?;
     sidecar::ensure(root, &SCHEMA).map_err(Error::Schema)?;
-    let mut bytes = serde_json::to_vec_pretty(rec).map_err(Error::Json)?;
+    let rec = rec.clone().normalized();
+    let mut bytes = serde_json::to_vec_pretty(&rec).map_err(Error::Json)?;
     bytes.push(b'\n');
     write_atomic_in_run(dir, ADOPTION, &bytes)?;
     Ok(path)
+}
+
+/// The durable adoption sidecar for one run. Like the recovery journal,
+/// malformed or foreign evidence is an explicit error rather than
+/// something a later adoption may silently overwrite.
+pub fn read_adoption_record(root: &Path, run: &str) -> Result<Option<AdoptionRecord>, String> {
+    let dir = run_dir(root, run).map_err(|e| e.to_string())?;
+    let path = dir.join(ADOPTION);
+    if is_symlink(&path).map_err(|e| e.to_string())? {
+        return Err(format!("{ADOPTION} is a symlink"));
+    }
+    if !path.exists() {
+        return Ok(None);
+    }
+    let rec = read_adoption(&path)?;
+    if rec.run_id != run {
+        return Err(format!(
+            "{ADOPTION} names run {:?} but lies in {run:?}'s directory",
+            rec.run_id
+        ));
+    }
+    Ok(Some(rec))
 }
 
 fn read_adoption(path: &Path) -> Result<AdoptionRecord, String> {
@@ -106,13 +190,15 @@ fn read_adoption(path: &Path) -> Result<AdoptionRecord, String> {
             h.format
         ));
     }
-    if h.schema_version != u64::from(ADOPTION_SCHEMA_VERSION) {
+    if !(1..=u64::from(ADOPTION_SCHEMA_VERSION)).contains(&h.schema_version) {
         return Err(format!(
-            "{ADOPTION} schema_version {} is not supported (this build reads {ADOPTION_SCHEMA_VERSION})",
+            "{ADOPTION} schema_version {} is not supported (this build reads 1..={ADOPTION_SCHEMA_VERSION})",
             h.schema_version
         ));
     }
-    serde_json::from_slice(&bytes).map_err(|e| format!("{ADOPTION} is not valid: {e}"))
+    let rec: AdoptionRecord =
+        serde_json::from_slice(&bytes).map_err(|e| format!("{ADOPTION} is not valid: {e}"))?;
+    Ok(rec.normalized())
 }
 
 /// Valid adoption records under `.cv/imports/`, sorted by run id. Missing
@@ -136,7 +222,9 @@ pub fn scan_adoptions(root: &Path) -> Result<Vec<AdoptionRecord>, Error> {
         if !path.exists() {
             continue;
         }
-        if let Ok(rec) = read_adoption(&path) {
+        if let Ok(rec) = read_adoption(&path)
+            && e.file_name().to_str() == Some(rec.run_id.as_str())
+        {
             out.push(rec);
         }
     }

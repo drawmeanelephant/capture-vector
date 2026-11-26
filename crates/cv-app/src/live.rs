@@ -44,9 +44,18 @@ use projection::IrProjection;
 /// the delivery palette verbs report through.
 #[derive(Clone, Default)]
 pub struct EngineSlot {
+    /// Workspace mutation identity: set once, then reused for the process
+    /// lifetime so reopen can never split one workspace across schedulers.
     sched: Arc<OnceLock<Arc<Scheduler>>>,
-    resyncer: Arc<OnceLock<Arc<Resyncer>>>,
-    verbs: Arc<OnceLock<VerbRoute>>,
+    /// The current shell generation's verb delivery. Unlike scheduler
+    /// identity this is replaced on every successful open because an
+    /// Inbox is generation-scoped and sends to a reset workbench correctly
+    /// land nowhere.
+    verbs: Arc<Mutex<Option<VerbRoute>>>,
+    /// Serializes boot attempts for this workspace identity. Without it,
+    /// a switch-away/back during the first locate could create two
+    /// successful engines before either OnceLock became visible.
+    boot: Arc<Mutex<()>>,
 }
 
 impl EngineSlot {
@@ -54,12 +63,24 @@ impl EngineSlot {
         self.sched.get()
     }
 
+    fn route(&self) -> Option<VerbRoute> {
+        self.verbs.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// Install the delivery for one shell generation. Scheduler identity is
+    /// immutable, but delivery is not: workspace reopen resets the shell
+    /// inbox, and reusing the prior generation's route would silence every
+    /// event exactly as `reset_project` intends for stale workers.
+    fn install_verbs(&self, route: VerbRoute) {
+        *self.verbs.lock().unwrap_or_else(|e| e.into_inner()) = Some(route);
+    }
+
     /// Queue a convergent disk-truth scan when the workspace engine booted.
     /// A request made after a lifecycle mutation is guaranteed to run after
     /// that mutation even if an older scan is already in flight.
     pub fn request_resync(&self) {
-        if let Some(r) = self.resyncer.get() {
-            r.request();
+        if let Some(route) = self.route() {
+            route.delivery.resyncer.request();
         }
     }
 
@@ -68,7 +89,7 @@ impl EngineSlot {
     /// never a raw inbox channel that would skip those invariants.
     /// `None` while the engine has not passed its gate.
     pub fn live_sink(&self) -> Option<EventSink> {
-        let route = self.verbs.get()?;
+        let route = self.route()?;
         Some(route.delivery.resync_sink(|deliver, env| deliver(env)))
     }
 
@@ -79,8 +100,7 @@ impl EngineSlot {
     /// path can lose `stopped_watch`. A no-op when the watch survived,
     /// was never live, or the engine slot is not booted.
     pub fn restore_watch(&self, before: Option<SessionId>, outcome: String) {
-        let (Some(sched), Some(route)) = (self.sched.get().cloned(), self.verbs.get().cloned())
-        else {
+        let (Some(sched), Some(route)) = (self.sched.get().cloned(), self.route()) else {
             return;
         };
         let Some(stopped) = before.filter(|_| sched.watch_session().is_none()) else {
@@ -101,8 +121,7 @@ impl EngineSlot {
     /// workbench like any engine envelope. A build that took the watch's
     /// seat restarts the watch afterwards, so the workspace stays live.
     pub fn start_verb(&self, run: VerbRun) -> Result<(), String> {
-        let (Some(sched), Some(route)) = (self.sched.get().cloned(), self.verbs.get().cloned())
-        else {
+        let (Some(sched), Some(route)) = (self.sched.get().cloned(), self.route()) else {
             return Err(absent().to_string());
         };
         std::thread::Builder::new()
@@ -690,6 +709,7 @@ fn run(b: EngineBoot) {
         notice,
         doctor,
     } = b;
+    let _boot = slot.boot.lock().unwrap_or_else(|e| e.into_inner());
     let root: PathBuf = cfg.root.clone();
     let epoch = Arc::new(AtomicU64::new(1));
     // Browsable from disk whether or not the engine passes.
@@ -699,6 +719,36 @@ fn run(b: EngineBoot) {
         None,
         1,
     ))) {
+        return;
+    }
+    if let Some(sched) = slot.get().cloned() {
+        doctor.update(|f| {
+            f.engine = crate::doctor::located(sched.engine().identity());
+            f.probe = Some(crate::doctor::probe(sched.engine().report()));
+        });
+        let engine = sched.engine().clone();
+        let resyncer = Arc::new(Resyncer::spawn(
+            engine.clone(),
+            inbox.clone(),
+            epoch.clone(),
+        ));
+        let delivery = LiveDelivery {
+            engine,
+            inbox: inbox.clone(),
+            epoch,
+            resyncer,
+        };
+        slot.install_verbs(VerbRoute {
+            delivery: delivery.clone(),
+            warning: warning.clone(),
+        });
+        let _ = inbox.send(Inbound::Snapshot(workspace_snapshot(
+            &root,
+            sched.engine().html_dir(),
+            Some(sched.engine().identity().version.clone()),
+            1,
+        )));
+        start_workspace_watch(sched, delivery, warning, notice);
         return;
     }
     let engine = match ProcessEngine::start(cfg) {
@@ -725,7 +775,6 @@ fn run(b: EngineBoot) {
             inbox.clone(),
             epoch.clone(),
         ));
-        let _ = slot.resyncer.set(resyncer.clone());
         LiveDelivery {
             engine,
             inbox,
@@ -733,7 +782,7 @@ fn run(b: EngineBoot) {
             resyncer,
         }
     };
-    let _ = slot.verbs.set(VerbRoute {
+    slot.install_verbs(VerbRoute {
         delivery: delivery.clone(),
         warning: warning.clone(),
     });

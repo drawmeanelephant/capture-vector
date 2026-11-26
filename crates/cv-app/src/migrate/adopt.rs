@@ -125,22 +125,69 @@ impl Drop for WatchRestore<'_> {
 /// the batch's duration. `mutation_batch` alone serializes only
 /// scheduler-mediated mutations and watch starts; an already-running
 /// watch would still react to each file as it lands, firing builds of a
-/// half-copied tree. Stopping the watch first means nothing observes the
-/// intermediate state, the explicit post-batch resync delivers disk truth
-/// once, and the watch is restored with the same contract the palette
-/// verb route honors — in every outcome: refusal, and panic too, since
-/// the guard's `Drop` rides the unwinding.
+/// half-copied tree. The writer lock is therefore taken first and the
+/// live watch stopped inside it: no queued watch start can win the gap
+/// and observe the batch. Restoration happens after the writer lock is
+/// released because starting a watch reacquires it; panics cross that
+/// boundary under `catch_unwind` and are resumed only after the restore
+/// guard exists.
+#[cfg(test)]
+pub(crate) fn arm_batch_entry_probe(tx: std::sync::mpsc::Sender<()>) {
+    batch_entry_probes()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .push(tx);
+}
+
+#[cfg(test)]
+fn batch_entry_probes() -> &'static std::sync::Mutex<Vec<std::sync::mpsc::Sender<()>>> {
+    static PROBES: std::sync::Mutex<Vec<std::sync::mpsc::Sender<()>>> =
+        std::sync::Mutex::new(Vec::new());
+    &PROBES
+}
+
+#[cfg(test)]
+fn notify_batch_entry_probe() {
+    if std::thread::current().name() != Some("cv-migrate-adopt") {
+        return;
+    }
+    for tx in batch_entry_probes()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .drain(..)
+    {
+        let _ = tx.send(());
+    }
+}
+
 pub(crate) fn batch_watch_safe<R>(
     slot: &crate::live::EngineSlot,
     sched: &Arc<crate::live::Scheduler>,
     batch: impl FnOnce() -> R,
 ) -> R {
-    let watching = sched.watch_session();
-    if let Some(session) = &watching {
-        sched.stop_watch_session(session);
-    }
+    // Take the writer lock first. Only then may the live watch stop: a
+    // `start_watch` queued ahead of this batch cannot enter afterwards
+    // because watch starts are serialized by the same writer lock. The
+    // batch itself runs inside the lock; restoration happens after the
+    // lock is released because `start_watch` reacquires it. Panics are
+    // caught only across the lock boundary, then resumed after restore,
+    // so unwinding cannot strand the workspace unobserved or deadlock in
+    // the guard.
+    #[cfg(test)]
+    notify_batch_entry_probe();
+    let mut watching = None;
+    let outcome = sched.mutation_batch(|| {
+        watching = sched.watch_session();
+        if let Some(session) = &watching {
+            sched.stop_watch_session(session);
+        }
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(batch))
+    });
     let _restore = WatchRestore { slot, watching };
-    sched.mutation_batch(batch)
+    match outcome {
+        Ok(value) => value,
+        Err(payload) => std::panic::resume_unwind(payload),
+    }
 }
 
 fn finish_report(
