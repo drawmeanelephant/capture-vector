@@ -9,16 +9,18 @@
 use crate::WorkspaceEnv;
 use crate::slots;
 use cv_core::engine::{EventSink, ExitClass, Verb};
+use cv_core::events::AppEvent;
+use cv_core::events::engine::EngineEvent;
 use cv_engine::adopt::{self, TxReport};
 use cv_engine::init::Initializer;
 use cv_engine::locate::{Locator, PINNED};
 use cv_engine::{EngineConfig, EngineScheduler, ProcessEngine, SeatPolicy};
 use cv_model::adoption::{AdoptionJob, AdoptionReport, AdoptionTarget};
 use cv_model::new_workspace::ShellNotice;
-use cv_model::workbench::{Inbox, Workbench};
+use cv_model::workbench::{Inbox, OutcomeSink, Workbench};
 use std::collections::BTreeMap;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -45,6 +47,72 @@ fn gate_text(exit: &ExitClass) -> String {
     format!("{exit:?}").to_lowercase()
 }
 
+fn terminal_outcome(env: &cv_core::events::Envelope) -> bool {
+    matches!(
+        env.payload,
+        AppEvent::Engine(EngineEvent::VerbReported(_) | EngineEvent::VerbFailed { .. })
+    )
+}
+
+type SharedOutcomes = Arc<Mutex<Vec<cv_core::events::Envelope>>>;
+
+/// Terminal outcomes recorded by one verb's sink. `validate_then_build`
+/// owns a fresh sink per verb, so dropping this recorder is the exact verb
+/// boundary: outcomes are republished per verb, not only after the whole
+/// adoption gate converges. The shared gate journal republishes them once
+/// more when the gate ends; workbench idempotency collapses that replay in
+/// an uninterrupted generation, while a retirement during the gate makes it
+/// the copy that reaches the replacement generation.
+struct OutcomeRecorder {
+    outcomes: OutcomeSink,
+    recorded: Vec<cv_core::events::Envelope>,
+    journal: SharedOutcomes,
+}
+
+impl OutcomeRecorder {
+    fn record(&mut self, env: &cv_core::events::Envelope) {
+        self.recorded.push(env.clone());
+        self.journal
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(env.clone());
+    }
+}
+
+impl Drop for OutcomeRecorder {
+    fn drop(&mut self) {
+        for env in self.recorded.drain(..) {
+            self.outcomes.send(env);
+        }
+    }
+}
+
+fn recording_sink(inner: EventSink, outcomes: &OutcomeSink, journal: SharedOutcomes) -> EventSink {
+    let mut inner = inner;
+    let mut recorder = OutcomeRecorder {
+        outcomes: outcomes.clone(),
+        recorded: Vec::new(),
+        journal,
+    };
+    Box::new(move |env| {
+        if terminal_outcome(&env) {
+            recorder.record(&env);
+        }
+        inner(env)
+    })
+}
+
+fn publish_journal(outcomes: &OutcomeSink, journal: &SharedOutcomes) {
+    let journal: Vec<_> = journal
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .drain(..)
+        .collect();
+    for env in journal {
+        outcomes.send(env);
+    }
+}
+
 /// Validate then build through the workspace's live scheduler, with the
 /// live delivery pipeline's sink and the palette verb's watch-restore
 /// contract. The seat policy is `StopWatch`, so a build that takes the
@@ -52,6 +120,7 @@ fn gate_text(exit: &ExitClass) -> String {
 fn run_gate_live(
     slot: &crate::live::EngineSlot,
     cancel: &cv_core::engine::CancelToken,
+    outcomes: &OutcomeSink,
 ) -> Result<(ExitClass, Option<ExitClass>), String> {
     let sched = slot
         .get()
@@ -59,15 +128,23 @@ fn run_gate_live(
         .ok_or_else(|| "the workspace engine is not ready".to_string())?;
     // Shell-generation retirement is not adoption cancellation. The gate
     // is a workspace operation serialized by the stable scheduler; while a
-    // reopen is between generations its sink is a no-op, and once the new
-    // generation installs delivery it receives the remaining events.
+    // reopen is between generations its streaming sink can be absent, so
+    // terminal truth is owned independently of shell-generation delivery.
     let watching = sched.watch_session();
     let run = |verb: Verb, sink: EventSink| sched.run_reported(&verb, sink, cancel).map(|r| r.exit);
+    // Record terminal outcomes independently of the shell generation that
+    // happens to receive streaming delivery. Replays deduplicate in an
+    // uninterrupted generation; the generation-spanning outcome queue
+    // preserves them when retirement drops the inbox that owned the sink.
+    let journal: SharedOutcomes = Arc::new(Mutex::new(Vec::new()));
     let sink = || {
-        slot.live_sink()
-            .unwrap_or_else(|| Box::new(|_: cv_core::events::Envelope| {}))
+        let inner = slot
+            .live_sink()
+            .unwrap_or_else(|| Box::new(|_: cv_core::events::Envelope| {}));
+        recording_sink(inner, outcomes, journal.clone())
     };
     let result = adopt::validate_then_build(&run, &sink).map_err(|e| e.to_string());
+    publish_journal(outcomes, &journal);
     let outcome = match &result {
         Ok((v, b)) => format!(
             "adoption gate: validate {}, build {}",
@@ -90,6 +167,7 @@ fn run_gate_fresh(
     locator: &Locator,
     inbox: &Inbox,
     cancel: &cv_core::engine::CancelToken,
+    outcomes: &OutcomeSink,
 ) -> Result<(ExitClass, Option<ExitClass>), String> {
     let mut cfg = EngineConfig::new(root);
     cfg.locator = locator.clone();
@@ -97,8 +175,11 @@ fn run_gate_fresh(
     let scheduler = EngineScheduler::new(Arc::new(engine), SeatPolicy::StopWatch);
     let run =
         |verb: Verb, sink: EventSink| scheduler.run_reported(&verb, sink, cancel).map(|r| r.exit);
-    let sink = || inbox.sink();
-    adopt::validate_then_build(&run, &sink).map_err(|e| e.to_string())
+    let journal: SharedOutcomes = Arc::new(Mutex::new(Vec::new()));
+    let sink = || recording_sink(inbox.sink(), outcomes, journal.clone());
+    let result = adopt::validate_then_build(&run, &sink).map_err(|e| e.to_string());
+    publish_journal(outcomes, &journal);
+    result
 }
 
 /// Restore-on-drop guard: the watch is put back even while a panic is
@@ -214,6 +295,7 @@ fn execute(
     job: &AdoptionJob,
     env_locator: Option<Locator>,
     inbox: &Inbox,
+    outcomes: &OutcomeSink,
 ) -> Result<AdoptionReport, String> {
     let err = |e: adopt::AdoptError| e.to_string();
     let src = adopt::source(&job.source_root, &job.request.run_id).map_err(err)?;
@@ -256,7 +338,7 @@ fn execute(
             // disk truth explicitly so Pages reflects the merge even
             // before the watch's own rebuild lands.
             slot.request_resync();
-            let gate = run_gate_live(&slot, &cv_core::engine::CancelToken::new())?;
+            let gate = run_gate_live(&slot, &cv_core::engine::CancelToken::new(), outcomes)?;
             Ok(finish_report(&root, &tx, gate, false))
         }
         AdoptionTarget::NewWorkspace(creation) => {
@@ -299,7 +381,7 @@ fn execute(
                         .into(),
                 );
             }
-            let gate = run_gate_fresh(&root, &locator, inbox, &creation.cancel)?;
+            let gate = run_gate_fresh(&root, &locator, inbox, &creation.cancel, outcomes)?;
             if creation.cancel.is_cancelled() {
                 return Err(
                     "adoption cancelled during validation; the workspace is adopted but was not opened"
@@ -317,6 +399,7 @@ fn execute(
 pub fn adopt(wb: &mut Workbench, job: AdoptionJob, env: &WorkspaceEnv) -> Option<JoinHandle<()>> {
     let notices = wb.notices();
     let inbox = wb.inbox();
+    let outcomes = wb.outcome_sink();
     let run_id = job.request.run_id.clone();
     let worker_notices = notices.clone();
     let env_locator = env.locator.clone();
@@ -332,7 +415,7 @@ pub fn adopt(wb: &mut Workbench, job: AdoptionJob, env: &WorkspaceEnv) -> Option
             // drop-guard during unwinding; what remains is surfacing the
             // failure as loudly as the channel allows.
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                execute(&job, env_locator, &inbox)
+                execute(&job, env_locator, &inbox, &outcomes)
             }))
             .unwrap_or_else(|panic| {
                 let detail = panic

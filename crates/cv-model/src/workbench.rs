@@ -197,6 +197,32 @@ impl KeyPress {
     }
 }
 
+/// Generation-independent terminal engine outcomes. Unlike [`Inbox`], this
+/// queue deliberately survives `reset_project`: workspace-stable operations
+/// such as migration adoption can finish while the shell is between
+/// generations, and their outcomes are committed by whichever generation
+/// the user ends in. Delivery of the same envelope through a live inbox is
+/// deduplicated by the normal commit idempotency key.
+#[derive(Clone)]
+pub struct OutcomeSink {
+    tx: Sender<Envelope>,
+    waker: Arc<Mutex<Option<Waker>>>,
+}
+
+impl OutcomeSink {
+    pub fn send(&self, env: Envelope) {
+        if self.tx.send(env).is_ok()
+            && let Some(w) = self
+                .waker
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .as_ref()
+        {
+            w();
+        }
+    }
+}
+
 pub struct Workbench {
     pub app: AppState,
     pub theme: Theme,
@@ -230,6 +256,8 @@ pub struct Workbench {
     pub(crate) create_cancel: Option<CancelToken>,
     notice_tx: Sender<ShellNotice>,
     notice_rx: Receiver<ShellNotice>,
+    outcome_tx: Sender<Envelope>,
+    outcome_rx: Receiver<Envelope>,
     /// `(event_id, envelope digest)` — the contract's idempotency key.
     seen: BTreeSet<(String, u64)>,
     /// Applied but not yet journaled (store write failed); retried on replay.
@@ -249,6 +277,7 @@ impl Workbench {
     pub fn new(registry: Registry) -> Self {
         let (tx, rx) = channel();
         let (notice_tx, notice_rx) = channel();
+        let (outcome_tx, outcome_rx) = channel();
         let nav = registry
             .iter()
             .map(|m| m.nav().items.first().map(|i| i.key.clone()))
@@ -274,6 +303,8 @@ impl Workbench {
             create_cancel: None,
             notice_tx,
             notice_rx,
+            outcome_tx,
+            outcome_rx,
             seen: BTreeSet::new(),
             unjournaled: BTreeSet::new(),
             tx,
@@ -322,6 +353,14 @@ impl Workbench {
     pub fn notices(&self) -> Notices {
         Notices {
             tx: self.notice_tx.clone(),
+            waker: self.waker.clone(),
+        }
+    }
+
+    /// Generation-spanning terminal outcome queue for workspace-stable workers.
+    pub fn outcome_sink(&self) -> OutcomeSink {
+        OutcomeSink {
+            tx: self.outcome_tx.clone(),
             waker: self.waker.clone(),
         }
     }
@@ -396,6 +435,13 @@ impl Workbench {
                     true
                 }
             };
+        }
+        // Live generation delivery keeps engine cursor order. Terminal
+        // outcomes owned across generations commit after that queue; when
+        // retirement dropped the live copy, this surviving copy is the one
+        // truthful representation.
+        while let Ok(env) = self.outcome_rx.try_recv() {
+            changed |= self.commit(&env);
         }
         changed
     }

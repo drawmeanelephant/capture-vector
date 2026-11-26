@@ -145,6 +145,21 @@ fn fake_boris_with_controlled_verb_holds() -> (tempfile::TempDir, PathBuf) {
     (dir, bin)
 }
 
+/// Controlled verb holds plus a removable engine-probe hold. Creating
+/// `version-hold` only for replacement boot leaves the initial boot fast,
+/// then proves an adoption verb started while no replacement delivery was
+/// installed without relying on fixed sleep length.
+#[cfg(unix)]
+fn fake_boris_with_controlled_holds_and_probe() -> (tempfile::TempDir, PathBuf) {
+    let (dir, bin) = fake_boris_with_controlled_verb_holds();
+    const VERSION_CASE: &str = r#"  --version) cat "$D/version.txt"; exit 0 ;;"#;
+    const HELD_VERSION_CASE: &str = r#"  --version) while [ -f "$D/version-hold" ]; do sleep 0.02; done; cat "$D/version.txt"; exit 0 ;;"#;
+    let shim = std::fs::read_to_string(&bin).unwrap();
+    assert!(shim.contains(VERSION_CASE));
+    common::install_executable(&bin, &shim.replace(VERSION_CASE, HELD_VERSION_CASE));
+    (dir, bin)
+}
+
 fn wait_for_path(path: &Path, what: &str) {
     let deadline = Instant::now() + Duration::from_secs(5);
     while !path.exists() {
@@ -276,6 +291,130 @@ fn build_count(dir: &Path) -> usize {
         .lines()
         .filter(|l| *l == "build")
         .count()
+}
+
+fn activity_title_count(wb: &cv_model::workbench::Workbench, title: &str) -> usize {
+    let i = wb.registry.index_of("activity").expect("activity module");
+    let m = wb.registry.get(i).expect("activity module");
+    (0..m.list_len(None))
+        .filter(|r| m.row(None, *r).title.starts_with(title))
+        .count()
+}
+
+/// Round-9 outcome ownership: an adoption gate validate/build that crosses
+/// shell retirement is workspace-stable work. Its terminal engine outcome
+/// must survive into the generation the user actually sees, for both a
+/// failing validate (which skips build) and a passing validate+build.
+#[cfg(unix)]
+#[test]
+fn adoption_gate_outcomes_survive_reopen_generation_retirement() {
+    let reps: usize = std::env::var("R9_REPS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1);
+    for rep in 0..reps {
+        for (exit, retirement) in [
+            ("1", "validate"),
+            ("0", "validate"),
+            ("1", "gap"),
+            ("0", "gap"),
+            ("0", "build"),
+        ] {
+            let start_in_gap = retirement == "gap";
+            let retire_during_build = retirement == "build";
+            let (boris_dir, boris) = if start_in_gap {
+                fake_boris_with_controlled_holds_and_probe()
+            } else {
+                fake_boris_with_controlled_verb_holds()
+            };
+            let ws_tmp = tempfile::tempdir().unwrap();
+            let ws = ws_tmp.path().canonicalize().unwrap();
+            write(
+                &ws.join("content/index.md"),
+                b"---\ntitle: Home\n---\nHome\n",
+            );
+            let recent_tmp = tempfile::tempdir().unwrap();
+            let env = env_for(&boris, &recent_tmp.path().join("recent.json"));
+            seed_long_run(&ws, "r9-gate", 2);
+            write(
+                &boris_dir.path().join("verbs/validate/exit-code.txt"),
+                exit.as_bytes(),
+            );
+            let mut wb = cv_app::init();
+            join_with_timeout(
+                open_workspace(&mut wb, ws.clone(), &env).expect("initial boot starts"),
+                Duration::from_secs(5),
+                "initial boot",
+            );
+            let held_verb = if retire_during_build {
+                "build"
+            } else {
+                "validate"
+            };
+            write(
+                &boris_dir.path().join(format!("verbs/{held_verb}/hold")),
+                b"",
+            );
+            let mut boot = None;
+            if start_in_gap {
+                write(&boris_dir.path().join("version-hold"), b"");
+                boot = Some(
+                    open_workspace(&mut wb, ws.clone(), &env).expect("replacement boot starts"),
+                );
+            }
+            let worker = cv_app::migrate::adopt::adopt(
+                &mut wb,
+                AdoptionJob {
+                    source_root: ws.clone(),
+                    request: AdoptionRequest {
+                        run_id: "r9-gate".into(),
+                        target: AdoptionTarget::ExistingWorkspace {
+                            subfolder: "imported".into(),
+                        },
+                    },
+                    cancel: CancelToken::new(),
+                },
+                &env,
+            )
+            .expect("adoption starts");
+            wait_for_argv(boris_dir.path(), held_verb);
+            if start_in_gap {
+                std::fs::remove_file(boris_dir.path().join("version-hold")).unwrap();
+            }
+            let boot = boot.unwrap_or_else(|| {
+                open_workspace(&mut wb, ws.clone(), &env).expect("replacement boot starts")
+            });
+            std::fs::remove_file(boris_dir.path().join(format!("verbs/{held_verb}/hold"))).unwrap();
+            join_with_timeout(worker, Duration::from_secs(8), "adoption worker");
+            join_with_timeout(boot, Duration::from_secs(8), "replacement boot");
+            settle(&mut wb, Duration::from_millis(400));
+            let sched = cv_app::slots::scheduler_for(&ws).expect("stable scheduler");
+            assert!(sched.watch_session().is_some(), "replacement watch missing");
+            assert!(
+                wb.app.watch_live,
+                "replacement watch not reflected in the UI"
+            );
+            assert_eq!(wb.app.degraded, None, "replacement generation degraded");
+            let validate_rows = activity_title_count(&wb, "validate");
+            let build_rows = activity_title_count(&wb, "build");
+            let want_build = usize::from(exit == "0");
+            let i = wb.registry.index_of("activity").expect("activity module");
+            let m = wb.registry.get(i).expect("activity module");
+            let titles: Vec<_> = (0..m.list_len(None))
+                .map(|r| m.row(None, r).title)
+                .collect();
+            assert_eq!(
+                (validate_rows, build_rows),
+                (1, want_build),
+                "rep {rep}, exit {exit}, retirement {retirement}: workspace-stable adoption gate outcome was dropped; activity={titles:?}"
+            );
+            if let Some(sched) = cv_app::slots::scheduler_for(&ws)
+                && let Some(w) = sched.watch_session()
+            {
+                sched.stop_watch_session(&w);
+            }
+        }
+    }
 }
 
 /// Round-7 direct seam: while replacement boot is still probing, the
