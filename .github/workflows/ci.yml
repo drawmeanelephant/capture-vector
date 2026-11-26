@@ -43,7 +43,7 @@ jobs:
       # PNG goldens: canonical rasterizer only (Linux + Lavapipe). The
       # cross-OS UI gate is the tree/layout JSON in `cv-app --test goldens`.
       - name: PNG goldens (lavapipe)
-        if: matrix.os == 'ubuntu-latest'
+        if: always() && matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
           ls /usr/share/vulkan/icd.d/
@@ -64,7 +64,7 @@ jobs:
           retention-days: 7
 
       - name: upload PNG renders
-        if: matrix.os == 'ubuntu-latest'
+        if: always() && matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v7
         with:
           name: ui-png-lavapipe
