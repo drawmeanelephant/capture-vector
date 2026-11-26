@@ -140,6 +140,23 @@ fn evaluate_proof_inventory(
     }
     let mut seen = std::collections::BTreeSet::new();
     let mut casefolded = std::collections::BTreeMap::new();
+    let mut host_invalid = Vec::new();
+    for artifact in &idx.artifacts {
+        // Host grammar first, at the root cause: a record the host cannot
+        // write faithfully (windows device names, ADS/drive spellings,
+        // wildcards) refuses here rather than cascading into missing-file
+        // and uncommitted-output noise downstream.
+        if let Err(e) = crate::plan::host_relative(&artifact.path) {
+            host_invalid.push(format!(
+                "proof artifacts: {} is invalid on this host: {e}",
+                artifact.path
+            ));
+        }
+    }
+    if !host_invalid.is_empty() {
+        blocks.extend(host_invalid);
+        return (files, kinds, false);
+    }
     for artifact in &idx.artifacts {
         let normalized = artifact
             .path

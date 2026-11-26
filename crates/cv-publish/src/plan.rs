@@ -113,14 +113,31 @@ pub(crate) fn host_relative(path: &str) -> Result<&Path> {
                 // host that cannot write them. No cross-platform parity is
                 // claimed: validity is per-host by construction.
                 #[cfg(windows)]
-                if seg
-                    .as_encoded_bytes()
-                    .iter()
-                    .any(|b| matches!(b, b':' | b'<' | b'>' | b'"' | b'|' | b'?' | b'*'))
                 {
-                    return Err(PublishError::Refused(format!(
-                        "invalid windows publish path: {path:?}"
-                    )));
+                    if seg
+                        .as_encoded_bytes()
+                        .iter()
+                        .any(|b| matches!(b, b':' | b'<' | b'>' | b'"' | b'|' | b'?' | b'*'))
+                    {
+                        return Err(PublishError::Refused(format!(
+                            "invalid windows publish path: {path:?}"
+                        )));
+                    }
+                    // Reserved device names stay reserved with extensions:
+                    // `aux.html`/`nul.txt` open devices, not files.
+                    let lossy = seg.to_string_lossy();
+                    let stem = lossy.split('.').next().unwrap_or("").to_ascii_uppercase();
+                    let device = matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+                        || ["COM", "LPT"].iter().any(|prefix| {
+                            stem.len() == 4
+                                && stem.starts_with(prefix)
+                                && stem[3..].parse::<u8>().is_ok_and(|d| (1..=9).contains(&d))
+                        });
+                    if device {
+                        return Err(PublishError::Refused(format!(
+                            "windows reserved device name in publish path: {path:?}"
+                        )));
+                    }
                 }
                 count += 1;
             }
@@ -205,11 +222,27 @@ pub fn load_sealed(site: &Path, plan: &SealedPlan) -> Result<Vec<(PlanFile, Vec<
 
 #[cfg(test)]
 mod tests {
+    /// Host grammar is per-host by construction: real Boris page names that
+    /// are valid confined files on Unix are device names, wildcards, or
+    /// ADS/drive spellings on Windows. No cross-platform parity is claimed.
     #[test]
     fn host_relative_probe() {
         assert!(super::host_relative("../escape.html").is_err());
-        assert!(super::host_relative("aux.html").is_ok());
-        assert!(super::host_relative("guides/a:b.html").is_ok());
-        assert!(super::host_relative("star*.html").is_ok());
+        #[cfg(not(windows))]
+        {
+            assert!(super::host_relative("aux.html").is_ok());
+            assert!(super::host_relative("guides/a:b.html").is_ok());
+            assert!(super::host_relative("star*.html").is_ok());
+        }
+        #[cfg(windows)]
+        {
+            assert!(super::host_relative("aux.html").is_err());
+            assert!(super::host_relative("guides/a:b.html").is_err());
+            assert!(super::host_relative("star*.html").is_err());
+            assert!(super::host_relative("NUL.txt").is_err());
+            assert!(super::host_relative("com1.html").is_err());
+            assert!(super::host_relative("lpt9").is_err());
+            assert!(super::host_relative("con").is_err());
+        }
     }
 }

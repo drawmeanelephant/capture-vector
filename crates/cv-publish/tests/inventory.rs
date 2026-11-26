@@ -442,14 +442,37 @@ fn host_valid_boris_page_names_deploy_end_to_end() {
             &mut ids("run"),
         )
         .unwrap();
-    let PreflightOutcome::Granted { run, .. } = out else {
-        panic!("host-valid real Boris names must grant: {out:?}")
-    };
-    p.approve(&run, "tester").unwrap();
-    p.publish(&run, &cfg(), &Rules::ok()).unwrap();
-    let dest = dir.path().join("deployed");
-    assert!(dest.join("aux.html").exists());
-    assert!(dest.join("guides/a:b.html").exists());
+    #[cfg(not(windows))]
+    {
+        let PreflightOutcome::Granted { run, .. } = out else {
+            panic!("host-valid real Boris names must grant: {out:?}")
+        };
+        p.approve(&run, "tester").unwrap();
+        p.publish(&run, &cfg(), &Rules::ok()).unwrap();
+        let dest = dir.path().join("deployed");
+        assert!(dest.join("aux.html").exists());
+        assert!(dest.join("guides/a:b.html").exists());
+    }
+    // Windows host grammar: `aux` is a reserved device name and `a:b` is an
+    // ADS/drive spelling — both must refuse early at the root cause, never
+    // cascade into missing-file/inventory/graph noise. Unix behavior above
+    // is unchanged; no cross-platform parity is claimed.
+    #[cfg(windows)]
+    {
+        let PreflightOutcome::Blocked { blocks, .. } = out else {
+            panic!("windows-invalid device/ADS names must block: {out:?}")
+        };
+        assert!(
+            blocks.iter().any(|b| b.contains("windows")),
+            "root-cause windows refusal expected in {blocks:?}"
+        );
+        assert!(
+            !blocks
+                .iter()
+                .any(|b| b.contains("has no committed inventory record")),
+            "no cascade noise expected in {blocks:?}"
+        );
+    }
 }
 
 /// Boris's own deploy verdict is decisive: `proof verify` fails when a ran
