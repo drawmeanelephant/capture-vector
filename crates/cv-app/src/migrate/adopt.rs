@@ -334,14 +334,20 @@ fn execute(
             // This lookup must not mint or recreate the root if the workspace
             // moves mid-adoption; the captured evidence is the owner outcomes
             // are held for at the surviving path.
-            let expected_instance = workspace_key
-                .instance_token()
-                .map(|token| {
-                    adopt::ExpectedWorkspaceInstance::new(token, workspace_key.file_identity())
-                })
-                .ok_or_else(|| {
-                    "adoption refused: workspace identity evidence is unavailable or degraded; nothing was written".to_string()
+            let instance_token = workspace_key.instance_token().ok_or_else(|| {
+                "adoption refused: workspace identity evidence is unavailable or degraded; nothing was written".to_string()
+            })?;
+            let mutation_lock_identity = cv_store::workspace_mutation::current_identity(&root)
+                .map_err(|e| {
+                    format!(
+                        "adoption refused: workspace mutation-lock evidence is unavailable ({e}); nothing was written"
+                    )
                 })?;
+            let expected_instance = adopt::ExpectedWorkspaceInstance::new(
+                instance_token,
+                workspace_key.file_identity(),
+                mutation_lock_identity,
+            );
             // Preflight through copy, provenance, and sidecars as one
             // serialized, journaled transaction: no page edit, move,
             // build, or watch start can interleave with the batch. The

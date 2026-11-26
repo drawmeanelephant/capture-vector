@@ -658,18 +658,26 @@ pub fn validate_then_build(
 /// Workspace-instance evidence captured before an existing-workspace
 /// adoption batch. The token proves `.cv` lineage; the containing
 /// directory's file identity distinguishes that surviving lineage from a
-/// byte copy restored at the same path.
+/// byte copy restored at the same path. The mutation-lock carrier identity
+/// is captured too: replacing `.cv` with same-token bytes before or during
+/// the transaction otherwise hands adoption an independent copied lock.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExpectedWorkspaceInstance {
     pub token: String,
     pub file: Option<(u64, u64)>,
+    pub mutation_lock: Option<(u64, u64)>,
 }
 
 impl ExpectedWorkspaceInstance {
-    pub fn new(token: impl Into<String>, file: Option<(u64, u64)>) -> Self {
+    pub fn new(
+        token: impl Into<String>,
+        file: Option<(u64, u64)>,
+        mutation_lock: Option<(u64, u64)>,
+    ) -> Self {
         Self {
             token: token.into(),
             file,
+            mutation_lock,
         }
     }
 }
@@ -685,6 +693,7 @@ fn revalidate_workspace_instance(
     target_root: &Path,
     expected: &ExpectedWorkspaceInstance,
     phase: IdentityCheckPhase,
+    mutation_lock: Option<&cv_store::workspace_mutation::WorkspaceMutationLock>,
 ) -> Result<(), AdoptError> {
     let consequence = match phase {
         IdentityCheckPhase::BeforeWrites => "nothing was written",
@@ -696,12 +705,27 @@ fn revalidate_workspace_instance(
         }
     };
     let current_file = crate::file_identity::identity(target_root);
-    let current_token = cv_store::workspace_instance::read(target_root).map_err(|e| {
+    let evidence_error = |e: std::io::Error| {
         AdoptError::Run(format!(
             "adoption refused: workspace identity evidence could not be revalidated inside the mutation batch ({e}); {consequence}"
         ))
-    })?;
-    if current_token.as_deref() == Some(expected.token.as_str()) && current_file == expected.file {
+    };
+    let current_token = cv_store::workspace_instance::read(target_root).map_err(evidence_error)?;
+    let current_lock =
+        cv_store::workspace_mutation::current_identity(target_root).map_err(evidence_error)?;
+    let held_lock = mutation_lock
+        .expect("existing-workspace identity validation requires its mutation lock")
+        .identity()
+        .map_err(evidence_error)?;
+    let same_lock_carrier = matches!(
+        (current_lock, held_lock),
+        (Some(current), Some(held))
+            if current == held && expected.mutation_lock == Some(current)
+    );
+    if current_token.as_deref() == Some(expected.token.as_str())
+        && current_file == expected.file
+        && same_lock_carrier
+    {
         return Ok(());
     }
     Err(AdoptError::Run(format!(
@@ -848,6 +872,7 @@ pub fn transact_existing_with_identity(
         tx.target_root,
         tx.expected_instance,
         IdentityCheckPhase::BeforeWrites,
+        Some(&mutation_lock),
     )?;
     let existing_ids = (tx.scan_existing_ids)();
     transact_impl(TxParams {
@@ -873,10 +898,15 @@ fn transact_impl(params: TxParams<'_>) -> Result<TxReport, AdoptError> {
         existing_ids,
         at_ms,
         expected_instance,
-        workspace_mutation_lock: _workspace_mutation_lock,
+        workspace_mutation_lock,
     } = params;
     if let Some(expected) = expected_instance {
-        revalidate_workspace_instance(target_root, expected, IdentityCheckPhase::BeforeWrites)?;
+        revalidate_workspace_instance(
+            target_root,
+            expected,
+            IdentityCheckPhase::BeforeWrites,
+            workspace_mutation_lock.as_ref(),
+        )?;
     }
     let lock = adoption_lock(target_root, &src.run_id)?;
     let subfolder_name = match merge_subfolder {
@@ -1060,6 +1090,7 @@ fn transact_impl(params: TxParams<'_>) -> Result<TxReport, AdoptError> {
                     target_root,
                     expected,
                     IdentityCheckPhase::AfterContent,
+                    workspace_mutation_lock.as_ref(),
                 )?;
             }
             return Err(e);
@@ -1072,7 +1103,12 @@ fn transact_impl(params: TxParams<'_>) -> Result<TxReport, AdoptError> {
     // the journal in place and reports partial-write truth rather than
     // false success.
     if let Some(expected) = expected_instance {
-        revalidate_workspace_instance(target_root, expected, IdentityCheckPhase::AfterContent)?;
+        revalidate_workspace_instance(
+            target_root,
+            expected,
+            IdentityCheckPhase::AfterContent,
+            workspace_mutation_lock.as_ref(),
+        )?;
     }
     record_adoption(
         src,
@@ -1091,7 +1127,12 @@ fn transact_impl(params: TxParams<'_>) -> Result<TxReport, AdoptError> {
     // race, the error is still honest rather than a false success, and its
     // message says the journal may already be gone.
     if let Some(expected) = expected_instance {
-        revalidate_workspace_instance(target_root, expected, IdentityCheckPhase::AfterCommit)?;
+        revalidate_workspace_instance(
+            target_root,
+            expected,
+            IdentityCheckPhase::AfterCommit,
+            workspace_mutation_lock.as_ref(),
+        )?;
     }
     Ok(TxReport {
         planned: planned.len(),

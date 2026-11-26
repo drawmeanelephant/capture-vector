@@ -24,6 +24,15 @@ pub fn is_mutating(verb: &Verb) -> bool {
     )
 }
 
+/// Can this verb introduce or alter source/content truth rather than only
+/// derived output? Builds, exports, IR projections, watches, validate, and
+/// read-only graph verbs write derived trees or nothing. `Init` writes a
+/// starter source tree, and `Custom` is conservative because Capture Vector
+/// cannot prove what an arbitrary Boris subcommand writes.
+pub fn may_mutate_content(verb: &Verb) -> bool {
+    matches!(verb, Verb::Init { .. } | Verb::Custom { .. })
+}
+
 pub(crate) fn flag_value<'a>(args: &'a [String], flag: &str) -> Option<&'a str> {
     args.iter().enumerate().find_map(|(i, a)| {
         if a == flag {

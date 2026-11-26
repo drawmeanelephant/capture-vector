@@ -4,7 +4,6 @@
 //! refuse before the first write; the crash-recovery probes prove an
 //! interrupted attempt resumes instead of deadlocking on its own partial
 //! output.
-
 use cv_core::engine::{EventSink, ExitClass, Verb};
 use cv_engine::adopt::{self, AdoptError, CollisionKind};
 use cv_fixtures::lab::StubLab;
@@ -94,8 +93,11 @@ fn existing_workspace_transaction_revalidates_captured_instance_before_writing()
     let root = base.join("workspace");
     std::fs::create_dir_all(root.join("content")).unwrap();
     let token = cv_store::workspace_instance::ensure(&root).unwrap();
-    let expected =
-        adopt::ExpectedWorkspaceInstance::new(token, cv_engine::file_identity::identity(&root));
+    let expected = adopt::ExpectedWorkspaceInstance::new(
+        token,
+        cv_engine::file_identity::identity(&root),
+        cv_store::workspace_mutation::current_identity(&root).unwrap(),
+    );
     let src = adopt::source(source_ws.path(), &run_id).expect("adoptable hugo run");
 
     let moved = base.join("moved-survivor");

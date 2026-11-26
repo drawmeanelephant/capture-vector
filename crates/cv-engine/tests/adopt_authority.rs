@@ -2,7 +2,11 @@
 //! zero-write target preflight, scheduler serialization, and durable
 //! provenance across repeated adoptions.
 
+use cv_core::engine::{Engine, EngineCaps, EngineSource, PageDraft};
 use cv_engine::adopt;
+use cv_engine::locate::{EngineIdentity, PINNED};
+use cv_engine::probe::{CapabilityReport, WatchMode};
+use cv_engine::{EngineConfig, ProcessEngine};
 use cv_fixtures::lab::StubLab;
 use cv_store::imports::{self as store, Finished, RecordedLab, RunRecord};
 use std::collections::BTreeMap;
@@ -473,8 +477,11 @@ fn cross_process_child() {
     let run_id = std::env::var("CV_ADOPT_ONCE_RUN").unwrap();
     let subfolder = std::env::var("CV_ADOPT_ONCE_SUBFOLDER").unwrap();
     let token = cv_store::workspace_instance::read(&root).unwrap().unwrap();
-    let expected =
-        adopt::ExpectedWorkspaceInstance::new(token, cv_engine::file_identity::identity(&root));
+    let expected = adopt::ExpectedWorkspaceInstance::new(
+        token,
+        cv_engine::file_identity::identity(&root),
+        cv_store::workspace_mutation::current_identity(&root).unwrap(),
+    );
     let src = adopt::source(&root, &run_id).unwrap();
     match adopt::transact_existing_with_identity(adopt::ExistingWorkspaceTransaction {
         target_root: &root,
@@ -562,6 +569,139 @@ fn concurrent_cross_process_adoptions_cannot_both_commit_duplicate_page_ids() {
     }
 }
 
+fn production_write_engine(root: &Path) -> ProcessEngine {
+    ProcessEngine::with_report(
+        EngineConfig::new(root),
+        EngineIdentity {
+            source: EngineSource::Path,
+            path: root.join("boris"),
+            version: PINNED.version.into(),
+            vcs_revision: PINNED.vcs_revision.into(),
+            build_info_raw: String::new(),
+        },
+        CapabilityReport {
+            os: std::env::consts::OS.into(),
+            caps: EngineCaps {
+                writes: true,
+                ..Default::default()
+            },
+            watch_mode: WatchMode::Native,
+            evidence: vec![],
+        },
+    )
+}
+
+fn ordinary_writer_child() {
+    if std::env::var_os("CV_WRITE_ONCE_CHILD").is_none() {
+        return;
+    }
+    let root = std::path::PathBuf::from(std::env::var("CV_WRITE_ONCE_ROOT").unwrap());
+    let run_id = std::env::var("CV_WRITE_ONCE_RUN").unwrap();
+    let pending = root.join(".cv/imports").join(&run_id).join(store::PENDING);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while !pending.exists() {
+        if std::time::Instant::now() > deadline {
+            eprintln!("ordinary writer never observed the adoption journal");
+            std::process::exit(4);
+        }
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+    let engine = production_write_engine(&root);
+    let outcome = engine.write_content(
+        &PageDraft {
+            path: "content/ordinary.md".into(),
+            body: "---
+id: en
+title: Ordinary concurrent page
+---
+written by another Capture Vector process
+"
+            .into(),
+            base: None,
+        },
+        None,
+    );
+    match outcome {
+        Err(e) if e.to_string().contains("workspace is busy") => {
+            println!("ordinary writer refused: {e}");
+            std::process::exit(42);
+        }
+        Ok(_) => println!("ordinary writer wrote"),
+        Err(e) => {
+            eprintln!("ordinary writer unexpected error: {e}");
+            std::process::exit(3);
+        }
+    }
+}
+
+#[test]
+fn ordinary_writer_child_entry() {
+    ordinary_writer_child();
+}
+
+#[test]
+fn cross_process_ordinary_content_write_cannot_interleave_with_adoption() {
+    if std::env::var_os("CV_WRITE_ONCE_CHILD").is_some() {
+        return;
+    }
+    let base_tmp = tempfile::tempdir().unwrap();
+    let root = base_tmp.path().canonicalize().unwrap().join("workspace");
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    let run_id = "ordinary-race-run".to_string();
+    seed_hugo_evidence(&root, &run_id, "hugo");
+    add_large_payload(&root, &run_id);
+    cv_store::workspace_instance::ensure(&root).unwrap();
+
+    let exe = std::env::current_exe().unwrap();
+    let adopt_child = std::process::Command::new(&exe)
+        .arg("cross_process_adoption_child_entry")
+        .arg("--exact")
+        .arg("--nocapture")
+        .env("CV_ADOPT_ONCE_CHILD", "1")
+        .env("CV_ADOPT_ONCE_ROOT", &root)
+        .env("CV_ADOPT_ONCE_RUN", &run_id)
+        .env("CV_ADOPT_ONCE_SUBFOLDER", "imported")
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    let writer = std::process::Command::new(&exe)
+        .arg("ordinary_writer_child_entry")
+        .arg("--exact")
+        .arg("--nocapture")
+        .env("CV_WRITE_ONCE_CHILD", "1")
+        .env("CV_WRITE_ONCE_ROOT", &root)
+        .env("CV_WRITE_ONCE_RUN", &run_id)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    let adopt_out = adopt_child.wait_with_output().unwrap();
+    let write_out = writer.wait_with_output().unwrap();
+    println!(
+        "R19-ORDINARY-WRITE adopt_status={} writer_status={} writer_stdout={} writer_stderr={} ordinary_exists={}",
+        adopt_out.status,
+        write_out.status,
+        String::from_utf8_lossy(&write_out.stdout),
+        String::from_utf8_lossy(&write_out.stderr),
+        root.join("content/ordinary.md").exists()
+    );
+    assert!(
+        adopt_out.status.success(),
+        "the adoption control should complete: {}",
+        String::from_utf8_lossy(&adopt_out.stdout)
+    );
+    assert_eq!(
+        write_out.status.code(),
+        Some(42),
+        "the concurrent ordinary write must be honestly refused while adoption holds the lock"
+    );
+    assert!(
+        !root.join("content/ordinary.md").exists(),
+        "the refused ordinary write must not commit duplicate explicit id content"
+    );
+}
+
 /// A post-revalidation rename plus byte-copy-back cannot be prevented by
 /// POSIX directory locking. The transaction must nevertheless not report
 /// success: partial output is disclosed and the recovery journal remains
@@ -576,8 +716,11 @@ fn post_write_identity_reverification_reports_partial_write_instead_of_false_suc
     let (source_ws, run_id) = hugo_source();
     add_large_payload(source_ws.path(), &run_id);
     let token = cv_store::workspace_instance::ensure(&root).unwrap();
-    let expected =
-        adopt::ExpectedWorkspaceInstance::new(token, cv_engine::file_identity::identity(&root));
+    let expected = adopt::ExpectedWorkspaceInstance::new(
+        token,
+        cv_engine::file_identity::identity(&root),
+        cv_store::workspace_mutation::current_identity(&root).unwrap(),
+    );
     let src = adopt::source(source_ws.path(), &run_id).unwrap();
     let moved = base.join("moved-survivor");
 
@@ -645,8 +788,11 @@ fn rename_away_without_replacement_is_diagnosed_as_identity_loss_with_partial_st
     let (source_ws, run_id) = hugo_source();
     add_large_payload(source_ws.path(), &run_id);
     let token = cv_store::workspace_instance::ensure(&root).unwrap();
-    let expected =
-        adopt::ExpectedWorkspaceInstance::new(token, cv_engine::file_identity::identity(&root));
+    let expected = adopt::ExpectedWorkspaceInstance::new(
+        token,
+        cv_engine::file_identity::identity(&root),
+        cv_store::workspace_mutation::current_identity(&root).unwrap(),
+    );
     let src = adopt::source(source_ws.path(), &run_id).unwrap();
     let moved = base.join("moved-survivor");
 
@@ -709,8 +855,11 @@ fn existing_id_scan_runs_inside_the_workspace_mutation_lock() {
     let root = target.path().canonicalize().unwrap();
     std::fs::create_dir_all(root.join("content")).unwrap();
     let token = cv_store::workspace_instance::ensure(&root).unwrap();
-    let expected =
-        adopt::ExpectedWorkspaceInstance::new(token, cv_engine::file_identity::identity(&root));
+    let expected = adopt::ExpectedWorkspaceInstance::new(
+        token,
+        cv_engine::file_identity::identity(&root),
+        cv_store::workspace_mutation::current_identity(&root).unwrap(),
+    );
     let src = adopt::source(source_ws.path(), &run_id).expect("adoptable hugo run");
     let probe_root = root.to_path_buf();
     let tx = adopt::transact_existing_with_identity(adopt::ExistingWorkspaceTransaction {
@@ -731,4 +880,193 @@ fn existing_id_scan_runs_inside_the_workspace_mutation_lock() {
     })
     .unwrap();
     assert!(tx.written > 0);
+}
+
+/// Replacing only `.cv` with a byte copy leaves the workspace root inode and
+/// token bytes unchanged, but not the lock carrier inode. Verification must
+/// bind the held carrier and therefore detect the substitution honestly.
+#[cfg(unix)]
+#[test]
+fn cv_byte_copy_substitution_is_detected_by_lock_carrier_identity() {
+    let base_tmp = tempfile::tempdir().unwrap();
+    let base = base_tmp.path().canonicalize().unwrap();
+    let root = base.join("workspace");
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    let (source_ws, run_id) = hugo_source();
+    add_large_payload(source_ws.path(), &run_id);
+    let token = cv_store::workspace_instance::ensure(&root).unwrap();
+    let expected = adopt::ExpectedWorkspaceInstance::new(
+        token,
+        cv_engine::file_identity::identity(&root),
+        cv_store::workspace_mutation::current_identity(&root).unwrap(),
+    );
+    let src = adopt::source(source_ws.path(), &run_id).unwrap();
+    let cv_original = base.join("cv-original");
+
+    let interferer = std::thread::spawn({
+        let root = root.clone();
+        let cv_original = cv_original.clone();
+        let run_id = run_id.clone();
+        move || {
+            let pending = root.join(".cv/imports").join(run_id).join(store::PENDING);
+            for _ in 0..10_000 {
+                if pending.exists() {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(1));
+            }
+            assert!(pending.exists(), "interferer did not observe the journal");
+            std::fs::rename(root.join(".cv"), &cv_original).unwrap();
+            copy_tree_contents(&cv_original, &root.join(".cv"));
+        }
+    });
+
+    let err = adopt::transact_existing_with_identity(adopt::ExistingWorkspaceTransaction {
+        target_root: &root,
+        src: &src,
+        content_input: "content",
+        merge_subfolder: Some("imported"),
+        scan_existing_ids: Box::new(BTreeMap::new),
+        at_ms: 42,
+        expected_instance: &expected,
+    })
+    .expect_err(".cv byte-copy substitution must not report success");
+    interferer.join().unwrap();
+    let message = err.to_string();
+    println!(
+        "R19-CV-BYTE-COPY err={message:?} root={} imported={}",
+        root.exists(),
+        root.join("content/imported").exists()
+    );
+    assert!(
+        message.contains("workspace identity") && message.contains("may have been written"),
+        "substitution must be diagnosed as identity loss with partial-write truth: {message}"
+    );
+}
+
+/// A same-process ordinary writer reaches the scheduler writer lock before
+/// the workspace mutation lock. While adoption holds both, it waits behind
+/// the scheduler batch rather than self-deadlocking on a lock the batch
+/// already owns; after the batch releases, the write proceeds normally.
+#[test]
+fn same_process_scheduler_writer_serializes_behind_adoption_lock_without_deadlock() {
+    let root_tmp = tempfile::tempdir().unwrap();
+    let root = root_tmp.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    let engine = std::sync::Arc::new(production_write_engine(&root));
+    let sched = std::sync::Arc::new(cv_engine::EngineScheduler::new(
+        engine,
+        cv_engine::SeatPolicy::StopWatch,
+    ));
+    let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let blocker_sched = sched.clone();
+    let blocker = std::thread::spawn(move || {
+        blocker_sched.mutation_batch(|| {
+            let _guard = cv_store::workspace_mutation::lock(&root).unwrap();
+            entered_tx.send(()).unwrap();
+            release_rx.recv().unwrap();
+        });
+    });
+    entered_rx
+        .recv_timeout(std::time::Duration::from_secs(2))
+        .unwrap();
+    let writer_sched = sched.clone();
+    let writer = std::thread::spawn(move || {
+        writer_sched.write_content(
+            &PageDraft {
+                path: "content/ordinary.md".into(),
+                body: "---\nid: ordinary\ntitle: Ordinary\n---\nordinary\n".into(),
+                base: None,
+            },
+            None,
+        )
+    });
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    assert!(
+        !writer.is_finished(),
+        "writer did not serialize behind the scheduler batch"
+    );
+    release_tx.send(()).unwrap();
+    blocker.join().unwrap();
+    let outcome = writer.join().unwrap().unwrap();
+    assert!(matches!(
+        outcome,
+        cv_core::engine::WriteOutcome::Written { .. }
+    ));
+}
+
+/// Unknown custom verbs are conservative content mutations: they cannot
+/// bypass the workspace mutation lock merely because Capture Vector cannot
+/// prove what the subcommand writes.
+#[cfg(unix)]
+#[test]
+fn custom_verbs_participate_in_the_workspace_mutation_lock() {
+    use std::os::unix::fs::PermissionsExt;
+    let root_tmp = tempfile::tempdir().unwrap();
+    let root = root_tmp.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    let boris = root.join("boris");
+    std::fs::write(
+        &boris,
+        "#!/bin/sh\nif [ \"$1\" = write ]; then echo content > \"$PWD/content/scripted.md\"; exit 0; fi\nexit 0\n",
+    )
+    .unwrap();
+    std::fs::set_permissions(&boris, std::fs::Permissions::from_mode(0o755)).unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    let engine = production_write_engine(&root);
+    let _guard = cv_store::workspace_mutation::lock(&root).unwrap();
+    let err = engine
+        .run(
+            &cv_core::engine::Verb::Custom {
+                name: "write".into(),
+                args: vec![],
+            },
+            Box::new(|_| {}),
+        )
+        .unwrap_err();
+    assert!(
+        err.to_string().contains("workspace is busy"),
+        "custom verb did not participate in the mutation lock: {err}"
+    );
+    assert!(!root.join("content/scripted.md").exists());
+}
+
+/// Carrier identity is part of the evidence captured before the batch, not
+/// merely a comparison between whatever lock adoption happened to acquire
+/// and the path at that moment. A same-token byte copy substituted before
+/// lock acquisition therefore fails closed before any write.
+#[cfg(unix)]
+#[test]
+fn pre_lock_cv_byte_copy_substitution_fails_before_any_write() {
+    let root_tmp = tempfile::tempdir().unwrap();
+    let root = root_tmp.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    let (source_ws, run_id) = hugo_source();
+    let token = cv_store::workspace_instance::ensure(&root).unwrap();
+    let expected = adopt::ExpectedWorkspaceInstance::new(
+        token,
+        cv_engine::file_identity::identity(&root),
+        cv_store::workspace_mutation::current_identity(&root).unwrap(),
+    );
+    let src = adopt::source(source_ws.path(), &run_id).unwrap();
+    let original = root.join("cv-original");
+    std::fs::rename(root.join(".cv"), &original).unwrap();
+    copy_tree_contents(&original, &root.join(".cv"));
+    let err = adopt::transact_existing_with_identity(adopt::ExistingWorkspaceTransaction {
+        target_root: &root,
+        src: &src,
+        content_input: "content",
+        merge_subfolder: Some("imported"),
+        scan_existing_ids: Box::new(BTreeMap::new),
+        at_ms: 42,
+        expected_instance: &expected,
+    })
+    .expect_err("pre-lock substitution must fail before writes");
+    assert!(err.to_string().contains("nothing was written"), "{err}");
+    assert!(
+        !root.join(".cv/imports").join(&run_id).exists(),
+        "the substituted copied lock must not reach run-lock or journaling"
+    );
 }

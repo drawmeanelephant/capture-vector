@@ -134,6 +134,25 @@ impl ProcessEngine {
         self.emitter.ring().capacity()
     }
 
+    /// Ordinary content mutation participates in the same cross-process
+    /// workspace critical section as adoption. Acquisition is bounded by
+    /// cv-store's settling window, so contention is an honest retryable
+    /// refusal rather than an indefinite wait or an unlocked write.
+    fn workspace_mutation_lock(
+        &self,
+    ) -> Result<cv_store::workspace_mutation::WorkspaceMutationLock> {
+        cv_store::workspace_mutation::lock_for_content_mutation(&self.cfg.root).map_err(|e| {
+            if e.kind() == std::io::ErrorKind::WouldBlock {
+                EngineError::Refused(
+                    "workspace is busy with another mutation or migration adoption; try again when it completes"
+                        .into(),
+                )
+            } else {
+                EngineError::Io(e)
+            }
+        })
+    }
+
     pub fn disk_truth(&self) -> DiskTruth {
         self.emitter.bump_epoch();
         crate::snapshot::read(&self.cfg.root, &self.cfg.html_dir)
@@ -142,6 +161,11 @@ impl ProcessEngine {
     /// Run a verb, returning verbatim stdout/stderr (Activity renders
     /// these as-is). Emits nothing.
     pub fn run_verb(&self, verb: &Verb, cancel: &CancelToken) -> Result<VerbOutput> {
+        let _content_mutation = if crate::verbs::may_mutate_content(verb) {
+            Some(self.workspace_mutation_lock()?)
+        } else {
+            None
+        };
         run_argv(&self.identity.path, &self.cfg.root, &argv(verb)?, cancel)
     }
 
@@ -261,6 +285,7 @@ impl ProcessEngine {
         secrets: &dyn SecretSource,
         cancel: &CancelToken,
     ) -> Result<SignOutput> {
+        let _content_mutation = self.workspace_mutation_lock()?;
         nostr_sign(
             &self.identity.path,
             &self.cfg.root,
@@ -365,6 +390,7 @@ impl Engine for ProcessEngine {
         if !self.report.caps.writes {
             return Err(EngineError::Refused("workspace is not writable (probe)".into()).into());
         }
+        let _workspace_mutation = self.workspace_mutation_lock()?;
         Ok(crate::write::write_staged(
             &self.cfg.root,
             &draft.path,
@@ -377,6 +403,7 @@ impl Engine for ProcessEngine {
         if !self.report.caps.writes {
             return Err(EngineError::Refused("workspace is not writable (probe)".into()).into());
         }
+        let _workspace_mutation = self.workspace_mutation_lock()?;
         Ok(crate::write::remove_staged(&self.cfg.root, path, base)?)
     }
 
@@ -384,6 +411,7 @@ impl Engine for ProcessEngine {
         if !self.report.caps.writes {
             return Err(EngineError::Refused("workspace is not writable (probe)".into()).into());
         }
+        let _workspace_mutation = self.workspace_mutation_lock()?;
         Ok(crate::write::move_staged(&self.cfg.root, mv)?)
     }
 }
