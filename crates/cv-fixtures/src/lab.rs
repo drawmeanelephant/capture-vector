@@ -38,6 +38,9 @@ pub enum LabInput {
     /// `<mode>`'s `content/`, in a `boris init` scaffold
     /// (`build --profile boris.json`).
     BorisHtmlOf(&'static str),
+    /// A copy of that built tree with two deliberate local-link defects,
+    /// used so the pinned link-audit capture exercises real findings.
+    BrokenBorisHtmlOf(&'static str),
 }
 
 /// One captured run: `mode` with these `(flag, input)` pairs.
@@ -60,6 +63,7 @@ impl LabInput {
         match self {
             Self::Fixture(rel) => root.join("src").join(rel),
             Self::BorisHtmlOf(mode) => site_dir(root, mode).join("dist"),
+            Self::BrokenBorisHtmlOf(mode) => root.join(format!("broken-html-{mode}")),
         }
     }
 }
@@ -69,7 +73,7 @@ pub fn site_dir(root: &Path, mode: &str) -> PathBuf {
     root.join(format!("site-{mode}"))
 }
 
-use LabInput::{BorisHtmlOf, Fixture};
+use LabInput::{BrokenBorisHtmlOf, Fixture};
 
 /// Every captured run, in capture order (a [`LabInput::BorisHtmlOf`]
 /// input names an earlier row). One capture per mode.
@@ -119,7 +123,7 @@ pub const LAB_CAPTURES: &[LabCaptureSpec] = &[
     },
     LabCaptureSpec {
         mode: "link-audit",
-        inputs: &[("--root", BorisHtmlOf("hugo"))],
+        inputs: &[("--root", BrokenBorisHtmlOf("hugo"))],
     },
     LabCaptureSpec {
         mode: "frontmatter-review",
@@ -1146,7 +1150,7 @@ mod tests {
                 s.mode
             );
             for (_, input) in s.inputs {
-                if let BorisHtmlOf(m) = input {
+                if let LabInput::BorisHtmlOf(m) = input {
                     assert!(LAB_CAPTURES[..i].iter().any(|o| o.mode == *m), "{m}");
                 }
             }

@@ -182,7 +182,7 @@ fn link_audit_finding(run_id: &str, f: &LinkAuditEvidence) -> AuditFinding {
             evidence: cv_core::rules::Evidence {
                 summary: format!(
                     "Migration-lab link audit found {} in {} at line {}: {}. Heuristic/advisory evidence only; it cannot block publish.",
-                    f.kind, f.source, f.target, f.reason
+                    f.kind, f.source, f.line, f.reason
                 ),
                 detail: Some(serde_json::json!({
                     "run_id": run_id,

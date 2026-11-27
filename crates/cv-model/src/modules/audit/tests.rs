@@ -307,6 +307,7 @@ fn migration_lab_link_audit_findings_are_heuristic_and_never_block_publish() {
             .summary
             .contains("cannot block publish")
     );
+    assert!(entry.af.finding.evidence.summary.contains("at line 3"));
 }
 
 fn link_evidence() -> LinkAuditEvidence {

@@ -1,1 +1,1 @@
-link-audit: scanned 13 HTML files, found 0 findings
+link-audit: scanned 13 HTML files, found 2 findings

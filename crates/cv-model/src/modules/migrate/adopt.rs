@@ -41,20 +41,21 @@ impl MigrateModule {
         if let Some(why) = Self::adopt_unavailable(Some(&run)) {
             return vec![Intent::Status(format!("Adopt: {why}"))];
         }
+        let mut choices = vec![Choice {
+            id: "new".into(),
+            label: "New workspace".into(),
+        }];
+        if run.mode != "asset-filename" {
+            choices.push(Choice {
+                id: "existing".into(),
+                label: "Existing workspace (merge into a subfolder)".into(),
+            });
+        }
         vec![Intent::dialog(
             DialogSpec::new(
                 ADOPT,
                 format!("Adopt {}", run.id),
-                DialogKind::Choose(vec![
-                    Choice {
-                        id: "new".into(),
-                        label: "New workspace".into(),
-                    },
-                    Choice {
-                        id: "existing".into(),
-                        label: "Existing workspace (merge into a subfolder)".into(),
-                    },
-                ]),
+                DialogKind::Choose(choices),
             )
             .body("Choose where the candidate content should become a Boris workspace. Provenance stays in .cv/imports/ and never enters frontmatter.")
             .context(run.id)

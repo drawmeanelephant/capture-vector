@@ -941,6 +941,11 @@ pub fn transact_existing_with_identity(
 }
 
 fn transact_impl(params: TxParams<'_>) -> Result<TxReport, AdoptError> {
+    if params.src.mode == "asset-filename" && params.target_kind == "existing" {
+        return Err(AdoptError::Run(
+            "asset-filename adoption into an existing workspace is refused: the lab report carries no page-id authority, so duplicate Boris ids cannot be preflighted; choose a new workspace".into(),
+        ));
+    }
     let TxParams {
         target_root,
         src,
