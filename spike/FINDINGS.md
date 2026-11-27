@@ -309,6 +309,9 @@ Wayland/hardware-GPU/distribution/physical-machine matrix.
 Passed locally:
 
 - `cargo build --workspace` with the vendored rune pin.
+- `cargo test --workspace --locked` on the real desktop session. The two
+  windowed `ime_probe_scratch` snapshot tests accounted for 873 seconds on
+  llvmpipe; the workspace run passed.
 - `./scripts/check-ui-png.sh`; every captured scene diff was below the
   canonical Lavapipe tolerance.
 - Ignored live engine tests with real pinned binaries:
