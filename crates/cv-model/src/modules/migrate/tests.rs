@@ -286,6 +286,30 @@ fn answering_existing_collects_a_subfolder_and_emits_the_request() {
     let hint = fields[0].hint.as_deref().unwrap_or_default();
     assert!(hint.contains("workspace content input"), "{hint}");
     assert!(!hint.contains("content/<subfolder>"), "{hint}");
+    let crate::dialog::Input::Text { value, placeholder } = &fields[0].input else {
+        panic!("subfolder is a text field");
+    };
+    assert_eq!(value, "imported/site");
+    assert!(
+        placeholder.is_empty(),
+        "the default is a real value, not a lookalike placeholder"
+    );
+
+    // Deleting the prefilled destination is invalid rather than an
+    // accidental adoption at the workspace root.
+    let mut empty = blank_answer();
+    empty.context = form.context.clone();
+    empty.action = Some("adopt".into());
+    empty.values.insert(
+        "subfolder".into(),
+        crate::dialog::Value::Text(String::new()),
+    );
+    let retry = m.answer(ADOPT_EXISTING, &empty);
+    assert!(
+        matches!(retry.first(), Some(Intent::Dialog(_))),
+        "{retry:?}"
+    );
+    assert!(!retry.iter().any(|i| matches!(i, Intent::AdoptRun(_))));
 
     // An unsafe subfolder is refused in the form, not at the writer.
     let mut bad = blank_answer();
