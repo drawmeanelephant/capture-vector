@@ -34,7 +34,7 @@ lanes and CI don't each improvise the checkout.
 
 ## CURRENT PLATFORM EVIDENCE
 
-Proven and recorded below:
+Evidence recorded below:
 
 - `rune_kit::markdown::Markdown` — **PROVEN 2026-11-23 (Linux)**.
 - Multi-window — **PROVEN on macOS (2026-11-23) and Linux X11
@@ -44,10 +44,12 @@ Proven and recorded below:
   (2026-11-24)**.
 - `rune-ref` — **PROBED 2026-11-23 (Linux)**: headless and reproducible,
   but not a drop-in Lavapipe replacement.
-- Migration adoption GUI/copy/provenance path — **PROVEN for one scripted
-  native Linux X11/llvmpipe pass (2026-11-27)** using real pinned
-  `boris/0.9.0` and `boris-migration-lab/0.8.1`; see the dated entry at
-  the end of this file.
+- Migration adoption GUI/copy/provenance path — **OPERATOR-REPORTED for
+  one scripted native Linux X11/llvmpipe pass (2026-11-27)** using real
+  pinned `boris/0.9.0` and `boris-migration-lab/0.8.1`. Artifact-backed
+  reproduction is still required before the detailed GUI/copy claims are
+  independent repository evidence; see the dated entry at the end of this
+  file.
 
 Still unproven or narrow:
 

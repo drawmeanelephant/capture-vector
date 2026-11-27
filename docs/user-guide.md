@@ -63,8 +63,10 @@ Adoption then has two forms:
 - **New workspace** — create a workspace from the candidate tree;
 - **Existing workspace** — copy the candidate tree into a new subfolder
   you type in the adoption form, rooted at the workspace's configured
-  Boris input. For the default `content` input that is
-  `content/<subfolder>`; a custom input uses that input instead.
+  Boris input. `boris.json`'s `input` wins; otherwise `content` is the
+  fallback only when it exists. For such a `content` workspace the target
+  is `content/<subfolder>`; a custom input uses that input instead. A root
+  input (`.`) is refused rather than copying into the whole workspace.
 
 Adoption keeps provenance under `.cv/imports/<run-id>/`; it never writes
 Capture Vector provenance into Boris frontmatter. Existing-workspace
@@ -202,8 +204,10 @@ only canonical on the Linux Lavapipe configuration.
 
 - macOS is the primary development platform.
 - Linux has X11 evidence spanning real windows, multi-window behavior,
-  ibus/anthy IME, headless scene captures, and a scripted native
-  migration-adoption pass. Treat Linux as evidence-backed but still narrow:
+  ibus/anthy IME, headless scene captures, and an operator-reported
+  scripted native migration-adoption pass whose detailed file/provenance
+  claims still need artifact-backed reproduction. Treat Linux as
+  evidence-backed but still narrow:
   CI has no Linux desktop runner, and Wayland, hardware GPUs, distribution
   differences, native portal dialogs, and physical-machine behavior are not
   a support matrix. A bundled fallback covers common Japanese, Chinese and Korean
