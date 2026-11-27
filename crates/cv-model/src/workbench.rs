@@ -14,6 +14,7 @@ use crate::new_workspace::{self, Archetypes, Notices, ShellNotice};
 use crate::theme::{Mode, Theme};
 use crate::windows::{CloseOutcome, PRIMARY, WindowId, Windows};
 use crate::workspace_key::WorkspaceKey;
+mod disclosure;
 mod input;
 mod outcome_retention;
 use cv_core::engine::{CancelToken, EventSink, WatchHandle};
@@ -231,6 +232,11 @@ pub struct Workbench {
     /// Inspector sections whose open state the user flipped from the
     /// default (open when it has items), by title.
     pub sections_flipped: BTreeSet<String>,
+    /// Inspector values the user expanded inline, by noun + value key, so
+    /// one record's expansion never leaks into another's. Long values
+    /// (paths, argv, hashes) truncate in the pane's width; expansion is
+    /// how their full text shows without leaving the app.
+    pub values_expanded: BTreeSet<String>,
     /// Shows the window bookkeeping (dirty state per window) in the
     /// inspector; a debugging aid, off by default.
     pub debug_windows: bool,
@@ -298,6 +304,7 @@ impl Workbench {
             dialogs: Dialogs::default(),
             inspector_open: true,
             sections_flipped: BTreeSet::new(),
+            values_expanded: BTreeSet::new(),
             debug_windows: false,
             status: String::new(),
             workspace: None,
@@ -881,18 +888,6 @@ impl Workbench {
             out.extend(m.commands());
         }
         out
-    }
-
-    /// Whether the inspector section `title` shows its items: open when
-    /// it has any, unless the user flipped it.
-    pub fn section_open(&self, title: &str, empty: bool) -> bool {
-        empty == self.sections_flipped.contains(title)
-    }
-
-    pub fn toggle_section(&mut self, title: &str) {
-        if !self.sections_flipped.remove(title) {
-            self.sections_flipped.insert(title.to_string());
-        }
     }
 
     pub fn run_command(&mut self, id: &str) {

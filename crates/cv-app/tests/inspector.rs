@@ -82,8 +82,8 @@ fn a_cut_hash_keeps_its_whole_value_on_hover() {
     let els = h.rt.elements();
     let path = els
         .iter()
-        .find(|e| e.key.as_deref() == Some("field-ruleset"))
-        .expect("ruleset field")
+        .find(|e| e.key.as_deref() == Some("field-ruleset-head"))
+        .expect("ruleset field header")
         .path
         .clone();
     let v = els
@@ -93,4 +93,114 @@ fn a_cut_hash_keeps_its_whole_value_on_hover() {
     let full = v.text.clone().unwrap();
     assert_eq!(full.len(), 64, "a sha256 digest");
     assert_eq!(v.help.as_deref(), Some(full.as_str()));
+}
+
+/// The one mounted element keyed `key`: key, text, rect and `expanded`.
+fn element(h: &Harness, key: &str) -> (Option<String>, [f32; 4], Option<bool>) {
+    let e =
+        h.rt.elements()
+            .into_iter()
+            .find(|e| e.key.as_deref() == Some(key) && !e.exiting)
+            .unwrap_or_else(|| panic!("{key} not mounted"));
+    (e.text, e.rect, e.expanded)
+}
+
+#[test]
+fn long_migration_evidence_expands_to_its_full_text_inline() {
+    let mut h = scene("migrate");
+    // Collapsed, the argv field truncates behind its disclosure control.
+    assert_eq!(expanded(&h, "field-argv-expand"), Some(false));
+    assert!(!h.has("field-argv-full"));
+    let (preview, _, _) = element(&h, "field-argv-expand");
+    assert_eq!(
+        preview.as_deref(),
+        None,
+        "the control is a chevron, not the text"
+    );
+
+    assert!(h.click("field-argv-expand"));
+    assert_eq!(expanded(&h, "field-argv-expand"), Some(true));
+    let (text, rect, _) = element(&h, "field-argv-full");
+    let full = text.expect("the expanded value carries its text");
+    assert!(
+        full.starts_with("--mode=hugo") && full.contains("--out="),
+        "the complete argv, not a cut: {full:?}"
+    );
+    let [x, _, w, height] = rect;
+    let line = 13.8;
+    assert!(
+        height > line * 2.0,
+        "argv wraps over several lines: height {height}"
+    );
+    assert!(
+        w > 200.0,
+        "expansion uses the pane's full width, not the field column: {w}"
+    );
+    let scroll = element(&h, "inspector-scroll").1;
+    assert!(
+        x >= scroll[0] && x + w <= scroll[0] + scroll[2] + 0.5,
+        "the full value stays inside the pane: {rect:?} in {scroll:?}"
+    );
+
+    assert!(h.click("field-argv-expand"));
+    assert_eq!(expanded(&h, "field-argv-expand"), Some(false));
+    assert!(!h.has("field-argv-full"), "collapsing hides the full text");
+}
+
+#[test]
+fn a_long_input_record_expands_with_its_whole_path_and_hash() {
+    let mut h = scene("migrate");
+    assert!(h.click("list-0-0-expand"));
+    let els = h.rt.elements();
+    let row = els
+        .iter()
+        .find(|e| e.key.as_deref() == Some("list-0-0"))
+        .expect("input row")
+        .path
+        .clone();
+    let text = els
+        .iter()
+        .filter(|e| e.path.starts_with(&row) && e.key.is_none())
+        .filter_map(|e| e.text.clone())
+        .find(|t| t.len() > 40)
+        .expect("the expanded input text");
+    assert!(
+        text.chars()
+            .collect::<Vec<_>>()
+            .windows(64)
+            .any(|w| w.iter().all(|c| c.is_ascii_hexdigit())),
+        "the whole sha256 survives, unclipped: {text:?}"
+    );
+    let (_, rect, _) = element(&h, "list-0-0");
+    assert!(rect[3] > 13.8 * 2.0, "the item wraps: {:?}", rect);
+}
+
+#[test]
+fn short_values_earn_no_disclosure_control() {
+    let h = scene("migrate");
+    assert!(h.has("field-mode"), "the short field still renders");
+    assert!(
+        !h.has("field-mode-expand"),
+        "a value that fits stays a plain row"
+    );
+}
+
+#[test]
+fn expansion_is_keyed_per_record_not_per_field_name() {
+    let mut h = scene("migrate");
+    assert!(h.click("field-argv-expand"));
+    assert!(h.has("field-argv-full"));
+    h.state_mut().select_row(1);
+    h.settle();
+    assert!(
+        !h.has("field-argv-full"),
+        "another run's argv starts collapsed"
+    );
+    assert_eq!(expanded(&h, "field-argv-expand"), Some(false));
+    h.state_mut().select_row(0);
+    h.settle();
+    assert!(
+        h.has("field-argv-full"),
+        "returning to the run keeps its expansion"
+    );
 }
