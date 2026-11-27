@@ -11,10 +11,12 @@ use thiserror::Error;
 /// text names only the binary: the full path is environment evidence, not a
 /// safe default for a string that travels.
 fn program_label(program: &Path) -> String {
-    program
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "engine".into())
+    let raw = program.as_os_str().to_string_lossy();
+    raw.rsplit(['/', '\\'])
+        .next()
+        .filter(|name| !name.is_empty())
+        .unwrap_or("engine")
+        .to_string()
 }
 
 #[derive(Debug, Error)]
@@ -80,14 +82,18 @@ mod tests {
 
     #[test]
     fn spawn_error_text_names_only_the_binary_file_name() {
-        let err = EngineError::Spawn {
-            program: PathBuf::from("/home/redacted-user/tools/boris"),
-            source: std::io::Error::new(std::io::ErrorKind::NotFound, "missing"),
-        };
-        let msg = err.to_string();
-        assert!(msg.starts_with("spawn boris:"), "{msg}");
-        assert!(!msg.contains("redacted-user"), "{msg}");
-        assert!(!msg.contains("/home"), "{msg}");
+        for (program, label) in [
+            ("/home/redacted-user/tools/boris", "boris"),
+            (r"C:\Users\redacted-user\tools\boris.exe", "boris.exe"),
+        ] {
+            let err = EngineError::Spawn {
+                program: PathBuf::from(program),
+                source: std::io::Error::new(std::io::ErrorKind::NotFound, "missing"),
+            };
+            let msg = err.to_string();
+            assert!(msg.starts_with(&format!("spawn {label}:")), "{msg}");
+            assert!(!msg.contains("redacted-user"), "{msg}");
+        }
     }
 
     #[test]
