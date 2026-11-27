@@ -8,6 +8,12 @@ pub(crate) fn configure(cmd: &mut Command) {
     cmd.process_group(0);
 }
 
+pub(crate) fn resume(_child: &Child) -> std::io::Result<()> {
+    // `process_group` is installed before exec, so there is no suspended
+    // thread to release on POSIX.
+    Ok(())
+}
+
 pub(crate) struct Group {
     pgid: libc::pid_t,
 }
