@@ -70,3 +70,94 @@ fn relative_unicode_and_spaced_input_authority_is_preserved_byte_exactly() {
         "input authority must not be normalized into a different tree"
     );
 }
+
+#[test]
+fn metadata_and_output_lane_inputs_are_refused_before_the_carrier() {
+    let (source, run_id) = hugo_source();
+    let src = adopt::source(&source.path().canonicalize().unwrap(), &run_id).unwrap();
+    for input in [
+        ".cv",
+        ".cv/publish",
+        ".cv/imports",
+        ".CV/publish",
+        ".boris",
+        ".boris/cache",
+    ] {
+        let target = tempfile::tempdir().unwrap();
+        let target_root = target.path().canonicalize().unwrap();
+        let err = adopt::transact(&target_root, &src, input, None, "new", &BTreeMap::new(), 1)
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("metadata") || err.to_string().contains("output lane"),
+            "{input:?}: {err}"
+        );
+        assert!(
+            !target_root.join(".cv").exists(),
+            "{input:?}: validation happened after carrier creation"
+        );
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn a_symlinked_input_prefix_resolving_into_metadata_is_refused_before_the_carrier() {
+    let (source, run_id) = hugo_source();
+    let src = adopt::source(&source.path().canonicalize().unwrap(), &run_id).unwrap();
+    let target = tempfile::tempdir().unwrap();
+    let target_root = target.path().canonicalize().unwrap();
+    // `.cv` does not exist yet: resolution must still understand the broken
+    // link's future target rather than treating the link as a harmless
+    // missing directory.
+    std::os::unix::fs::symlink(".cv", target_root.join("linked-input")).unwrap();
+    let err = adopt::transact(
+        &target_root,
+        &src,
+        "linked-input",
+        None,
+        "new",
+        &BTreeMap::new(),
+        1,
+    )
+    .unwrap_err();
+    assert!(
+        err.to_string().contains("resolves into workspace metadata"),
+        "{err}"
+    );
+    assert!(!target_root.join(".cv").exists());
+}
+
+#[test]
+fn existing_workspace_input_inside_import_evidence_is_refused_before_mutation() {
+    let (source, run_id) = hugo_source();
+    let src = adopt::source(&source.path().canonicalize().unwrap(), &run_id).unwrap();
+    let target = tempfile::tempdir().unwrap();
+    let target_root = target.path().canonicalize().unwrap();
+    let token = cv_store::workspace_instance::ensure(&target_root).unwrap();
+    let expected = adopt::ExpectedWorkspaceInstance::new(
+        token,
+        cv_engine::file_identity::identity(&target_root),
+        cv_store::workspace_mutation::current_identity(&target_root).unwrap(),
+    );
+    let err = adopt::transact_existing_with_identity(adopt::ExistingWorkspaceTransaction {
+        target_root: &target_root,
+        src: &src,
+        content_input: ".cv/imports",
+        merge_subfolder: Some("imported"),
+        scan_existing_ids: Box::new(BTreeMap::new),
+        at_ms: 1,
+        expected_instance: &expected,
+    })
+    .unwrap_err();
+    assert!(
+        err.to_string().contains("metadata") || err.to_string().contains("output lane"),
+        "{err}"
+    );
+    assert!(
+        !target_root
+            .join(".cv/imports")
+            .join(&run_id)
+            .join(store::PENDING)
+            .exists(),
+        "metadata input must not reach journal creation"
+    );
+}

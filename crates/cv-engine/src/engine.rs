@@ -5,6 +5,9 @@ use crate::error::{EngineError, Result};
 use crate::exit::ExitOutcome;
 use crate::fallback::{self, FallbackStart, build_event};
 use crate::locate::{EngineIdentity, Locator, PINNED, Pin};
+use crate::paths::{
+    canonical_parts as path_canonical_parts, canonicalize_with_missing, normalize_component,
+};
 use crate::probe::{CapabilityReport, PROBE_TIMEOUT, WatchMode, probe};
 use crate::proc::CancelToken;
 use crate::ring::{DEFAULT_RING, Resume};
@@ -62,22 +65,6 @@ impl EngineConfig {
     }
 }
 
-fn normalize_component(raw: &str) -> String {
-    use unicode_casefold::UnicodeCaseFold;
-    use unicode_normalization::UnicodeNormalization;
-    let folded: String = raw.nfc().case_fold().collect();
-    folded.nfc().collect()
-}
-
-fn normalized_parts(path: &Path) -> Vec<String> {
-    path.components()
-        .filter_map(|c| match c {
-            std::path::Component::Normal(n) => Some(normalize_component(&n.to_string_lossy())),
-            _ => None,
-        })
-        .collect()
-}
-
 fn relative_parts(raw: &str, what: &str) -> Result<Vec<String>> {
     let path = Path::new(raw);
     if path.is_absolute() || raw.trim().is_empty() || raw.contains('\\') {
@@ -103,33 +90,6 @@ fn relative_parts(raw: &str, what: &str) -> Result<Vec<String>> {
     Ok(parts)
 }
 
-/// Canonicalize each existing component from the workspace root, then
-/// compare Unicode-NFC + case-folded components. This catches APFS's
-/// NFD/NFC and case aliases as well as symlinks in existing prefixes.
-/// Non-existent suffixes remain lexical because they have no filesystem
-/// identity yet; portable-relative validation still rejects parent escapes.
-fn canonical_parts(root: &Path, raw_parts: &[String]) -> Vec<String> {
-    let mut current = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
-    let mut unresolved = Vec::new();
-    for (i, part) in raw_parts.iter().enumerate() {
-        if unresolved.is_empty() {
-            let candidate = current.join(part);
-            if candidate.exists() {
-                current = candidate.canonicalize().unwrap_or(candidate);
-            } else {
-                unresolved = raw_parts[i..].to_vec();
-            }
-        }
-    }
-    let root_canon = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
-    let mut parts = current
-        .strip_prefix(&root_canon)
-        .map(normalized_parts)
-        .unwrap_or_else(|_| normalized_parts(&current));
-    parts.extend(unresolved.iter().map(|p| normalize_component(p)));
-    parts
-}
-
 fn overlaps(a: &[String], b: &[String]) -> bool {
     a.starts_with(b) || b.starts_with(a)
 }
@@ -149,13 +109,13 @@ fn owned_cv_output(parts: &[String]) -> bool {
 fn output_cfg(cfg: &EngineConfig, input: Option<&str>) -> Result<EngineConfig> {
     let mut cfg = cfg.clone();
     if let Some(input) = input {
+        let absolute = Path::new(input).is_absolute();
         if input.trim().is_empty()
             || input != input.trim()
-            || Path::new(input).is_absolute()
-            || (input != "." && cv_store::paths::portable_relative(input).is_err())
+            || (!absolute && input != "." && cv_store::paths::portable_relative(input).is_err())
         {
             return Err(EngineError::Refused(format!(
-                "content input {input:?} is not a portable workspace-relative authority"
+                "content input {input:?} is not a usable workspace content authority"
             )));
         }
         cfg.content_input = input.into();
@@ -163,49 +123,74 @@ fn output_cfg(cfg: &EngineConfig, input: Option<&str>) -> Result<EngineConfig> {
     Ok(cfg)
 }
 
+fn path_from_parts(root: &Path, parts: &[String]) -> PathBuf {
+    parts
+        .iter()
+        .fold(root.to_path_buf(), |p, part| p.join(part))
+}
+
+fn partition_parts(path: &Path, what: &str) -> Result<Vec<String>> {
+    path_canonical_parts(path).map_err(|e| {
+        EngineError::Refused(format!(
+            "{what} cannot be canonicalized for partition validation: {e}"
+        ))
+    })
+}
+
 fn validate_output_path(cfg: &EngineConfig, raw: &str, what: &str) -> Result<()> {
     let raw_parts = relative_parts(raw, what)?;
-    let parts = canonical_parts(&cfg.root, &raw_parts);
+    let lexical = raw_parts
+        .iter()
+        .map(|p| normalize_component(p))
+        .collect::<Vec<_>>();
+    let output_path = path_from_parts(&cfg.root, &raw_parts);
+    let absolute = partition_parts(&output_path, what)?;
+    let root_parts = partition_parts(&cfg.root, what)?;
+    let Some(relative) = absolute.strip_prefix(root_parts.as_slice()) else {
+        return Err(EngineError::Refused(format!(
+            "{what} {raw:?} resolves outside the workspace"
+        )));
+    };
+
     let cv = [".cv".to_string()];
     let boris_meta = [".boris".to_string()];
     let profile = ["boris.json".to_string()];
-    if overlaps(&parts, &profile) {
+    if overlaps(&lexical, &profile) || overlaps(relative, &profile) {
         return Err(EngineError::Refused(format!(
             "{what} {raw:?} overlaps workspace profile metadata"
         )));
     }
-    if parts.starts_with(&cv) && !owned_cv_output(&parts) {
+    let cv_violation = |parts: &[String]| parts.starts_with(&cv) && !owned_cv_output(parts);
+    if cv_violation(&lexical) || cv_violation(relative) {
         return Err(EngineError::Refused(format!(
             "{what} {raw:?} overlaps Capture Vector metadata outside an owned output lane"
         )));
     }
-    if parts.starts_with(&boris_meta) && raw != ".boris" {
+    if (lexical.starts_with(&boris_meta) || relative.starts_with(&boris_meta)) && raw != ".boris" {
         return Err(EngineError::Refused(format!(
             "{what} {raw:?} overlaps Boris metadata"
         )));
     }
-    let input = cfg.content_input.to_string_lossy().replace('\\', "/");
-    let input_raw = if input == "." {
-        Vec::new()
+
+    let configured = &cfg.content_input;
+    let input_path = if configured.is_absolute() {
+        configured.clone()
     } else {
-        input
-            .split('/')
-            .filter(|p| !p.is_empty() && *p != ".")
-            .map(str::to_string)
-            .collect::<Vec<_>>()
+        cfg.root.join(configured)
     };
-    let input_parts = canonical_parts(&cfg.root, &input_raw);
-    if input_raw.is_empty() {
+    let input_parts = partition_parts(&input_path, what)?;
+    let input = configured.to_string_lossy();
+    if input_parts == root_parts {
         let html = normalize_component(&cfg.html_dir);
-        let derived = parts.starts_with(&cv)
-            || parts.starts_with(&boris_meta)
-            || parts.first().is_some_and(|p| *p == html);
+        let derived = relative.starts_with(&cv)
+            || relative.starts_with(&boris_meta)
+            || relative.first().is_some_and(|p| *p == html);
         if !derived {
             return Err(EngineError::Refused(format!(
                 "{what} {raw:?} overlaps the workspace content input, which is the workspace root"
             )));
         }
-    } else if overlaps(&parts, &input_parts) {
+    } else if overlaps(&absolute, &input_parts) {
         return Err(EngineError::Refused(format!(
             "{what} {raw:?} overlaps the workspace content input {input:?}"
         )));
@@ -276,6 +261,8 @@ fn validate_default_html_output(cfg: &EngineConfig, name: &str, args: &[String])
     if !matches!(name, "build" | "watch") {
         return Ok(());
     }
+    let effective = output_cfg(cfg, flag_value(args, "--input"))?;
+    let cfg = &effective;
     let redirected = args.iter().any(|a| {
         [
             "--out",
@@ -294,6 +281,54 @@ fn validate_default_html_output(cfg: &EngineConfig, name: &str, args: &[String])
     });
     if !redirected {
         validate_output_path(cfg, "dist", "default HTML output")?;
+    }
+    Ok(())
+}
+
+fn validate_watch_output_paths(cfg: &EngineConfig) -> Result<()> {
+    validate_output_path(cfg, &cfg.html_dir, "watch HTML output")?;
+    let verb = Verb::Custom {
+        name: "watch".into(),
+        args: cfg.watch_args.clone(),
+    };
+    validate_verb_output_paths(cfg, &verb)
+}
+
+fn validate_custom_init_targets(cfg: &EngineConfig, args: &[String]) -> Result<()> {
+    // Boris init grammar is `[DIR] [--type NAME] [--quiet]`. Validate every
+    // positional candidate rather than trusting position zero: the real CLI
+    // also accepts the target after `--type NAME`. Unknown options are left
+    // to Boris's usage error, while every candidate that could be DIR must
+    // be partition-clean before spawn.
+    let mut i = 0;
+    let mut positional_only = false;
+    let mut positional_count = 0;
+    while i < args.len() {
+        let arg = &args[i];
+        if !positional_only && arg == "--" {
+            positional_only = true;
+        } else if !positional_only && arg == "--type" {
+            i += 1;
+        } else if !positional_only && (arg.starts_with("--type=") || arg == "--quiet") {
+            // Flag or inline value only; no positional candidate here.
+        } else if !positional_only && arg.starts_with('-') {
+            // Unknown flag: Boris will refuse usage before writing. Its
+            // possible value is still validated when it does not look like
+            // a flag, which is deliberately conservative.
+        } else {
+            positional_count += 1;
+            validate_output_path(cfg, arg, "init target")?;
+        }
+        i += 1;
+    }
+    // `[DIR]` is optional in Boris init; when it is absent the target is the
+    // process working directory. Validate that implicit target too, except
+    // for informational usage spellings that exit before writing.
+    let informational = args
+        .iter()
+        .any(|a| matches!(a.as_str(), "-h" | "--help" | "-V" | "--version"));
+    if positional_count == 0 && !informational {
+        validate_output_path(cfg, ".", "implicit init target")?;
     }
     Ok(())
 }
@@ -319,10 +354,8 @@ fn validate_verb_output_paths(cfg: &EngineConfig, verb: &Verb) -> Result<()> {
         validate_output_path(cfg, output, "export output")?;
     }
     if let Verb::Custom { name, args } = verb {
-        if name == "init"
-            && let Some(dir) = args.first()
-        {
-            validate_output_path(cfg, dir, "init target")?;
+        if name == "init" {
+            validate_custom_init_targets(cfg, args)?;
         }
         validate_custom_outputs(cfg, args)?;
         validate_default_html_output(cfg, name, args)?;
@@ -559,14 +592,24 @@ impl ProcessEngine {
         cancel: &CancelToken,
     ) -> Result<SignOutput> {
         if let Some(out) = out {
+            let rel_owned;
             let rel = if out.is_absolute() {
-                out.strip_prefix(&self.cfg.root).ok()
+                let root = canonicalize_with_missing(&self.cfg.root)?;
+                let absolute = canonicalize_with_missing(out)?;
+                rel_owned = absolute
+                    .strip_prefix(&root)
+                    .map_err(|_| {
+                        EngineError::Refused(format!(
+                            "sign output {:?} resolves outside the workspace",
+                            out
+                        ))
+                    })?
+                    .to_path_buf();
+                &rel_owned
             } else {
-                Some(out)
+                out
             };
-            if let Some(rel) = rel {
-                validate_output_path(&self.cfg, &rel.to_string_lossy(), "sign output")?;
-            }
+            validate_output_path(&self.cfg, &rel.to_string_lossy(), "sign output")?;
         }
         let _content_mutation = self.workspace_mutation_lock()?;
         nostr_sign(
@@ -584,6 +627,7 @@ impl ProcessEngine {
     }
 
     pub fn start_watch(&self, sink: EventSink) -> Result<Box<dyn WatchHandle>> {
+        validate_watch_output_paths(&self.cfg)?;
         if self.watch_live.swap(true, Ordering::SeqCst) {
             return Err(EngineError::WatchAlreadyLive);
         }

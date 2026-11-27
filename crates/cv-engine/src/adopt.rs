@@ -341,7 +341,7 @@ pub fn plan(
 
 mod input_authority;
 mod preflight;
-use input_authority::content_input_authority;
+use input_authority::{content_input_authority, content_input_target_authority};
 pub use preflight::{Collision, CollisionKind, collisions, copy_content};
 use preflight::{bytes_identical, incoming_id_collisions, preflight_write_target_shapes};
 
@@ -867,6 +867,7 @@ pub fn transact(
     at_ms: i64,
 ) -> Result<TxReport, AdoptError> {
     content_input_authority(content_input)?;
+    content_input_target_authority(target_root, content_input)?;
     // A newly initialized workspace is already visible to other Capture
     // Vector processes, so "new" only means there is no live scheduler in
     // this process. Establish the `.cv` carrier as part of the intentional
@@ -903,6 +904,7 @@ pub fn transact_existing_with_identity(
     tx: ExistingWorkspaceTransaction<'_>,
 ) -> Result<TxReport, AdoptError> {
     content_input_authority(tx.content_input)?;
+    content_input_target_authority(tx.target_root, tx.content_input)?;
     // Lock order is fixed and documented: process-local scheduler batch
     // (held by the composition root) -> workspace-instance mutation lock ->
     // per-run lock. No adoption path acquires those capabilities in another
