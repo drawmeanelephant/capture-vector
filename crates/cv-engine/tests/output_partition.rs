@@ -488,14 +488,17 @@ fn full_unicode_casefold_alias_matrix_cannot_bypass_the_content_partition() {
 fn absolute_invocation_input_reaches_boris_byte_exactly() {
     let fake = FakeBoris::new();
     let external = tempfile::tempdir().unwrap();
-    let input = external
-        .path()
-        .join("ümlaut and spaces")
-        .canonicalize()
-        .unwrap_or_else(|_| external.path().join("ümlaut and spaces"))
+    let leaf = if cfg!(windows) {
+        "absolute-input"
+    } else {
+        "ümlaut and spaces"
+    };
+    let input_path = external.path().join(leaf);
+    std::fs::create_dir_all(&input_path).unwrap();
+    let input = cv_engine::paths::canonical_display(&input_path)
+        .unwrap()
         .to_string_lossy()
         .into_owned();
-    std::fs::create_dir_all(&input).unwrap();
     let mut cfg = fake.config();
     cfg.content_input = input.clone().into();
     let engine = ProcessEngine::start(cfg).unwrap();
@@ -503,7 +506,14 @@ fn absolute_invocation_input_reaches_boris_byte_exactly() {
     let out = engine.run(&verb, Box::new(|_| {})).unwrap();
     assert_eq!(out, ExitClass::Ok);
     let argv = fake.read("argv.log");
-    assert!(argv.contains(&format!("--input {input}")), "{argv}");
+    let unquoted = format!("--input {input}");
+    let quoted = format!("--input \"{input}\"");
+    let logged = if cfg!(windows) {
+        argv.contains(&unquoted) || argv.contains(&quoted)
+    } else {
+        argv.contains(&unquoted)
+    };
+    assert!(logged, "{argv}");
 }
 
 #[cfg(unix)]
