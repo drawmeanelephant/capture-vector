@@ -62,6 +62,7 @@ pub fn capture(tools: &Tools, spec: &LabCaptureSpec, root: &Path) -> Result<LabT
         let path = match input {
             LabInput::Fixture(rel) => stage_fixture(&tools.lab_fixtures, rel, root)?,
             LabInput::BorisHtmlOf(mode) => boris_html(tools, root, mode)?,
+            LabInput::BrokenBorisHtmlOf(mode) => broken_boris_html(tools, root, mode)?,
         };
         inputs.push((flag.to_string(), path));
     }
@@ -113,4 +114,51 @@ fn boris_html(tools: &Tools, root: &Path, mode: &str) -> Result<PathBuf> {
     copy_tree(&content, &site.join("content"))?;
     boris(&site, &["build", "--profile", "boris.json"])?;
     Ok(dist)
+}
+
+/// Copy the built tree and inject one missing route plus one missing
+/// fragment. This mutates only capture input HTML; the audited JSON is
+/// still emitted by the pinned lab.
+fn broken_boris_html(tools: &Tools, root: &Path, mode: &str) -> Result<PathBuf> {
+    let dist = boris_html(tools, root, mode)?;
+    let broken = root.join(format!("broken-html-{mode}"));
+    if broken.is_dir() {
+        return Ok(broken);
+    }
+    copy_tree(&dist, &broken)?;
+    let mut html_files = Vec::new();
+    collect_html(&broken, &broken, &mut html_files)?;
+    let first = html_files
+        .first()
+        .ok_or("broken link-audit input has no HTML files")?;
+    let index = broken.join(first);
+    let mut html = std::fs::read_to_string(&index)?;
+    let insert = format!(
+        "\n<p><a href=\"/missing\">missing route</a> <a href=\"/{first}#absent\">missing fragment</a></p>\n"
+    );
+    if let Some(at) = html.rfind("</body>") {
+        html.insert_str(at, &insert);
+    } else {
+        html.push_str(&insert);
+    }
+    std::fs::write(index, html)?;
+    Ok(broken)
+}
+
+fn collect_html(dir: &Path, base: &Path, out: &mut Vec<String>) -> Result<()> {
+    let mut entries = std::fs::read_dir(dir)?.collect::<std::io::Result<Vec<_>>>()?;
+    entries.sort_by_key(|e| e.file_name());
+    for entry in entries {
+        let path = entry.path();
+        if entry.file_type()?.is_dir() {
+            collect_html(&path, base, out)?;
+        } else if path.extension().is_some_and(|e| e == "html") {
+            let rel = path
+                .strip_prefix(base)?
+                .to_string_lossy()
+                .replace('\\', "/");
+            out.push(rel);
+        }
+    }
+    Ok(())
 }

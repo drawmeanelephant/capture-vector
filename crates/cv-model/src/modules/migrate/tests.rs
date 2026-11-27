@@ -1,7 +1,10 @@
 use super::*;
+use crate::command::ImportPhase;
 use crate::dialog::DialogKind;
 use crate::module::Module;
 use std::collections::BTreeMap;
+
+mod utilities;
 
 fn blank_answer() -> DialogAnswer {
     DialogAnswer {

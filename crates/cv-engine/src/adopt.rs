@@ -160,6 +160,10 @@ fn adoptable_report_format(mode: &str) -> Option<&'static str> {
         "enex" => Some(format::ENEX),
         "obsidian" => Some(format::OBSIDIAN),
         "wordpress" => Some(format::WORDPRESS),
+        // The asset utility emits a sanitized candidate content tree but no
+        // page-id rows; adoption copies that tree through the same confined
+        // transaction and records no invented page provenance.
+        "asset-filename" => Some(format::ASSET_FILENAME),
         _ => None,
     }
 }
@@ -937,6 +941,11 @@ pub fn transact_existing_with_identity(
 }
 
 fn transact_impl(params: TxParams<'_>) -> Result<TxReport, AdoptError> {
+    if params.src.mode == "asset-filename" && params.target_kind == "existing" {
+        return Err(AdoptError::Run(
+            "asset-filename adoption into an existing workspace is refused: the lab report carries no page-id authority, so duplicate Boris ids cannot be preflighted; choose a new workspace".into(),
+        ));
+    }
     let TxParams {
         target_root,
         src,

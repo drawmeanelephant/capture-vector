@@ -38,6 +38,9 @@ pub enum LabInput {
     /// `<mode>`'s `content/`, in a `boris init` scaffold
     /// (`build --profile boris.json`).
     BorisHtmlOf(&'static str),
+    /// A copy of that built tree with two deliberate local-link defects,
+    /// used so the pinned link-audit capture exercises real findings.
+    BrokenBorisHtmlOf(&'static str),
 }
 
 /// One captured run: `mode` with these `(flag, input)` pairs.
@@ -60,6 +63,7 @@ impl LabInput {
         match self {
             Self::Fixture(rel) => root.join("src").join(rel),
             Self::BorisHtmlOf(mode) => site_dir(root, mode).join("dist"),
+            Self::BrokenBorisHtmlOf(mode) => root.join(format!("broken-html-{mode}")),
         }
     }
 }
@@ -69,7 +73,7 @@ pub fn site_dir(root: &Path, mode: &str) -> PathBuf {
     root.join(format!("site-{mode}"))
 }
 
-use LabInput::{BorisHtmlOf, Fixture};
+use LabInput::{BrokenBorisHtmlOf, Fixture};
 
 /// Every captured run, in capture order (a [`LabInput::BorisHtmlOf`]
 /// input names an earlier row). One capture per mode.
@@ -119,11 +123,15 @@ pub const LAB_CAPTURES: &[LabCaptureSpec] = &[
     },
     LabCaptureSpec {
         mode: "link-audit",
-        inputs: &[("--root", BorisHtmlOf("hugo"))],
+        inputs: &[("--root", BrokenBorisHtmlOf("hugo"))],
     },
     LabCaptureSpec {
         mode: "frontmatter-review",
         inputs: &[("--content", Fixture("fm-review-mixed/content"))],
+    },
+    LabCaptureSpec {
+        mode: "asset-filename",
+        inputs: &[("--root", Fixture("hostile-asset-filenames"))],
     },
 ];
 
@@ -143,8 +151,8 @@ pub fn stage_fixture(lab_fixtures: &Path, rel: &str, root: &Path) -> io::Result<
     Ok(root.join("src").join(rel))
 }
 
-/// Recursive copy that refuses symlinks: the lab refuses them too, and a
-/// followed link would stage bytes from outside the fixture.
+/// Recursive copy that never follows symlinks: the lab refuses them too,
+/// and a followed link would stage bytes from outside the fixture.
 pub fn copy_tree(from: &Path, to: &Path) -> io::Result<()> {
     std::fs::create_dir_all(to)?;
     let mut entries: Vec<_> = std::fs::read_dir(from)?.collect::<Result<_, _>>()?;
@@ -153,7 +161,19 @@ pub fn copy_tree(from: &Path, to: &Path) -> io::Result<()> {
         let ty = e.file_type()?;
         let dst = to.join(e.file_name());
         if ty.is_symlink() {
-            return Err(io::Error::other(format!("refusing symlink {:?}", e.path())));
+            // Preserve the pinned fixture's link as a link rather than
+            // following it: asset-filename captures need the lab's real
+            // symlink rejection input, and copying the link object never
+            // stages target bytes.
+            let target = std::fs::read_link(e.path())?;
+            #[cfg(unix)]
+            std::os::unix::fs::symlink(target, dst)?;
+            #[cfg(windows)]
+            if e.path().is_dir() {
+                std::os::windows::fs::symlink_dir(target, dst)?;
+            } else {
+                std::os::windows::fs::symlink_file(target, dst)?;
+            }
         } else if ty.is_dir() {
             copy_tree(&e.path(), &dst)?;
         } else {
@@ -1130,7 +1150,7 @@ mod tests {
                 s.mode
             );
             for (_, input) in s.inputs {
-                if let BorisHtmlOf(m) = input {
+                if let LabInput::BorisHtmlOf(m) = input {
                     assert!(LAB_CAPTURES[..i].iter().any(|o| o.mode == *m), "{m}");
                 }
             }

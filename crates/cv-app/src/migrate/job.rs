@@ -5,7 +5,7 @@
 
 use super::{claim_import_run, now_ms, run_lab_with_lock};
 use cv_engine::lab::{self as engine_lab, LabIdentity};
-use cv_model::command::ImportJob;
+use cv_model::command::{ImportJob, ImportPhase};
 use cv_model::new_workspace::{Notices, ShellNotice};
 use cv_model::workbench::Workbench;
 use cv_store::imports::{self as store, RunRecord};
@@ -15,9 +15,27 @@ fn execute(
     job: &ImportJob,
     lab_override: Option<LabIdentity>,
     notices: &Notices,
-) -> Result<(), String> {
+) -> Result<String, String> {
     let mode = engine_lab::mode(&job.mode)
         .ok_or_else(|| format!("migration mode {} is not registered", job.mode))?;
+    let mut inputs = job.inputs.clone();
+    if job.phase == ImportPhase::Utility {
+        if !inputs.is_empty() {
+            return Err(format!(
+                "workspace utility {} does not accept picked inputs",
+                job.mode
+            ));
+        }
+        let content = crate::snapshot::content_input(&job.workspace);
+        let (flag, path) = match job.mode.as_str() {
+            // The watch/build output seat is the workspace's built HTML tree.
+            "link-audit" => ("--root", job.workspace.join("dist")),
+            "frontmatter-review" => ("--content", job.workspace.join(&content)),
+            "asset-filename" => ("--root", job.workspace.join(&content)),
+            other => return Err(format!("{other} is not a workspace utility mode")),
+        };
+        inputs = vec![(flag.to_string(), path)];
+    }
     let lab = match lab_override {
         Some(lab) => lab,
         None => {
@@ -45,12 +63,40 @@ fn execute(
         &actual_id,
         &lab,
         mode,
-        job.inputs.clone(),
+        inputs,
         job.extras.clone(),
         &job.cancel,
     )
-    .map(|_| ())
+    .map(|_| actual_id)
     .map_err(|e| e.to_string())
+}
+
+fn link_audit_evidence(
+    workspace: &std::path::Path,
+    run_id: &str,
+) -> Option<Vec<cv_model::modules::audit::LinkAuditEvidence>> {
+    let path = workspace
+        .join(".cv/imports")
+        .join(run_id)
+        .join("out/link_audit.json");
+    let bytes = std::fs::read(path).ok()?;
+    let doc = cv_contracts::lab::Document::decode("link_audit.json", &bytes).ok()?;
+    let cv_contracts::lab::Document::LinkAudit(audit) = doc else {
+        return None;
+    };
+    Some(
+        audit
+            .findings
+            .iter()
+            .map(|f| cv_model::modules::audit::LinkAuditEvidence {
+                source: f.source.clone(),
+                target: f.target.clone(),
+                line: f.line,
+                kind: f.kind.clone(),
+                reason: f.reason.clone(),
+            })
+            .collect(),
+    )
 }
 
 /// Start `job` on a named worker and report it as a shell notice. The
@@ -76,10 +122,26 @@ pub fn spawn_import_with(
             .unwrap_or_else(|_| {
                 Err("the import worker panicked; the run record shows what was written".into())
             });
+            let evidence = if notice_job.mode == "link-audit" {
+                result.as_ref().ok().and_then(|actual_id| {
+                    link_audit_evidence(&notice_job.workspace, actual_id)
+                        .map(|findings| (actual_id.clone(), findings))
+                })
+            } else {
+                None
+            };
+            let workspace = notice_job.workspace.clone();
             notices.send(ShellNotice::ImportFinished {
                 job: notice_job,
-                result,
+                result: result.map(|_| ()),
             });
+            if let Some((run_id, findings)) = evidence {
+                notices.send(ShellNotice::LinkAuditEvidence {
+                    workspace,
+                    run_id,
+                    findings,
+                });
+            }
         });
     match worker {
         Ok(handle) => Some(handle),

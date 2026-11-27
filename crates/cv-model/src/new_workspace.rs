@@ -106,6 +106,13 @@ pub enum ShellNotice {
         /// attempt; ordinary lab failures are recorded in the run itself.
         result: Result<(), String>,
     },
+    /// Decoded link-audit evidence from one finished utility run. It is
+    /// handed to Audit only; no lab row ever enters the publish ruleset.
+    LinkAuditEvidence {
+        workspace: PathBuf,
+        run_id: String,
+        findings: Vec<crate::modules::audit::LinkAuditEvidence>,
+    },
 }
 
 /// `Send` handle for [`ShellNotice`]s: enqueue and wake the UI loop.
@@ -426,6 +433,20 @@ impl Workbench {
                     .unwrap_or_default();
                 for it in intents {
                     self.apply(it);
+                }
+            }
+            ShellNotice::LinkAuditEvidence {
+                workspace,
+                run_id,
+                findings,
+            } => {
+                if self.workspace.as_ref() != Some(&workspace) {
+                    return;
+                }
+                if let Some(i) = self.registry.index_of(crate::modules::audit::ID)
+                    && let Some(m) = self.registry.get_mut(i)
+                {
+                    m.merge_link_audit(&run_id, &findings);
                 }
             }
             ShellNotice::ImportFinished { job, result } => {

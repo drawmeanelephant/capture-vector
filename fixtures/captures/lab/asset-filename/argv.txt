@@ -1,0 +1,3 @@
+--mode=asset-filename
+--root=/CAPTURE_ROOT/src/hostile-asset-filenames
+--out=/CAPTURE_ROOT/out/asset-filename

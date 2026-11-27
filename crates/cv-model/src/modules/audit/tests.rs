@@ -279,3 +279,70 @@ fn default_ruleset_is_documented_packs() {
         .collect();
     assert_eq!(ids, DEFAULT_PACKS);
 }
+
+#[test]
+fn migration_lab_link_audit_findings_are_heuristic_and_never_block_publish() {
+    let mut m = AuditModule::new(Box::new(port(Vec::new())), default_ruleset());
+    m.merge_link_audit(
+        "import-1-link-audit",
+        &[LinkAuditEvidence {
+            source: "index.html".into(),
+            target: "/missing".into(),
+            line: 3,
+            kind: "missing_route".into(),
+            reason: "local href did not resolve to a generated file".into(),
+        }],
+    );
+    assert_eq!(m.entries.len(), 1);
+    let entry = m.entries.first().unwrap();
+    assert_eq!(entry.af.pack, LINK_AUDIT_PACK);
+    assert_eq!(entry.af.finding.tier, AuthorityTier::Heuristic);
+    assert_eq!(entry.af.finding.severity, Severity::Error);
+    assert!(!entry.af.blocks_publish());
+    assert!(
+        entry
+            .af
+            .finding
+            .evidence
+            .summary
+            .contains("cannot block publish")
+    );
+    assert!(entry.af.finding.evidence.summary.contains("at line 3"));
+}
+
+fn link_evidence() -> LinkAuditEvidence {
+    LinkAuditEvidence {
+        source: "index.html".into(),
+        target: "/missing".into(),
+        line: 3,
+        kind: "missing_route".into(),
+        reason: "local href did not resolve to a generated file".into(),
+    }
+}
+
+#[test]
+fn link_audit_lifecycle_survives_a_later_run_with_the_same_finding() {
+    let mut m = AuditModule::new(Box::new(port(Vec::new())), default_ruleset());
+    m.merge_link_audit("import-1-link-audit", &[link_evidence()]);
+    let key = m.entries.first().unwrap().id.clone();
+    m.select(Some(&key));
+    m.run("audit.snooze");
+    m.merge_link_audit("import-2-link-audit", &[link_evidence()]);
+    assert_eq!(m.entries.len(), 1);
+    assert_eq!(m.entries[0].state, FindingLifecycle::Ignored);
+    assert_eq!(
+        m.entries[0].af.finding.evidence.detail.as_ref().unwrap()["run_id"],
+        "import-2-link-audit"
+    );
+}
+
+#[test]
+fn an_empty_link_audit_result_marks_prior_rows_fixed() {
+    let mut m = AuditModule::new(Box::new(port(Vec::new())), default_ruleset());
+    m.merge_link_audit("import-1-link-audit", &[link_evidence()]);
+    m.merge_link_audit("import-2-link-audit", &[]);
+    assert_eq!(m.entries.len(), 1);
+    assert_eq!(m.entries[0].state, FindingLifecycle::Fixed);
+    assert_eq!(m.list_len(Some("open")), 0);
+    assert_eq!(m.list_len(Some("fixed")), 1);
+}

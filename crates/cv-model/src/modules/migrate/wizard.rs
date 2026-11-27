@@ -266,6 +266,7 @@ impl MigrateModule {
             match job.phase {
                 ImportPhase::Inventory => "Running inventory",
                 ImportPhase::Emit => "Emitting import",
+                ImportPhase::Utility => "Running workspace utility",
             },
             DialogKind::Progress(Progress {
                 label: format!("{} · {}", job.phase.label(), job.mode),
@@ -354,6 +355,32 @@ impl MigrateModule {
         };
         self.wizard.stage = WizardStage::Running {
             phase,
+            run_id,
+            cancel,
+        };
+        vec![
+            Intent::dialog(Self::progress_dialog(&job)),
+            Intent::RunImport(job),
+        ]
+    }
+
+    /// Start one pinned cross-cutting utility against the open workspace.
+    /// The composition root resolves the workspace-owned input path; the
+    /// module deliberately stays path-free.
+    pub(crate) fn start_workspace_utility(&mut self, mode_name: &str) -> Vec<Intent> {
+        let run_id = self.next_run_id(mode_name);
+        let cancel = CancelToken::new();
+        let job = ImportJob {
+            workspace: PathBuf::new(),
+            run_id: run_id.clone(),
+            mode: mode_name.into(),
+            phase: ImportPhase::Utility,
+            inputs: Vec::new(),
+            extras: Vec::new(),
+            cancel: cancel.clone(),
+        };
+        self.wizard.stage = WizardStage::Running {
+            phase: ImportPhase::Utility,
             run_id,
             cancel,
         };

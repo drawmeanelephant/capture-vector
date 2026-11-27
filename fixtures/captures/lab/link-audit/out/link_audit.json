@@ -3,6 +3,7 @@
   "schema_version": 1,
   "html_files": 13,
   "findings": [
-
+    {"source":"_boris/proof/index.html","target":"/missing","line":649,"kind":"missing_route","reason":"local href did not resolve to a generated file"},
+    {"source":"_boris/proof/index.html","target":"/_boris/proof/index.html#absent","line":649,"kind":"missing_fragment","reason":"target exists but fragment id was not found"}
   ]
 }

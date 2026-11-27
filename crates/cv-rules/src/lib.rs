@@ -33,7 +33,7 @@ pub enum Error {
     Parse { artifact: String, msg: String },
 }
 
-pub(crate) fn sha256(bytes: &[u8]) -> cv_core::sys::Hash {
+pub fn sha256(bytes: &[u8]) -> cv_core::sys::Hash {
     use sha2::{Digest, Sha256};
     cv_core::sys::Hash(Sha256::digest(bytes).into())
 }

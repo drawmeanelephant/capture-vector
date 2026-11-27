@@ -143,6 +143,67 @@ fn tier_label(t: AuthorityTier) -> &'static str {
     }
 }
 
+/// One migration-lab link-audit row, already decoded at the composition
+/// root. It is evidence vocabulary only; the lab remains the semantics owner.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LinkAuditEvidence {
+    pub source: String,
+    pub target: String,
+    pub line: u64,
+    pub kind: String,
+    pub reason: String,
+}
+
+/// Pack name utility link-audit rows are filed under. Every row is
+/// Heuristic by construction and therefore can never block publishing.
+pub const LINK_AUDIT_PACK: &str = "migration-lab-link-audit";
+
+fn link_audit_finding(run_id: &str, f: &LinkAuditEvidence) -> AuditFinding {
+    let subject = NounId {
+        account: AccountId("local".into()),
+        kind: NounKind::register(noun_kind::ARTIFACT),
+        stable: StableId(format!("link-audit:{}", f.source)),
+    };
+    let target = format!("{}:{}:{}", f.source, f.line, f.target);
+    let code = format!("link_audit_{}", f.kind);
+    AuditFinding {
+        pack: LINK_AUDIT_PACK.into(),
+        finding: cv_core::rules::Finding {
+            code: code.clone(),
+            tier: AuthorityTier::Heuristic,
+            severity: Severity::Error,
+            status: CheckStatus::Failed,
+            key: DedupKey {
+                code,
+                subject: subject.clone(),
+                target_hash: cv_rules::sha256(target.as_bytes()),
+            },
+            subject,
+            evidence: cv_core::rules::Evidence {
+                summary: format!(
+                    "Migration-lab link audit found {} in {} at line {}: {}. Heuristic/advisory evidence only; it cannot block publish.",
+                    f.kind, f.source, f.line, f.reason
+                ),
+                detail: Some(serde_json::json!({
+                    "run_id": run_id,
+                    "source": f.source,
+                    "target": f.target,
+                    "line": f.line,
+                    "kind": f.kind,
+                    "reason": f.reason,
+                    "authority": "heuristic advisory; never blocks preflight or publish",
+                })),
+            },
+            fix: Some(cv_core::rules::FixIt {
+                description: "Review the rendered local link or fragment in the built output."
+                    .into(),
+                replacement: None,
+            }),
+            lifecycle: FindingLifecycle::Open,
+        },
+    }
+}
+
 pub struct Entry {
     pub id: String,
     pub af: AuditFinding,
@@ -413,6 +474,43 @@ impl AuditModule {
         self.reindex();
     }
 
+    /// Replace utility link-audit findings with the newest run's rows.
+    /// They are constructed as Heuristic even at Error severity, so the
+    /// authority boundary — never blocking — is structural rather than a
+    /// severity convention.
+    pub fn merge_link_audit(&mut self, run_id: &str, findings: &[LinkAuditEvidence]) {
+        let (mut prev, mut next): (Vec<Entry>, Vec<Entry>) = std::mem::take(&mut self.entries)
+            .into_iter()
+            .partition(|e| e.af.pack == LINK_AUDIT_PACK);
+        for f in findings {
+            let af = link_audit_finding(run_id, f);
+            let id = key_id(&af.finding.key);
+            let state = match prev.iter().position(|e| e.id == id) {
+                Some(i) if prev[i].state != FindingLifecycle::Fixed => prev.remove(i).state,
+                Some(i) => {
+                    prev.remove(i);
+                    self.overrides
+                        .get(&id)
+                        .copied()
+                        .unwrap_or(FindingLifecycle::Open)
+                }
+                None => self
+                    .overrides
+                    .get(&id)
+                    .copied()
+                    .unwrap_or(FindingLifecycle::Open),
+            };
+            next.push(Entry { id, af, state });
+        }
+        for mut e in prev {
+            e.state = FindingLifecycle::Fixed;
+            next.push(e);
+        }
+        sort_entries(&mut next);
+        self.entries = next;
+        self.reindex();
+    }
+
     /// Replace the Boris check findings with `report`'s; one that is gone
     /// from the newer report is fixed. `false` when `report` is not a
     /// check report (a usage error prints prose instead).
@@ -606,6 +704,10 @@ impl Module for AuditModule {
             }
             _ => false,
         }
+    }
+
+    fn merge_link_audit(&mut self, run_id: &str, findings: &[LinkAuditEvidence]) {
+        self.merge_link_audit(run_id, findings);
     }
 
     fn load(&mut self, snap: &ProjectSnapshot) -> bool {

@@ -55,6 +55,9 @@ impl Intent {
 pub enum ImportPhase {
     Inventory,
     Emit,
+    /// One read-only analysis or candidate-producing utility over the
+    /// currently open workspace. The composition root supplies its input.
+    Utility,
 }
 
 impl ImportPhase {
@@ -62,6 +65,7 @@ impl ImportPhase {
         match self {
             Self::Inventory => "inventory",
             Self::Emit => "import",
+            Self::Utility => "utility",
         }
     }
 }

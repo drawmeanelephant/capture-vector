@@ -1,0 +1,13 @@
+{
+  "format": "boris-asset-filename-rewrites",
+  "schema_version": 1,
+  "rewrites": [
+    { "page_path": "case-collision.md", "original_dest": "case-collision.assets/Foo Bar.png", "rewritten_dest": "case-collision.assets/Foo-Bar.png", "reason": "image_or_link_dest" },
+    { "page_path": "nested.md", "original_dest": "nested.assets/deep/sub dir/shot.png", "rewritten_dest": "nested.assets/deep/sub-dir/shot.png", "reason": "image_or_link_dest" },
+    { "page_path": "percent.md", "original_dest": "percent.assets/diagram%20copy.png", "rewritten_dest": "percent.assets/diagram-copy.png", "reason": "image_or_link_dest" },
+    { "page_path": "sanitize-collision.md", "original_dest": "sanitize-collision.assets/foo bar.png", "rewritten_dest": "sanitize-collision.assets/foo-bar.png", "reason": "image_or_link_dest" },
+    { "page_path": "spaces.md", "original_dest": "spaces.assets/hello world.png", "rewritten_dest": "spaces.assets/hello-world.png", "reason": "image_or_link_dest" },
+    { "page_path": "spaces.md", "original_dest": "spaces.assets/hello%20world.png", "rewritten_dest": "spaces.assets/hello-world.png", "reason": "image_or_link_dest" },
+    { "page_path": "unicode.md", "original_dest": "unicode.assets/café.png", "rewritten_dest": "unicode.assets/caf.png", "reason": "image_or_link_dest" }
+  ]
+}
