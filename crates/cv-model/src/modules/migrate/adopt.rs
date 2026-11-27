@@ -45,19 +45,26 @@ impl MigrateModule {
             id: "new".into(),
             label: "New workspace".into(),
         }];
-        if run.mode != "asset-filename" {
-            choices.push(Choice {
-                id: "existing".into(),
-                label: "Existing workspace (merge into a subfolder)".into(),
-            });
-        }
+        choices.push(Choice {
+            id: "existing".into(),
+            label: if run.mode == "asset-filename" {
+                "This workspace (rename assets in place)".into()
+            } else {
+                "Existing workspace (merge into a subfolder)".into()
+            },
+        });
+        let body = if run.mode == "asset-filename" {
+            "Choose where the utility result should land. In-place adoption applies only the accepted asset renames and Markdown reference rewrites to this workspace; rejected or colliding assets stay untouched. Provenance stays in .cv/imports/ and never enters frontmatter."
+        } else {
+            "Choose where the candidate content should become a Boris workspace. Provenance stays in .cv/imports/ and never enters frontmatter."
+        };
         vec![Intent::dialog(
             DialogSpec::new(
                 ADOPT,
                 format!("Adopt {}", run.id),
                 DialogKind::Choose(choices),
             )
-            .body("Choose where the candidate content should become a Boris workspace. Provenance stays in .cv/imports/ and never enters frontmatter.")
+            .body(body)
             .context(run.id)
             .cancel("Cancel")
             .action("continue", "Continue", ActionTone::Primary),
@@ -82,6 +89,12 @@ impl MigrateModule {
                 run_id,
                 suggested_archetype: run.suggested_archetype,
             }],
+            Some("existing") if run.mode == "asset-filename" => {
+                vec![Intent::AdoptRun(AdoptionRequest {
+                    run_id,
+                    target: AdoptionTarget::ExistingWorkspaceInPlace,
+                })]
+            }
             Some("existing") => vec![Intent::dialog(
                 DialogSpec::new(
                     ADOPT_EXISTING,

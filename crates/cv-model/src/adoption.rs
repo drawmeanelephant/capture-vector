@@ -9,7 +9,12 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AdoptionTarget {
     NewWorkspace(WorkspaceCreation),
-    ExistingWorkspace { subfolder: String },
+    ExistingWorkspace {
+        subfolder: String,
+    },
+    /// Apply an asset-filename utility run to the workspace it inspected.
+    /// No candidate tree is copied and no subfolder is involved.
+    ExistingWorkspaceInPlace,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

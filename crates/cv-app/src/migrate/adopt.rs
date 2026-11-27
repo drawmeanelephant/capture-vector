@@ -423,6 +423,72 @@ fn execute(
                 destination_display(&adopted_input, Some(subfolder)),
             ))
         }
+        AdoptionTarget::ExistingWorkspaceInPlace => {
+            let root = job.source_root.clone();
+            let workspace_key = slots::workspace_key_lookup(&root);
+            if let Some(identity_error) = workspace_key.instance_error() {
+                inbox.send(Inbound::Degraded(DegradedReason::StoreCorrupt));
+                return Err(format!(
+                    "asset transformation refused: workspace identity evidence is malformed ({identity_error}); nothing was written"
+                ));
+            }
+            let slot = slots::slot_for(&root)
+                .ok_or_else(|| "the workspace engine slot is not registered".to_string())?;
+            let sched = slot.get().cloned().ok_or_else(|| {
+                "the workspace engine is not ready; nothing was written".to_string()
+            })?;
+            let instance_token = workspace_key.instance_token().ok_or_else(|| {
+                "asset transformation refused: workspace identity evidence is unavailable or degraded; nothing was written".to_string()
+            })?;
+            let mutation_lock_identity = cv_store::workspace_mutation::current_identity(&root)
+                .map_err(|e| {
+                    format!(
+                        "asset transformation refused: workspace mutation-lock evidence is unavailable ({e}); nothing was written"
+                    )
+                })?;
+            let expected_instance = adopt::ExpectedWorkspaceInstance::new(
+                instance_token,
+                workspace_key.file_identity(),
+                mutation_lock_identity,
+            );
+            let mut adopted_input = String::new();
+            let tx = batch_watch_safe(&slot, &sched, || {
+                if sched.readiness().is_err() {
+                    return Err(adopt::AdoptError::Run(
+                        "the workspace engine is not ready; nothing was written".into(),
+                    ));
+                }
+                let input = crate::snapshot::content_input(&root);
+                adopted_input = input.clone();
+                adopt::asset_filename::transact_existing_with_identity(
+                    adopt::asset_filename::AssetFilenameTransaction {
+                        target_root: &root,
+                        src: &src,
+                        content_input: &input,
+                        at_ms,
+                        expected_instance: &expected_instance,
+                    },
+                )
+            })
+            .map_err(err)?;
+            slot.request_resync();
+            let gate = run_gate_live(
+                &slot,
+                &cv_core::engine::CancelToken::new(),
+                outcomes,
+                &workspace_key,
+                &adopted_input,
+            )?;
+            Ok(finish_report(
+                &root,
+                &tx,
+                gate,
+                false,
+                0,
+                tx.planned,
+                destination_display(&adopted_input, None),
+            ))
+        }
         AdoptionTarget::NewWorkspace(creation) => {
             let draft = &creation.draft;
             let target = draft.target();

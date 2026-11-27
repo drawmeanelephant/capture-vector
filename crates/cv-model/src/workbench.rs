@@ -1075,7 +1075,8 @@ impl Workbench {
                         crate::adoption::AdoptionTarget::NewWorkspace(creation) => {
                             creation.cancel.clone()
                         }
-                        crate::adoption::AdoptionTarget::ExistingWorkspace { .. } => {
+                        crate::adoption::AdoptionTarget::ExistingWorkspace { .. }
+                        | crate::adoption::AdoptionTarget::ExistingWorkspaceInPlace => {
                             CancelToken::new()
                         }
                     };

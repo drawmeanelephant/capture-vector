@@ -12,7 +12,57 @@ use super::*;
 pub const ADOPTION: &str = "adoption.json";
 pub const ADOPTION_FORMAT: &str = "cv-import-adoption";
 /// Version of `<run-id>/adoption.json`, independent of the run-record schema.
-pub const ADOPTION_SCHEMA_VERSION: u32 = 2;
+pub const ADOPTION_SCHEMA_VERSION: u32 = 3;
+
+/// Which workspace object an in-place asset-filename operation touched.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AssetOperationKind {
+    Asset,
+    Markdown,
+}
+
+/// What the transformation did with one lab-evidence row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AssetOperationStatus {
+    Applied,
+    Resumed,
+    SkippedCollision,
+    Rejected,
+    Unchanged,
+}
+
+/// Truthful per-operation provenance for an in-place asset-filename
+/// transformation. Paths are content-input-relative, matching the lab
+/// manifests; `sha256` is the final content hash for applied writes and the
+/// source evidence hash for untouched asset rows.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AssetOperationProvenance {
+    pub kind: AssetOperationKind,
+    pub status: AssetOperationStatus,
+    pub source: String,
+    pub target: String,
+    pub reason: String,
+    pub sha256: Option<String>,
+    pub bytes: u64,
+    pub rewrites: u64,
+}
+
+/// The recovery representation of one write in an in-place asset
+/// transformation. Paths are workspace-relative because recovery executes
+/// filesystem operations; hashes bound both the required pre-state and the
+/// converged post-state without copying page bodies into `.cv/`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PendingAssetOperation {
+    pub kind: AssetOperationKind,
+    pub source: String,
+    pub target: String,
+    pub source_sha256: String,
+    pub source_bytes: u64,
+    pub target_sha256: String,
+    pub target_bytes: u64,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AdoptedPage {
@@ -57,6 +107,10 @@ pub struct AdoptionRecord {
     /// record before [`write_adoption`] normalizes it.
     #[serde(default)]
     pub events: Vec<AdoptionEvent>,
+    /// Per-operation evidence for an in-place asset-filename
+    /// transformation. Empty for foreign-tree copy adoptions.
+    #[serde(default)]
+    pub asset_operations: Vec<AssetOperationProvenance>,
 }
 
 impl AdoptionRecord {
@@ -79,6 +133,7 @@ impl AdoptionRecord {
             inputs: Vec::new(),
             pages: Vec::new(),
             events: Vec::new(),
+            asset_operations: Vec::new(),
         }
     }
 
@@ -241,7 +296,7 @@ pub fn scan_adoptions(root: &Path) -> Result<Vec<AdoptionRecord>, Error> {
 pub const PENDING: &str = "adoption-pending.json";
 pub const PENDING_FORMAT: &str = "cv-import-adoption-pending";
 /// Version of `<run-id>/adoption-pending.json`, independent of the run-record schema.
-pub const PENDING_SCHEMA_VERSION: u32 = 1;
+pub const PENDING_SCHEMA_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PendingFile {
@@ -270,6 +325,12 @@ pub struct PendingAdoption {
     /// case nothing may be deleted either, because there is no proof.
     #[serde(default)]
     pub starter: Vec<PendingFile>,
+    /// Operation rows for an in-place asset-filename transformation.
+    /// `Some` marks the journal as operation-based; `None` is the older
+    /// foreign-tree copy recovery unit. Version-1 journals must decode as
+    /// `None` even if a foreign hand added this field.
+    #[serde(default)]
+    pub asset_operations: Option<Vec<PendingAssetOperation>>,
 }
 
 impl PendingAdoption {
@@ -287,6 +348,7 @@ impl PendingAdoption {
             content_subfolder: None,
             files: Vec::new(),
             starter: Vec::new(),
+            asset_operations: None,
         }
     }
 
@@ -341,14 +403,19 @@ pub fn read_pending(root: &Path, run: &str) -> Result<Option<PendingAdoption>, S
             h.format
         ));
     }
-    if h.schema_version != u64::from(PENDING_SCHEMA_VERSION) {
+    if !(1..=u64::from(PENDING_SCHEMA_VERSION)).contains(&h.schema_version) {
         return Err(format!(
-            "{PENDING} schema_version {} is not supported (this build reads {PENDING_SCHEMA_VERSION})",
+            "{PENDING} schema_version {} is not supported (this build reads 1..={PENDING_SCHEMA_VERSION})",
             h.schema_version
         ));
     }
     let parsed: PendingAdoption =
         serde_json::from_slice(&bytes).map_err(|e| format!("{PENDING} is not valid: {e}"))?;
+    if h.schema_version == 1 && parsed.asset_operations.is_some() {
+        return Err(format!(
+            "{PENDING} schema_version 1 cannot carry asset transformation operations"
+        ));
+    }
     // The journal lives inside the run's own directory; if the embedded
     // run id names anything else, the file is foreign or tampered and
     // must never drive a recovery decision for this run.

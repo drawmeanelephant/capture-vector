@@ -349,6 +349,110 @@ fn move_staged_with(root: &Path, mv: &PageMove, after_write: impl FnOnce()) -> R
     }
 }
 
+/// Move unchanged binary bytes inside one workspace with the same
+/// fingerprinted no-overwrite contract as [`move_staged`]. Migration
+/// assets are not text, so they cannot use the page move API's `String`
+/// body. The destination must be absent; the source may be removed only
+/// while it still matches `base`.
+pub(crate) fn move_unchanged_staged(
+    root: &Path,
+    from: &str,
+    to: &str,
+    body: &[u8],
+    base: Fingerprint,
+) -> Result<MoveOutcome> {
+    if from == to {
+        return Err(EngineError::Refused(
+            "asset move source and destination are identical".into(),
+        ));
+    }
+    match fingerprint_confined(root, from)? {
+        Some(found) if found == base => {}
+        Some(found) => return Ok(MoveOutcome::SourceStale { found }),
+        None => {
+            return Err(EngineError::Refused(format!(
+                "{from}: source no longer exists"
+            )));
+        }
+    }
+    if let Some(found) = fingerprint_confined(root, to)? {
+        return Ok(MoveOutcome::TargetExists { found });
+    }
+    if Hash(Sha256::digest(body).into()) != base.sha256 {
+        return Err(EngineError::Refused(format!(
+            "{from}: byte hash does not match its fingerprint"
+        )));
+    }
+    let source = confine(from, confirm_confined_file(root, Path::new(from)))?;
+    let permissions = std::fs::metadata(&source)?.permissions();
+    let target = confine(to, create_confined_parent(root, Path::new(to)))?;
+    let renamed = retry_sharing(|| {
+        let source = confirm_confined_file(root, Path::new(from))?;
+        let target = confirm_confined_file(root, Path::new(to))?;
+        match fingerprint(&source)? {
+            Some(found) if found == base => {}
+            Some(_) => return Ok(RenameAttempt::SourceStale),
+            None => return Ok(RenameAttempt::SourceMissing),
+        }
+        if fingerprint(&target)?.is_some() {
+            return Ok(RenameAttempt::TargetAppeared);
+        }
+        cv_store::paths::replace_file(&source, &target)?;
+        Ok(RenameAttempt::Renamed)
+    });
+    match renamed {
+        Ok(RenameAttempt::Renamed) => {
+            let fp = retry_sharing(|| fingerprint(&target))?
+                .ok_or_else(|| EngineError::Refused(format!("{to}: vanished after move")))?;
+            return Ok(MoveOutcome::Moved { fingerprint: fp });
+        }
+        Ok(RenameAttempt::SourceStale) => {
+            if let Some(found) = fingerprint_confined(root, from)? {
+                return Ok(MoveOutcome::SourceStale { found });
+            }
+            return Err(EngineError::Refused(format!(
+                "{from}: source vanished while moving"
+            )));
+        }
+        Ok(RenameAttempt::SourceMissing) => {
+            return Err(EngineError::Refused(format!(
+                "{from}: source vanished before moving"
+            )));
+        }
+        Ok(RenameAttempt::TargetAppeared) => {
+            if let Some(found) = fingerprint_confined(root, to)? {
+                return Ok(MoveOutcome::TargetExists { found });
+            }
+            return Err(EngineError::Refused(format!(
+                "{to}: target appeared then vanished while moving"
+            )));
+        }
+        Err(e) if cross_device(&e) => {}
+        Err(e) => return Err(EngineError::Io(e)),
+    }
+
+    let written = match write_staged_with_permissions(root, to, body, None, Some(permissions))? {
+        WriteOutcome::Written { fingerprint } => fingerprint,
+        WriteOutcome::StaleBase { found } => return Ok(MoveOutcome::TargetExists { found }),
+    };
+    match remove_move_source(root, from, base) {
+        Ok(MoveSourceRemoval::Removed | MoveSourceRemoval::Missing) => Ok(MoveOutcome::Moved {
+            fingerprint: written,
+        }),
+        Ok(MoveSourceRemoval::StaleBase(found)) => {
+            rollback_target(root, to, written);
+            Ok(MoveOutcome::SourceStale { found })
+        }
+        Err(e) if not_found(&e) => Ok(MoveOutcome::Moved {
+            fingerprint: written,
+        }),
+        Err(e) => {
+            rollback_target(root, to, written);
+            Err(e)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

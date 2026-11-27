@@ -56,25 +56,32 @@ runs when the pinned `boris-migration-lab` is installed. Inventory-only
 runs are evidence, not adoptable content. A successfully finished emit run
 can be adopted when its mode exactly matches one of the six mirrored report
 contracts: `hugo`, `jekyll`, `substack`, `enex`, `obsidian`, or
-`wordpress`. Other successful emit modes remain evidence but are not
-adoptable because Capture Vector has not mirrored their report contracts.
-Adoption then has two forms:
+`wordpress`; a finished `asset-filename` utility run is also adoptable.
+Other successful emit modes remain evidence but are not adoptable because
+Capture Vector has not mirrored their report contracts. Adoption then has
+two forms:
 
 - **New workspace** — create a workspace from the candidate tree;
-- **Existing workspace** — copy the candidate tree into a new subfolder
-  you type in the adoption form, rooted at the workspace's configured
-  Boris input. `boris.json`'s `input` wins; otherwise `content` is the
-  fallback only when it exists. For such a `content` workspace the target
-  is `content/<subfolder>`; a custom input uses that input instead. A root
-  input (`.`) is refused rather than copying into the whole workspace.
+- **Existing workspace** — for importer modes, copy the candidate tree
+  into a new subfolder rooted at the workspace's configured Boris input.
+  `boris.json`'s `input` wins; otherwise `content` is the fallback only
+  when it exists. A root input (`.`) is refused rather than copying into
+  the whole workspace. For `asset-filename`, the choice is instead an
+  in-place transformation of the same workspace the utility inspected:
+  accepted asset renames are moved atomically where the filesystem allows,
+  Markdown references are rewritten from the pinned rewrite manifest, and
+  rejected or colliding assets are left untouched and recorded.
 
 Adoption keeps provenance under `.cv/imports/<run-id>/`; it never writes
 Capture Vector provenance into Boris frontmatter. Existing-workspace
-adoption preflights path and page-id collisions before writing and refuses
-the whole merge rather than overwriting. The copy is watch-safe: watch is
-paused for the merge batch and restored when that batch ends. Capture
-Vector then runs the pinned engine's validate/build gate under the normal
-engine-seat contract, which may pause and resume watch again.
+importer adoption preflights path and page-id collisions before writing
+and refuses the whole merge rather than overwriting. Asset-filename
+adoption invents no page ids and copies no pages, so it cannot duplicate
+an explicit Boris id; its fingerprinted journal makes interruption resume
+convergent, while changed source bytes or foreign destination bytes refuse
+the write instead of being overwritten. Both forms are watch-safe and end
+in the pinned engine's validate/build gate under the normal engine-seat
+contract.
 
 Current rough edges are visible in the UI rather than hidden: selecting a
 run may require **Reload import runs** before **Adopt run…** enables
