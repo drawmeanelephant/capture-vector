@@ -814,6 +814,7 @@ dependencies = [
 name = "cv-notes"
 version = "0.0.0"
 dependencies = [
+ "cv-contracts",
  "cv-core",
  "cv-engine",
  "cv-fixtures",

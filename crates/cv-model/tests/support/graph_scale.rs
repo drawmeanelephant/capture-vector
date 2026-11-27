@@ -57,6 +57,7 @@ pub fn synthetic_scale_graph() -> Graph {
                 status: None,
                 tags,
                 body_offset: 0,
+                recipe: None,
             }
         })
         .collect();

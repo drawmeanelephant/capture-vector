@@ -14,6 +14,7 @@ default = ["disk"]
 disk = ["dep:rusqlite", "dep:cv-store", "dep:tempfile"]
 
 [dependencies]
+cv-contracts.workspace = true
 cv-core.workspace = true
 serde.workspace = true
 serde_json.workspace = true
