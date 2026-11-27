@@ -33,11 +33,13 @@
 5. **Ship-the-outputs pass**: after a successful run, machine exports
    (sitemap, RSS, llms.txt, context/RAG) confirmed present+fresh in
    evidence — "always publishing back" enforced.
-6. **Delivery adapters**: v1 ships `copy-to-folder` only. Run-command
-   and HTTP POST remain extension points. IndexNow and webhook are
-   post-v1. Sitemap ping is post-v1 desired in principle and needs
-   evidence of a live useful consumer because Google's classic endpoint
-   is deprecated.
+6. **Delivery adapters**: issue #160's v1 acceptance wires
+   `copy-to-folder` only. Run-command and HTTP POST remain extension
+   points. Among adapters beyond Boris-native targets, IndexNow and
+   webhook are post-v1. Sitemap ping is post-v1 desired in principle and
+   needs evidence of a live useful consumer because Google's classic
+   endpoint is deprecated. Boris-native target publishing scope is not
+   decided here.
 7. **Secrets**: keychain (mock for CI), stdin channel only; canary test
    proves no secret in logs/events/docs.
 8. **Publish module**: nav = targets + runs; list = runs/steps;

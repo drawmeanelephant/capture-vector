@@ -444,7 +444,7 @@ captured = "2026-11-23"
     }
 
     #[test]
-    fn only_static_dist_has_a_delivery_until_185_decides() {
+    fn only_static_dist_has_wired_delivery() {
         for t in cv_publish::registry() {
             let c = delivery_config(t);
             assert_eq!(c.is_some(), t == Target::StaticDist, "{t:?}");

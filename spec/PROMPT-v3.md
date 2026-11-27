@@ -257,10 +257,12 @@ through Preflight.
 These decisions postdate the eight-review synthesis and are recorded in
 issues #185 and #186.
 
-- Delivery adapters: `copy-to-folder` is the only v1 delivery adapter.
-  IndexNow and webhook are post-v1 roadmap scope. Sitemap ping is post-v1
-  desired in principle, but it ships only after evidence that it has a
-  live useful consumer. Do not implement a dead Google ping.
+- Delivery adapters beyond Boris-native targets: `copy-to-folder` is the
+  only such adapter in issue #160's v1 acceptance scope. IndexNow and
+  webhook are post-v1 roadmap scope. Sitemap ping is post-v1 desired in
+  principle, but it ships only after evidence that it has a live useful
+  consumer. Do not implement a dead Google ping. This decision does not
+  settle Boris-native target publishing scope.
 - Solipsist: permanent clean break. Solipsist and Capture Vector are
   different products. No Solipsist import mode is in scope here or
   requested upstream.
