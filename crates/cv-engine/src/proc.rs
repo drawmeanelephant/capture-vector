@@ -122,6 +122,12 @@ impl Spawned {
                 return Err(EngineError::Io(e));
             }
         };
+        if let Err(e) = platform::resume(&child) {
+            group.kill();
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(EngineError::Io(e));
+        }
         Ok(Self {
             child,
             group,
@@ -336,8 +342,16 @@ pub(crate) fn shell_command(script: &str) -> Command {
     }
     #[cfg(windows)]
     {
+        use std::os::windows::process::CommandExt;
+
         let mut c = Command::new("cmd");
-        c.arg("/C").arg(script);
+        // `cmd /C` has compatibility quote-stripping rules, while normal
+        // `Command::arg` quoting is for argv-aware programs and is not the
+        // raw command text `cmd` expects. `/S` plus one verbatim outer pair
+        // makes the stripping deterministic and preserves quotes inside the
+        // script (notably the quoted helper executable path).
+        c.arg("/S").arg("/C");
+        c.raw_arg(format!("\"{script}\""));
         c
     }
 }
@@ -410,42 +424,108 @@ mod tests {
         assert!(pulled.load(Ordering::SeqCst) <= 1024 + 8192);
     }
 
-    #[cfg(unix)]
-    const ENDLESS: [(&str, &str); 2] = [("exec yes", "stdout"), ("exec yes 1>&2", "stderr")];
-    // cmd /C passes inner quotes through to powershell, which would echo the
-    // script as a string literal — no quoting around the -Command script.
-    #[cfg(windows)]
-    const ENDLESS: [(&str, &str); 2] = [
-        ("powershell -NoProfile -Command while($true){'x'}", "stdout"),
-        (
-            "powershell -NoProfile -Command while($true){[Console]::Error.WriteLine('x')}",
-            "stderr",
-        ),
-    ];
+    const ENDLESS_HELPER_ENV: &str = "CV_ENGINE_ENDLESS_OUTPUT";
+    const ENDLESS_STREAMS: [&str; 2] = ["stdout", "stderr"];
+    // Longer than the public test bound: if tree killing breaks, the helper's
+    // own exit still makes the regression finite and the elapsed-time
+    // assertion below fails instead of the suite hanging forever.
+    const ENDLESS_HELPER_SELF_STOP: Duration = Duration::from_secs(45);
+
+    fn write_endless<W: Write>(mut sink: W) {
+        let chunk = [b'x'; 8192];
+        let stop_at = Instant::now() + ENDLESS_HELPER_SELF_STOP;
+        loop {
+            if Instant::now() >= stop_at {
+                return;
+            }
+            if sink.write_all(&chunk).and_then(|()| sink.flush()).is_err() {
+                // A broken pipe must not exit immediately: the surviving
+                // process keeps the sibling pipe open, so only killing the
+                // process tree lets `run_captured` finish promptly.
+                std::thread::sleep(Duration::from_millis(5));
+            }
+        }
+    }
+
+    #[test]
+    #[ignore = "process-mode helper for the output-limit test"]
+    fn endless_output_process_mode_writes_until_killed() {
+        let Some(stream) = std::env::var_os(ENDLESS_HELPER_ENV) else {
+            return;
+        };
+        match stream.to_str() {
+            Some("stdout") => write_endless(io::stdout().lock()),
+            Some("stderr") => write_endless(io::stderr().lock()),
+            _ => {}
+        }
+    }
+
+    fn endless_command(stream: &str) -> Command {
+        // Re-execute this native test binary through the platform shell. The
+        // shell spawns the writer as a descendant, so the test still proves
+        // that output-overflow cleanup kills the process tree rather than only
+        // the leader. Unlike the old PowerShell writer, the measured cost is
+        // Capture Vector's process boundary, not CLR startup or interpreter
+        // teardown. An environment variable carries the executable path so
+        // spaces and percent signs in checkout paths don't become shell syntax.
+        #[cfg(unix)]
+        let script = concat!(
+            "\"$CV_PROC_HELPER_EXE\" ",
+            "proc::tests::endless_output_process_mode_writes_until_killed ",
+            "--exact --nocapture --ignored"
+        );
+        #[cfg(windows)]
+        let script = concat!(
+            "\"%CV_PROC_HELPER_EXE%\" ",
+            "proc::tests::endless_output_process_mode_writes_until_killed ",
+            "--exact --nocapture --ignored"
+        );
+        let mut cmd = shell_command(script);
+        cmd.env(
+            "CV_PROC_HELPER_EXE",
+            std::env::current_exe().expect("test executable path"),
+        )
+        .env(ENDLESS_HELPER_ENV, stream);
+        cmd
+    }
 
     #[test]
     fn endless_child_output_fails_at_the_limit_instead_of_hanging() {
-        for (script, expected_stream) in ENDLESS {
+        for expected_stream in ENDLESS_STREAMS {
             let start = Instant::now();
-            let result =
-                run_captured_with_limit(shell_command(script), None, &CancelToken::new(), 1024);
+            let result = run_captured_with_limit(
+                endless_command(expected_stream),
+                None,
+                &CancelToken::new(),
+                1024,
+            );
+            let got = match &result {
+                Err(e) => e.to_string(),
+                Ok(c) => format!(
+                    "Ok(stdout={} bytes, stderr={} bytes, stdout prefix={:?}, stderr prefix={:?})",
+                    c.stdout.len(),
+                    c.stderr.len(),
+                    &c.stdout[..c.stdout.len().min(120)],
+                    &c.stderr[..c.stderr.len().min(120)]
+                ),
+            };
             assert!(
                 matches!(
-                    result,
+                    result.as_ref(),
                     Err(EngineError::OutputLimitExceeded { stream, limit: 1024 })
-                        if stream == expected_stream
+                        if *stream == expected_stream
                 ),
-                "got {}",
-                result
-                    .map(|_| "Ok".to_string())
-                    .unwrap_or_else(|e| format!("{e}"))
+                "got {got}"
             );
             // The writer is killed rather than left blocked on a full pipe.
-            // The bound only exists to catch a deadlock, so it is generous:
-            // PowerShell cold-start CLR warmup costs seconds per spawn on
-            // Windows CI runners, and a loaded shared runner stretched the
-            // healthy kill path past the old 10 s bound (PR #151, windows-latest).
-            assert!(start.elapsed() < Duration::from_secs(30));
+            // The bound only exists to catch a process-tree cleanup failure;
+            // with a native helper it is deliberately far outside normal
+            // spawn/teardown variance rather than a benchmark of PowerShell.
+            let elapsed = start.elapsed();
+            assert!(
+                elapsed < Duration::from_secs(30),
+                "{expected_stream} cleanup took {elapsed:?}"
+            );
         }
     }
 
