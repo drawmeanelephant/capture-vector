@@ -62,6 +62,9 @@ pub enum LabState {
         found: String,
         want: String,
         path: String,
+        /// Where the refused binary was found (`CV_MIGRATION_LAB_BIN`,
+        /// bundled, PATH or sibling checkout), matching `Located::source`.
+        source: String,
     },
     Failed {
         error: String,
@@ -662,9 +665,15 @@ impl MigrateModule {
                     "An explicit override never falls through to another binary: fix or unset CV_MIGRATION_LAB_BIN, then reopen the workspace.",
                 ));
             }
-            LabState::Mismatch { found, want, path } => {
+            LabState::Mismatch {
+                found,
+                want,
+                path,
+                source,
+            } => {
                 lines.push(line("found", found.clone()));
                 lines.push(line("want", want.clone()));
+                lines.push(line("located via", source.clone()));
                 lines.push(mono("binary", path.clone()));
                 lines.push(note(FIX_LAB));
             }

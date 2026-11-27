@@ -57,9 +57,18 @@ fn home() -> Option<String> {
 }
 
 /// A fresh feed for a window with `root` open (or none), installed so
-/// the next registry's Doctor reads it.
-pub fn install(root: Option<&Path>) -> Feed {
-    let feed = Feed::default();
+/// the next registry's Doctor reads it. With the namespace open outcomes
+/// available, the feed carries a read-only probe that disclosure moments
+/// use to refresh sidecar health from disk.
+pub fn install(root: Option<&Path>, opened: Option<&StoreOpen>) -> Feed {
+    let feed = match (root, opened) {
+        (Some(root), Some(opened)) => {
+            let root = root.to_path_buf();
+            let opened = opened.clone();
+            Feed::with_store_probe(move || store(&root, &opened))
+        }
+        _ => Feed::default(),
+    };
     feed.update(|f| {
         f.pin = pin();
         f.lab.pin = lab_pin();
@@ -73,6 +82,13 @@ pub fn install(root: Option<&Path>) -> Feed {
     });
     doctor::install(feed.clone());
     feed
+}
+
+/// Refresh the installed workspace feed after a composition-root mutation
+/// of `.cv` evidence. Feeds without a workspace probe (fixture scenes and
+/// tests) treat this as a no-op.
+pub fn refresh_installed_store() {
+    doctor::installed().refresh_store();
 }
 
 pub fn candidates(l: &Locator) -> Vec<(EngineSource, String)> {

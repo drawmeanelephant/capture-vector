@@ -677,9 +677,15 @@ impl Workbench {
     }
 
     pub fn activate(&mut self, index: usize) {
-        if index < self.registry.len() && index != self.active {
+        if index >= self.registry.len() {
+            return;
+        }
+        if index != self.active {
             self.clear_selection();
             self.active = index;
+        }
+        if let Some(m) = self.registry.get_mut(index) {
+            m.activated();
         }
     }
 

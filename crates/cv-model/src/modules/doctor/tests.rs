@@ -442,6 +442,7 @@ fn a_lab_pin_mismatch_names_found_and_want_without_marking_the_engine_bad() {
                 found: "boris-migration-lab/0.8.0".into(),
                 want: "boris-migration-lab/0.8.1".into(),
                 path: "/usr/local/bin/boris-migration-lab".into(),
+                source: "PATH".into(),
             },
             pin: lab_pin(),
             candidates: vec![(
@@ -672,6 +673,64 @@ fn the_support_bundle_leaves_out_paths_env_values_and_secret_fields() {
 }
 
 #[test]
+fn the_support_bundle_redacts_debug_escaped_engine_and_lab_paths() {
+    let engine_path = r"C:\Users\redacted-user\tools\boris.exe";
+    let lab_path = r"C:\Users\redacted-user\tools\boris-migration-lab.exe";
+    let engine_debug = format!("{:?}", std::path::Path::new(engine_path));
+    let lab_debug = format!("{:?}", std::path::Path::new(lab_path));
+    let f = Facts {
+        engine: EngineState::Failed {
+            error: format!("spawn {engine_debug}: No such file or directory (os error 2)"),
+        },
+        candidates: vec![(EngineSource::EnvOverride, engine_path.into())],
+        lab: Lab {
+            state: LabState::Failed {
+                error: format!("spawn {lab_debug}: No such file or directory (os error 2)"),
+            },
+            pin: lab_pin(),
+            candidates: vec![(EngineSource::EnvOverride, lab_path.into())],
+        },
+        ..Facts::default()
+    };
+
+    let text = bundle::render(&f, &WatchLog::default());
+    assert!(!text.contains("redacted-user"), "{text}");
+    assert!(!text.contains(engine_debug.as_str()), "{text}");
+    assert!(!text.contains(lab_debug.as_str()), "{text}");
+    assert!(text.contains("<engine:boris.exe>"), "{text}");
+    assert!(text.contains("<lab:boris-migration-lab.exe>"), "{text}");
+}
+
+#[test]
+fn a_lab_pin_mismatch_preserves_its_locator_source_in_doctor_and_the_bundle() {
+    let facts = Facts {
+        lab: Lab {
+            state: LabState::Mismatch {
+                found: "boris-migration-lab/0.8.0".into(),
+                want: "boris-migration-lab/0.8.1".into(),
+                path: "/usr/local/bin/boris-migration-lab".into(),
+                source: "PATH".into(),
+            },
+            pin: lab_pin(),
+            candidates: vec![(
+                EngineSource::Path,
+                "/usr/local/bin/boris-migration-lab".into(),
+            )],
+        },
+        ..Facts::default()
+    };
+    let m = module(facts.clone());
+
+    let source = rows(&m, "lab")
+        .into_iter()
+        .find(|r| r.key == "lab.source")
+        .expect("mismatch discloses where the refused binary was found");
+    assert_eq!(source.detail, "PATH");
+    let bundle = bundle::build(&facts, &WatchLog::default());
+    assert_eq!(bundle["lab"]["source"], "PATH");
+}
+
+#[test]
 fn rebuild_index_is_a_workspace_command_and_requests_reopen_for_maintenance() {
     let mut facts = Facts::default();
     facts.store.root = Some("/workspace".into());
@@ -696,6 +755,56 @@ fn rebuild_index_is_a_workspace_command_and_requests_reopen_for_maintenance() {
     );
     assert!(wb.take_index_rebuild_request());
     assert!(!wb.take_index_rebuild_request());
+}
+
+#[test]
+fn opening_doctor_and_copying_the_bundle_refresh_store_facts() {
+    let initial = Store {
+        root: Some("/workspace".into()),
+        imports: Some(ImportsHealth {
+            runs: Some(0),
+            ..ImportsHealth::default()
+        }),
+        ..Store::default()
+    };
+    let refreshed = Store {
+        root: Some("/workspace".into()),
+        imports: Some(ImportsHealth {
+            runs: Some(1),
+            ..ImportsHealth::default()
+        }),
+        ..Store::default()
+    };
+    let calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let probe_calls = calls.clone();
+    let feed = Feed::with_store_probe(move || {
+        probe_calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        refreshed.clone()
+    });
+    feed.update(|f| f.store = initial);
+    install(feed);
+
+    let mut wb = Workbench::new(Registry::with_all());
+    wb.run_command("shell.doctor");
+    let m = wb.registry.get(wb.active).unwrap();
+    let rows: Vec<_> = (0..m.list_len(Some("store")))
+        .map(|i| m.row(Some("store"), i))
+        .collect();
+    assert_eq!(
+        rows.iter()
+            .find(|r| r.key == "store.imports.runs")
+            .map(|r| r.detail.as_str()),
+        Some("1 run")
+    );
+    assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+
+    wb.run_command(COPY_BUNDLE);
+    assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 2);
+    let [ShellRequest::Copy(text)] = wb.requests.as_slice() else {
+        panic!("{:?}", wb.requests);
+    };
+    let bundle: serde_json::Value = serde_json::from_str(text).unwrap();
+    assert_eq!(bundle["store"]["imports"]["runs"], 1);
 }
 
 #[test]

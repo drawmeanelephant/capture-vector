@@ -16,6 +16,7 @@ use super::{
 use crate::modules::migrate::LabState;
 use cv_core::redact::drop_secret_keys;
 use serde_json::{Value, json};
+use std::path::Path;
 
 pub const FORMAT: &str = "cv-doctor-bundle";
 pub const SCHEMA_VERSION: &str = "1";
@@ -95,10 +96,16 @@ fn lab(f: &Facts) -> Value {
             "state": "override-missing",
             "source": "CV_MIGRATION_LAB_BIN",
         }),
-        LabState::Mismatch { found, want, .. } => json!({
+        LabState::Mismatch {
+            found,
+            want,
+            source,
+            ..
+        } => json!({
             "state": "version-mismatch",
             "found": found,
             "want": want,
+            "source": source,
         }),
         LabState::Failed { error } => json!({ "state": "failed", "error": error }),
     };
@@ -202,6 +209,31 @@ fn store(f: &Facts) -> Value {
     })
 }
 
+/// Add the spellings `Debug` produces for a path. `cv-engine` errors can
+/// carry `{:?}` text: backslashes, quotes and control characters are escaped
+/// there, so replacing only the display spelling would leave the same path
+/// visible in a support bundle. The unquoted spelling matters when the path
+/// is a prefix inside a longer debug-formatted path.
+fn with_debug_spellings(redact: Vec<(String, String)>) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    for (from, to) in redact {
+        let quoted = format!("{:?}", Path::new(&from));
+        let unquoted = quoted
+            .strip_prefix('"')
+            .and_then(|q| q.strip_suffix('"'))
+            .unwrap_or(quoted.as_str())
+            .to_string();
+        out.push((from.clone(), to.clone()));
+        if quoted != from {
+            out.push((quoted, to.clone()));
+        }
+        if unquoted != from {
+            out.push((unquoted, to));
+        }
+    }
+    out
+}
+
 fn scrub(v: &mut Value, redact: &[(String, String)]) {
     match v {
         Value::String(s) => {
@@ -255,6 +287,7 @@ pub fn build(f: &Facts, w: &WatchLog) -> Value {
             .chain(f.lab.candidates.iter().map(|(_, p)| p.as_str()))
             .map(|p| (p.to_string(), format!("<lab:{}>", file_name(p)))),
     );
+    let mut redact = with_debug_spellings(redact);
     redact.sort_by_key(|(from, _)| std::cmp::Reverse(from.len()));
     scrub(&mut v, &redact);
     v

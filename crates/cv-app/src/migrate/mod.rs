@@ -172,13 +172,14 @@ fn lab_error(e: LabError) -> LabState {
         },
         LabError::VersionMismatch {
             path,
+            source_kind,
             found,
             expected,
-            ..
         } => LabState::Mismatch {
             found,
             want: expected.into(),
             path: path.display().to_string(),
+            source: lab_source_label(&source_kind).into(),
         },
         other => LabState::Failed {
             error: other.to_string(),
@@ -320,6 +321,7 @@ impl MigratePort for DiskPort {
             )
         })?;
         self.states.insert((run.into(), item.into()), to);
+        crate::doctor::refresh_installed_store();
         Ok(())
     }
 }

@@ -937,12 +937,51 @@
     },
     {
       "fill": "#0e1014ff",
+      "key": "row-lab.source",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-lab.source",
+      "rect": [
+        268.0,
+        44.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-lab.source/#0",
+      "rect": [
+        276.0,
+        47.5,
+        267.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "Located via"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-lab.source/#1",
+      "rect": [
+        551.6,
+        48.1,
+        28.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "PATH"
+    },
+    {
+      "fill": "#0e1014ff",
       "key": "row-lab.version",
       "opacity": 1.0,
       "path": "shell/body/list-pane/list-viewport/list/row-lab.version",
       "rect": [
         268.0,
-        44.0,
+        66.0,
         320.0,
         22.0
       ],
@@ -956,7 +995,7 @@
       "radius": 1.5,
       "rect": [
         276.0,
-        48.4,
+        70.4,
         3.0,
         13.2
       ],
@@ -968,7 +1007,7 @@
       "path": "shell/body/list-pane/list-viewport/list/row-lab.version/#1",
       "rect": [
         287.0,
-        47.5,
+        69.5,
         205.0,
         15.0
       ],
@@ -982,7 +1021,7 @@
       "path": "shell/body/list-pane/list-viewport/list/row-lab.version/#2",
       "rect": [
         500.0,
-        48.1,
+        70.1,
         80.0,
         13.8
       ],
@@ -996,7 +1035,7 @@
       "path": "shell/body/list-pane/list-viewport/list/row-lab.pin",
       "rect": [
         268.0,
-        66.0,
+        88.0,
         320.0,
         22.0
       ],
@@ -1010,7 +1049,7 @@
       "radius": 1.5,
       "rect": [
         276.0,
-        70.4,
+        92.4,
         3.0,
         13.2
       ],
@@ -1022,7 +1061,7 @@
       "path": "shell/body/list-pane/list-viewport/list/row-lab.pin/#1",
       "rect": [
         287.0,
-        69.5,
+        91.5,
         151.2,
         15.0
       ],
@@ -1036,7 +1075,7 @@
       "path": "shell/body/list-pane/list-viewport/list/row-lab.pin/#2",
       "rect": [
         446.2,
-        70.1,
+        92.1,
         80.0,
         13.8
       ],
@@ -1051,7 +1090,7 @@
       "radius": 999.0,
       "rect": [
         534.2,
-        70.1,
+        92.1,
         45.8,
         13.8
       ],
@@ -1065,7 +1104,7 @@
       "path": "shell/body/list-pane/list-viewport/list/row-lab.search",
       "rect": [
         268.0,
-        88.0,
+        110.0,
         320.0,
         22.0
       ],
@@ -1077,7 +1116,7 @@
       "path": "shell/body/list-pane/list-viewport/list/row-lab.search/#0",
       "rect": [
         276.0,
-        91.5,
+        113.5,
         228.5,
         15.0
       ],
@@ -1090,7 +1129,7 @@
       "path": "shell/body/list-pane/list-viewport/list/row-lab.search/#1",
       "rect": [
         512.5,
-        92.1,
+        114.1,
         67.5,
         13.8
       ],
@@ -1210,7 +1249,7 @@
         588.0,
         63.8,
         452.0,
-        155.0
+        174.8
       ],
       "role": "group"
     },
@@ -1351,7 +1390,7 @@
         13.8
       ],
       "role": "text",
-      "text": "binary"
+      "text": "located via"
     },
     {
       "color": "#e6e9efff",
@@ -1364,7 +1403,7 @@
         13.8
       ],
       "role": "text",
-      "text": "/usr/local/bin/boris-migration-lab"
+      "text": "PATH"
     },
     {
       "key": "line-4",
@@ -1374,7 +1413,7 @@
         604.0,
         157.8,
         420.0,
-        45.0
+        13.8
       ],
       "role": "group"
     },
@@ -1385,6 +1424,44 @@
       "rect": [
         604.0,
         157.8,
+        96.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "binary"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-4/#1",
+      "rect": [
+        708.0,
+        157.8,
+        316.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "/usr/local/bin/boris-migration-lab"
+    },
+    {
+      "key": "line-5",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-5",
+      "rect": [
+        604.0,
+        177.5,
+        420.0,
+        45.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-5/#0",
+      "rect": [
+        604.0,
+        177.5,
         420.0,
         45.0
       ],
