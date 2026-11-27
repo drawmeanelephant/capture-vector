@@ -15,7 +15,7 @@ Ledger format: one row per item, reviewed when the linked issue closes.
 | Item | Area | Why it is deferred | Tracking |
 |---|---|---|---|
 | Windows native UI unproven | UI | CI runs the headless tests on `windows-latest` but never drives a window. The WARP boot-companion crash (#31) has a workaround (`1146170`), but no Windows real-window pass is recorded in `spike/FINDINGS.md` | issue #26, issue #90 |
-| Linux native UI proven on one box only | UI | Multi-window and ibus/anthy IME passed on one real X11 desktop (#40, #41). CI has no Linux desktop runner, and CJK text renders as tofu | issue #26, issue #87 |
+| Linux native UI proven on one box only | UI | Multi-window and ibus/anthy IME passed on one real X11 desktop (#40, #41). CI has no Linux desktop runner | issue #26 |
 | IME and rich-text parity | UI | Windows IME is unproven. macOS has US dead keys only, with Japanese conversion and candidate placement unproven. No typed `TextEdit::rich` probe exists | issue #26 |
 | PNG goldens canonical only on Lavapipe | Testing | Other rasterizers differ by font hinting and rounding; `rune-ref` is not a drop-in | `fixtures/ui/golden/README.md` |
 | No on-disk `Store` port | Storage | `cv-store` owns the `.cv/` sidecar, audit journal, locks and confined paths, but nothing implements `cv_core::store::Store` on disk. `cv-app` wires the in-memory `StubStore` from `cv-fixtures` | `crates/cv-app/src/lib.rs` |
