@@ -86,8 +86,7 @@ impl MigrateModule {
                     ADOPT_EXISTING,
                     format!("Merge {}", run.id),
                     DialogKind::Form(vec![
-                        Field::text("subfolder", "Content subfolder", "")
-                            .placeholder("imported/site")
+                        Field::text("subfolder", "Content subfolder", "imported/site")
                             .hint("The candidate tree is copied into <subfolder> inside the workspace content input; existing paths or page ids refuse the whole merge before anything is written."),
                     ]),
                 )
@@ -127,8 +126,7 @@ impl MigrateModule {
                     ADOPT_EXISTING,
                     format!("Merge {}", run_id),
                     DialogKind::Form(vec![
-                        Field::text("subfolder", "Content subfolder", subfolder)
-                            .placeholder("imported/site"),
+                        Field::text("subfolder", "Content subfolder", subfolder),
                     ]),
                 )
                 .error("Choose a portable relative subfolder without '..' or path separators in a name.")
