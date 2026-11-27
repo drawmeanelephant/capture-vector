@@ -251,6 +251,24 @@ fn validate_profile_output_at_base(
     validate_output_location(cfg, &output_path, &lexical, raw, what)
 }
 
+fn validate_output_against_profile_input_ref(
+    output_path: &Path,
+    input_path: &Path,
+    raw: &str,
+    what: &str,
+    kind: &str,
+) -> Result<()> {
+    let output_parts = partition_parts(output_path, what)?;
+    let input_parts = partition_parts(input_path, what)?;
+    if overlaps(&output_parts, &input_parts) {
+        return Err(EngineError::Refused(format!(
+            "{what} {raw:?} overlaps publication profile {kind} {}",
+            input_path.display()
+        )));
+    }
+    Ok(())
+}
+
 fn flag_value_at<'a>(args: &'a [String], i: usize, flag: &str) -> Option<&'a str> {
     let arg = &args[i];
     if arg == flag {
@@ -419,10 +437,71 @@ fn required_string_field<'a>(
     }
 }
 
+struct ProfileInputRef {
+    path: String,
+    kind: &'static str,
+}
+
+fn optional_string_field(
+    profile: &Path,
+    object: &serde_json::Value,
+    key: &str,
+    locus: &str,
+) -> Result<Option<String>> {
+    match object.get(key) {
+        None => Ok(None),
+        Some(serde_json::Value::String(s)) => Ok(Some(s.clone())),
+        _ => Err(profile_shape_error(
+            profile,
+            &format!("non-string {locus}.{key}"),
+        )),
+    }
+}
+
+fn layout_parent_path(layout: &str) -> Option<&str> {
+    let (parent, _) = layout.rsplit_once('/')?;
+    if parent.is_empty() || parent == "." {
+        None
+    } else {
+        Some(parent)
+    }
+}
+
+fn push_layout_input_refs(input_refs: &mut Vec<ProfileInputRef>, layout: &str, kind: &'static str) {
+    input_refs.push(ProfileInputRef {
+        path: layout.to_string(),
+        kind,
+    });
+    // Boris target validation treats both the declared layout file and its
+    // parent directory as protected input roots. The parent tree can carry
+    // sibling includes/assets even though the layout declaration itself names
+    // one file.
+    if let Some(parent) = layout_parent_path(layout) {
+        input_refs.push(ProfileInputRef {
+            path: parent.to_string(),
+            kind: "layout parent tree",
+        });
+    }
+}
+
+fn theme_root_from_layout(layout: &str) -> Option<String> {
+    let marker = "/layouts/";
+    let index = layout.find(marker)?;
+    let file = &layout[index + marker.len()..];
+    if index == 0 || file.is_empty() || file.contains('/') {
+        return None;
+    }
+    Some(layout[..index].to_string())
+}
+
 fn declared_profile_outputs(
     profile: &Path,
     bytes: &[u8],
-) -> Result<(Option<String>, Vec<ProfileDeclaredOutput>)> {
+) -> Result<(
+    Option<String>,
+    Vec<ProfileDeclaredOutput>,
+    Vec<ProfileInputRef>,
+)> {
     let value: serde_json::Value = serde_json::from_slice(bytes).map_err(|e| {
         EngineError::Refused(format!(
             "publication profile {} cannot be parsed for output inspection: {e}",
@@ -440,6 +519,7 @@ fn declared_profile_outputs(
         }
     };
     let mut outputs = Vec::new();
+    let mut input_refs = Vec::new();
     if let Some(targets) = value.get("targets") {
         let targets = targets
             .as_array()
@@ -462,8 +542,54 @@ fn declared_profile_outputs(
                     });
                 }
             }
-            // `static.dir` is an input tree copied into the already validated
-            // target root; it is not itself an output root.
+            let theme = optional_string_field(profile, target, "theme", &locus)?;
+            let explicit_layout = optional_string_field(profile, target, "layout", &locus)?;
+            let fallback_layout = if let Some(theme) = &theme {
+                input_refs.push(ProfileInputRef {
+                    path: theme.clone(),
+                    kind: "theme tree",
+                });
+                format!("{theme}/layouts/main.html")
+            } else {
+                explicit_layout
+                    .clone()
+                    .unwrap_or_else(|| "themes/boris/layouts/main.html".to_string())
+            };
+            push_layout_input_refs(&mut input_refs, &fallback_layout, "layout file");
+            if theme.is_none()
+                && let Some(root) = theme_root_from_layout(&fallback_layout)
+            {
+                input_refs.push(ProfileInputRef {
+                    path: root,
+                    kind: "derived theme tree",
+                });
+            }
+            if let Some(rules) = target.get("layout_rules") {
+                let rules = rules.as_array().ok_or_else(|| {
+                    profile_shape_error(profile, &format!("non-array {locus}.layout_rules"))
+                })?;
+                for (rule_index, rule) in rules.iter().enumerate() {
+                    let rule_locus = format!("{locus}.layout_rules[{rule_index}]");
+                    let layout = required_string_field(profile, rule, "layout", &rule_locus)?;
+                    push_layout_input_refs(&mut input_refs, layout, "layout-rule file");
+                    if theme.is_none()
+                        && let Some(root) = theme_root_from_layout(layout)
+                    {
+                        input_refs.push(ProfileInputRef {
+                            path: root,
+                            kind: "derived theme tree",
+                        });
+                    }
+                }
+            }
+            if let Some(static_value) = target.get("static") {
+                let static_locus = format!("{locus}.static");
+                let dir = required_string_field(profile, static_value, "dir", &static_locus)?;
+                input_refs.push(ProfileInputRef {
+                    path: dir.to_string(),
+                    kind: "static input tree",
+                });
+            }
         }
     }
     if let Some(editions) = value.get("editions") {
@@ -478,7 +604,7 @@ fn declared_profile_outputs(
             }
         }
     }
-    Ok((input, outputs))
+    Ok((input, outputs, input_refs))
 }
 
 /// Inspect the declared output strings of an explicitly selected Boris
@@ -515,19 +641,37 @@ fn validate_profile_declared_outputs(
         ))
     })?;
     let base = profile_path.parent().unwrap_or(&cfg.root);
-    let (declared_input, outputs) = declared_profile_outputs(&profile_path, &bytes)?;
+    let (declared_input, outputs, declared_input_refs) =
+        declared_profile_outputs(&profile_path, &bytes)?;
     // Pinned Boris precedence: an invocation `--input` overrides the
     // profile; otherwise the profile's `input` is the authority, and an
-    // omitted input defaults to `content`. Both profile spellings resolve
-    // against the profile file's directory. `cfg.content_input` is not
-    // implicitly passed to a custom profile invocation, so it is not the
-    // tree Boris will read here.
-    let mut effective = output_cfg(cfg, flag_value(args, "--input"))?;
-    if flag_value(args, "--input").is_none() {
+    // omitted input defaults to `content`. Every relative input spelling in
+    // profile mode resolves against the selected profile file's directory.
+    // `cfg.content_input` is not implicitly passed to a custom profile
+    // invocation, so it is not the tree Boris will read here.
+    let invocation_input = flag_value(args, "--input");
+    let mut effective = output_cfg(cfg, invocation_input)?;
+    if let Some(input) = invocation_input {
+        if !Path::new(input).is_absolute() {
+            let input_parts = relative_parts(input, "invocation input")?;
+            effective.content_input = path_from_parts(base, &input_parts);
+        }
+    } else {
         let input = declared_input.as_deref().unwrap_or("content");
         let input_parts = relative_parts(input, "profile input")?;
         effective.content_input = path_from_parts(base, &input_parts);
     }
+    let mut input_refs = Vec::new();
+    for input_ref in &declared_input_refs {
+        let parts = relative_parts(&input_ref.path, input_ref.kind)?;
+        input_refs.push((
+            path_from_parts(base, &parts),
+            input_ref.kind,
+            input_ref.path.clone(),
+        ));
+    }
+    let mut output_roots: Vec<(String, PathBuf)> = Vec::new();
+    let mut artifact_outputs: Vec<(String, PathBuf)> = Vec::new();
     for output in outputs {
         match output {
             ProfileDeclaredOutput::ProfileRelative(output) => {
@@ -537,6 +681,17 @@ fn validate_profile_declared_outputs(
                     &output,
                     "profile target output",
                 )?;
+                let raw_parts = relative_parts(&output, "profile target output")?;
+                output_roots.push((output.clone(), path_from_parts(base, &raw_parts)));
+                for (input_path, kind, _) in &input_refs {
+                    validate_output_against_profile_input_ref(
+                        &path_from_parts(base, &raw_parts),
+                        input_path,
+                        &output,
+                        "profile target output",
+                        kind,
+                    )?;
+                }
             }
             ProfileDeclaredOutput::TargetNested {
                 target_output,
@@ -549,6 +704,50 @@ fn validate_profile_declared_outputs(
                     &output,
                     "profile artifact output",
                 )?;
+                let raw_parts = relative_parts(&output, "profile artifact output")?;
+                let artifact_path = path_from_parts(base, &raw_parts);
+                for (input_path, kind, _) in &input_refs {
+                    validate_output_against_profile_input_ref(
+                        &artifact_path,
+                        input_path,
+                        &output,
+                        "profile artifact output",
+                        kind,
+                    )?;
+                }
+                artifact_outputs.push((output, artifact_path));
+            }
+        }
+    }
+    let mut canonical_roots = Vec::new();
+    for (raw, path) in &output_roots {
+        canonical_roots.push((raw.clone(), partition_parts(path, "profile output root")?));
+    }
+    for (index, (left_raw, left)) in canonical_roots.iter().enumerate() {
+        for (right_raw, right) in &canonical_roots[index + 1..] {
+            if overlaps(left, right) {
+                return Err(EngineError::Refused(format!(
+                    "profile output roots {left_raw:?} and {right_raw:?} physically overlap"
+                )));
+            }
+        }
+    }
+    // Artifact files are legitimate descendants of their owning target root,
+    // but two artifact outputs must not physically alias one another even when
+    // Boris's lexical collision check sees distinct spellings.
+    let mut canonical_artifacts = Vec::new();
+    for (raw, path) in &artifact_outputs {
+        canonical_artifacts.push((
+            raw.clone(),
+            partition_parts(path, "profile artifact output")?,
+        ));
+    }
+    for (index, (left_raw, left)) in canonical_artifacts.iter().enumerate() {
+        for (right_raw, right) in &canonical_artifacts[index + 1..] {
+            if overlaps(left, right) {
+                return Err(EngineError::Refused(format!(
+                    "profile artifact outputs {left_raw:?} and {right_raw:?} physically overlap"
+                )));
             }
         }
     }

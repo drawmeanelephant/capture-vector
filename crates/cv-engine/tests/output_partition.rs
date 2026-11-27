@@ -973,3 +973,219 @@ fn real_boris_profile_input_symlink_alias_refuses_before_source_bytes_move() {
     );
     assert!(!root.join("source/index.html").exists());
 }
+
+fn write_custom_profile(root: &Path, target_json: &str) {
+    std::fs::write(
+        root.join("boris.json"),
+        format!(
+            r#"{{
+  "format": "boris-publication-profile",
+  "schema_version": 1,
+  "input": "content",
+  "site": {{ "title": "Profile Probe" }},
+  "targets": [ {target_json} ]
+}}"#
+        ),
+    )
+    .unwrap();
+}
+
+#[test]
+fn profile_mode_relative_cli_input_resolves_beside_the_profile() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("profiles")).unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    write_input_profile(&root.join("profiles"), Some("missing"), "STRASSE");
+    std::fs::rename(
+        root.join("profiles/boris.json"),
+        root.join("profiles/p.json"),
+    )
+    .unwrap();
+    let engine = partition_engine(&root, "content");
+    for spelling in [
+        vec!["--input", "straße", "--profile", "profiles/p.json"],
+        vec!["--profile", "profiles/p.json", "--input", "straße"],
+        vec!["--profile", "profiles/p.json", "--input=straße"],
+    ] {
+        let verb = custom("build", &spelling);
+        let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+        assert!(
+            err.contains("workspace content input"),
+            "{spelling:?} must resolve cli input beside the profile: {err}"
+        );
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn profile_mode_relative_cli_input_symlink_resolves_beside_the_profile() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("profiles/source")).unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    std::os::unix::fs::symlink("source", root.join("profiles/inlink")).unwrap();
+    write_input_profile(&root.join("profiles"), Some("missing"), "source");
+    std::fs::rename(
+        root.join("profiles/boris.json"),
+        root.join("profiles/p.json"),
+    )
+    .unwrap();
+    let engine = partition_engine(&root, "content");
+    let verb = custom(
+        "build",
+        &["--profile", "profiles/p.json", "--input", "inlink"],
+    );
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(
+        err.contains("workspace content input"),
+        "profile-local symlink input authority must refuse pre-spawn: {err}"
+    );
+}
+
+#[test]
+fn profile_theme_static_and_layout_inputs_are_protected() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    let engine = partition_engine(&root, "content");
+    let verb = custom("build", &["--profile", "boris.json"]);
+
+    write_input_profile(&root, Some("content"), "themes/boris");
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(err.contains("theme tree"), "theme tree must refuse: {err}");
+
+    write_custom_profile(
+        &root,
+        r#"{ "name": "public", "output": "assets-src", "public": true,
+            "theme": "themes/boris", "static": { "dir": "assets-src" } }"#,
+    );
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(
+        err.contains("static input tree"),
+        "static tree must refuse: {err}"
+    );
+
+    write_custom_profile(
+        &root,
+        r#"{ "name": "public", "output": "layouts", "public": true,
+            "layout": "layouts/main.html" }"#,
+    );
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(
+        err.contains("layout file"),
+        "layout file authority must refuse an overlapping output root: {err}"
+    );
+
+    write_custom_profile(
+        &root,
+        r#"{ "name": "public", "output": "layouts/generated", "public": true,
+            "layout": "layouts/main.html" }"#,
+    );
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(
+        err.contains("layout parent tree"),
+        "Boris-protected layout parent tree must refuse nested output: {err}"
+    );
+}
+
+#[test]
+fn physically_aliased_or_nested_profile_output_roots_refuse() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    let engine = partition_engine(&root, "content");
+    let verb = custom("build", &["--profile", "boris.json"]);
+    std::fs::write(
+        root.join("boris.json"),
+        r#"{
+  "format": "boris-publication-profile", "schema_version": 1, "input": "content",
+  "targets": [
+    { "name": "a", "output": "STRASSE", "theme": "themes/boris" },
+    { "name": "b", "output": "straße", "theme": "themes/boris" }
+  ]
+}"#,
+    )
+    .unwrap();
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(err.contains("physically overlap"), "unicode aliases: {err}");
+
+    std::fs::write(
+        root.join("boris.json"),
+        r#"{
+  "format": "boris-publication-profile", "schema_version": 1, "input": "content",
+  "targets": [
+    { "name": "a", "output": "out", "theme": "themes/boris" },
+    { "name": "b", "output": "out/sub", "theme": "themes/boris" }
+  ]
+}"#,
+    )
+    .unwrap();
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(err.contains("physically overlap"), "nested roots: {err}");
+
+    std::fs::write(
+        root.join("boris.json"),
+        r#"{
+  "format": "boris-publication-profile", "schema_version": 1, "input": "content",
+  "targets": [
+    { "name": "a", "output": "out", "theme": "themes/boris",
+      "sitemap": { "path": "STRASSE.xml" }, "rss": { "path": "straße.xml" } }
+  ]
+}"#,
+    )
+    .unwrap();
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(
+        err.contains("artifact outputs") && err.contains("physically overlap"),
+        "unicode artifact aliases: {err}"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+#[ignore = "needs a real pinned boris via CV_BORIS_BIN"]
+fn real_boris_theme_and_static_symlink_aliases_refuse_before_source_bytes_move() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/corpus-src/happy")
+        .canonicalize()
+        .unwrap();
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("ws");
+    std::fs::create_dir_all(&root).unwrap();
+    copy_tree(&fixture.join("content"), &root.join("content"));
+    copy_tree(&fixture.join("themes/boris"), &root.join("theme-real"));
+    std::fs::create_dir_all(root.join("static-real")).unwrap();
+    let root = root.canonicalize().unwrap();
+    let theme_sentinel = root.join("theme-real/layouts/main.html");
+    let static_sentinel = root.join("static-real/sentinel.txt");
+    let theme_bytes = std::fs::read(&theme_sentinel).unwrap();
+    std::fs::write(&static_sentinel, "STATIC-SENTINEL\n").unwrap();
+    std::os::unix::fs::symlink("theme-real", root.join("theme-link")).unwrap();
+    std::os::unix::fs::symlink("static-real", root.join("static-link")).unwrap();
+    std::fs::write(
+        root.join("boris.json"),
+        r#"{
+  "format": "boris-publication-profile", "schema_version": 1, "input": "content",
+  "targets": [
+    { "name": "a", "output": "theme-real", "theme": "theme-link" },
+    { "name": "b", "output": "static-real", "theme": "theme-link", "static": { "dir": "static-link" } }
+  ]
+}"#,
+    )
+    .unwrap();
+    let engine = ProcessEngine::start(EngineConfig::new(&root)).unwrap();
+    let verb = custom("build", &["--profile", "boris.json"]);
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(
+        err.contains("theme tree") || err.contains("static input tree"),
+        "{err}"
+    );
+    assert_eq!(std::fs::read(&theme_sentinel).unwrap(), theme_bytes);
+    assert_eq!(
+        std::fs::read_to_string(&static_sentinel).unwrap(),
+        "STATIC-SENTINEL\n"
+    );
+}
