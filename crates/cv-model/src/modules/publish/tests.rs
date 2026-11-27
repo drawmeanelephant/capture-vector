@@ -468,7 +468,7 @@ fn only_a_target_with_a_configured_delivery_can_be_preflighted() {
         let why = command(&m, &format!("publish.preflight.{t}"))
             .disabled
             .unwrap();
-        assert!(why.contains("pending #185"), "{t}: {why}");
+        assert!(why.contains("not wired yet"), "{t}: {why}");
     }
     let closed = module(LedgerRead::NoWorkspace);
     assert!(
@@ -486,9 +486,13 @@ fn preflight_asks_the_port_and_selects_the_run_it_recorded() {
     assert_eq!(s.borrow().calls, ["preflight static-dist"]);
     assert!(reveals(&out, "run-new"), "{out:?}");
     assert!(m.contains("run-new"), "the ledger is read again");
-    assert!(m.run("publish.preflight.github-pages")[0] == Intent::Status(
-        "GitHub Pages delivery is pending #185: which delivery adapters ship in v1 is not decided yet".into()
-    ));
+    assert!(
+        m.run("publish.preflight.github-pages")[0]
+            == Intent::Status(
+                "GitHub Pages delivery is not wired yet; copy-to-folder is the only wired delivery"
+                    .into()
+            )
+    );
     assert_eq!(
         s.borrow().calls.len(),
         1,
@@ -572,14 +576,14 @@ fn a_refused_dispatch_is_shown_and_the_run_keeps_its_refusal() {
 }
 
 #[test]
-fn a_run_for_an_undecided_target_cannot_be_approved_or_dispatched() {
+fn a_run_for_unwired_delivery_cannot_be_approved_or_dispatched() {
     let mut l = ledger();
     let mut r = run("run-5", "standard-site", Phase::Granted);
     r.plan.as_mut().unwrap().adapter = "http-post".into();
     l.runs.push(r);
     let (mut m, s) = scripted(l);
     m.select(Some("run-5"));
-    assert!(status_of(&m.run(APPROVE)).contains("pending #185"));
+    assert!(status_of(&m.run(APPROVE)).contains("not wired yet"));
     assert!(s.borrow().calls.is_empty());
     let next = m
         .reading("run-5")
@@ -587,7 +591,7 @@ fn a_run_for_an_undecided_target_cannot_be_approved_or_dispatched() {
         .into_iter()
         .find(|l| l.label.as_deref() == Some("next"))
         .unwrap();
-    assert!(next.text.contains("pending #185") && next.tone == Tone::Dim);
+    assert!(next.text.contains("not wired yet") && next.tone == Tone::Dim);
 }
 
 #[test]

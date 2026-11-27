@@ -187,7 +187,7 @@ fn a_dispatched_run_is_never_dispatched_again() {
 }
 
 #[test]
-fn targets_without_a_decided_adapter_are_disabled_pending_185() {
+fn targets_without_wired_delivery_are_disabled() {
     let d = tempfile::tempdir().unwrap();
     let wb = workbench(d.path());
     let cmds = wb.commands();
@@ -200,7 +200,7 @@ fn targets_without_a_decided_adapter_are_disabled_pending_185() {
     };
     for t in ["github-pages", "standard-site", "nostr-nip23"] {
         let w = why(&format!("publish.preflight.{t}")).unwrap_or_default();
-        assert!(w.contains("pending #185"), "{t}: {w}");
+        assert!(w.contains("not wired yet"), "{t}: {w}");
     }
     assert_eq!(why(PREFLIGHT), None);
 }

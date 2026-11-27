@@ -252,15 +252,27 @@ in-app). No LLM in scoring; advisory AI is flag-gated and deletable. No
 publish on a timer — every network action is explicit user intent
 through Preflight.
 
+## Owner decisions after the synthesis (2026-11-27)
+
+These decisions postdate the eight-review synthesis and are recorded in
+issues #185 and #186.
+
+- Delivery adapters beyond Boris-native targets: `copy-to-folder` is the
+  only such adapter in issue #160's v1 acceptance scope. IndexNow and
+  webhook are post-v1 roadmap scope. Sitemap ping is post-v1 desired in
+  principle, but it ships only after evidence that it has a live useful
+  consumer. Do not implement a dead Google ping. This decision does not
+  settle Boris-native target publishing scope.
+- Solipsist: permanent clean break. Solipsist and Capture Vector are
+  different products. No Solipsist import mode is in scope here or
+  requested upstream.
+
 ## Open questions for the owner
 
 1. Editor bar: structured-first vs rich-editing-first?
-2. Which delivery adapters are v1 beyond Boris targets — IndexNow,
-   sitemap ping, webhook, copy-to-folder?
-3. macOS-first or 3-OS parity at launch? Signing/notarization budget?
-4. Solipsist import path or clean break?
-5. Graph visualizer: signature feature or garnish?
-6. Single window + popouts (recommended) vs multi-window?
+2. macOS-first or 3-OS parity at launch? Signing/notarization budget?
+3. Graph visualizer: signature feature or garnish?
+4. Single window + popouts (recommended) vs multi-window?
 
 ## Acceptance gates
 
