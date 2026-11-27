@@ -34,7 +34,7 @@ lanes and CI don't each improvise the checkout.
 
 ## CURRENT PLATFORM EVIDENCE
 
-Proven and recorded below:
+Evidence recorded below:
 
 - `rune_kit::markdown::Markdown` — **PROVEN 2026-11-23 (Linux)**.
 - Multi-window — **PROVEN on macOS (2026-11-23) and Linux X11
@@ -44,10 +44,12 @@ Proven and recorded below:
   (2026-11-24)**.
 - `rune-ref` — **PROBED 2026-11-23 (Linux)**: headless and reproducible,
   but not a drop-in Lavapipe replacement.
-- Migration adoption GUI/copy/provenance path — **PROVEN for one scripted
-  native Linux X11/llvmpipe pass (2026-11-27)** using real pinned
-  `boris/0.9.0` and `boris-migration-lab/0.8.1`; see the dated entry at
-  the end of this file.
+- Migration adoption GUI/copy/provenance path — **OPERATOR-REPORTED for
+  one scripted native Linux X11/llvmpipe pass (2026-11-27)** using real
+  pinned `boris/0.9.0` and `boris-migration-lab/0.8.1`. Artifact-backed
+  reproduction is still required before the detailed GUI/copy claims are
+  independent repository evidence; see the dated entry at the end of this
+  file.
 
 Still unproven or narrow:
 
@@ -319,21 +321,29 @@ Passed locally:
   and `lab_live` 4/4 using locally built `boris-migration-lab/0.8.1`.
   The lab emit-output matrix was accepted or honestly refused by pinned
   Boris exactly as the test expects.
-- A scripted native Linux GUI migration-adoption pass using only the real
-  pinned tools. The lab generated a finished Hugo emit run; the actual
-  `cv-app` window adopted it into an existing workspace below
-  `content/pinned/site`; the UI reported `validate ok, build ok`; the real
-  Boris build populated `dist/`; 12/12 adopted Markdown files were
-  byte-identical to the generated candidate files; adoption metadata,
-  receipts, and provenance stayed under `.cv/imports/1795789013209-hugo/`;
-  no provenance-like keys were written into adopted Markdown frontmatter.
-- All four currently open adoption UX issues reproduced in Linux GUI use:
-  #216 (selection does not enable adoption until **Reload import runs**),
-  #217 (subfolder placeholder is not an actual default), #218 (long
-  inspector values clip), and #219 (completion feedback emphasizes the
-  validate/build/watch gate more than what was adopted and where).
+- A scripted native Linux GUI migration-adoption pass was operator-reported
+  using only the real pinned tools. The report says the lab generated a
+  finished Hugo emit run; the actual `cv-app` window adopted it into an
+  existing workspace below `content/pinned/site`; the UI reported
+  `validate ok, build ok`; the real Boris build populated `dist/`; 12/12
+  adopted Markdown files were byte-identical to the generated candidate
+  files; adoption metadata, receipts, and provenance stayed under
+  `.cv/imports/1795789013209-hugo/`; and no provenance-like keys were
+  written into adopted Markdown frontmatter.
+- The same operator report says all four currently open adoption UX issues
+  reproduced in Linux GUI use: #216 (selection does not enable adoption
+  until **Reload import runs**), #217 (subfolder placeholder is not an
+  actual default), #218 (long inspector values clip), and #219 (completion
+  feedback emphasizes the validate/build/watch gate more than what was
+  adopted and where).
 
 Limits of this evidence: no Wayland session, hardware GPU, distribution
 matrix, native portal chooser, physical machine, screen reader, or full
 Linux desktop CI runner was exercised. The complete issue #90 interaction
-capture matrix was not finished, so it is not claimed here.
+capture matrix was not finished, so it is not claimed here. The terminal
+commands above are reproducible, but the native GUI adoption pass is only
+operator-reported: PR #223 preserves a final-state screenshot, not the
+drive script, transcript, hash list, or artifact bundle. Treat the GUI
+pass's byte-identity, frontmatter-cleanliness, exact-drive-path, and
+#216/#217 details as requiring artifact-backed reproduction before they
+are independent repository evidence.

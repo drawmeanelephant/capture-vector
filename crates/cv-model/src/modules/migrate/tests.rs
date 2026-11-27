@@ -280,6 +280,12 @@ fn answering_existing_collects_a_subfolder_and_emits_the_request() {
         panic!("existing opens the subfolder form");
     };
     assert_eq!(form.id, ADOPT_EXISTING);
+    let crate::dialog::DialogKind::Form(fields) = &form.kind else {
+        panic!("existing adoption uses a form");
+    };
+    let hint = fields[0].hint.as_deref().unwrap_or_default();
+    assert!(hint.contains("workspace content input"), "{hint}");
+    assert!(!hint.contains("content/<subfolder>"), "{hint}");
 
     // An unsafe subfolder is refused in the form, not at the writer.
     let mut bad = blank_answer();
