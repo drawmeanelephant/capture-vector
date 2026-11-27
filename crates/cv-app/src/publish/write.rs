@@ -1,8 +1,8 @@
 //! The publish verbs over the workspace ledger. Each verb opens the
 //! `cv_publish` publisher for its own duration, so the ledger's writer
 //! lock is held only while a verb runs, and drops it before returning.
-//! Copy-to-folder is the only delivery wired; every other target stays
-//! unconfigured until #185 decides the v1 adapters.
+//! Copy-to-folder is the only delivery wired; every other target is
+//! unconfigured at this layer.
 
 use cv_core::engine::Engine;
 use cv_core::engine::ExportKind;
@@ -444,7 +444,7 @@ captured = "2026-11-23"
     }
 
     #[test]
-    fn only_static_dist_has_a_delivery_until_185_decides() {
+    fn only_static_dist_has_wired_delivery() {
         for t in cv_publish::registry() {
             let c = delivery_config(t);
             assert_eq!(c.is_some(), t == Target::StaticDist, "{t:?}");

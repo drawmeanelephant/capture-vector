@@ -15,8 +15,8 @@ pub const DISCARD: &str = "publish.discard-grant";
 
 /// How `cv-publish` prefixes a ruleset block in the ledger.
 pub(super) const RULESET_BLOCK: &str = "ruleset: ";
-pub(super) const PENDING_ADAPTERS: &str =
-    "pending #185: which delivery adapters ship in v1 is not decided yet";
+pub(super) const UNWIRED_DELIVERY: &str =
+    "not wired yet; copy-to-folder is the only wired delivery";
 
 const ADVISORY_SHOWN: usize = 6;
 const APPROVE_DISPATCH: &str = "approve-dispatch";
@@ -39,7 +39,7 @@ fn deliverable(m: &PublishModule, r: &RunRecord) -> Result<(), String> {
     match &r.plan {
         Some(p) if m.adapters.contains(&p.adapter) => Ok(()),
         _ => Err(format!(
-            "{} delivery is {PENDING_ADAPTERS}",
+            "{} delivery is {UNWIRED_DELIVERY}",
             m.label_of(&r.target)
         )),
     }
@@ -73,7 +73,7 @@ pub fn commands(m: &PublishModule) -> Vec<CommandSpec> {
             let why = gate.clone().or_else(|| {
                 t.delivery
                     .is_none()
-                    .then(|| format!("{} delivery is {PENDING_ADAPTERS}", t.label))
+                    .then(|| format!("{} delivery is {UNWIRED_DELIVERY}", t.label))
             });
             CommandSpec::new(
                 format!("{PREFLIGHT_PREFIX}{}", t.id),
@@ -241,7 +241,7 @@ fn preflight(m: &mut PublishModule, target: &str) -> Vec<Intent> {
         return status(format!("publish: no target {target}"));
     };
     if t.delivery.is_none() {
-        return status(format!("{} delivery is {PENDING_ADAPTERS}", t.label));
+        return status(format!("{} delivery is {UNWIRED_DELIVERY}", t.label));
     }
     let done = m.port.preflight(&t.id);
     after(m, &format!("preflight {}", t.label), None, done)
