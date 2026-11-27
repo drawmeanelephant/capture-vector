@@ -1899,7 +1899,7 @@
         30.0
       ],
       "role": "text",
-      "text": "Standard.site (ATProto) delivery is pending #185: which delivery adapters ship in v1 is not decided yet"
+      "text": "Standard.site (ATProto) delivery is not wired yet; copy-to-folder is the only wired delivery"
     },
     {
       "fill": "#0e1014ff",

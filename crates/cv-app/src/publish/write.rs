@@ -1,8 +1,8 @@
 //! The publish verbs over the workspace ledger. Each verb opens the
 //! `cv_publish` publisher for its own duration, so the ledger's writer
 //! lock is held only while a verb runs, and drops it before returning.
-//! Copy-to-folder is the only delivery wired; every other target stays
-//! unconfigured until #185 decides the v1 adapters.
+//! Copy-to-folder is the only delivery wired; every other target is
+//! unconfigured at this layer.
 
 use cv_core::engine::Engine;
 use cv_core::engine::ExportKind;

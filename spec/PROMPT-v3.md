@@ -252,14 +252,18 @@ in-app). No LLM in scoring; advisory AI is flag-gated and deletable. No
 publish on a timer — every network action is explicit user intent
 through Preflight.
 
-## Owner decisions (2026-11-27)
+## Owner decisions after the synthesis (2026-11-27)
+
+These decisions postdate the eight-review synthesis and are recorded in
+issues #185 and #186.
 
 - Delivery adapters: `copy-to-folder` is the only v1 delivery adapter.
-  IndexNow, webhook, and sitemap ping are post-v1 roadmap scope. Sitemap
-  ping must be revalidated before implementation because Google's classic
-  endpoint is deprecated and returns 404.
-- Solipsist: clean break. Solipsist and Capture Vector are different
-  products; no Solipsist import mode is in scope.
+  IndexNow and webhook are post-v1 roadmap scope. Sitemap ping is post-v1
+  desired in principle, but it ships only after evidence that it has a
+  live useful consumer. Do not implement a dead Google ping.
+- Solipsist: permanent clean break. Solipsist and Capture Vector are
+  different products. No Solipsist import mode is in scope here or
+  requested upstream.
 
 ## Open questions for the owner
 

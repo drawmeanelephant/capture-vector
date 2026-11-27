@@ -45,9 +45,11 @@ not a toy.
   llms.txt, sitemap, RSS, RAG/context bundles, IR — are not leftovers.
   Every publish run ships them to their targets and brings the evidence
   home: plans, reports, proof packs, per-target status, all first-class
-  objects in the app. Nothing rots in `dist/`. V1 proves the loop with
-  `copy-to-folder`; IndexNow, webhook, and sitemap ping are post-v1
-  delivery extensions, each gated on a verification story.
+  objects in the app. Nothing rots in `dist/`. V1 proves the preflight,
+  approval, dispatch, and reconciliation state loop with `copy-to-folder`;
+  it does not yet prove machine-output delivery. IndexNow and webhook are
+  post-v1 delivery extensions. Sitemap ping is post-v1 desired in
+  principle and ships only after evidence of a live useful consumer.
 
 ## Pillars — non-negotiable, every lane
 

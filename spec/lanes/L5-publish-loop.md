@@ -34,9 +34,10 @@
    (sitemap, RSS, llms.txt, context/RAG) confirmed present+fresh in
    evidence — "always publishing back" enforced.
 6. **Delivery adapters**: v1 ships `copy-to-folder` only. Run-command
-   and HTTP POST remain extension points; IndexNow, webhook, and sitemap
-   ping are post-v1. Sitemap ping needs a live-consumer verification plan
-   because Google's classic endpoint is deprecated.
+   and HTTP POST remain extension points. IndexNow and webhook are
+   post-v1. Sitemap ping is post-v1 desired in principle and needs
+   evidence of a live useful consumer because Google's classic endpoint
+   is deprecated.
 7. **Secrets**: keychain (mock for CI), stdin channel only; canary test
    proves no secret in logs/events/docs.
 8. **Publish module**: nav = targets + runs; list = runs/steps;

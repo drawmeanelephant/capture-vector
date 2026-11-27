@@ -657,7 +657,7 @@ impl PublishModule {
             line("runs", runs.len().to_string(), Tone::Normal, false),
             match &t.delivery {
                 Some(d) => line("delivery", d.clone(), Tone::Normal, true),
-                None => line("delivery", actions::PENDING_ADAPTERS, Tone::Dim, false),
+                None => line("delivery", actions::UNWIRED_DELIVERY, Tone::Dim, false),
             },
         ];
         if let Some(Item::Run(i)) = runs.first() {
