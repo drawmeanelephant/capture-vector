@@ -9,7 +9,7 @@ use crate::error::{EngineError, Result};
 use crate::paths::{
     canonical_parts as path_canonical_parts, normalize_component, normalized_parts,
 };
-use crate::verbs::flag_value;
+use crate::verbs::{flag_value, validate_standard_site_boundary};
 use cv_core::engine::Verb;
 use std::path::{Path, PathBuf};
 
@@ -1063,6 +1063,7 @@ pub(super) fn validate_verb_output_paths(cfg: &EngineConfig, verb: &Verb) -> Res
         validate_shaped_output_group(cfg, output, "export output", shape, &[])?;
     }
     if let Verb::Custom { name, args } = verb {
+        validate_standard_site_boundary(name, args)?;
         if name == "init" {
             validate_custom_init_targets(cfg, args)?;
         }
