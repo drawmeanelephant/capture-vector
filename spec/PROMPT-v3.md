@@ -266,13 +266,20 @@ issues #185 and #186.
 - Solipsist: permanent clean break. Solipsist and Capture Vector are
   different products. No Solipsist import mode is in scope here or
   requested upstream.
+- Graph visualizer: signature feature, not garnish. The corpus graph is a
+  primary browsing and inspection surface for large libraries, with a v1
+  scale floor of 5,000 pages, 30,000 relations, and trunks carrying at
+  least 60 direct satellites. It must stay usable through level-of-detail,
+  viewport culling, search/filtering, and selection-linked navigation. A
+  static whole-corpus Mermaid diagram or unreadable hairball does not
+  satisfy the requirement; small-neighborhood Mermaid views may complement
+  it, never substitute for it.
 
 ## Open questions for the owner
 
 1. Editor bar: structured-first vs rich-editing-first?
 2. macOS-first or 3-OS parity at launch? Signing/notarization budget?
-3. Graph visualizer: signature feature or garnish?
-4. Single window + popouts (recommended) vs multi-window?
+3. Single window + popouts (recommended) vs multi-window?
 
 ## Acceptance gates
 
@@ -285,5 +292,9 @@ issues #185 and #186.
 - Preflight refuses when sealed hashes don't match the build about to
   ship; `unknown` state demonstrably recoverable.
 - A heuristic-tier finding demonstrably cannot block publish.
+- Graph browsing demonstrably remains interactive at the scale floor:
+  5,000 pages, 30,000 relations, a trunk with 60 direct satellites,
+  viewport culling/level-of-detail bounded in the element tree, and
+  selection-linked navigation proven headless.
 - Canary vertical slice passes: one `BuildFinished` → findings → snooze
   → redraw, scripted headless.

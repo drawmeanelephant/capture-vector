@@ -29,6 +29,14 @@ not a toy.
   `--sitemap`), and every publish target — driven through Boris's JSON
   contracts over a subprocess boundary. The app is the best seat in the
   house for the compiler, never a second compiler.
+- **Makes the content graph navigable at publication scale.** Graph
+  visualization is a signature surface, not garnish: users can browse and
+  inspect libraries of thousands of pages, trunks with dozens of
+  satellites, and dense interconnections without the view collapsing into
+  an unusable hairball. Corpus-scale browsing uses level-of-detail,
+  viewport culling, search/filtering, and selection-linked navigation.
+  Small Mermaid diagrams may explain a neighborhood, but a static diagram
+  of the whole corpus is not the graph product.
 - **Makes SEO/AEO a working surface, not a checklist.** A rules engine
   scores the frozen graph and `dist/` artifacts against a versioned
   rulebook compiled from a host of sources — Google Search Central,
