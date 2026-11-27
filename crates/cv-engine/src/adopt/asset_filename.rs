@@ -19,7 +19,7 @@ use cv_contracts::lab::{
 };
 use cv_core::engine::{Fingerprint, MoveOutcome, RemoveOutcome, WriteOutcome};
 use cv_store::imports as store;
-use cv_store::paths::{confined_file, portable_relative};
+use cv_store::paths::{confined, confined_file, portable_relative};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
@@ -53,12 +53,46 @@ struct Plan {
     operations: Vec<store::PendingAssetOperation>,
 }
 
+#[derive(Debug)]
+struct CandidateFile {
+    sha256: String,
+    bytes: u64,
+}
+
+#[derive(Debug)]
+struct Candidate {
+    accepted_assets: BTreeSet<String>,
+    pages: BTreeMap<String, CandidateFile>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LiveEntry {
+    File,
+    Symlink,
+    Other,
+}
+
+#[derive(Debug)]
+struct OperationAuthority {
+    kind: store::AssetOperationKind,
+    source: String,
+    target: String,
+    source_sha256: Option<String>,
+    source_bytes: Option<u64>,
+    target_sha256: String,
+    target_bytes: u64,
+}
+
 fn hex(bytes: &[u8]) -> String {
     store::sha256_hex(bytes)
 }
 
 fn fp_hex(fp: Fingerprint) -> String {
     fp.sha256.to_hex()
+}
+
+fn sha256_hex_shape(value: &str) -> bool {
+    value.len() == 64 && value.bytes().all(|b| b.is_ascii_hexdigit())
 }
 
 fn stale(message: impl Into<String>) -> AdoptError {
@@ -124,12 +158,17 @@ fn file_state(root: &Path, rel: &str) -> Result<Option<WorkspaceFileState>, Adop
     }))
 }
 
-fn decode_evidence(src: &AdoptionSource) -> Result<Evidence, AdoptError> {
-    let read = |name: &str| -> Result<Vec<u8>, AdoptError> {
-        std::fs::read(src.out.join(name))
-            .map_err(|e| AdoptError::Report(format!("{name} is unreadable: {e}")))
-    };
-    let report_bytes = read("report.json")?;
+fn read_evidence_json(
+    target_root: &Path,
+    src: &AdoptionSource,
+    name: &str,
+) -> Result<Vec<u8>, AdoptError> {
+    store::read_out_file(target_root, &src.run_id, name)
+        .map_err(|e| AdoptError::Report(format!("{name} is unreadable: {e}")))
+}
+
+fn decode_evidence(target_root: &Path, src: &AdoptionSource) -> Result<Evidence, AdoptError> {
+    let report_bytes = read_evidence_json(target_root, src, "report.json")?;
     let report = Report::decode(&report_bytes).map_err(|e| AdoptError::Report(e.to_string()))?;
     let Report::AssetFilename(report) = report else {
         return Err(malformed("report.json is not an asset-filename report"));
@@ -144,8 +183,8 @@ fn decode_evidence(src: &AdoptionSource) -> Result<Evidence, AdoptError> {
             "the report policy is not the pinned read-only/no-overwrite contract",
         ));
     }
-    let manifest_bytes = read("asset_filename_manifest.json")?;
-    let rewrite_bytes = read("rewrite_manifest.json")?;
+    let manifest_bytes = read_evidence_json(target_root, src, "asset_filename_manifest.json")?;
+    let rewrite_bytes = read_evidence_json(target_root, src, "rewrite_manifest.json")?;
     let manifest = match Document::decode("asset_filename_manifest.json", &manifest_bytes)
         .map_err(|e| AdoptError::Report(e.to_string()))?
     {
@@ -198,6 +237,19 @@ fn decode_evidence(src: &AdoptionSource) -> Result<Evidence, AdoptError> {
         if !asset.dest_path.is_empty() {
             check_rel(&asset.dest_path, "asset destination")?;
         }
+        if let Some(hash) = &asset.sha256 {
+            if !sha256_hex_shape(hash) {
+                return Err(malformed(format!(
+                    "asset {} carries malformed sha256 evidence",
+                    asset.source_path
+                )));
+            }
+        } else if asset.reason != "symlink" {
+            return Err(malformed(format!(
+                "non-symlink asset {} has no sha256 evidence",
+                asset.source_path
+            )));
+        }
         if !sources.insert(asset.source_path.clone()) {
             return Err(malformed(format!(
                 "duplicate asset row for {}",
@@ -214,8 +266,15 @@ fn decode_evidence(src: &AdoptionSource) -> Result<Evidence, AdoptError> {
     for rewrite in &rewrites.rewrites {
         check_rel(&rewrite.page_path, "rewrite page")?;
         check_rel(&rewrite.rewritten_dest, "rewritten destination")?;
+        check_rel(&rewrite.original_dest, "original destination")?;
         if rewrite.original_dest.is_empty() || rewrite.rewritten_dest.is_empty() {
             return Err(malformed("a rewrite row has an empty endpoint"));
+        }
+        if rewrite.original_dest == rewrite.rewritten_dest {
+            return Err(malformed(format!(
+                "rewrite row for {} is a no-op",
+                rewrite.page_path
+            )));
         }
         let Some(asset) = accepted.get(rewrite.rewritten_dest.as_str()) else {
             return Err(malformed(format!(
@@ -292,11 +351,25 @@ fn rewritten_bytes(mut bytes: Vec<u8>, rows: &[AssetFilenameRewrite]) -> Vec<u8>
     bytes
 }
 
+fn read_candidate_bytes(
+    target_root: &Path,
+    src: &AdoptionSource,
+    rel: &str,
+) -> Result<Vec<u8>, AdoptError> {
+    let out_rel = format!("content/{rel}");
+    store::read_out_file(target_root, &src.run_id, &out_rel).map_err(|e| {
+        malformed(format!(
+            "candidate file {rel} is unreadable without following links: {e}"
+        ))
+    })
+}
+
 fn validate_candidate(
+    target_root: &Path,
     src: &AdoptionSource,
     evidence: &Evidence,
-) -> Result<BTreeSet<String>, AdoptError> {
-    let accepted: BTreeSet<String> = evidence
+) -> Result<Candidate, AdoptError> {
+    let accepted_assets: BTreeSet<String> = evidence
         .manifest
         .assets
         .iter()
@@ -308,13 +381,13 @@ fn validate_candidate(
         if asset.action == "rejected" || asset.dest_path.is_empty() {
             continue;
         }
-        let Some(file) = by_rel.get(asset.dest_path.as_str()) else {
+        if !by_rel.contains_key(asset.dest_path.as_str()) {
             return Err(malformed(format!(
                 "candidate is missing accepted asset {}",
                 asset.dest_path
             )));
-        };
-        let bytes = std::fs::read(&file.source)?;
+        }
+        let bytes = read_candidate_bytes(target_root, src, &asset.dest_path)?;
         if Some(hex(&bytes)) != asset.sha256 || bytes.len() as u64 != asset.bytes {
             return Err(malformed(format!(
                 "candidate asset {} does not match its manifest hash",
@@ -322,8 +395,9 @@ fn validate_candidate(
             )));
         }
     }
+    let mut pages = BTreeMap::new();
     for file in &src.files {
-        if accepted.contains(&file.relative) {
+        if accepted_assets.contains(&file.relative) {
             continue;
         }
         if !(file.relative.ends_with(".md") || file.relative.ends_with(".mdx")) {
@@ -332,8 +406,77 @@ fn validate_candidate(
                 file.relative
             )));
         }
+        let bytes = read_candidate_bytes(target_root, src, &file.relative)?;
+        pages.insert(
+            file.relative.clone(),
+            CandidateFile {
+                sha256: hex(&bytes),
+                bytes: bytes.len() as u64,
+            },
+        );
     }
-    Ok(accepted)
+    Ok(Candidate {
+        accepted_assets,
+        pages,
+    })
+}
+
+fn scan_live_dir(
+    dir: &Path,
+    prefix: &str,
+    out: &mut BTreeMap<String, LiveEntry>,
+) -> Result<(), AdoptError> {
+    let entries = std::fs::read_dir(dir)
+        .map_err(|e| AdoptError::Content(format!("cannot read {}: {e}", dir.display())))?;
+    for entry in entries {
+        let entry = entry?;
+        let name = entry.file_name().into_string().map_err(|_| {
+            AdoptError::Content(format!(
+                "non-UTF-8 file name under the live content input {}",
+                dir.display()
+            ))
+        })?;
+        let rel = format!("{prefix}{name}");
+        let path = entry.path();
+        let meta = std::fs::symlink_metadata(&path)?;
+        if cv_store::paths::is_link(&meta) {
+            out.insert(rel, LiveEntry::Symlink);
+        } else if meta.is_dir() {
+            scan_live_dir(&path, &format!("{rel}/"), out)?;
+        } else if meta.is_file() {
+            out.insert(rel, LiveEntry::File);
+        } else {
+            out.insert(rel, LiveEntry::Other);
+        }
+    }
+    Ok(())
+}
+
+/// Inventory the live content input without following links. Directories
+/// are traversal structure, not evidence rows; files, symlinks, and other
+/// objects are what freshness reconciliation must account for.
+fn live_inventory(
+    target_root: &Path,
+    input: &str,
+) -> Result<BTreeMap<String, LiveEntry>, AdoptError> {
+    let base = confined(target_root, Path::new(input)).map_err(|e| {
+        AdoptError::Content(format!(
+            "content input {input:?} is not confined to the workspace: {e}"
+        ))
+    })?;
+    let meta = std::fs::symlink_metadata(&base).map_err(|e| {
+        AdoptError::Content(format!(
+            "content input {input:?} cannot be inventoried: {e}"
+        ))
+    })?;
+    if cv_store::paths::is_link(&meta) || !meta.is_dir() {
+        return Err(AdoptError::Content(format!(
+            "content input {input:?} is not an ordinary directory"
+        )));
+    }
+    let mut out = BTreeMap::new();
+    scan_live_dir(&base, "", &mut out)?;
+    Ok(out)
 }
 
 fn fresh_plan(
@@ -342,21 +485,28 @@ fn fresh_plan(
     src: &AdoptionSource,
     evidence: &Evidence,
     meta: &Metadata,
-    accepted_assets: &BTreeSet<String>,
+    candidate: &Candidate,
 ) -> Result<Plan, AdoptError> {
+    let live = live_inventory(target_root, input)?;
+    let mut accounted = BTreeSet::new();
     let mut plan = Plan::default();
     for asset in &evidence.manifest.assets {
         let source_ws = ws_path(input, &asset.source_path)?;
+        accounted.insert(asset.source_path.clone());
         if asset.reason == "symlink" && asset.sha256.is_none() {
-            let abs = target_root.join(Path::new(&source_ws));
-            let symlink_meta = std::fs::symlink_metadata(&abs);
-            if !symlink_meta.is_ok_and(|m| cv_store::paths::is_link(&m)) {
+            if live.get(&asset.source_path) != Some(&LiveEntry::Symlink) {
                 return Err(stale(format!(
                     "{} is no longer the rejected symlink the lab saw",
                     asset.source_path
                 )));
             }
             continue;
+        }
+        if live.get(&asset.source_path) != Some(&LiveEntry::File) {
+            return Err(stale(format!(
+                "{} is missing or is no longer an ordinary file",
+                asset.source_path
+            )));
         }
         let state = file_state(target_root, &source_ws)?;
         let Some((hash, len, _fp, _bytes)) = state else {
@@ -370,6 +520,12 @@ fn fresh_plan(
         }
         if asset.action == "rewritten" && !meta.collision_sources.contains(&asset.source_path) {
             let dest_ws = ws_path(input, &asset.dest_path)?;
+            if write::paths_are_case_aliases(target_root, &source_ws, &dest_ws)? {
+                return Err(malformed(format!(
+                    "asset destination {} aliases its source on this filesystem",
+                    asset.dest_path
+                )));
+            }
             if file_state(target_root, &dest_ws)?.is_some() {
                 return Err(stale(format!(
                     "destination {} appeared after the lab ran; overwrite is refused",
@@ -388,14 +544,20 @@ fn fresh_plan(
         }
     }
 
-    let by_rel: BTreeMap<_, _> = src.files.iter().map(|f| (f.relative.as_str(), f)).collect();
     for file in &src.files {
-        if accepted_assets.contains(&file.relative) {
+        if candidate.accepted_assets.contains(&file.relative) {
             continue;
         }
         let page = file.relative.as_str();
         if meta.contaminated_pages.contains(page) {
+            accounted.insert(page.to_string());
             continue;
+        }
+        accounted.insert(page.to_string());
+        if live.get(page) != Some(&LiveEntry::File) {
+            return Err(stale(format!(
+                "page {page} is missing or is no longer an ordinary file"
+            )));
         }
         let ws = ws_path(input, page)?;
         let Some((_, _, _fp, current)) = file_state(target_root, &ws)? else {
@@ -404,13 +566,24 @@ fn fresh_plan(
         let empty = Vec::new();
         let rows = meta.rewrites_by_page.get(page).unwrap_or(&empty);
         let final_bytes = rewritten_bytes(current.clone(), rows);
-        let candidate = std::fs::read(&by_rel[page].source)?;
-        if final_bytes != candidate {
+        let page_evidence = candidate
+            .pages
+            .get(page)
+            .ok_or_else(|| malformed(format!("candidate page evidence for {page} is missing")))?;
+        let candidate_bytes = read_candidate_bytes(target_root, src, page)?;
+        if hex(&candidate_bytes) != page_evidence.sha256
+            || candidate_bytes.len() as u64 != page_evidence.bytes
+        {
+            return Err(malformed(format!(
+                "candidate page {page} changed after validation"
+            )));
+        }
+        if final_bytes != candidate_bytes {
             return Err(stale(format!(
                 "page {page} does not reproduce the lab candidate through the pinned rewrite manifest"
             )));
         }
-        if final_bytes != current {
+        if !rows.is_empty() {
             let source_hash = hex(&current);
             let target_hash = hex(&final_bytes);
             plan.operations.push(store::PendingAssetOperation {
@@ -424,11 +597,83 @@ fn fresh_plan(
             });
         }
     }
+    if let Some(extra) = live.keys().find(|path| !accounted.contains(*path)) {
+        return Err(stale(format!(
+            "{extra} is not accounted for by the utility evidence; the workspace changed after the lab ran or the evidence is incomplete"
+        )));
+    }
     Ok(plan)
+}
+
+fn operation_authority(
+    input: &str,
+    src: &AdoptionSource,
+    evidence: &Evidence,
+    meta: &Metadata,
+    candidate: &Candidate,
+) -> Result<Vec<OperationAuthority>, AdoptError> {
+    let mut out = Vec::new();
+    for asset in &evidence.manifest.assets {
+        if asset.action != "rewritten" || meta.collision_sources.contains(&asset.source_path) {
+            continue;
+        }
+        let hash = asset.sha256.clone().ok_or_else(|| {
+            malformed(format!(
+                "rewritten asset {} has no sha256 evidence",
+                asset.source_path
+            ))
+        })?;
+        out.push(OperationAuthority {
+            kind: store::AssetOperationKind::Asset,
+            source: ws_path(input, &asset.source_path)?,
+            target: ws_path(input, &asset.dest_path)?,
+            source_sha256: Some(hash.clone()),
+            source_bytes: Some(asset.bytes),
+            target_sha256: hash,
+            target_bytes: asset.bytes,
+        });
+    }
+    for file in &src.files {
+        if candidate.accepted_assets.contains(&file.relative) {
+            continue;
+        }
+        let page = file.relative.as_str();
+        if meta.contaminated_pages.contains(page) {
+            continue;
+        }
+        let rows = meta.rewrites_by_page.get(page);
+        if rows.is_none_or(|rows| rows.is_empty()) {
+            continue;
+        }
+        let evidence = candidate
+            .pages
+            .get(page)
+            .ok_or_else(|| malformed(format!("candidate page evidence for {page} is missing")))?;
+        let ws = ws_path(input, page)?;
+        out.push(OperationAuthority {
+            kind: store::AssetOperationKind::Markdown,
+            source: ws.clone(),
+            target: ws,
+            source_sha256: None,
+            source_bytes: None,
+            target_sha256: evidence.sha256.clone(),
+            target_bytes: evidence.bytes,
+        });
+    }
+    Ok(out)
+}
+
+fn journal_error(reason: impl Into<String>) -> AdoptError {
+    AdoptError::Run(format!(
+        "{} is not the complete asset transformation authorized by asset_filename_manifest.json and rewrite_manifest.json: {}; the journal was left in place and this attempt recorded no adoption",
+        store::PENDING,
+        reason.into()
+    ))
 }
 
 fn validate_journal(
     journal: &store::PendingAdoption,
+    authority: &[OperationAuthority],
 ) -> Result<Vec<store::PendingAssetOperation>, AdoptError> {
     let Some(operations) = journal.asset_operations.clone() else {
         return Err(AdoptError::Run(format!(
@@ -436,18 +681,42 @@ fn validate_journal(
             store::PENDING
         )));
     };
+    if operations.len() != authority.len() {
+        return Err(journal_error(format!(
+            "it records {} operation(s), while the authorized transformation requires exactly {}",
+            operations.len(),
+            authority.len()
+        )));
+    }
     for op in &operations {
-        portable_relative(&op.source).and_then(|_| portable_relative(&op.target)).map_err(|_| {
-            AdoptError::Run(format!(
-                "{} records a non-portable asset transformation target; remove or repair it before retrying",
-                store::PENDING
+        if !sha256_hex_shape(&op.source_sha256) || !sha256_hex_shape(&op.target_sha256) {
+            return Err(journal_error("it records malformed hash evidence"));
+        }
+    }
+    for (index, (op, expected)) in operations.iter().zip(authority).enumerate() {
+        let mismatch = |what: &str| {
+            journal_error(format!(
+                "operation {} has {what} that does not match the authorized transformation",
+                index + 1
             ))
-        })?;
-        if op.source_sha256.len() != 64 || op.target_sha256.len() != 64 {
-            return Err(AdoptError::Run(format!(
-                "{} records malformed hash evidence",
-                store::PENDING
-            )));
+        };
+        if op.kind != expected.kind {
+            return Err(mismatch("a kind"));
+        }
+        if op.source != expected.source {
+            return Err(mismatch("a source"));
+        }
+        if op.target != expected.target {
+            return Err(mismatch("a target"));
+        }
+        if op.target_sha256 != expected.target_sha256 || op.target_bytes != expected.target_bytes {
+            return Err(mismatch("target byte evidence"));
+        }
+        if expected.kind == store::AssetOperationKind::Asset
+            && (Some(&op.source_sha256) != expected.source_sha256.as_ref()
+                || Some(op.source_bytes) != expected.source_bytes)
+        {
+            return Err(mismatch("source byte evidence"));
         }
     }
     Ok(operations)
@@ -465,6 +734,12 @@ fn execute_asset(
     let dest_matches = dest
         .as_ref()
         .is_some_and(|(h, l, _, _)| *h == op.target_sha256 && *l == op.target_bytes);
+    if write::paths_are_case_aliases(root, &op.source, &op.target)? {
+        return Err(AdoptError::Run(format!(
+            "journaled asset operation {} -> {} aliases one file on this filesystem; removing the source could destroy the only copy",
+            op.source, op.target
+        )));
+    }
     if dest_matches && source.is_none() {
         return Ok(store::AssetOperationStatus::Resumed);
     }
@@ -710,16 +985,17 @@ pub fn transact_existing_with_identity(
     )?;
     verify_run_input(tx.src, tx.target_root, input)?;
     let lock = super::adoption_lock(tx.target_root, &tx.src.run_id)?;
-    let evidence = decode_evidence(tx.src)?;
+    let evidence = decode_evidence(tx.target_root, tx.src)?;
     let meta = metadata(&evidence);
-    let accepted = validate_candidate(tx.src, &evidence)?;
+    let candidate = validate_candidate(tx.target_root, tx.src, &evidence)?;
+    let authority = operation_authority(input, tx.src, &evidence, &meta, &candidate)?;
     store::read_adoption_record(tx.target_root, &tx.src.run_id).map_err(AdoptError::Report)?;
     let pending =
         store::read_pending(tx.target_root, &tx.src.run_id).map_err(AdoptError::Report)?;
 
     let (operations, already_present) = match &pending {
         Some(journal) if journal.matches("existing", input, None) => {
-            (validate_journal(journal)?, true)
+            (validate_journal(journal, &authority)?, true)
         }
         Some(_) => {
             return Err(AdoptError::Run(format!(
@@ -743,9 +1019,11 @@ pub fn transact_existing_with_identity(
                 written: 0,
                 resumed: 0,
                 provenance_copied: 0,
+                asset_moves: 0,
+                markdown_writes: 0,
             });
         }
-        let plan = fresh_plan(tx.target_root, input, tx.src, &evidence, &meta, &accepted)?;
+        let plan = fresh_plan(tx.target_root, input, tx.src, &evidence, &meta, &candidate)?;
         let mut journal = store::PendingAdoption::new(&tx.src.run_id, "existing", input);
         journal.asset_operations = Some(plan.operations.clone());
         store::write_pending(&lock, &journal)?;
@@ -793,5 +1071,13 @@ pub fn transact_existing_with_identity(
         written,
         resumed,
         provenance_copied,
+        asset_moves: operations
+            .iter()
+            .filter(|op| op.kind == store::AssetOperationKind::Asset)
+            .count(),
+        markdown_writes: operations
+            .iter()
+            .filter(|op| op.kind == store::AssetOperationKind::Markdown)
+            .count(),
     })
 }

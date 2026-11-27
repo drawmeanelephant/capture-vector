@@ -161,8 +161,8 @@ fn adoptable_report_format(mode: &str) -> Option<&'static str> {
         "obsidian" => Some(format::OBSIDIAN),
         "wordpress" => Some(format::WORDPRESS),
         // The asset utility emits a sanitized candidate content tree but no
-        // page-id rows; adoption copies that tree through the same confined
-        // transaction and records no invented page provenance.
+        // page-id rows. Existing-workspace adoption is an operation-based
+        // in-place transformation and records no invented page provenance.
         "asset-filename" => Some(format::ASSET_FILENAME),
         _ => None,
     }
@@ -226,8 +226,7 @@ pub fn source(root: &Path, run_id: &str) -> Result<AdoptionSource, AdoptError> {
             out.display()
         )));
     }
-    let report_path = out.join("report.json");
-    let report_bytes = std::fs::read(&report_path)
+    let report_bytes = store::read_out_file(root, run_id, "report.json")
         .map_err(|e| AdoptError::Report(format!("report.json is unreadable: {e}")))?;
     let report = Report::decode(&report_bytes).map_err(|e| AdoptError::Report(e.to_string()))?;
     if report.key().format != expected_format {
@@ -713,6 +712,12 @@ pub struct TxReport {
     /// exactly these bytes.
     pub resumed: usize,
     pub provenance_copied: usize,
+    /// In-place asset moves inside `planned`. Foreign-tree adoptions do not
+    /// use operation rows and report zero here.
+    pub asset_moves: usize,
+    /// In-place Markdown reference writes inside `planned`, kept distinct
+    /// so completion reporting never labels them as assets.
+    pub markdown_writes: usize,
 }
 
 /// Acquire the target workspace's per-run capability for the whole adoption
@@ -1134,5 +1139,7 @@ fn transact_impl(params: TxParams<'_>) -> Result<TxReport, AdoptError> {
         written,
         resumed: skipped,
         provenance_copied: provenance,
+        asset_moves: 0,
+        markdown_writes: 0,
     })
 }

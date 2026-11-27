@@ -556,8 +556,9 @@ pub struct WordPressPage {
 
 /// `asset-filename` `report.json` (schema 1). The mode copies a candidate
 /// content tree and reports aggregate policy/counts; it deliberately has
-/// no Boris page authority, so adoption copies its files without inventing
-/// page ids the lab did not emit.
+/// no Boris page authority, so existing-workspace adoption is an
+/// operation-based in-place transformation rather than a candidate copy.
+/// That transformation invents no page ids the lab did not emit.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AssetFilenameReport {
     pub format: String,

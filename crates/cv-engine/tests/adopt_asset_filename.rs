@@ -19,6 +19,13 @@ fn symlink_file(target: &Path, link: &Path) {
     std::os::windows::fs::symlink_file(target, link).unwrap();
 }
 
+fn symlink_dir(target: &Path, link: &Path) {
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(target, link).unwrap();
+    #[cfg(windows)]
+    std::os::windows::fs::symlink_dir(target, link).unwrap();
+}
+
 fn page(id: &str, title: &str, body: &str) -> String {
     format!("---\nid: {id}\ntitle: {title}\nstatus: published\n---\n\n{body}")
 }
@@ -212,6 +219,121 @@ fn read(root: &Path, rel: &str) -> String {
     std::fs::read_to_string(root.join(rel)).unwrap()
 }
 
+fn replace_once(haystack: &[u8], needle: &[u8], replacement: &[u8]) -> Vec<u8> {
+    let at = haystack
+        .windows(needle.len())
+        .position(|w| w == needle)
+        .unwrap();
+    let mut out = Vec::new();
+    out.extend_from_slice(&haystack[..at]);
+    out.extend_from_slice(replacement);
+    out.extend_from_slice(&haystack[at + needle.len()..]);
+    out
+}
+
+fn asset_op(root: &Path, source: &str, target: &str) -> store::PendingAssetOperation {
+    let source_ws = format!("content/{source}");
+    let bytes = std::fs::read(root.join(&source_ws)).unwrap();
+    let hash = store::sha256_hex(&bytes);
+    store::PendingAssetOperation {
+        kind: store::AssetOperationKind::Asset,
+        source: source_ws,
+        target: format!("content/{target}"),
+        source_sha256: hash.clone(),
+        source_bytes: bytes.len() as u64,
+        target_sha256: hash,
+        target_bytes: bytes.len() as u64,
+    }
+}
+
+fn markdown_op(root: &Path, page: &str, rows: &[(&str, &str)]) -> store::PendingAssetOperation {
+    let ws = format!("content/{page}");
+    let original = std::fs::read(root.join(&ws)).unwrap();
+    let mut final_bytes = original.clone();
+    for (old, new) in rows {
+        final_bytes = replace_once(&final_bytes, old.as_bytes(), new.as_bytes());
+    }
+    store::PendingAssetOperation {
+        kind: store::AssetOperationKind::Markdown,
+        source: ws.clone(),
+        target: ws,
+        source_sha256: store::sha256_hex(&original),
+        source_bytes: original.len() as u64,
+        target_sha256: store::sha256_hex(&final_bytes),
+        target_bytes: final_bytes.len() as u64,
+    }
+}
+
+/// The complete pre-write operation journal for the pinned fixture, in the
+/// deterministic order the planner uses: authorized asset moves in manifest
+/// order, then authorized Markdown rewrites in candidate order.
+fn complete_operations(root: &Path) -> Vec<store::PendingAssetOperation> {
+    vec![
+        asset_op(
+            root,
+            "nested.assets/deep/sub dir/shot.png",
+            "nested.assets/deep/sub-dir/shot.png",
+        ),
+        asset_op(
+            root,
+            "percent.assets/diagram%20copy.png",
+            "percent.assets/diagram-copy.png",
+        ),
+        asset_op(
+            root,
+            "spaces.assets/hello world.png",
+            "spaces.assets/hello-world.png",
+        ),
+        asset_op(root, "unicode.assets/café.png", "unicode.assets/caf.png"),
+        markdown_op(
+            root,
+            "nested.md",
+            &[(
+                "nested.assets/deep/sub dir/shot.png",
+                "nested.assets/deep/sub-dir/shot.png",
+            )],
+        ),
+        markdown_op(
+            root,
+            "percent.md",
+            &[(
+                "percent.assets/diagram%20copy.png",
+                "percent.assets/diagram-copy.png",
+            )],
+        ),
+        markdown_op(
+            root,
+            "spaces.md",
+            &[
+                (
+                    "spaces.assets/hello world.png",
+                    "spaces.assets/hello-world.png",
+                ),
+                (
+                    "spaces.assets/hello%20world.png",
+                    "spaces.assets/hello-world.png",
+                ),
+            ],
+        ),
+        markdown_op(
+            root,
+            "unicode.md",
+            &[("unicode.assets/café.png", "unicode.assets/caf.png")],
+        ),
+    ]
+}
+
+fn write_operations_journal(root: &Path, operations: Vec<store::PendingAssetOperation>) {
+    let mut journal = store::PendingAdoption::new("asset-run", "existing", "content");
+    journal.asset_operations = Some(operations);
+    let lock = store::lock_run(root, "asset-run").unwrap();
+    store::write_pending(&lock, &journal).unwrap();
+}
+
+fn pending_path(root: &Path) -> std::path::PathBuf {
+    root.join(".cv/imports/asset-run").join(store::PENDING)
+}
+
 #[test]
 fn transformation_moves_safe_assets_rewrites_pages_and_leaves_collisions_untouched() {
     let tmp = tempfile::tempdir().unwrap();
@@ -339,68 +461,244 @@ fn journaled_interruption_resumes_without_treating_partial_output_as_foreign() {
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path().canonicalize().unwrap();
     let (_id, src, expected) = fixture(&root);
-    // Simulate a crash after the asset half of the spaces operation but
-    // before its Markdown write. The journal is the only authority that may
-    // treat the already renamed asset as this transformation's own output.
+    let operations = complete_operations(&root);
+    // A crash after the first journaled asset rename: the journal still
+    // contains every operation, and disk contains only that partial effect.
+    std::fs::create_dir_all(root.join("content/nested.assets/deep/sub-dir")).unwrap();
     std::fs::rename(
-        root.join("content/spaces.assets/hello world.png"),
-        root.join("content/spaces.assets/hello-world.png"),
+        root.join("content/nested.assets/deep/sub dir/shot.png"),
+        root.join("content/nested.assets/deep/sub-dir/shot.png"),
     )
     .unwrap();
-    let asset = b"asset-stub-v1-spaces\n";
-    let original_page = std::fs::read(root.join("content/spaces.md")).unwrap();
-    let mut final_page = original_page.clone();
-    for (old, new) in [
-        (
-            &b"spaces.assets/hello world.png"[..],
-            &b"spaces.assets/hello-world.png"[..],
-        ),
-        (
-            &b"spaces.assets/hello%20world.png"[..],
-            &b"spaces.assets/hello-world.png"[..],
-        ),
-    ] {
-        let at = final_page
-            .windows(old.len())
-            .position(|w| w == old)
-            .unwrap();
-        let mut next = Vec::new();
-        next.extend_from_slice(&final_page[..at]);
-        next.extend_from_slice(new);
-        next.extend_from_slice(&final_page[at + old.len()..]);
-        final_page = next;
-    }
-    let mut journal = store::PendingAdoption::new("asset-run", "existing", "content");
-    journal.asset_operations = Some(vec![
-        store::PendingAssetOperation {
-            kind: store::AssetOperationKind::Asset,
-            source: "content/spaces.assets/hello world.png".into(),
-            target: "content/spaces.assets/hello-world.png".into(),
-            source_sha256: store::sha256_hex(asset),
-            source_bytes: asset.len() as u64,
-            target_sha256: store::sha256_hex(asset),
-            target_bytes: asset.len() as u64,
-        },
-        store::PendingAssetOperation {
-            kind: store::AssetOperationKind::Markdown,
-            source: "content/spaces.md".into(),
-            target: "content/spaces.md".into(),
-            source_sha256: store::sha256_hex(&original_page),
-            source_bytes: original_page.len() as u64,
-            target_sha256: store::sha256_hex(&final_page),
-            target_bytes: final_page.len() as u64,
-        },
-    ]);
-    let lock = store::lock_run(&root, "asset-run").unwrap();
-    store::write_pending(&lock, &journal).unwrap();
-    drop(lock);
+    write_operations_journal(&root, operations);
 
     let tx = transact(&root, &src, &expected).unwrap();
-    assert!(tx.resumed >= 1 && tx.written >= 1, "{tx:?}");
-    assert_eq!(
-        std::fs::read(root.join("content/spaces.md")).unwrap(),
-        final_page
+    assert_eq!((tx.planned, tx.written, tx.resumed), (8, 7, 1));
+    assert_eq!(tx.asset_moves, 4);
+    assert_eq!(tx.markdown_writes, 4);
+    for rel in [
+        "nested.assets/deep/sub-dir/shot.png",
+        "percent.assets/diagram-copy.png",
+        "spaces.assets/hello-world.png",
+        "unicode.assets/caf.png",
+    ] {
+        assert!(root.join("content").join(rel).is_file(), "{rel}");
+    }
+    assert!(store::read_pending(&root, "asset-run").unwrap().is_none());
+}
+
+#[test]
+fn workspace_additions_after_the_lab_invalidate_fresh_evidence() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, src, expected) = fixture(&root);
+    write(
+        &root.join("content/late.md"),
+        page(
+            "late",
+            "Late page",
+            "# Late\n\n![hero](spaces.assets/hello world.png)\n",
+        ),
     );
-    assert!(root.join("content/spaces.assets/hello-world.png").exists());
+
+    let err = transact(&root, &src, &expected).unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Stale(_)), "{err}");
+    assert!(root.join("content/spaces.assets/hello world.png").exists());
+    assert!(!root.join("content/spaces.assets/hello-world.png").exists());
+    assert!(store::read_pending(&root, "asset-run").unwrap().is_none());
+}
+
+#[test]
+fn partial_journals_are_refused_without_completing_or_clearing_them() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, src, expected) = fixture(&root);
+    let operations = complete_operations(&root);
+    write_operations_journal(&root, operations.into_iter().take(2).collect());
+    let before = std::fs::read(pending_path(&root)).unwrap();
+
+    let err = transact(&root, &src, &expected).unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Run(_)), "{err}");
+    assert!(err.to_string().contains("requires exactly 8"), "{err}");
+    assert_eq!(std::fs::read(pending_path(&root)).unwrap(), before);
+    assert!(
+        store::read_adoption_record(&root, "asset-run")
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        root.join("content/nested.assets/deep/sub dir/shot.png")
+            .exists()
+    );
+    assert!(
+        !root
+            .join("content/nested.assets/deep/sub-dir/shot.png")
+            .exists()
+    );
+}
+
+#[test]
+fn forged_journals_cannot_move_files_outside_the_content_input() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, src, expected) = fixture(&root);
+    write(&root.join("boris.json"), br#"{"input":"content"}"#);
+    let bytes = std::fs::read(root.join("boris.json")).unwrap();
+    let hash = store::sha256_hex(&bytes);
+    write_operations_journal(
+        &root,
+        vec![store::PendingAssetOperation {
+            kind: store::AssetOperationKind::Asset,
+            source: "boris.json".into(),
+            target: "moved-boris.json".into(),
+            source_sha256: hash.clone(),
+            source_bytes: bytes.len() as u64,
+            target_sha256: hash,
+            target_bytes: bytes.len() as u64,
+        }],
+    );
+
+    let err = transact(&root, &src, &expected).unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Run(_)), "{err}");
+    assert!(root.join("boris.json").is_file());
+    assert!(!root.join("moved-boris.json").exists());
+    assert!(pending_path(&root).is_file());
+    assert!(
+        store::read_adoption_record(&root, "asset-run")
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[test]
+fn aliased_journal_operations_are_refused_without_deleting_the_only_copy() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, src, expected) = fixture(&root);
+    let rel = "content/safe.assets/already-ok.png";
+    let bytes = std::fs::read(root.join(rel)).unwrap();
+    let hash = store::sha256_hex(&bytes);
+    write_operations_journal(
+        &root,
+        vec![store::PendingAssetOperation {
+            kind: store::AssetOperationKind::Asset,
+            source: rel.into(),
+            target: rel.into(),
+            source_sha256: hash.clone(),
+            source_bytes: bytes.len() as u64,
+            target_sha256: hash,
+            target_bytes: bytes.len() as u64,
+        }],
+    );
+
+    let err = transact(&root, &src, &expected).unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Run(_)), "{err}");
+    assert_eq!(std::fs::read(root.join(rel)).unwrap(), bytes);
+    assert!(pending_path(&root).is_file());
+    assert!(
+        store::read_adoption_record(&root, "asset-run")
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[test]
+fn corrupted_journals_are_refused_and_retained() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, src, expected) = fixture(&root);
+    let pending = pending_path(&root);
+    write(&pending, b"{not valid adoption json");
+
+    let err = transact(&root, &src, &expected).unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Report(_)), "{err}");
+    assert_eq!(
+        std::fs::read(&pending).unwrap(),
+        b"{not valid adoption json"
+    );
+    assert!(
+        store::read_adoption_record(&root, "asset-run")
+            .unwrap()
+            .is_none()
+    );
+    assert!(root.join("content/spaces.assets/hello world.png").exists());
+}
+
+#[test]
+fn symlinked_machine_evidence_is_refused_without_writes() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, src, expected) = fixture(&root);
+    let manifest = root.join(".cv/imports/asset-run/out/asset_filename_manifest.json");
+    let copy = root.join("manifest-copy.json");
+    std::fs::write(&copy, std::fs::read(&manifest).unwrap()).unwrap();
+    std::fs::remove_file(&manifest).unwrap();
+    symlink_file(&copy, &manifest);
+
+    let err = transact(&root, &src, &expected).unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Report(_)), "{err}");
+    assert!(
+        std::fs::symlink_metadata(&manifest)
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+    assert!(!root.join("content/spaces.assets/hello-world.png").exists());
+    assert!(store::read_pending(&root, "asset-run").unwrap().is_none());
+}
+
+#[test]
+fn nonordinary_machine_evidence_is_refused_without_writes() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, src, expected) = fixture(&root);
+    let manifest = root.join(".cv/imports/asset-run/out/rewrite_manifest.json");
+    std::fs::remove_file(&manifest).unwrap();
+    std::fs::create_dir(&manifest).unwrap();
+
+    let err = transact(&root, &src, &expected).unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Report(_)), "{err}");
+    assert!(!root.join("content/spaces.assets/hello-world.png").exists());
+    assert!(store::read_pending(&root, "asset-run").unwrap().is_none());
+}
+
+#[test]
+fn the_initial_report_load_does_not_follow_a_symlink() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, _src, _expected) = fixture(&root);
+    let report = root.join(".cv/imports/asset-run/out/report.json");
+    let copy = root.join("report-copy.json");
+    std::fs::write(&copy, std::fs::read(&report).unwrap()).unwrap();
+    std::fs::remove_file(&report).unwrap();
+    symlink_file(&copy, &report);
+
+    assert!(adopt::source(&root, "asset-run").is_err());
+    assert!(
+        std::fs::symlink_metadata(&report)
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+}
+
+#[test]
+fn a_symlinked_asset_ancestor_is_never_followed() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, src, expected) = fixture(&root);
+    let outside = tempfile::tempdir().unwrap();
+    let outside_assets = outside.path().join("spaces.assets");
+    std::fs::create_dir(&outside_assets).unwrap();
+    std::fs::copy(
+        root.join("content/spaces.assets/hello world.png"),
+        outside_assets.join("hello world.png"),
+    )
+    .unwrap();
+    std::fs::remove_dir_all(root.join("content/spaces.assets")).unwrap();
+    symlink_dir(&outside_assets, &root.join("content/spaces.assets"));
+
+    assert!(transact(&root, &src, &expected).is_err());
+    assert!(outside_assets.join("hello world.png").is_file());
     assert!(store::read_pending(&root, "asset-run").unwrap().is_none());
 }

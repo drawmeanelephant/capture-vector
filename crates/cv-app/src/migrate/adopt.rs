@@ -485,7 +485,7 @@ fn execute(
                 gate,
                 false,
                 0,
-                tx.planned,
+                tx.asset_moves,
                 destination_display(&adopted_input, None),
             ))
         }

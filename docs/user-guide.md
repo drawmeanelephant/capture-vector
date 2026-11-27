@@ -75,11 +75,12 @@ two forms:
 Adoption keeps provenance under `.cv/imports/<run-id>/`; it never writes
 Capture Vector provenance into Boris frontmatter. Existing-workspace
 importer adoption preflights path and page-id collisions before writing
-and refuses the whole merge rather than overwriting. Asset-filename
-adoption invents no page ids and copies no pages, so it cannot duplicate
-an explicit Boris id; its fingerprinted journal makes interruption resume
-convergent, while changed source bytes or foreign destination bytes refuse
-the write instead of being overwritten. Both forms are watch-safe and end
+and refuses the whole merge rather than overwriting. In-place
+asset-filename adoption invents no page ids and copies no pages into the
+workspace; it rewrites existing Markdown references in place, so it cannot
+duplicate an explicit Boris id. Its fingerprinted journal makes interruption
+resume convergent, while changed source bytes or foreign destination bytes
+refuse the write instead of being overwritten. Both forms are watch-safe and end
 in the pinned engine's validate/build gate under the normal engine-seat
 contract.
 

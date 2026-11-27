@@ -1,6 +1,7 @@
-//! Fingerprinted staged writes. Compare-then-replace: the draft's base
-//! fingerprint (sha256 + mtime) must still match disk, then the body is
-//! written to a sibling `*.tmp` and atomically renamed over the target.
+//! Fingerprinted staged writes. Creation installs a fully staged sibling
+//! through a no-replace hard link or `create_new` fallback; replacement is
+//! compare-then-replace: the draft's base fingerprint (sha256 + mtime) must
+//! still match disk, then the body is atomically renamed over the target.
 //! No frontmatter validation here — `boris validate` is authoritative.
 
 use crate::error::{EngineError, Result};
@@ -72,6 +73,85 @@ pub fn retry_sharing<T>(mut op: impl FnMut() -> std::io::Result<T>) -> std::io::
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InstallNew {
+    Installed,
+    AlreadyExists,
+}
+
+fn sync_parent_dir(path: &Path) -> std::io::Result<()> {
+    #[cfg(unix)]
+    if let Some(parent) = path.parent() {
+        std::fs::File::open(parent)?.sync_all()?;
+    }
+    Ok(())
+}
+
+/// Direct-create fallback for filesystems that cannot hard-link a fully
+/// staged sibling. `create_new` is the no-clobber primitive: an existing
+/// file or link loses the race and is never opened for writing. This path
+/// is not crash-atomic in the way the hard-linked staged file is, so a
+/// crash can leave partial bytes at a previously absent target; journaled
+/// callers converge by hash and ordinary callers refuse that foreign shape
+/// rather than overwriting it.
+fn write_direct_new(
+    target: &Path,
+    body: &[u8],
+    permissions: Option<&std::fs::Permissions>,
+) -> std::io::Result<InstallNew> {
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_NOFOLLOW | libc::O_NOCTTY);
+    }
+    let mut file = match options.open(target) {
+        Ok(file) => file,
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+            return Ok(InstallNew::AlreadyExists);
+        }
+        Err(e) => return Err(e),
+    };
+    if let Some(permissions) = permissions {
+        file.set_permissions(permissions.clone())?;
+    }
+    file.write_all(body)?;
+    file.sync_all()?;
+    drop(file);
+    sync_parent_dir(target)?;
+    Ok(InstallNew::Installed)
+}
+
+/// Install a fully written staged file at a previously absent target
+/// without ever renaming over existing bytes. A hard link is atomic and
+/// keeps the complete staged body; when the filesystem refuses links, the
+/// direct `create_new` fallback preserves the same no-clobber guarantee.
+fn install_new_no_replace(
+    staged: &Path,
+    target: &Path,
+    body: &[u8],
+    permissions: Option<&std::fs::Permissions>,
+) -> std::io::Result<InstallNew> {
+    match std::fs::hard_link(staged, target) {
+        Ok(()) => {
+            let _ = retry_sharing(|| std::fs::remove_file(staged));
+            sync_parent_dir(target)?;
+            return Ok(InstallNew::Installed);
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+            return Ok(InstallNew::AlreadyExists);
+        }
+        Err(_) => {}
+    }
+    match std::fs::symlink_metadata(target) {
+        Ok(_) => return Ok(InstallNew::AlreadyExists),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(e),
+    }
+    write_direct_new(target, body, permissions)
+}
+
 /// `expected = None` means "create": an existing file is a stale base.
 pub fn write_staged(
     root: &Path,
@@ -109,6 +189,7 @@ fn write_staged_with_permissions(
             .and_then(|path| std::fs::metadata(path).map(|m| m.permissions()))
             .ok()
     });
+    let target_permissions = permissions.or(update_permissions);
     let dir = target.parent().unwrap_or(root);
     let mut tmp = tempfile::Builder::new()
         .prefix(".cv-write-")
@@ -116,25 +197,40 @@ fn write_staged_with_permissions(
         .tempfile_in(dir)?;
     tmp.write_all(body)?;
     tmp.as_file().sync_all()?;
-    if let Some(permissions) = permissions.or(update_permissions) {
-        std::fs::set_permissions(tmp.path(), permissions)?;
+    if let Some(permissions) = &target_permissions {
+        std::fs::set_permissions(tmp.path(), permissions.clone())?;
     }
-    // Re-check right before the swap to narrow the race with an external
-    // editor or a swapped directory; the rename itself is atomic.
+    // Re-check right before installation. Creation uses a no-replace
+    // primitive, so even a winner of this race cannot be clobbered; update
+    // replacement remains the fingerprinted compare-then-replace contract.
     let target = confine(rel, confirm_confined_file(root, Path::new(rel)))?;
     if let Some(stale) = check(&target)? {
         return Ok(stale);
     }
-    let mut tmp = Some(tmp);
-    retry_sharing(|| match tmp.take().expect("tmp present").persist(&target) {
-        Ok(_) => Ok(()),
-        Err(e) => {
-            let err = std::io::Error::new(e.error.kind(), e.error.to_string());
-            let raw = e.error.raw_os_error();
-            tmp = Some(e.file);
-            Err(raw.map(std::io::Error::from_raw_os_error).unwrap_or(err))
+    if expected.is_none() {
+        match install_new_no_replace(tmp.path(), &target, body, target_permissions.as_ref())? {
+            InstallNew::Installed => {}
+            InstallNew::AlreadyExists => {
+                let found = retry_sharing(|| fingerprint(&target))?.ok_or_else(|| {
+                    EngineError::Refused(format!(
+                        "{rel}: target appeared then vanished during creation"
+                    ))
+                })?;
+                return Ok(WriteOutcome::StaleBase { found });
+            }
         }
-    })?;
+    } else {
+        let mut tmp = Some(tmp);
+        retry_sharing(|| match tmp.take().expect("tmp present").persist(&target) {
+            Ok(_) => Ok(()),
+            Err(e) => {
+                let err = std::io::Error::new(e.error.kind(), e.error.to_string());
+                let raw = e.error.raw_os_error();
+                tmp = Some(e.file);
+                Err(raw.map(std::io::Error::from_raw_os_error).unwrap_or(err))
+            }
+        })?;
+    }
     let fp = retry_sharing(|| fingerprint(&target))?
         .ok_or_else(|| EngineError::Refused(format!("{rel}: vanished after write")))?;
     Ok(WriteOutcome::Written { fingerprint: fp })
@@ -197,24 +293,8 @@ fn not_found(e: &EngineError) -> bool {
     matches!(e, EngineError::Io(io) if io.kind() == std::io::ErrorKind::NotFound)
 }
 
-fn cross_device(e: &std::io::Error) -> bool {
-    #[cfg(unix)]
-    {
-        e.raw_os_error() == Some(18) // EXDEV
-    }
-    #[cfg(windows)]
-    {
-        e.raw_os_error() == Some(17) // ERROR_NOT_SAME_DEVICE
-    }
-    #[cfg(not(any(unix, windows)))]
-    {
-        let _ = e;
-        false
-    }
-}
-
-enum RenameAttempt {
-    Renamed,
+enum LinkAttempt {
+    Linked,
     SourceStale,
     SourceMissing,
     TargetAppeared,
@@ -224,10 +304,184 @@ fn rollback_target(root: &Path, rel: &str, fp: Fingerprint) {
     let _ = remove_staged(root, rel, fp);
 }
 
+/// True when two distinct spellings are the same file because the host
+/// filesystem folds case or Unicode normalization. Distinct hard links do
+/// not prove that kind of aliasing; interrupted hard-link moves use them as
+/// a convergence state. When the normalized spellings differ the paths
+/// cannot be case aliases at all.
+pub(crate) fn paths_are_case_aliases(root: &Path, from: &str, to: &str) -> Result<bool> {
+    if from == to {
+        return Ok(true);
+    }
+    let source = confine(from, confined_file(root, Path::new(from)))?;
+    let target = confine(to, confined_file(root, Path::new(to)))?;
+    if crate::paths::normalized_parts(&source) != crate::paths::normalized_parts(&target) {
+        return Ok(false);
+    }
+    let source_meta = match std::fs::symlink_metadata(&source) {
+        Ok(meta) => meta,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(e) => return Err(EngineError::Io(e)),
+    };
+    let target_meta = match std::fs::symlink_metadata(&target) {
+        Ok(meta) => meta,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(e) => return Err(EngineError::Io(e)),
+    };
+    if !source_meta.is_file() || !target_meta.is_file() {
+        return Ok(false);
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        Ok(source_meta.dev() == target_meta.dev() && source_meta.ino() == target_meta.ino())
+    }
+    #[cfg(not(unix))]
+    {
+        // std has no stable Windows file-index surface. Windows volumes are
+        // case-insensitive except for opt-in per-directory cases, so equal
+        // normalized spellings are the fail-closed answer available there.
+        Ok(true)
+    }
+}
+
+fn finish_move_after_target(
+    root: &Path,
+    from: &str,
+    to: &str,
+    base: Fingerprint,
+    written: Fingerprint,
+) -> Result<MoveOutcome> {
+    match remove_move_source(root, from, base) {
+        // The destination already holds the copied or linked bytes. If an
+        // external actor removed the source in the post-write window, the
+        // requested end state is present; rolling back would destroy the
+        // only copy.
+        Ok(MoveSourceRemoval::Removed | MoveSourceRemoval::Missing) => Ok(MoveOutcome::Moved {
+            fingerprint: written,
+        }),
+        Ok(MoveSourceRemoval::StaleBase(found)) => {
+            rollback_target(root, to, written);
+            Ok(MoveOutcome::SourceStale { found })
+        }
+        Err(e) if not_found(&e) => Ok(MoveOutcome::Moved {
+            fingerprint: written,
+        }),
+        Err(e) => {
+            rollback_target(root, to, written);
+            Err(e)
+        }
+    }
+}
+
+fn stale_source_during_move(root: &Path, from: &str) -> Result<MoveOutcome> {
+    if let Some(found) = fingerprint_confined(root, from)? {
+        return Ok(MoveOutcome::SourceStale { found });
+    }
+    Err(EngineError::Refused(format!(
+        "{from}: source vanished while moving"
+    )))
+}
+
+fn target_appeared_during_move(root: &Path, to: &str) -> Result<MoveOutcome> {
+    if let Some(found) = fingerprint_confined(root, to)? {
+        return Ok(MoveOutcome::TargetExists { found });
+    }
+    Err(EngineError::Refused(format!(
+        "{to}: target appeared then vanished while moving"
+    )))
+}
+
+/// Move unchanged bytes by first attempting an atomic no-replace hard
+/// link, then falling back to a staged copy installed with `create_new`.
+/// Neither path can rename over a target that appears in the race window.
+fn move_unchanged_bytes_with(
+    root: &Path,
+    from: &str,
+    to: &str,
+    body: &[u8],
+    base: Fingerprint,
+    after_target: impl FnOnce(),
+) -> Result<MoveOutcome> {
+    if paths_are_case_aliases(root, from, to)? {
+        return Err(EngineError::Refused(
+            "move source and destination alias the same file".into(),
+        ));
+    }
+    match fingerprint_confined(root, from)? {
+        Some(found) if found == base => {}
+        Some(found) => return Ok(MoveOutcome::SourceStale { found }),
+        None => {
+            return Err(EngineError::Refused(format!(
+                "{from}: source no longer exists"
+            )));
+        }
+    }
+    if let Some(found) = fingerprint_confined(root, to)? {
+        return Ok(MoveOutcome::TargetExists { found });
+    }
+    if Hash(Sha256::digest(body).into()) != base.sha256 {
+        return Err(EngineError::Refused(format!(
+            "{from}: byte hash does not match its fingerprint"
+        )));
+    }
+    let source = confine(from, confirm_confined_file(root, Path::new(from)))?;
+    let permissions = std::fs::metadata(&source)?.permissions();
+    let target = confine(to, create_confined_parent(root, Path::new(to)))?;
+    let linked = retry_sharing(|| {
+        let source = confirm_confined_file(root, Path::new(from))?;
+        let target = confirm_confined_file(root, Path::new(to))?;
+        match fingerprint(&source)? {
+            Some(found) if found == base => {}
+            Some(_) => return Ok(LinkAttempt::SourceStale),
+            None => return Ok(LinkAttempt::SourceMissing),
+        }
+        if fingerprint(&target)?.is_some() {
+            return Ok(LinkAttempt::TargetAppeared);
+        }
+        match std::fs::hard_link(&source, &target) {
+            Ok(()) => Ok(LinkAttempt::Linked),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                Ok(LinkAttempt::TargetAppeared)
+            }
+            Err(e) => Err(e),
+        }
+    });
+    let written = match linked {
+        Ok(LinkAttempt::Linked) => {
+            sync_parent_dir(&target)?;
+            retry_sharing(|| fingerprint(&target))?
+                .ok_or_else(|| EngineError::Refused(format!("{to}: vanished after move")))?
+        }
+        Ok(LinkAttempt::SourceStale) => return stale_source_during_move(root, from),
+        Ok(LinkAttempt::SourceMissing) => {
+            return Err(EngineError::Refused(format!(
+                "{from}: source vanished before moving"
+            )));
+        }
+        Ok(LinkAttempt::TargetAppeared) => return target_appeared_during_move(root, to),
+        Err(_) => {
+            // Hard links can be unavailable across filesystems or forbidden
+            // by the host filesystem even inside one tree. The copy path is
+            // still no-clobber, so it is safe to try it; if the original
+            // failure was a real I/O refusal, the copy surfaces its own.
+            match write_staged_with_permissions(root, to, body, None, Some(permissions))? {
+                WriteOutcome::Written { fingerprint } => fingerprint,
+                WriteOutcome::StaleBase { found } => {
+                    return Ok(MoveOutcome::TargetExists { found });
+                }
+            }
+        }
+    };
+    after_target();
+    finish_move_after_target(root, from, to, base, written)
+}
+
 /// Write `body` at `to` and remove `from`, with both sides fingerprinted.
-/// The destination write is staged + atomic; the pair cannot be atomic on
-/// any supported filesystem, so a post-write source race rolls the
-/// unchanged destination back before reporting the conflict.
+/// The destination write is staged + no-clobber; the pair cannot be atomic
+/// on every supported filesystem, so a post-write source race rolls the
+/// unchanged destination back before reporting the conflict when it still
+/// carries exactly the bytes this operation wrote.
 pub fn move_staged(root: &Path, mv: &PageMove) -> Result<MoveOutcome> {
     move_staged_with(root, mv, || {})
 }
@@ -262,59 +516,18 @@ fn move_staged_with(root: &Path, mv: &PageMove, after_write: impl FnOnce()) -> R
     let permissions = std::fs::metadata(&source)?.permissions();
     let body_hash = Hash(Sha256::digest(mv.body.as_bytes()).into());
 
-    // An unchanged move is a rename when the filesystem allows it: the
-    // inode keeps its permission bits and other metadata rather than
-    // inheriting the staged temporary file's restrictive create mode.
+    // An unchanged move keeps metadata through a hard link when the
+    // filesystem allows it; the fallback is the same no-clobber staged copy
+    // a changed body uses.
     if body_hash == mv.base.sha256 {
-        let target = confine(&mv.to, create_confined_parent(root, Path::new(&mv.to)))?;
-        let renamed = retry_sharing(|| {
-            let source = confirm_confined_file(root, Path::new(&mv.from))?;
-            let target = confirm_confined_file(root, Path::new(&mv.to))?;
-            match fingerprint(&source)? {
-                Some(found) if found == mv.base => {}
-                Some(_) => return Ok(RenameAttempt::SourceStale),
-                None => return Ok(RenameAttempt::SourceMissing),
-            }
-            if fingerprint(&target)?.is_some() {
-                return Ok(RenameAttempt::TargetAppeared);
-            }
-            cv_store::paths::replace_file(&source, &target)?;
-            Ok(RenameAttempt::Renamed)
-        });
-        match renamed {
-            Ok(RenameAttempt::Renamed) => {
-                let fp = retry_sharing(|| fingerprint(&target))?.ok_or_else(|| {
-                    EngineError::Refused(format!("{}: vanished after move", mv.to))
-                })?;
-                return Ok(MoveOutcome::Moved { fingerprint: fp });
-            }
-            Ok(RenameAttempt::SourceStale) => {
-                if let Some(found) = fingerprint_confined(root, &mv.from)? {
-                    return Ok(MoveOutcome::SourceStale { found });
-                }
-                return Err(EngineError::Refused(format!(
-                    "{}: source vanished while moving",
-                    mv.from
-                )));
-            }
-            Ok(RenameAttempt::SourceMissing) => {
-                return Err(EngineError::Refused(format!(
-                    "{}: source vanished before moving",
-                    mv.from
-                )));
-            }
-            Ok(RenameAttempt::TargetAppeared) => {
-                if let Some(found) = fingerprint_confined(root, &mv.to)? {
-                    return Ok(MoveOutcome::TargetExists { found });
-                }
-                return Err(EngineError::Refused(format!(
-                    "{}: target appeared then vanished while moving",
-                    mv.to
-                )));
-            }
-            Err(e) if cross_device(&e) => {}
-            Err(e) => return Err(EngineError::Io(e)),
-        }
+        return move_unchanged_bytes_with(
+            root,
+            &mv.from,
+            &mv.to,
+            mv.body.as_bytes(),
+            mv.base,
+            after_write,
+        );
     }
 
     let written = match write_staged_with_permissions(
@@ -328,25 +541,7 @@ fn move_staged_with(root: &Path, mv: &PageMove, after_write: impl FnOnce()) -> R
         WriteOutcome::StaleBase { found } => return Ok(MoveOutcome::TargetExists { found }),
     };
     after_write();
-    match remove_move_source(root, &mv.from, mv.base) {
-        // The destination already holds the copied bytes. If an external
-        // actor removed the source in the post-write window, the requested
-        // end state is present; rolling back would destroy the only copy.
-        Ok(MoveSourceRemoval::Removed | MoveSourceRemoval::Missing) => Ok(MoveOutcome::Moved {
-            fingerprint: written,
-        }),
-        Ok(MoveSourceRemoval::StaleBase(found)) => {
-            rollback_target(root, &mv.to, written);
-            Ok(MoveOutcome::SourceStale { found })
-        }
-        Err(e) if not_found(&e) => Ok(MoveOutcome::Moved {
-            fingerprint: written,
-        }),
-        Err(e) => {
-            rollback_target(root, &mv.to, written);
-            Err(e)
-        }
-    }
+    finish_move_after_target(root, &mv.from, &mv.to, mv.base, written)
 }
 
 /// Move unchanged binary bytes inside one workspace with the same
@@ -361,96 +556,7 @@ pub(crate) fn move_unchanged_staged(
     body: &[u8],
     base: Fingerprint,
 ) -> Result<MoveOutcome> {
-    if from == to {
-        return Err(EngineError::Refused(
-            "asset move source and destination are identical".into(),
-        ));
-    }
-    match fingerprint_confined(root, from)? {
-        Some(found) if found == base => {}
-        Some(found) => return Ok(MoveOutcome::SourceStale { found }),
-        None => {
-            return Err(EngineError::Refused(format!(
-                "{from}: source no longer exists"
-            )));
-        }
-    }
-    if let Some(found) = fingerprint_confined(root, to)? {
-        return Ok(MoveOutcome::TargetExists { found });
-    }
-    if Hash(Sha256::digest(body).into()) != base.sha256 {
-        return Err(EngineError::Refused(format!(
-            "{from}: byte hash does not match its fingerprint"
-        )));
-    }
-    let source = confine(from, confirm_confined_file(root, Path::new(from)))?;
-    let permissions = std::fs::metadata(&source)?.permissions();
-    let target = confine(to, create_confined_parent(root, Path::new(to)))?;
-    let renamed = retry_sharing(|| {
-        let source = confirm_confined_file(root, Path::new(from))?;
-        let target = confirm_confined_file(root, Path::new(to))?;
-        match fingerprint(&source)? {
-            Some(found) if found == base => {}
-            Some(_) => return Ok(RenameAttempt::SourceStale),
-            None => return Ok(RenameAttempt::SourceMissing),
-        }
-        if fingerprint(&target)?.is_some() {
-            return Ok(RenameAttempt::TargetAppeared);
-        }
-        cv_store::paths::replace_file(&source, &target)?;
-        Ok(RenameAttempt::Renamed)
-    });
-    match renamed {
-        Ok(RenameAttempt::Renamed) => {
-            let fp = retry_sharing(|| fingerprint(&target))?
-                .ok_or_else(|| EngineError::Refused(format!("{to}: vanished after move")))?;
-            return Ok(MoveOutcome::Moved { fingerprint: fp });
-        }
-        Ok(RenameAttempt::SourceStale) => {
-            if let Some(found) = fingerprint_confined(root, from)? {
-                return Ok(MoveOutcome::SourceStale { found });
-            }
-            return Err(EngineError::Refused(format!(
-                "{from}: source vanished while moving"
-            )));
-        }
-        Ok(RenameAttempt::SourceMissing) => {
-            return Err(EngineError::Refused(format!(
-                "{from}: source vanished before moving"
-            )));
-        }
-        Ok(RenameAttempt::TargetAppeared) => {
-            if let Some(found) = fingerprint_confined(root, to)? {
-                return Ok(MoveOutcome::TargetExists { found });
-            }
-            return Err(EngineError::Refused(format!(
-                "{to}: target appeared then vanished while moving"
-            )));
-        }
-        Err(e) if cross_device(&e) => {}
-        Err(e) => return Err(EngineError::Io(e)),
-    }
-
-    let written = match write_staged_with_permissions(root, to, body, None, Some(permissions))? {
-        WriteOutcome::Written { fingerprint } => fingerprint,
-        WriteOutcome::StaleBase { found } => return Ok(MoveOutcome::TargetExists { found }),
-    };
-    match remove_move_source(root, from, base) {
-        Ok(MoveSourceRemoval::Removed | MoveSourceRemoval::Missing) => Ok(MoveOutcome::Moved {
-            fingerprint: written,
-        }),
-        Ok(MoveSourceRemoval::StaleBase(found)) => {
-            rollback_target(root, to, written);
-            Ok(MoveOutcome::SourceStale { found })
-        }
-        Err(e) if not_found(&e) => Ok(MoveOutcome::Moved {
-            fingerprint: written,
-        }),
-        Err(e) => {
-            rollback_target(root, to, written);
-            Err(e)
-        }
-    }
+    move_unchanged_bytes_with(root, from, to, body, base, || {})
 }
 
 #[cfg(test)]
@@ -871,5 +977,112 @@ mod tests {
             std::fs::read(t.path().join("content/nested/b.md")).unwrap(),
             b"one"
         );
+    }
+
+    #[test]
+    fn no_replace_installation_refuses_an_existing_foreign_target() {
+        let t = tempfile::tempdir().unwrap();
+        let mut staged = tempfile::NamedTempFile::new_in(t.path()).unwrap();
+        staged.write_all(b"incoming").unwrap();
+        let target = t.path().join("target.bin");
+        std::fs::write(&target, b"foreign").unwrap();
+
+        assert_eq!(
+            install_new_no_replace(staged.path(), &target, b"incoming", None).unwrap(),
+            InstallNew::AlreadyExists
+        );
+        assert_eq!(std::fs::read(&target).unwrap(), b"foreign");
+    }
+
+    #[test]
+    fn move_unchanged_staged_never_clobbers_a_foreign_destination() {
+        let t = tempfile::tempdir().unwrap();
+        let WriteOutcome::Written { fingerprint: base } =
+            write_staged(t.path(), "content/source.png", b"asset", None).unwrap()
+        else {
+            panic!("create source")
+        };
+        std::fs::write(t.path().join("content/dest.png"), b"foreign").unwrap();
+
+        assert!(matches!(
+            move_unchanged_staged(
+                t.path(),
+                "content/source.png",
+                "content/dest.png",
+                b"asset",
+                base,
+            )
+            .unwrap(),
+            MoveOutcome::TargetExists { .. }
+        ));
+        assert_eq!(
+            std::fs::read(t.path().join("content/dest.png")).unwrap(),
+            b"foreign"
+        );
+        assert_eq!(
+            std::fs::read(t.path().join("content/source.png")).unwrap(),
+            b"asset"
+        );
+    }
+
+    #[test]
+    fn move_unchanged_staged_refuses_exact_and_filesystem_case_aliases_before_delete() {
+        let t = tempfile::tempdir().unwrap();
+        let WriteOutcome::Written { fingerprint: base } =
+            write_staged(t.path(), "content/source.png", b"asset", None).unwrap()
+        else {
+            panic!("create source")
+        };
+        assert!(
+            move_unchanged_staged(
+                t.path(),
+                "content/source.png",
+                "content/source.png",
+                b"asset",
+                base,
+            )
+            .is_err()
+        );
+        assert_eq!(
+            std::fs::read(t.path().join("content/source.png")).unwrap(),
+            b"asset"
+        );
+
+        let WriteOutcome::Written {
+            fingerprint: case_base,
+        } = write_staged(t.path(), "content/CaseAlias.png", b"case", None).unwrap()
+        else {
+            panic!("create case source")
+        };
+        if paths_are_case_aliases(t.path(), "content/CaseAlias.png", "content/casealias.png")
+            .unwrap()
+        {
+            assert!(
+                move_unchanged_staged(
+                    t.path(),
+                    "content/CaseAlias.png",
+                    "content/casealias.png",
+                    b"case",
+                    case_base,
+                )
+                .is_err()
+            );
+            assert_eq!(
+                std::fs::read(t.path().join("content/CaseAlias.png")).unwrap(),
+                b"case"
+            );
+        } else {
+            assert!(matches!(
+                move_unchanged_staged(
+                    t.path(),
+                    "content/CaseAlias.png",
+                    "content/casealias.png",
+                    b"case",
+                    case_base,
+                )
+                .unwrap(),
+                MoveOutcome::Moved { .. }
+            ));
+        }
     }
 }
