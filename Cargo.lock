@@ -800,6 +800,7 @@ dependencies = [
 name = "cv-model"
 version = "0.0.0"
 dependencies = [
+ "cv-contracts",
  "cv-core",
  "cv-fixtures",
  "cv-notes",

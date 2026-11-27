@@ -4,6 +4,7 @@
 
 use crate::command::{CommandSpec, Intent};
 use crate::dialog::DialogAnswer;
+use cv_contracts::graph::Graph;
 use cv_core::diagnostic::Diagnostic;
 use cv_core::events::Envelope;
 use cv_core::id::{NounAttrRow, NounId};
@@ -178,6 +179,11 @@ pub struct ProjectSnapshot {
     pub target: Option<String>,
     pub pages: Vec<PageRecord>,
     pub outputs: Vec<OutputRecord>,
+    /// The frozen Boris IR graph backing this snapshot, shared rather than
+    /// copied. It is in-memory authority only and is deliberately never
+    /// serialized into shell state or the store.
+    #[serde(skip_serializing)]
+    pub ir_graph: Option<std::sync::Arc<Graph>>,
     /// Hashes recorded at the last publish, by output path.
     pub last_publish: Option<PublishMark>,
     /// Directory the outputs' paths are relative to (the built HTML
