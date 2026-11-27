@@ -1,4 +1,5 @@
 use super::*;
+use crate::modules::migrate::LabState;
 use crate::workbench::{ShellRequest, Workbench};
 use cv_core::diagnostic::Span;
 use cv_core::engine::EngineCaps;
@@ -352,6 +353,174 @@ fn a_version_mismatch_names_what_was_found_and_the_pin() {
     assert_eq!(pin.badge, Some(Chip::new("differs", Tone::Warn)));
 }
 
+fn lab_pin() -> Pin {
+    Pin {
+        version: "boris-migration-lab/0.8.1".into(),
+        vcs_revision: "ce40d78a0cd20f3e36550c7a85391903672bcb5a".into(),
+    }
+}
+
+#[test]
+fn a_located_lab_shows_its_path_source_version_and_matching_pin() {
+    let m = module(Facts {
+        lab: Lab {
+            state: LabState::Located {
+                tool_id: "boris-migration-lab/0.8.1".into(),
+                source: "bundled".into(),
+                path: "/app/engines/boris-migration-lab".into(),
+            },
+            pin: lab_pin(),
+            candidates: vec![(
+                EngineSource::Bundled,
+                "/app/engines/boris-migration-lab".into(),
+            )],
+        },
+        ..Facts::default()
+    });
+    let keys: Vec<_> = rows(&m, "lab").into_iter().map(|r| r.key).collect();
+    assert_eq!(
+        keys,
+        [
+            "lab.status",
+            "lab.path",
+            "lab.source",
+            "lab.version",
+            "lab.pin",
+            "lab.search"
+        ]
+    );
+    let r = rows(&m, "lab");
+    assert_eq!(r[0].title, "boris-migration-lab/0.8.1");
+    assert_eq!(r[0].detail, "bundled");
+    assert_eq!(r[0].badge, Some(Chip::new("OK", Tone::Ok)));
+    assert_eq!(r[1].title, "/app/engines/boris-migration-lab");
+    assert_eq!(r[4].badge, Some(Chip::new("match", Tone::Ok)));
+    let search = m.reading("lab.search");
+    assert_eq!(search.lines.last().unwrap().label.as_deref(), Some("used"));
+    assert!(m.nav().items.iter().all(|n| n.count.is_none()));
+}
+
+#[test]
+fn an_absent_lab_lists_every_searched_path_and_counts_as_a_problem() {
+    let searched = vec![
+        "/app/engines/boris-migration-lab".to_string(),
+        "/usr/bin/boris-migration-lab".to_string(),
+    ];
+    let m = module(Facts {
+        lab: Lab {
+            state: LabState::Absent {
+                searched: searched.clone(),
+            },
+            pin: lab_pin(),
+            candidates: vec![
+                (
+                    EngineSource::Bundled,
+                    "/app/engines/boris-migration-lab".into(),
+                ),
+                (EngineSource::Path, "/usr/bin/boris-migration-lab".into()),
+            ],
+        },
+        ..Facts::default()
+    });
+    let r = rows(&m, "lab");
+    assert_eq!(r[0].title, "boris-migration-lab not found");
+    assert_eq!(r[0].detail, "2 searched");
+    assert_eq!(r[0].rail, Some(Tone::Error));
+    assert_eq!(m.nav().items[1].count, Some(1));
+    let search = m.reading("lab.search");
+    let paths: Vec<_> = search.lines.iter().map(|l| l.text.as_str()).collect();
+    for path in searched {
+        assert!(paths.contains(&path.as_str()), "{paths:?}");
+    }
+}
+
+#[test]
+fn a_lab_pin_mismatch_names_found_and_want_without_marking_the_engine_bad() {
+    let m = module(Facts {
+        lab: Lab {
+            state: LabState::Mismatch {
+                found: "boris-migration-lab/0.8.0".into(),
+                want: "boris-migration-lab/0.8.1".into(),
+                path: "/usr/local/bin/boris-migration-lab".into(),
+            },
+            pin: lab_pin(),
+            candidates: vec![(
+                EngineSource::Path,
+                "/usr/local/bin/boris-migration-lab".into(),
+            )],
+        },
+        ..Facts::default()
+    });
+    let r = rows(&m, "lab");
+    assert_eq!(r[0].title, "boris-migration-lab/0.8.0");
+    assert_eq!(r[0].detail, "pinned boris-migration-lab/0.8.1");
+    assert_eq!(r[0].rail, Some(Tone::Warn));
+    let pin = r.iter().find(|r| r.key == "lab.pin").unwrap();
+    assert_eq!(pin.badge, Some(Chip::new("differs", Tone::Warn)));
+    assert!(m.nav().items[0].count.is_none(), "engine stays unaffected");
+    assert_eq!(m.nav().items[1].count, Some(3));
+}
+
+#[test]
+fn imports_rows_disclose_empty_degraded_and_review_log_health() {
+    let mut facts = Facts {
+        store: Store {
+            root: Some("/ws".into()),
+            namespaces: vec![Namespace {
+                name: "imports".into(),
+                dir: ".cv/imports".into(),
+                supported: 1,
+                stamp: Stamp::Version(1),
+                lock: None,
+                index: None,
+                error: None,
+            }],
+            imports: Some(ImportsHealth {
+                runs: Some(3),
+                unreadable_runs: 1,
+                review_lines: 5,
+                undecodable_review_lines: 1,
+                unsupported_review_lines: 1,
+                torn_review_bytes: 7,
+                ..ImportsHealth::default()
+            }),
+        },
+        ..Facts::default()
+    };
+    let m = module(facts.clone());
+    let r = rows(&m, "store");
+    let by = |k: &str| r.iter().find(|r| r.key == k).unwrap().clone();
+    assert_eq!(
+        by("store.ns.imports").badge,
+        Some(Chip::new("current", Tone::Ok))
+    );
+    assert_eq!(by("store.imports.runs").detail, "3 runs");
+    assert_eq!(
+        by("store.imports.runs").badge,
+        Some(Chip::new("degraded", Tone::Warn))
+    );
+    assert_eq!(by("store.imports.review").detail, "5 lines");
+    assert_eq!(
+        by("store.imports.review").badge,
+        Some(Chip::new("degraded", Tone::Warn))
+    );
+    let reading = m.reading("store.imports.review");
+    for text in ["1", "7"] {
+        assert!(reading.lines.iter().any(|l| l.text == text), "{reading:?}");
+    }
+    assert_eq!(m.nav().items[4].count, Some(2));
+
+    facts.store.imports = Some(ImportsHealth {
+        runs: Some(0),
+        ..ImportsHealth::default()
+    });
+    let m = module(facts);
+    let r = rows(&m, "store");
+    let runs = r.iter().find(|r| r.key == "store.imports.runs").unwrap();
+    assert_eq!(runs.detail, "none");
+    assert_eq!(runs.badge, None);
+}
+
 #[test]
 fn store_rows_disclose_stamps_locks_and_index() {
     let m = module(Facts {
@@ -380,6 +549,7 @@ fn store_rows_disclose_stamps_locks_and_index() {
                     error: None,
                 },
             ],
+            imports: None,
         },
         ..Facts::default()
     });
@@ -398,7 +568,7 @@ fn store_rows_disclose_stamps_locks_and_index() {
         by("store.ns.ledger").badge,
         Some(Chip::new("too new", Tone::Error))
     );
-    assert_eq!(m.nav().items[3].count, Some(2));
+    assert_eq!(m.nav().items[4].count, Some(2));
 }
 
 #[test]
@@ -460,6 +630,23 @@ fn the_support_bundle_leaves_out_paths_env_values_and_secret_fields() {
         index: Some("/home/ana/.local/share/capture-vector/k/research/index.sqlite".into()),
         error: Some("research silo already open (writer lock at \"/home/ana/work/site/.cv/research.writer.lock\")".into()),
     });
+    f.store.imports = Some(ImportsHealth {
+        runs: Some(2),
+        review_lines: 1,
+        ..ImportsHealth::default()
+    });
+    f.lab = Lab {
+        state: LabState::Located {
+            tool_id: "boris-migration-lab/0.8.1".into(),
+            source: "CV_MIGRATION_LAB_BIN".into(),
+            path: "/home/ana/bin/boris-migration-lab".into(),
+        },
+        pin: lab_pin(),
+        candidates: vec![(
+            EngineSource::EnvOverride,
+            "/home/ana/bin/boris-migration-lab".into(),
+        )],
+    };
     let text = bundle::render(&f, &WatchLog::default());
     assert!(!text.contains("/home/ana"), "{text}");
     assert!(!text.contains("/usr/bin"), "{text}");
@@ -475,7 +662,13 @@ fn the_support_bundle_leaves_out_paths_env_values_and_secret_fields() {
     assert_eq!(v["engine"]["source"], "Path");
     assert_eq!(v["engine"]["candidatesSearched"], 2);
     assert_eq!(v["engine"]["buildInfo"]["vcsRevision"], "66efcfb");
+    assert_eq!(v["lab"]["state"], "located");
+    assert_eq!(v["lab"]["binary"], "boris-migration-lab");
+    assert_eq!(v["lab"]["source"], "CV_MIGRATION_LAB_BIN");
+    assert_eq!(v["lab"]["pinMatches"], true);
     assert_eq!(v["store"]["namespaces"][0]["hasIndex"], true);
+    assert_eq!(v["store"]["imports"]["runs"], 2);
+    assert_eq!(v["store"]["imports"]["reviewLines"], 1);
 }
 
 #[test]

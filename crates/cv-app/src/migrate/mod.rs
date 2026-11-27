@@ -11,8 +11,9 @@ use cv_contracts::lab::{Disposition, Document, Inventory, Report};
 use cv_core::engine::EngineSource;
 use cv_engine::error::EngineError;
 use cv_engine::lab::{self as engine_lab, LabError, LabExit, LabIdentity, LabRun, ModeSpec};
+use cv_engine::locate::Locator;
 use cv_engine::proc::CancelToken;
-use cv_model::modules::doctor::source_label;
+use cv_model::modules::doctor::lab_source_label;
 use cv_model::modules::migrate::{
     Family, ImportExtra, ImportExtraKind, ImportInput, ImportInputKind, ImportMode, ImportRun,
     ImportRunInput, Imports, LabState, MigratePort, ReviewItem, ReviewState, RunStatus,
@@ -124,17 +125,41 @@ pub fn modes() -> Vec<ImportMode> {
         .collect()
 }
 
-/// Gate the lab for `root` with the production search order.
-pub fn locate(root: &Path) -> LabState {
-    let loc = engine_lab::locator_from_env(root);
-    match engine_lab::locate(&loc, root, engine_lab::PINNED) {
+/// The lab gate plus the ordered search space it tried, for Doctor.
+pub struct LabLocation {
+    pub state: LabState,
+    pub candidates: Vec<(EngineSource, String)>,
+}
+
+/// Gate the lab for `root`. `None` uses the production search order;
+/// tests inject a locator rather than changing process-wide environment.
+pub fn locate_detailed(root: &Path, locator: Option<&Locator>) -> LabLocation {
+    let owned;
+    let loc = match locator {
+        Some(l) => l,
+        None => {
+            owned = engine_lab::locator_from_env(root);
+            &owned
+        }
+    };
+    let candidates = engine_lab::candidates(loc)
+        .into_iter()
+        .map(|(source, path)| (source, path.display().to_string()))
+        .collect();
+    let state = match engine_lab::locate(loc, root, engine_lab::PINNED) {
         Ok(id) => LabState::Located {
             tool_id: id.tool_id,
-            source: source_label(&id.source).into(),
+            source: lab_source_label(&id.source).into(),
             path: id.path.display().to_string(),
         },
         Err(e) => lab_error(e),
-    }
+    };
+    LabLocation { state, candidates }
+}
+
+/// Gate the lab for `root` with the production search order.
+pub fn locate(root: &Path) -> LabState {
+    locate_detailed(root, None).state
 }
 
 fn lab_error(e: LabError) -> LabState {
@@ -823,16 +848,12 @@ pub fn now_ms() -> i64 {
 
 /// A record for a run the gated `lab` is about to start.
 pub fn started_record(run_id: &str, mode: &str, lab: &LabIdentity, started_ms: i64) -> RunRecord {
-    let source = match lab.source {
-        EngineSource::EnvOverride => "CV_MIGRATION_LAB_BIN",
-        ref s => source_label(s),
-    };
     let mut rec = RunRecord::started(
         run_id,
         mode,
         store::RecordedLab {
             tool_id: lab.tool_id.clone(),
-            source: source.into(),
+            source: lab_source_label(&lab.source).into(),
             path: lab.path.display().to_string(),
         },
         started_ms,

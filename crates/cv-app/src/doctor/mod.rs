@@ -7,12 +7,14 @@ pub mod scene;
 use crate::build_info;
 use cv_core::engine::EngineSource;
 use cv_engine::EngineError;
+use cv_engine::lab::PINNED as LAB_PINNED;
 use cv_engine::locate::{EngineIdentity, Locator, PINNED};
 use cv_engine::probe::{CapabilityReport, WatchMode};
 use cv_model::modules::doctor::{
-    self, AppBuild, EngineState, Feed, Located, Lock, LockHolder, Namespace, Pin, Probe, Stamp,
-    Store,
+    self, AppBuild, EngineState, Feed, ImportsHealth, Located, Lock, LockHolder, Namespace, Pin,
+    Probe, Stamp, Store,
 };
+use cv_store::imports::{self as imports_store, ReviewLog};
 use cv_store::sidecar;
 use std::fs::OpenOptions;
 use std::path::Path;
@@ -21,6 +23,13 @@ pub fn pin() -> Pin {
     Pin {
         version: PINNED.version.into(),
         vcs_revision: PINNED.vcs_revision.into(),
+    }
+}
+
+pub fn lab_pin() -> Pin {
+    Pin {
+        version: LAB_PINNED.tool_id.into(),
+        vcs_revision: LAB_PINNED.commit.into(),
     }
 }
 
@@ -53,6 +62,7 @@ pub fn install(root: Option<&Path>) -> Feed {
     let feed = Feed::default();
     feed.update(|f| {
         f.pin = pin();
+        f.lab.pin = lab_pin();
         f.app = app_build();
         if let Some(r) = root {
             let r = r.display().to_string();
@@ -133,6 +143,8 @@ pub struct StoreOpen {
     pub research: Opened,
     pub audit: Opened,
     pub ledger: Opened,
+    /// Imports is read-only here; there is no session-long open outcome.
+    pub imports: Opened,
 }
 
 fn stamp(root: &Path, ns: &sidecar::Namespace) -> Stamp {
@@ -163,6 +175,30 @@ fn lock_state(root: &Path, rel: &str, known: Option<LockHolder>) -> Option<LockH
     };
     drop(file);
     Some(state)
+}
+
+/// Inspect `.cv/imports/` without creating anything or taking run locks.
+/// A missing directory is a healthy empty state; malformed evidence is
+/// counted rather than repaired.
+fn imports_health(root: &Path) -> ImportsHealth {
+    let mut out = ImportsHealth::default();
+    match imports_store::scan(root) {
+        Ok(runs) => {
+            out.runs = Some(runs.len() as u64);
+            out.unreadable_runs = runs.iter().filter(|r| r.record.is_err()).count() as u64;
+        }
+        Err(e) => out.scan_error = Some(e.to_string()),
+    }
+    match ReviewLog::open(root) {
+        Ok((_, _, scan)) => {
+            out.review_lines = scan.lines;
+            out.undecodable_review_lines = scan.undecodable;
+            out.unsupported_review_lines = scan.unsupported;
+            out.torn_review_bytes = scan.torn_bytes;
+        }
+        Err(e) => out.review_error = Some(e.to_string()),
+    }
+    out
 }
 
 /// Read every namespace's stamp (never writing), with what the opens
@@ -216,7 +252,18 @@ pub fn store(root: &Path, opened: &StoreOpen) -> Store {
                 Some(cv_ledger::journal::WRITER_LOCK_REL.into()),
                 ledger_index,
             ),
+            ns(
+                &imports_store::SCHEMA,
+                &opened.imports,
+                Some(format!(
+                    "{}/{}",
+                    imports_store::DIR,
+                    imports_store::REVIEW_LOCK
+                )),
+                None,
+            ),
         ],
+        imports: Some(imports_health(root)),
     }
 }
 

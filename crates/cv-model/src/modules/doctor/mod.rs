@@ -14,8 +14,8 @@ pub mod facts;
 mod tests;
 
 pub use facts::{
-    AppBuild, EngineState, Facts, Feed, Located, Lock, LockHolder, Namespace, Pin, Probe, Stamp,
-    Store,
+    AppBuild, EngineState, Facts, Feed, ImportsHealth, Lab, Located, Lock, LockHolder, Namespace,
+    Pin, Probe, Stamp, Store,
 };
 
 use crate::command::{CommandSpec, Intent};
@@ -23,6 +23,7 @@ use crate::module::{
     Chip, InspectorModel, Module, ModuleSpec, NavItem, NavModel, ReadingLine, ReadingModel,
     Registry, RowModel, Slot, Tone,
 };
+use crate::modules::migrate::LabState;
 use cv_core::diagnostic::{Diagnostic, Severity};
 use cv_core::engine::{EngineSource, ExitClass};
 use cv_core::events::engine::{BuildPhase, EngineEvent, WatchEndReason, WatchExit};
@@ -229,14 +230,16 @@ impl WatchLog {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Section {
     Engine,
+    Lab,
     Probe,
     Watch,
     Store,
     App,
 }
 
-const SECTIONS: [(Section, &str, &str); 5] = [
+const SECTIONS: [(Section, &str, &str); 6] = [
     (Section::Engine, "engine", "Engine"),
+    (Section::Lab, "lab", "Migration lab"),
     (Section::Probe, "probe", "Capabilities"),
     (Section::Watch, "watch", "Watch session"),
     (Section::Store, "store", ".cv/ store"),
@@ -345,6 +348,35 @@ pub fn pin_matches(f: &Facts) -> Option<bool> {
         EngineState::Located(_) => Some(true),
         EngineState::Fixture { version, .. } => Some(*version == f.pin.version),
         EngineState::VersionMismatch { .. } | EngineState::BuildInfoInvalid { .. } => Some(false),
+        _ => None,
+    }
+}
+
+/// Same meaning as [`source_label`], for the migration lab's override.
+pub fn lab_source_label(s: &EngineSource) -> &'static str {
+    match s {
+        EngineSource::EnvOverride => "CV_MIGRATION_LAB_BIN",
+        EngineSource::Bundled => "bundled",
+        EngineSource::Path => "PATH",
+        EngineSource::SiblingCheckout => "sibling checkout",
+    }
+}
+
+pub(crate) fn lab_path(state: &LabState) -> Option<&str> {
+    match state {
+        LabState::Located { path, .. }
+        | LabState::OverrideMissing { path }
+        | LabState::Mismatch { path, .. } => Some(path),
+        _ => None,
+    }
+}
+
+/// Whether the migration lab this window runs is the pinned one: `None`
+/// when no gate has run yet.
+pub fn lab_pin_matches(f: &Facts) -> Option<bool> {
+    match &f.lab.state {
+        LabState::Located { tool_id, .. } => Some(*tool_id == f.lab.pin.version),
+        LabState::Mismatch { .. } => Some(false),
         _ => None,
     }
 }
@@ -497,6 +529,133 @@ fn engine_items(f: &Facts) -> Vec<Item> {
         let hit = used == Some(p.as_str());
         search.lines.push(ReadingLine {
             label: Some(if hit { "used" } else { source_label(src) }.into()),
+            text: p.clone(),
+            tone: if hit { Tone::Ok } else { Tone::Dim },
+            mono: true,
+        });
+    }
+    out.push(search);
+    out
+}
+
+const FIX_LAB: &str = "Build the pinned boris-migration-lab (scripts/fetch-migration-lab.sh) and put it on PATH or point CV_MIGRATION_LAB_BIN at it, then reopen the workspace. Runs already under .cv/imports/ stay readable without it.";
+
+fn lab_items(f: &Facts) -> Vec<Item> {
+    let pin = format!("{} @ {}", f.lab.pin.version, f.lab.pin.vcs_revision);
+    let state = &f.lab.state;
+    let status = match state {
+        LabState::NoWorkspace => Item::new("lab.status", "Not located yet", "no workspace")
+            .tone(Tone::Dim)
+            .badge("idle", Tone::Dim)
+            .say("No workspace is open, so nothing has looked for boris-migration-lab. Open one with Open workspace… (mod+shift+O) or launch with --project <dir>."),
+        LabState::Fixture { tool_id } => Item::new("lab.status", tool_id.clone(), "fixture replay")
+            .badge("fixture", Tone::Dim)
+            .say("The fixture demo replays checked-in migration captures; no lab binary runs. Open a workspace to run a real lab."),
+        LabState::Located {
+            tool_id,
+            source,
+            path,
+        } => Item::new("lab.status", tool_id.clone(), source.clone())
+            .tone(Tone::Ok)
+            .badge("OK", Tone::Ok)
+            .line("binary", path.clone())
+            .line("pin", pin.clone())
+            .say("The binary passed the --version gate against the migration-lab pin."),
+        LabState::Absent { searched } => Item::new(
+            "lab.status",
+            "boris-migration-lab not found",
+            format!("{} searched", searched.len()),
+        )
+        .tone(Tone::Error)
+        .badge("absent", Tone::Error)
+        .say(FIX_LAB),
+        LabState::OverrideMissing { path } => {
+            Item::new("lab.status", "CV_MIGRATION_LAB_BIN is not an executable", path.clone())
+                .tone(Tone::Error)
+                .badge("absent", Tone::Error)
+                .say("An explicit override never falls through to another lab binary: fix or unset CV_MIGRATION_LAB_BIN, then reopen the workspace.")
+        }
+        LabState::Mismatch { found, want, path } => {
+            Item::new("lab.status", found.clone(), format!("pinned {want}"))
+                .tone(Tone::Warn)
+                .badge("mismatch", Tone::Warn)
+                .line("found", found.clone())
+                .line("want", pin.clone())
+                .line("binary", path.clone())
+                .say(FIX_LAB)
+        }
+        LabState::Failed { error } => Item::new("lab.status", "Lab gate failed", error.clone())
+            .tone(Tone::Error)
+            .badge("failed", Tone::Error)
+            .line("error", error.clone())
+            .say(FIX_LAB),
+    };
+    let mut out = vec![status];
+    if let Some(p) = lab_path(state) {
+        out.push(Item::new("lab.path", "Binary", p).path());
+    }
+    match state {
+        LabState::Located { source, .. } => {
+            out.push(
+                Item::new("lab.source", "Located via", source.clone())
+                    .say(format!("Found through {source}."))
+                    .say("Search order: CV_MIGRATION_LAB_BIN, then the app's bundled engines/, then PATH, then a sibling checkout (only with CV_MIGRATION_LAB_SIBLING=1). The first that exists is gated; a mismatch never falls through to the next."),
+            );
+        }
+        LabState::OverrideMissing { .. } => {
+            out.push(
+                Item::new("lab.source", "Located via", "CV_MIGRATION_LAB_BIN").say(
+                    "An explicit override is the only candidate tried; it never falls through.",
+                ),
+            );
+        }
+        _ => {}
+    }
+    match state {
+        LabState::Located { tool_id, .. } => {
+            out.push(Item::new("lab.version", "--version", tool_id.clone()));
+        }
+        LabState::Mismatch { found, .. } => {
+            out.push(Item::new("lab.version", "--version", found.clone()).tone(Tone::Warn));
+        }
+        LabState::Fixture { tool_id } => {
+            out.push(Item::new("lab.version", "Captured tool", tool_id.clone()));
+        }
+        _ => {}
+    }
+    let mut pin_item = Item::new("lab.pin", "Pin", f.lab.pin.version.clone())
+        .line("revision", f.lab.pin.vcs_revision.clone())
+        .say("The one migration lab this build accepts. The lab reports only a tool id, not the source commit; the pin's commit is release evidence.");
+    pin_item = match lab_pin_matches(f) {
+        Some(true) => pin_item.badge("match", Tone::Ok),
+        Some(false) => pin_item.badge("differs", Tone::Warn),
+        None => pin_item.badge("unchecked", Tone::Dim),
+    };
+    out.push(pin_item);
+
+    let mut candidates = f.lab.candidates.clone();
+    if candidates.is_empty()
+        && let LabState::Absent { searched } = state
+    {
+        candidates = searched
+            .iter()
+            .map(|p| (EngineSource::Path, p.clone()))
+            .collect();
+    }
+    let mut search = Item::new(
+        "lab.search",
+        "Search order",
+        match candidates.len() {
+            0 => "not searched".to_string(),
+            1 => "1 candidate".to_string(),
+            n => format!("{n} candidates"),
+        },
+    );
+    let used = lab_path(state);
+    for (src, p) in &candidates {
+        let hit = used == Some(p.as_str());
+        search.lines.push(ReadingLine {
+            label: Some(if hit { "used" } else { lab_source_label(src) }.into()),
             text: p.clone(),
             tone: if hit { Tone::Ok } else { Tone::Dim },
             mono: true,
@@ -760,6 +919,73 @@ fn stamp_badge(ns: &Namespace) -> (String, Chip, Tone) {
     }
 }
 
+fn imports_items(h: &ImportsHealth) -> Vec<Item> {
+    let runs = if let Some(e) = &h.scan_error {
+        Item::new("store.imports.runs", "Import runs", "scan failed")
+            .tone(Tone::Error)
+            .badge("error", Tone::Error)
+            .line("scan error", e.clone())
+    } else {
+        let n = h.runs.unwrap_or_default();
+        let mut i = Item::new(
+            "store.imports.runs",
+            "Import runs",
+            match n {
+                0 => "none".to_string(),
+                1 => "1 run".to_string(),
+                n => format!("{n} runs"),
+            },
+        )
+        .say("Run directories under .cv/imports/, read without taking their run locks. Symlinked .cv or imports paths are refused rather than followed.");
+        if n == 0 {
+            i = i.tone(Tone::Dim);
+        }
+        if h.unreadable_runs > 0 {
+            i = i
+                .tone(Tone::Warn)
+                .badge("degraded", Tone::Warn)
+                .line("unreadable run.json", h.unreadable_runs.to_string());
+        }
+        i
+    };
+
+    let malformed = h.undecodable_review_lines + h.unsupported_review_lines;
+    let review = if let Some(e) = &h.review_error {
+        Item::new("store.imports.review", "Review log", "unreadable")
+            .tone(Tone::Error)
+            .badge("error", Tone::Error)
+            .line("read error", e.clone())
+    } else {
+        let mut i = Item::new(
+            "store.imports.review",
+            "Review log",
+            match h.review_lines {
+                0 => "no decisions".to_string(),
+                1 => "1 line".to_string(),
+                n => format!("{n} lines"),
+            },
+        )
+        .say("review.jsonl is append-only human-review evidence. Malformed or too-new lines are counted here and skipped by readers; nothing is rewritten in place.");
+        if h.review_lines == 0 {
+            i = i.tone(Tone::Dim);
+        }
+        if malformed > 0 || h.torn_review_bytes > 0 {
+            i = i.tone(Tone::Warn).badge("degraded", Tone::Warn);
+        }
+        if h.undecodable_review_lines > 0 {
+            i = i.line("undecodable", h.undecodable_review_lines.to_string());
+        }
+        if h.unsupported_review_lines > 0 {
+            i = i.line("unsupported", h.unsupported_review_lines.to_string());
+        }
+        if h.torn_review_bytes > 0 {
+            i = i.line("torn tail bytes", h.torn_review_bytes.to_string());
+        }
+        i
+    };
+    vec![runs, review]
+}
+
 fn store_items(f: &Facts) -> Vec<Item> {
     let Some(root) = &f.store.root else {
         return vec![
@@ -821,6 +1047,9 @@ fn store_items(f: &Facts) -> Vec<Item> {
             );
         }
     }
+    if let Some(h) = &f.store.imports {
+        out.extend(imports_items(h));
+    }
     out
 }
 
@@ -842,7 +1071,7 @@ fn app_items(f: &Facts) -> Vec<Item> {
         Item::new("app.bundle", "Support bundle", "palette")
             .say("Run Copy Doctor support bundle from the command palette (mod+K).")
             .say("Copies a JSON report of every section here to the clipboard, for an issue or a support thread.")
-            .say("Left out: page bodies, absolute paths of the engine and its search order (they come from PATH and CV_BORIS_BIN), environment values, and any field whose name looks like a secret. The workspace root and home directory are replaced by placeholders."),
+            .say("Left out: page bodies, absolute paths of the engine, migration lab and their search order (they come from PATH, CV_BORIS_BIN and CV_MIGRATION_LAB_BIN), environment values, and any field whose name looks like a secret. The workspace root and home directory are replaced by placeholders."),
     ]
 }
 
@@ -867,6 +1096,7 @@ impl DoctorModule {
         let f = self.feed.get();
         match s {
             Section::Engine => engine_items(&f),
+            Section::Lab => lab_items(&f),
             Section::Probe => probe_items(&f),
             Section::Watch => watch_items(&f, &self.watch),
             Section::Store => store_items(&f),
@@ -1001,7 +1231,7 @@ impl Module for DoctorModule {
         let text = bundle::render(&self.feed.get(), &self.watch);
         vec![
             Intent::Status(format!(
-                "Support bundle copied ({} bytes). Page bodies, engine paths and environment values are left out.",
+                "Support bundle copied ({} bytes). Page bodies, engine/lab paths and environment values are left out.",
                 text.len()
             )),
             Intent::Copy(text),

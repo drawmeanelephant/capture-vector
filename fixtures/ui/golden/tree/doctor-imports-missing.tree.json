@@ -1,0 +1,1825 @@
+{
+  "nodes": [
+    {
+      "fill": "#0e1014ff",
+      "key": "shell",
+      "opacity": 1.0,
+      "path": "shell",
+      "rect": [
+        0.0,
+        0.0,
+        1280.0,
+        800.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "body",
+      "opacity": 1.0,
+      "path": "shell/body",
+      "rect": [
+        0.0,
+        0.0,
+        1280.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/rail",
+      "rect": [
+        0.0,
+        0.0,
+        88.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-pages",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        28.0,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages/#0",
+      "rect": [
+        12.0,
+        34.0,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-pages-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages/#0/rail-pages-icon",
+      "rect": [
+        12.0,
+        34.0,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages/#1",
+      "rect": [
+        12.0,
+        54.0,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Pages"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-research",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        80.3,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research/#0",
+      "rect": [
+        12.0,
+        86.3,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-research-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research/#0/rail-research-icon",
+      "rect": [
+        12.0,
+        86.3,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research/#1",
+      "rect": [
+        12.0,
+        106.3,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Research"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-audit",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        132.5,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#0",
+      "rect": [
+        12.0,
+        138.5,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-audit-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#0/rail-audit-icon",
+      "rect": [
+        12.0,
+        138.5,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#1",
+      "rect": [
+        12.0,
+        158.5,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Audit"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-publish",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        184.8,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish/#0",
+      "rect": [
+        12.0,
+        190.8,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-publish-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish/#0/rail-publish-icon",
+      "rect": [
+        12.0,
+        190.8,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish/#1",
+      "rect": [
+        12.0,
+        210.8,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Publish"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-outputs",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        237.0,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs/#0",
+      "rect": [
+        12.0,
+        243.0,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-outputs-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs/#0/rail-outputs-icon",
+      "rect": [
+        12.0,
+        243.0,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs/#1",
+      "rect": [
+        12.0,
+        263.0,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Outputs"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-activity",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        289.3,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity/#0",
+      "rect": [
+        12.0,
+        295.3,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-activity-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity/#0/rail-activity-icon",
+      "rect": [
+        12.0,
+        295.3,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity/#1",
+      "rect": [
+        12.0,
+        315.3,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Activity"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-demo",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        341.5,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo/#0",
+      "rect": [
+        12.0,
+        347.5,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-demo-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo/#0/rail-demo-icon",
+      "rect": [
+        12.0,
+        347.5,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo/#1",
+      "rect": [
+        12.0,
+        367.5,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Demo"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/#7",
+      "rect": [
+        4.0,
+        393.8,
+        80.0,
+        302.3
+      ],
+      "role": "group"
+    },
+    {
+      "key": "rail-group-utilities",
+      "label": "Utilities",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-group-utilities",
+      "rect": [
+        4.0,
+        700.0,
+        80.0,
+        17.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-group-utilities/#0",
+      "rect": [
+        12.0,
+        704.0,
+        64.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Utilities"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-migrate",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        721.8,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#0",
+      "rect": [
+        12.0,
+        727.8,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-migrate-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#0/rail-migrate-icon",
+      "rect": [
+        12.0,
+        727.8,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#1",
+      "rect": [
+        12.0,
+        747.8,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Migrate"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav",
+      "opacity": 1.0,
+      "path": "shell/body/nav",
+      "rect": [
+        88.0,
+        0.0,
+        180.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "nav-scroll",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll",
+      "rect": [
+        88.0,
+        0.0,
+        180.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-head",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/nav-head",
+      "rect": [
+        88.0,
+        0.0,
+        180.0,
+        28.3
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/nav-head/#0",
+      "rect": [
+        96.0,
+        8.0,
+        164.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Doctor"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1",
+      "rect": [
+        88.0,
+        28.3,
+        180.0,
+        166.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-engine",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-engine",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        28.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-engine/#0",
+      "rect": [
+        104.0,
+        32.3,
+        38.7,
+        15.0
+      ],
+      "role": "text",
+      "text": "Engine"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-engine/#1",
+      "rect": [
+        146.7,
+        39.8,
+        105.3,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-lab",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-lab",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        55.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-lab/#0",
+      "rect": [
+        104.0,
+        59.3,
+        73.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "Migration lab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-lab/#1",
+      "rect": [
+        181.9,
+        66.8,
+        70.1,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-probe",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-probe",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        82.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-probe/#0",
+      "rect": [
+        104.0,
+        86.3,
+        65.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "Capabilities"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-probe/#1",
+      "rect": [
+        173.9,
+        93.8,
+        78.1,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-watch",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-watch",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        109.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-watch/#0",
+      "rect": [
+        104.0,
+        113.3,
+        82.3,
+        15.0
+      ],
+      "role": "text",
+      "text": "Watch session"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-watch/#1",
+      "rect": [
+        190.3,
+        120.8,
+        61.7,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "key": "nav-store",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-store",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        136.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem",
+      "selected": true
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-store/#0",
+      "rect": [
+        104.0,
+        140.3,
+        54.1,
+        15.0
+      ],
+      "role": "text",
+      "text": ".cv/ store"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-store/#1",
+      "rect": [
+        162.1,
+        147.8,
+        89.9,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-app",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-app",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        163.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-app/#0",
+      "rect": [
+        104.0,
+        167.3,
+        54.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "App build"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-app/#1",
+      "rect": [
+        162.0,
+        174.8,
+        90.0,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "list-pane",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane",
+      "rect": [
+        268.0,
+        0.0,
+        320.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "list-viewport",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport",
+      "rect": [
+        268.0,
+        0.0,
+        320.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-store.root",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.root",
+      "rect": [
+        268.0,
+        0.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.root/#0",
+      "rect": [
+        276.0,
+        3.5,
+        236.4,
+        15.0
+      ],
+      "role": "text",
+      "text": "/Users/ana/sites/happy"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.root/#1",
+      "rect": [
+        520.4,
+        4.1,
+        59.6,
+        13.8
+      ],
+      "role": "text",
+      "text": "Workspace"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-store.ns.research",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.ns.research",
+      "rect": [
+        268.0,
+        22.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.ns.research/#0",
+      "rect": [
+        276.0,
+        25.5,
+        182.6,
+        15.0
+      ],
+      "role": "text",
+      "text": ".cv/research"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.ns.research/#1",
+      "rect": [
+        466.6,
+        26.1,
+        55.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "schema v1"
+    },
+    {
+      "color": "#3dff9aff",
+      "fill": "#3dff9a26",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.ns.research/#2",
+      "radius": 999.0,
+      "rect": [
+        529.8,
+        26.1,
+        50.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "current"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-store.lock.research",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.lock.research",
+      "rect": [
+        268.0,
+        44.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.lock.research/#0",
+      "rect": [
+        276.0,
+        47.5,
+        233.1,
+        15.0
+      ],
+      "role": "text",
+      "text": ".cv/research.writer.lock"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.lock.research/#1",
+      "rect": [
+        517.1,
+        48.1,
+        62.9,
+        13.8
+      ],
+      "role": "text",
+      "text": "this window"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-store.index.research",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.index.research",
+      "rect": [
+        268.0,
+        66.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "/Users/ana/Library/Application Support/capture-vector/3f2a9c1d0b7e4a61/research/index.sqlite",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.index.research/#0",
+      "rect": [
+        276.0,
+        69.5,
+        218.3,
+        15.0
+      ],
+      "role": "text",
+      "text": "/Users/ana/Library/Application Support/capture-vector/3f2a9c1d0b7e4a61/research/index.sqlite"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.index.research/#1",
+      "rect": [
+        502.3,
+        70.1,
+        77.7,
+        13.8
+      ],
+      "role": "text",
+      "text": "research index"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-store.ns.audit",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.ns.audit",
+      "rect": [
+        268.0,
+        88.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.ns.audit/#0",
+      "rect": [
+        276.0,
+        91.5,
+        182.6,
+        15.0
+      ],
+      "role": "text",
+      "text": ".cv/audit"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.ns.audit/#1",
+      "rect": [
+        466.6,
+        92.1,
+        55.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "schema v1"
+    },
+    {
+      "color": "#3dff9aff",
+      "fill": "#3dff9a26",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.ns.audit/#2",
+      "radius": 999.0,
+      "rect": [
+        529.8,
+        92.1,
+        50.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "current"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-store.lock.audit",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.lock.audit",
+      "rect": [
+        268.0,
+        110.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.lock.audit/#0",
+      "rect": [
+        276.0,
+        113.5,
+        233.1,
+        15.0
+      ],
+      "role": "text",
+      "text": ".cv/audit/lifecycle.lock"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.lock.audit/#1",
+      "rect": [
+        517.1,
+        114.1,
+        62.9,
+        13.8
+      ],
+      "role": "text",
+      "text": "this window"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-store.ns.ledger",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.ns.ledger",
+      "rect": [
+        268.0,
+        132.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.ns.ledger/#0",
+      "rect": [
+        276.0,
+        135.5,
+        183.0,
+        15.0
+      ],
+      "role": "text",
+      "text": ".cv/ledger"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.ns.ledger/#1",
+      "rect": [
+        467.0,
+        136.1,
+        65.8,
+        13.8
+      ],
+      "role": "text",
+      "text": "not stamped"
+    },
+    {
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.ns.ledger/#2",
+      "radius": 999.0,
+      "rect": [
+        540.8,
+        136.1,
+        39.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "fresh"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-store.ns.imports",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.ns.imports",
+      "rect": [
+        268.0,
+        154.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.ns.imports/#0",
+      "rect": [
+        276.0,
+        157.5,
+        183.0,
+        15.0
+      ],
+      "role": "text",
+      "text": ".cv/imports"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.ns.imports/#1",
+      "rect": [
+        467.0,
+        158.1,
+        65.8,
+        13.8
+      ],
+      "role": "text",
+      "text": "not stamped"
+    },
+    {
+      "color": "#8a93a3ff",
+      "fill": "#8a93a326",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.ns.imports/#2",
+      "radius": 999.0,
+      "rect": [
+        540.8,
+        158.1,
+        39.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "fresh"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-store.imports.runs",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.imports.runs",
+      "rect": [
+        268.0,
+        176.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem",
+      "selected": true
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.imports.runs/#0",
+      "rect": [
+        276.0,
+        179.5,
+        269.7,
+        15.0
+      ],
+      "role": "text",
+      "text": "Import runs"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.imports.runs/#1",
+      "rect": [
+        553.7,
+        180.1,
+        26.3,
+        13.8
+      ],
+      "role": "text",
+      "text": "none"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-store.imports.review",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.imports.review",
+      "rect": [
+        268.0,
+        198.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.imports.review/#0",
+      "rect": [
+        276.0,
+        201.5,
+        229.5,
+        15.0
+      ],
+      "role": "text",
+      "text": "Review log"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-store.imports.review/#1",
+      "rect": [
+        513.5,
+        202.1,
+        66.5,
+        13.8
+      ],
+      "role": "text",
+      "text": "no decisions"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "reading",
+      "opacity": 1.0,
+      "path": "shell/body/reading",
+      "rect": [
+        588.0,
+        0.0,
+        452.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "reading-scroll",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll",
+      "rect": [
+        588.0,
+        0.0,
+        452.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "reading-head",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head",
+      "rect": [
+        588.0,
+        0.0,
+        452.0,
+        63.8
+      ],
+      "role": "group"
+    },
+    {
+      "key": "breadcrumbs",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs",
+      "rect": [
+        604.0,
+        16.0,
+        420.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "crumb-0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs/crumb-0",
+      "rect": [
+        604.0,
+        16.0,
+        35.5,
+        13.8
+      ],
+      "role": "text",
+      "text": "Doctor"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs/#1",
+      "rect": [
+        643.5,
+        16.0,
+        4.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "›"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "crumb-1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs/crumb-1",
+      "rect": [
+        651.9,
+        16.0,
+        48.9,
+        13.8
+      ],
+      "role": "text",
+      "text": ".cv/ store"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "reading-title",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head/reading-title",
+      "rect": [
+        604.0,
+        35.8,
+        420.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "Import runs"
+    },
+    {
+      "key": "reading-body",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body",
+      "rect": [
+        588.0,
+        63.8,
+        452.0,
+        67.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "line-0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-0",
+      "rect": [
+        604.0,
+        63.8,
+        420.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-0/#0",
+      "rect": [
+        604.0,
+        63.8,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "value"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-0/#1",
+      "rect": [
+        708.0,
+        63.8,
+        316.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "none"
+    },
+    {
+      "key": "line-1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-1",
+      "rect": [
+        604.0,
+        84.8,
+        420.0,
+        30.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-1/#0",
+      "rect": [
+        604.0,
+        84.8,
+        420.0,
+        30.0
+      ],
+      "role": "text",
+      "text": "Run directories under .cv/imports/, read without taking their run locks. Symlinked .cv or imports paths are refused rather than followed."
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "inspector",
+      "opacity": 1.0,
+      "path": "shell/body/inspector",
+      "rect": [
+        1040.0,
+        0.0,
+        240.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "inspector-scroll",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll",
+      "rect": [
+        1040.0,
+        0.0,
+        240.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "inspector-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-head",
+      "rect": [
+        1040.0,
+        0.0,
+        240.0,
+        28.3
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-head/#0",
+      "rect": [
+        1048.0,
+        8.0,
+        224.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Inspector"
+    },
+    {
+      "key": "inspector-body",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body",
+      "rect": [
+        1040.0,
+        28.3,
+        240.0,
+        21.8
+      ],
+      "role": "group"
+    },
+    {
+      "key": "field-fact",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-fact",
+      "rect": [
+        1048.0,
+        28.3,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-fact/#0",
+      "rect": [
+        1048.0,
+        28.3,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "fact"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-fact/#1",
+      "rect": [
+        1128.0,
+        28.3,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "store.imports.runs"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "status",
+      "opacity": 1.0,
+      "path": "shell/status",
+      "rect": [
+        0.0,
+        778.0,
+        1280.0,
+        22.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "help": "Open Doctor: engine, watch and .cv/ health",
+      "key": "status-0",
+      "opacity": 1.0,
+      "path": "shell/status/status-0",
+      "radius": 999.0,
+      "rect": [
+        8.0,
+        780.0,
+        79.9,
+        18.0
+      ],
+      "role": "button"
+    },
+    {
+      "fill": "#8a93a3ff",
+      "key": "status-dot",
+      "opacity": 1.0,
+      "path": "shell/status/status-0/status-dot",
+      "radius": 999.0,
+      "rect": [
+        16.0,
+        786.0,
+        6.0,
+        6.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/status/status-0/#1",
+      "rect": [
+        28.0,
+        782.1,
+        51.9,
+        13.8
+      ],
+      "role": "text",
+      "text": "no engine"
+    },
+    {
+      "key": "status-1",
+      "label": "0 events",
+      "opacity": 1.0,
+      "path": "shell/status/status-1",
+      "rect": [
+        96.6,
+        780.5,
+        51.6,
+        17.0
+      ],
+      "role": "text",
+      "text": "0 events"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.23",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.23",
+      "rect": [
+        99.9,
+        782.1,
+        7.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.2",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.2",
+      "rect": [
+        107.0,
+        782.1,
+        2.9,
+        13.8
+      ],
+      "role": "text",
+      "text": " "
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.3",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.3",
+      "rect": [
+        110.0,
+        782.1,
+        6.3,
+        13.8
+      ],
+      "role": "text",
+      "text": "e"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.4",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.4",
+      "rect": [
+        116.2,
+        782.1,
+        6.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "v"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.5",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.5",
+      "rect": [
+        122.3,
+        782.1,
+        6.5,
+        13.8
+      ],
+      "role": "text",
+      "text": "e"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.6",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.6",
+      "rect": [
+        128.8,
+        782.1,
+        6.6,
+        13.8
+      ],
+      "role": "text",
+      "text": "n"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.7",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.7",
+      "rect": [
+        135.4,
+        782.1,
+        3.7,
+        13.8
+      ],
+      "role": "text",
+      "text": "t"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.8",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.8",
+      "rect": [
+        139.1,
+        782.1,
+        5.9,
+        13.8
+      ],
+      "role": "text",
+      "text": "s"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "status-2",
+      "opacity": 1.0,
+      "path": "shell/status/status-2",
+      "radius": 2.0,
+      "rect": [
+        157.0,
+        782.1,
+        52.1,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/status/status-2/#0",
+      "rect": [
+        163.0,
+        782.1,
+        40.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "epoch 1"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/status/#3",
+      "rect": [
+        221.1,
+        789.0,
+        875.7,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/status/#4",
+      "rect": [
+        1108.8,
+        782.1,
+        99.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "mod+K commands"
+    },
+    {
+      "help": "Switch to light theme",
+      "key": "status-3",
+      "label": "Switch to light theme",
+      "opacity": 1.0,
+      "path": "shell/status/status-3",
+      "radius": 4.0,
+      "rect": [
+        1220.0,
+        779.0,
+        20.0,
+        20.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "icon",
+      "opacity": 1.0,
+      "path": "shell/status/status-3/icon",
+      "rect": [
+        1222.0,
+        781.0,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "help": "Motion on — reduce motion",
+      "key": "status-4",
+      "label": "Motion on — reduce motion",
+      "opacity": 1.0,
+      "path": "shell/status/status-4",
+      "radius": 4.0,
+      "rect": [
+        1252.0,
+        779.0,
+        20.0,
+        20.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "icon",
+      "opacity": 1.0,
+      "path": "shell/status/status-4/icon",
+      "rect": [
+        1254.0,
+        781.0,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    }
+  ],
+  "schema": 2
+}

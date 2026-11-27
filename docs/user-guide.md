@@ -76,11 +76,9 @@ paused for the merge batch and restored when that batch ends. Capture
 Vector then runs the pinned engine's validate/build gate under the normal
 engine-seat contract, which may pause and resume watch again.
 
-Current rough edges are visible in the UI rather than hidden: selecting a
-run may require **Reload import runs** before **Adopt run…** enables
-(issue #216), the subfolder placeholder is not a typed default (#217),
-long inspector values can clip (#218), and the completion toast emphasizes
-the engine gate more than the adopted content summary (#219).
+One current rough edge is visible in the UI rather than hidden: long
+inspector values can clip without a discoverable full-value view (issue
+#218).
 
 ## The shell
 
@@ -168,8 +166,10 @@ degraded state as a crash:
 The Doctor shows the facts behind each one. Click the engine chip in the
 status bar, or run **Open Doctor** from the palette. Its sections cover
 the engine (binary, how it was found, version and build info against the
-pin, the search order), the capability probe, the watch session, the
-`.cv/` store's schema stamps and locks, and this app build.
+pin, the search order), the migration lab (the same locate, version/pin
+and search-order facts), the capability probe, the watch session, the
+`.cv/` store's schema stamps, locks and `.cv/imports/` evidence health,
+and this app build.
 
 The runbook has the diagnostic flow for each: `docs/runbooks/desktop-app.md`.
 
@@ -186,9 +186,10 @@ are dropped by the logger, but page bodies and local paths can still be
 sensitive. Read logs before attaching them to an issue.
 
 **Copy Doctor support bundle** (palette) copies a JSON report of the
-Doctor's sections. It leaves out page bodies, the engine's absolute
-paths, environment values, and secret-looking fields, and replaces the
-workspace root and home directory with `<workspace>` and `~`. Read it
+Doctor's sections. It leaves out page bodies, the engine and migration
+lab's absolute paths, environment values, and secret-looking fields, and
+replaces the workspace root and home directory with `<workspace>` and
+`~`. Read it
 before attaching it to an issue.
 
 For UI problems, include the headless element tree:
