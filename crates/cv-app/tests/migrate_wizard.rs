@@ -2,6 +2,8 @@
 //! same `ShellRequest`/`Workbench::picked` seam the native shell uses, and
 //! the lab itself is the checked-in capture replay (`StubLab`).
 
+mod common;
+
 use cv_app::migrate::{DiskPort, run_stub_lab};
 use cv_model::command::ImportJob;
 use cv_model::dialog::PickPurpose;
@@ -208,8 +210,6 @@ fn hugo_folder_picker_inventories_first_then_emits_into_runs() {
 fn cancelling_progress_kills_the_lab_and_records_a_cancelled_run() {
     use cv_core::engine::EngineSource;
     use cv_engine::lab::{self as engine_lab, PINNED};
-    use std::os::unix::fs::PermissionsExt;
-
     const FAKE: &str = include_str!("../../cv-engine/tests/fake-lab/boris-migration-lab");
 
     let (_t, root) = workspace();
@@ -217,8 +217,7 @@ fn cancelling_progress_kills_the_lab_and_records_a_cancelled_run() {
     std::fs::create_dir_all(hugo.join("content")).unwrap();
     let lab_dir = tempfile::tempdir().unwrap();
     let bin = lab_dir.path().join(engine_lab::exe_name());
-    std::fs::write(&bin, FAKE).unwrap();
-    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+    common::install_executable(&bin, FAKE);
     std::fs::write(
         lab_dir.path().join("version.txt"),
         format!("{}\n", PINNED.tool_id),
@@ -276,8 +275,6 @@ fn cancelling_progress_kills_the_lab_and_records_a_cancelled_run() {
 fn switching_workspaces_during_import_keeps_the_run_lock_and_record_intact() {
     use cv_core::engine::EngineSource;
     use cv_engine::lab::{self as engine_lab, PINNED};
-    use std::os::unix::fs::PermissionsExt;
-
     const FAKE: &str = include_str!("../../cv-engine/tests/fake-lab/boris-migration-lab");
 
     let (_t, root) = workspace();
@@ -286,8 +283,7 @@ fn switching_workspaces_during_import_keeps_the_run_lock_and_record_intact() {
     std::fs::create_dir_all(hugo.join("content")).unwrap();
     let lab_dir = tempfile::tempdir().unwrap();
     let bin = lab_dir.path().join(engine_lab::exe_name());
-    std::fs::write(&bin, FAKE).unwrap();
-    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+    common::install_executable(&bin, FAKE);
     std::fs::write(
         lab_dir.path().join("version.txt"),
         format!("{}\n", PINNED.tool_id),

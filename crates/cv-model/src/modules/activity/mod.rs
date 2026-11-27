@@ -14,6 +14,7 @@ use cv_core::events::engine::{BuildPhase, EngineEvent, VerbReport, WatchEndReaso
 use cv_core::events::shell::{DegradedReason, ShellEvent};
 use cv_core::events::{AppEvent, Envelope};
 use cv_core::id::{AccountId, AttrValue, NounAttrRow, NounId, NounKind, StableId, noun_kind};
+use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub const ID: &str = "activity";
@@ -102,6 +103,9 @@ pub enum EntryKind {
 pub struct Occurrence {
     pub event: String,
     pub build: Option<String>,
+    /// Workbench-local causal delivery stamp. Commit/arrival order is not
+    /// causal order; read-time row ordering uses this key.
+    pub causal: u64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -186,6 +190,8 @@ const WARNINGS: &str = "warnings";
 const BUILDS: &str = "builds";
 const FILE: &str = "file:";
 
+type CausalOrderCache = RefCell<BTreeMap<Option<String>, (u64, Vec<usize>)>>;
+
 #[derive(Default)]
 pub struct ActivityModule {
     entries: Vec<Entry>,
@@ -202,6 +208,11 @@ pub struct ActivityModule {
     verb_outcomes: BTreeMap<(u8, String, String), usize>,
     /// Built from `views` only, so `push` is its one invalidation point.
     nav_cache: NavCache,
+    /// Bumped whenever ingestion can change an entry's causal ordering key.
+    causal_version: Cell<u64>,
+    /// Mailbox → (causal version, causal-ascending entry indices). Kept so
+    /// virtualized row reads do not re-sort the river for every visible row.
+    order_cache: CausalOrderCache,
 }
 
 impl ActivityModule {
@@ -217,6 +228,46 @@ impl ActivityModule {
             .collect()
     }
 
+    fn with_causal_order<R>(&self, nav: Option<&str>, f: impl FnOnce(&[usize]) -> R) -> R {
+        let key = nav.map(str::to_string);
+        let version = self.causal_version.get();
+        let mut cache = self.order_cache.borrow_mut();
+        if cache.get(&key).is_none_or(|(v, _)| *v != version) {
+            let mut order = self.view(nav).to_vec();
+            order.sort_by_key(|&i| {
+                let causal = self.entries[i]
+                    .occurrences
+                    .iter()
+                    .map(|o| o.causal)
+                    .max()
+                    .unwrap_or(0);
+                (causal, i)
+            });
+            cache.insert(key.clone(), (version, order));
+        }
+        f(&cache.get(&key).expect("just cached").1)
+    }
+
+    fn causal_entry_index(&self, nav: Option<&str>, newest_first_row: usize) -> Option<usize> {
+        self.with_causal_order(nav, |order| {
+            order
+                .len()
+                .checked_sub(newest_first_row + 1)
+                .map(|causal_index| order[causal_index])
+        })
+    }
+
+    fn causal_row_index(&self, nav: Option<&str>, entry_index: usize) -> Option<usize> {
+        self.with_causal_order(nav, |order| {
+            let causal_index = order.iter().position(|&i| i == entry_index)?;
+            Some(order.len() - 1 - causal_index)
+        })
+    }
+
+    fn ingest_causal(&mut self, env: &Envelope, causal: u64) -> bool {
+        self.ingest_inner(env, causal)
+    }
+
     fn view(&self, nav: Option<&str>) -> &[usize] {
         self.views
             .get(nav.unwrap_or(ALL))
@@ -227,6 +278,27 @@ impl ActivityModule {
     fn entry(&self, key: &str) -> Option<&Entry> {
         let n: usize = key.strip_prefix("act-")?.parse().ok()?;
         self.entries.get(n)
+    }
+
+    fn insert_occurrence(entry: &mut Entry, occ: Occurrence) {
+        let pos = entry
+            .occurrences
+            .partition_point(|existing| existing.causal <= occ.causal);
+        entry.occurrences.insert(pos, occ);
+    }
+
+    /// Coalesced state is the state of the causally newest occurrence, not
+    /// of whichever replay committed most recently. Equal stamps retain the
+    /// later arrival as before; distinct real stamps are unique.
+    fn fold_occurrence(entry: &mut Entry, kind: EntryKind, occ: Occurrence) {
+        let is_newest = entry
+            .occurrences
+            .last()
+            .is_none_or(|latest| occ.causal >= latest.causal);
+        if is_newest {
+            entry.kind = kind;
+        }
+        Self::insert_occurrence(entry, occ);
     }
 
     fn push(&mut self, kind: EntryKind, occ: Occurrence) -> usize {
@@ -349,10 +421,7 @@ impl ActivityModule {
             self.initial_builds.get(&initial_key).copied()
         };
         match fold {
-            Some(i) => {
-                self.entries[i].kind = kind;
-                self.entries[i].occurrences.push(occ.clone());
-            }
+            Some(i) => Self::fold_occurrence(&mut self.entries[i], kind, occ.clone()),
             None => {
                 let i = self.push(kind, occ.clone());
                 if phase == BuildPhase::Rebuild {
@@ -369,10 +438,13 @@ impl ActivityModule {
             let id = identity(d);
             match self.open.get(&id) {
                 Some(&i) => {
-                    // Latest value wins, so Activity and Pages show the
-                    // same build's diagnostic; every occurrence is kept.
-                    self.entries[i].kind = EntryKind::Diagnostic(d.clone());
-                    self.entries[i].occurrences.push(occ.clone());
+                    // The causally latest value wins, so Activity and Pages show
+                    // the newest build's diagnostic; every occurrence is kept.
+                    Self::fold_occurrence(
+                        &mut self.entries[i],
+                        EntryKind::Diagnostic(d.clone()),
+                        occ.clone(),
+                    );
                 }
                 None => {
                     let i = self.push(EntryKind::Diagnostic(d.clone()), occ.clone());
@@ -380,6 +452,95 @@ impl ActivityModule {
                 }
             }
         }
+    }
+    fn ingest_inner(&mut self, env: &Envelope, causal: u64) -> bool {
+        self.causal_version.set(self.causal_version.get() + 1);
+        let occ = Occurrence {
+            event: env.event_id.0.clone(),
+            build: env.build_id.as_ref().map(|b| b.0.clone()),
+            causal,
+        };
+        let boundary = |s: &mut Self, kind| {
+            s.last_build = None;
+            s.push(kind, occ.clone());
+        };
+        match &env.payload {
+            AppEvent::Engine(ev) => match ev {
+                EngineEvent::BuildFinished {
+                    phase,
+                    pages_written,
+                    diagnostics,
+                    duration_ms,
+                } => {
+                    self.ingest_build(*phase, true, *pages_written, *duration_ms, diagnostics, occ)
+                }
+                EngineEvent::BuildFailed {
+                    phase, diagnostics, ..
+                } => self.ingest_build(*phase, false, 0, 0, diagnostics, occ),
+                EngineEvent::WatchSessionStarted { schema, compiler } => boundary(
+                    self,
+                    EntryKind::Session {
+                        schema: *schema,
+                        compiler: compiler.clone(),
+                    },
+                ),
+                EngineEvent::WatchSessionEnded { reason, .. } => {
+                    boundary(self, EntryKind::WatchEnded(reason.clone()))
+                }
+                EngineEvent::VerbFinished { verb, exit } => {
+                    let exit = format!("{exit:?}");
+                    let key = (0u8, verb.clone(), exit.clone());
+                    self.last_build = None;
+                    match self.verb_outcomes.get(&key).copied() {
+                        Some(i) => Self::insert_occurrence(&mut self.entries[i], occ.clone()),
+                        None => {
+                            let i = self.push(
+                                EntryKind::Verb {
+                                    verb: verb.clone(),
+                                    exit,
+                                },
+                                occ.clone(),
+                            );
+                            self.verb_outcomes.insert(key, i);
+                        }
+                    }
+                }
+                EngineEvent::VerbFailed { verb, error } => {
+                    let key = (1u8, verb.clone(), error.clone());
+                    self.last_build = None;
+                    match self.verb_outcomes.get(&key).copied() {
+                        Some(i) => Self::insert_occurrence(&mut self.entries[i], occ.clone()),
+                        None => {
+                            let i = self.push(
+                                EntryKind::VerbFailed {
+                                    verb: verb.clone(),
+                                    error: error.clone(),
+                                },
+                                occ.clone(),
+                            );
+                            self.verb_outcomes.insert(key, i);
+                        }
+                    }
+                }
+                EngineEvent::VerbReported(r) => boundary(self, EntryKind::Run(Box::new(r.clone()))),
+                EngineEvent::MalformedLine { raw } => {
+                    boundary(self, EntryKind::Malformed(raw.clone()))
+                }
+            },
+            AppEvent::Shell(ShellEvent::Degraded { reason }) => {
+                boundary(self, EntryKind::Degraded(reason.clone()))
+            }
+            AppEvent::Pages(ev) => boundary(self, EntryKind::Other(ev.summary())),
+            AppEvent::Shell(_) => return false,
+            other => {
+                let name = serde_json::to_value(other)
+                    .ok()
+                    .and_then(|v| v.as_object().and_then(|o| o.keys().next().cloned()))
+                    .unwrap_or_else(|| "event".into());
+                boundary(self, EntryKind::Other(format!("{name} event")))
+            }
+        }
+        true
     }
 }
 
@@ -455,91 +616,11 @@ impl Module for ActivityModule {
     }
 
     fn ingest(&mut self, env: &Envelope) -> bool {
-        let occ = Occurrence {
-            event: env.event_id.0.clone(),
-            build: env.build_id.as_ref().map(|b| b.0.clone()),
-        };
-        let boundary = |s: &mut Self, kind| {
-            s.last_build = None;
-            s.push(kind, occ.clone());
-        };
-        match &env.payload {
-            AppEvent::Engine(ev) => match ev {
-                EngineEvent::BuildFinished {
-                    phase,
-                    pages_written,
-                    diagnostics,
-                    duration_ms,
-                } => {
-                    self.ingest_build(*phase, true, *pages_written, *duration_ms, diagnostics, occ)
-                }
-                EngineEvent::BuildFailed {
-                    phase, diagnostics, ..
-                } => self.ingest_build(*phase, false, 0, 0, diagnostics, occ),
-                EngineEvent::WatchSessionStarted { schema, compiler } => boundary(
-                    self,
-                    EntryKind::Session {
-                        schema: *schema,
-                        compiler: compiler.clone(),
-                    },
-                ),
-                EngineEvent::WatchSessionEnded { reason, .. } => {
-                    boundary(self, EntryKind::WatchEnded(reason.clone()))
-                }
-                EngineEvent::VerbFinished { verb, exit } => {
-                    let exit = format!("{exit:?}");
-                    let key = (0u8, verb.clone(), exit.clone());
-                    self.last_build = None;
-                    match self.verb_outcomes.get(&key).copied() {
-                        Some(i) => self.entries[i].occurrences.push(occ.clone()),
-                        None => {
-                            let i = self.push(
-                                EntryKind::Verb {
-                                    verb: verb.clone(),
-                                    exit,
-                                },
-                                occ.clone(),
-                            );
-                            self.verb_outcomes.insert(key, i);
-                        }
-                    }
-                }
-                EngineEvent::VerbFailed { verb, error } => {
-                    let key = (1u8, verb.clone(), error.clone());
-                    self.last_build = None;
-                    match self.verb_outcomes.get(&key).copied() {
-                        Some(i) => self.entries[i].occurrences.push(occ.clone()),
-                        None => {
-                            let i = self.push(
-                                EntryKind::VerbFailed {
-                                    verb: verb.clone(),
-                                    error: error.clone(),
-                                },
-                                occ.clone(),
-                            );
-                            self.verb_outcomes.insert(key, i);
-                        }
-                    }
-                }
-                EngineEvent::VerbReported(r) => boundary(self, EntryKind::Run(Box::new(r.clone()))),
-                EngineEvent::MalformedLine { raw } => {
-                    boundary(self, EntryKind::Malformed(raw.clone()))
-                }
-            },
-            AppEvent::Shell(ShellEvent::Degraded { reason }) => {
-                boundary(self, EntryKind::Degraded(reason.clone()))
-            }
-            AppEvent::Pages(ev) => boundary(self, EntryKind::Other(ev.summary())),
-            AppEvent::Shell(_) => return false,
-            other => {
-                let name = serde_json::to_value(other)
-                    .ok()
-                    .and_then(|v| v.as_object().and_then(|o| o.keys().next().cloned()))
-                    .unwrap_or_else(|| "event".into());
-                boundary(self, EntryKind::Other(format!("{name} event")))
-            }
-        }
-        true
+        self.ingest_causal(env, 0)
+    }
+
+    fn ingest_stamped(&mut self, env: &Envelope, causal: u64) -> bool {
+        self.ingest_causal(env, causal)
     }
 
     fn nav(&self) -> NavModel {
@@ -550,14 +631,12 @@ impl Module for ActivityModule {
         self.view(nav).len()
     }
 
-    /// Newest first.
+    /// Newest first by causal stamp, not commit/arrival order.
     fn row(&self, nav: Option<&str>, i: usize) -> RowModel {
-        let v = self.view(nav);
-        let Some(e) = v
-            .len()
-            .checked_sub(i + 1)
-            .and_then(|j| self.entries.get(v[j]))
-        else {
+        let Some(entry_index) = self.causal_entry_index(nav, i) else {
+            return RowModel::default();
+        };
+        let Some(e) = self.entries.get(entry_index) else {
             return RowModel::default();
         };
         let sev = e.severity();
@@ -578,10 +657,7 @@ impl Module for ActivityModule {
         if self.entries.get(n)?.key != key {
             return None;
         }
-        // `push` appends each entry once per view, in entry order.
-        let v = self.view(nav);
-        let j = v.binary_search(&n).ok()?;
-        Some(v.len() - 1 - j)
+        self.causal_row_index(nav, n)
     }
 
     fn reading(&self, key: &str) -> ReadingModel {

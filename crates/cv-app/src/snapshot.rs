@@ -153,6 +153,17 @@ fn split_frontmatter(raw: &str) -> Option<(&str, &str)> {
 /// One page record guessed from source, marked `FieldSource::Source`.
 /// Without an explicit `id` the path (sans extension) stands in,
 /// matching the `[[guides/x]]` links the corpora use.
+///
+/// `explicit_id` conformance: bounded to the Boris forms actually probed
+/// against the real 0.9.0 engine as oracle (`validate` + duplicate-
+/// detection binding probes, see snapshot tests), not an exhaustive
+/// grammar proof. For those probed forms the scanner matches Boris
+/// exactly: plain, no-space, space-before-colon, and double-quoted values
+/// bind identically; indented lines, uppercase keys, single-quoted and
+/// empty values are `EFRONTMATTER` rejections in Boris, so any residual
+/// scanner divergence on them is unobservable in a workspace that
+/// validates. Unprobed exotica (escapes inside quotes, unusual Unicode
+/// in keys) remain an honestly unproven margin.
 pub fn page(path: &str, raw: &str) -> PageRecord {
     let (fm, body) = split_frontmatter(raw).unwrap_or(("", raw));
     let mut p = PageRecord {
@@ -163,9 +174,21 @@ pub fn page(path: &str, raw: &str) -> PageRecord {
         ..Default::default()
     };
     for (k, v) in fm.lines().filter_map(|l| l.split_once(':')) {
+        // Boris rejects indented frontmatter lines outright ("no nested
+        // mappings"); trailing space before the colon is accepted. Match
+        // that exactly: a leading-whitespace line is no key at all.
+        if k.starts_with(char::is_whitespace) {
+            continue;
+        }
         let v = v.trim().to_string();
         match k.trim() {
-            "id" => p.id = scalar(&v),
+            "id" => {
+                let id = scalar(&v);
+                if !id.is_empty() {
+                    p.id = id;
+                    p.explicit_id = true;
+                }
+            }
             "title" => p.title = scalar(&v),
             "parent" => p.parent = Some(scalar(&v)),
             "tags" => p.tags = list(&v),
@@ -437,6 +460,49 @@ fn apply_ir(pages: &mut [PageRecord], graph: &Graph) {
     }
 }
 
+/// Attach migration provenance from `.cv/imports/*/adoption.json` to the
+/// pages it names. Association is by stable identity — the lab's entity
+/// id, which the output pages carry as their explicit Boris `id` — so it
+/// survives the file being renamed or moved inside the workspace. A page
+/// whose id the user edits away is a different page and drops the link;
+/// a different page moved onto an adopted page's old path must never
+/// inherit it, so there is deliberately no path fallback. Missing or
+/// undecodable sidecars leave pages unmarked; the Migrate mailbox is
+/// where that damage is disclosed.
+fn apply_imports(root: &Path, pages: &mut [PageRecord]) {
+    let Ok(adoptions) = cv_store::imports::scan_adoptions(root) else {
+        return;
+    };
+    let mut by_entity: HashMap<&str, (String, String)> = HashMap::new();
+    for a in &adoptions {
+        for page in &a.pages {
+            let source = page.source.clone().unwrap_or_else(|| {
+                a.inputs
+                    .first()
+                    .map(|i| i.path.clone())
+                    .unwrap_or_else(|| a.run_id.clone())
+            });
+            by_entity.insert(page.entity_id.as_str(), (a.mode.clone(), source));
+        }
+    }
+    // Only an explicit, unambiguous id carries provenance. A path-derived
+    // fallback id belongs to the path, not the page: an unrelated file
+    // sitting there must never inherit Imported from. Two pages sharing
+    // one explicit id make the association ambiguous, so neither is
+    // marked — Boris already refuses that workspace with EDUPLICATEID.
+    let mut explicit_counts: HashMap<String, usize> = HashMap::new();
+    for p in pages.iter().filter(|p| p.explicit_id) {
+        *explicit_counts.entry(p.id.clone()).or_insert(0) += 1;
+    }
+    for p in pages.iter_mut() {
+        p.imported_from = if p.explicit_id && explicit_counts.get(&p.id) == Some(&1) {
+            by_entity.get(p.id.as_str()).cloned()
+        } else {
+            None
+        };
+    }
+}
+
 /// Project snapshot from a real workspace: page sources under the
 /// content input, output records from the last build's proof pack
 /// (`<html_dir>/_boris/proof/artifacts.json`) when one exists, and
@@ -458,6 +524,7 @@ pub fn workspace_snapshot(
         if let Some(graph) = ir_graph(&base, html_dir) {
             apply_ir(&mut scan.pages, &graph);
         }
+        apply_imports(&base, &mut scan.pages);
         workspace_json(
             &base,
             &Path::new(html_dir).join("_boris/proof/artifacts.json"),
@@ -494,584 +561,4 @@ pub fn workspace_snapshot(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::time::SystemTime;
-
-    #[test]
-    fn crlf_frontmatter_still_parses_fields() {
-        let p = page("a.md", "---\r\nid: x\r\ntitle: T\r\n---\r\nbody\r\n");
-        assert_eq!(p.id, "x");
-        assert_eq!(p.title, "T");
-        assert_eq!(p.body, "body\r\n");
-    }
-
-    #[test]
-    fn dash_leading_body_is_kept_verbatim() {
-        let p = page("a.md", "---\ntitle: T\n---\n- one\n- two\n---\n");
-        assert_eq!(p.body, "- one\n- two\n---\n");
-    }
-
-    #[test]
-    fn unclosed_fence_is_no_frontmatter() {
-        let raw = "---\ntitle: T\nbody without a closing fence\n";
-        let p = page("a.md", raw);
-        assert_eq!(p.body, raw);
-        assert_eq!(p.id, "a");
-    }
-
-    fn write(root: &Path, rel: &str, body: impl AsRef<[u8]>) {
-        let path = root.join(rel);
-        fs::create_dir_all(path.parent().unwrap()).unwrap();
-        fs::write(path, body).unwrap();
-    }
-
-    fn paths(pages: &[PageRecord]) -> Vec<&str> {
-        pages.iter().map(|p| p.path.as_str()).collect()
-    }
-
-    #[test]
-    fn workspace_snapshot_uses_default_content_and_boris_outputs() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path();
-        write(root, "content/index.md", "---\ntitle: Home\n---\nHello");
-        write(root, "content/guides/recipe.cook", "Cook");
-        write(root, "content/guides/format.textile", "Textile");
-        write(root, "content/readme.txt", "Not a page");
-        write(root, "outside-default-input.md", "Not a content page");
-        write(
-            root,
-            "dist/_boris/proof/artifacts.json",
-            corpus("happy").file(ARTIFACTS),
-        );
-
-        let snap = workspace_snapshot(root, "dist", Some("boris".into()), 7);
-        assert_eq!(
-            paths(&snap.pages),
-            ["guides/format.textile", "guides/recipe.cook", "index.md"]
-        );
-        assert_eq!((snap.epoch, snap.compiler.as_deref()), (7, Some("boris")));
-        assert_eq!(snap.target.as_deref(), Some("default"));
-        assert_eq!(snap.pages[2].title, "Home");
-        assert_eq!(snap.pages[2].body, "Hello");
-        assert_eq!(snap.pages[2].output.as_deref(), Some("index.html"));
-    }
-
-    #[test]
-    fn outputs_follow_stable_entity_ids_and_mdx_pages_are_scanned() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path();
-        write(
-            root,
-            "content/guides/renamed.md",
-            "---\nid: \"guides/getting-started\"\ntitle: Renamed\n---\nBody",
-        );
-        write(root, "content/page.mdx", "# MDX");
-        write(
-            root,
-            "dist/_boris/proof/artifacts.json",
-            corpus("happy").file(ARTIFACTS),
-        );
-
-        let snap = workspace_snapshot(root, "dist", None, 1);
-        assert_eq!(paths(&snap.pages), ["guides/renamed.md", "page.mdx"]);
-        assert_eq!(
-            snap.pages[0].output.as_deref(),
-            Some("guides/getting-started.html")
-        );
-        assert_eq!(snap.pages[1].output, None);
-    }
-
-    /// Copies a captured editor-lane corpus into a fresh workspace,
-    /// with its captured IR graph at `ir_rel` when Boris wrote one.
-    fn captured_workspace(name: &str, ir_rel: &str) -> tempfile::TempDir {
-        let editor = fixtures_root().join("editor");
-        let manifest = Manifest::load(&editor.join("MANIFEST.toml"));
-        let temp = tempfile::tempdir().unwrap();
-        let src_prefix = format!("corpus-src/{name}/");
-        for (key, _) in manifest.pinned_files() {
-            if let Some(rel) = key.strip_prefix(&src_prefix) {
-                write(temp.path(), rel, fs::read(editor.join(key)).unwrap());
-            }
-        }
-        let key = format!("captures/{name}/graph.json");
-        if let Ok(bytes) = fs::read(editor.join(&key)) {
-            manifest.verify(&key, &bytes).unwrap();
-            write(temp.path(), ir_rel, bytes);
-        }
-        temp
-    }
-
-    fn by_path<'a>(snap: &'a ProjectSnapshot, path: &str) -> &'a PageRecord {
-        snap.pages.iter().find(|p| p.path == path).unwrap()
-    }
-
-    #[test]
-    fn quoted_scalars_display_as_boris_reports_them() {
-        let ws = captured_workspace("quoted-scalars", ".boris/graph.json");
-        let snap = workspace_snapshot(ws.path(), "dist", None, 1);
-
-        let home = by_path(&snap, "index.md");
-        assert_eq!(home.fields, FieldSource::Boris);
-        assert_eq!(home.id, "home");
-        assert_eq!(home.title, "Mini Site (English)");
-        assert_eq!(home.parent, None);
-        assert_eq!(home.tags, ["start", "quoted: yes"]);
-
-        let double = by_path(&snap, "guides/double.md");
-        assert_eq!(double.fields, FieldSource::Boris);
-        assert_eq!(double.id, "guides/double");
-        assert_eq!(double.title, "Double: quoted (title)");
-        assert_eq!(double.parent.as_deref(), Some("home"));
-        assert_eq!(
-            double.relations,
-            [("relates_to".to_string(), "home".to_string())]
-        );
-    }
-
-    #[test]
-    fn an_ir_graph_beside_the_html_dir_is_read_too() {
-        let ws = captured_workspace("quoted-scalars", "dist/graph.json");
-        let snap = workspace_snapshot(ws.path(), "dist", None, 1);
-        assert_eq!(by_path(&snap, "index.md").title, "Mini Site (English)");
-        assert_eq!(by_path(&snap, "index.md").fields, FieldSource::Boris);
-    }
-
-    fn set_mtime(root: &Path, rel: &str, at: SystemTime) {
-        File::options()
-            .write(true)
-            .open(root.join(rel))
-            .unwrap()
-            .set_modified(at)
-            .unwrap();
-    }
-
-    #[test]
-    fn the_live_ir_projection_is_read_first_and_a_newer_build_still_wins() {
-        let ws = captured_workspace("quoted-scalars", ".cv/ir/graph.json");
-        // A graph from another build that also covers `index.md`.
-        let other = cv_fixtures::ir_capture("happy").file("graph.json");
-        write(ws.path(), ".boris/graph.json", &other);
-        write(ws.path(), "dist/graph.json", &other);
-        let at = SystemTime::now() - std::time::Duration::from_secs(60);
-        for rel in [".cv/ir/graph.json", ".boris/graph.json", "dist/graph.json"] {
-            set_mtime(ws.path(), rel, at);
-        }
-        let title = |epoch| {
-            let snap = workspace_snapshot(ws.path(), "dist", None, epoch);
-            by_path(&snap, "index.md").title.clone()
-        };
-        assert_eq!(title(1), "Mini Site (English)");
-
-        set_mtime(ws.path(), "dist/graph.json", SystemTime::now());
-        assert_eq!(title(2), "My Boris Site");
-    }
-
-    #[test]
-    fn a_malformed_newest_ir_graph_falls_back_to_an_older_valid_graph() {
-        let ws = captured_workspace("quoted-scalars", ".boris/graph.json");
-        write(ws.path(), ".cv/ir/graph.json", "{\"not\": ");
-        let older = SystemTime::now() - std::time::Duration::from_secs(60);
-        set_mtime(ws.path(), ".boris/graph.json", older);
-        set_mtime(ws.path(), ".cv/ir/graph.json", SystemTime::now());
-
-        let snap = workspace_snapshot(ws.path(), "dist", None, 1);
-        assert_eq!(by_path(&snap, "index.md").title, "Mini Site (English)");
-        assert_eq!(by_path(&snap, "index.md").fields, FieldSource::Boris);
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn a_linked_newest_ir_graph_is_not_followed_and_an_older_valid_graph_wins() {
-        let ws = captured_workspace("quoted-scalars", ".boris/graph.json");
-        let outside = tempfile::tempdir().unwrap();
-        write(
-            outside.path(),
-            "graph.json",
-            cv_fixtures::ir_capture("happy").file("graph.json"),
-        );
-        std::fs::create_dir_all(ws.path().join(".cv/ir")).unwrap();
-        std::os::unix::fs::symlink(
-            outside.path().join("graph.json"),
-            ws.path().join(".cv/ir/graph.json"),
-        )
-        .unwrap();
-        let older = SystemTime::now() - std::time::Duration::from_secs(60);
-        set_mtime(ws.path(), ".boris/graph.json", older);
-
-        let snap = workspace_snapshot(ws.path(), "dist", None, 1);
-        assert_eq!(by_path(&snap, "index.md").title, "Mini Site (English)");
-        assert_eq!(by_path(&snap, "index.md").fields, FieldSource::Boris);
-    }
-
-    #[test]
-    fn source_fallback_reads_boris_double_quoted_scalars_without_quotes() {
-        let temp = tempfile::tempdir().unwrap();
-        write(
-            temp.path(),
-            "content/guides/renamed.md",
-            "---\nid: \"guides/getting-started\"\ntitle: \"Getting Started\"\nparent: \"index\"\n---\n# Body\n",
-        );
-        let snap = workspace_snapshot(temp.path(), "dist", None, 1);
-        let p = by_path(&snap, "guides/renamed.md");
-        assert_eq!(p.fields, FieldSource::Source);
-        assert_eq!(p.id, "guides/getting-started");
-        assert_eq!(p.title, "Getting Started");
-        assert_eq!(p.parent.as_deref(), Some("index"));
-        assert_eq!(
-            p.frontmatter,
-            vec![
-                ("id".into(), "\"guides/getting-started\"".into()),
-                ("title".into(), "\"Getting Started\"".into()),
-                ("parent".into(), "\"index\"".into()),
-            ],
-            "frontmatter rows stay exactly as authored"
-        );
-    }
-
-    #[test]
-    fn pages_without_boris_ir_are_marked_as_read_from_source() {
-        let ws = captured_workspace("quoted-scalars", ".boris/graph.json");
-        write(
-            ws.path(),
-            "content/guides/new.md",
-            "---\ntitle: \"Added after the build\"\n---\n",
-        );
-        let snap = workspace_snapshot(ws.path(), "dist", None, 1);
-        assert_eq!(by_path(&snap, "index.md").fields, FieldSource::Boris);
-        assert_eq!(by_path(&snap, "guides/new.md").fields, FieldSource::Source);
-
-        fs::remove_file(ws.path().join(".boris/graph.json")).unwrap();
-        let snap = workspace_snapshot(ws.path(), "dist", None, 2);
-        assert!(snap.pages.iter().all(|p| p.fields == FieldSource::Source));
-    }
-
-    /// Boris rejects single-quoted scalars, so it writes no IR for them and
-    /// the pages stay marked as a source guess.
-    #[test]
-    fn single_quoted_scalars_get_no_boris_ir_and_stay_marked() {
-        let captures = fixtures_root().join("editor/captures/single-quoted");
-        let stderr = fs::read_to_string(captures.join("ir-stderr.txt")).unwrap();
-        assert!(
-            stderr.contains("EFRONTMATTER: single.md:2:1: single-quoted values are not supported"),
-            "{stderr}"
-        );
-        assert!(!captures.join("graph.json").exists());
-
-        let ws = captured_workspace("single-quoted", ".boris/graph.json");
-        let snap = workspace_snapshot(ws.path(), "dist", None, 1);
-        assert_eq!(snap.pages.len(), 2);
-        assert!(snap.pages.iter().all(|p| p.fields == FieldSource::Source));
-    }
-
-    #[test]
-    fn workspace_snapshot_keeps_pages_when_the_artifact_index_is_malformed() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path();
-        write(root, "content/index.md", "Hello");
-        write(
-            root,
-            "dist/_boris/proof/artifacts.json",
-            "{\"artifacts\": [",
-        );
-
-        let snap = workspace_snapshot(root, "dist", None, 1);
-        assert_eq!(paths(&snap.pages), ["index.md"]);
-        assert!(snap.outputs.is_empty());
-        assert!(snap.target.is_none());
-        assert!(snap.pages[0].output.is_none());
-    }
-
-    #[test]
-    fn corpus_snapshot_reads_the_captured_artifact_index() {
-        let snap = corpus_snapshot("happy");
-        assert_eq!(snap.target.as_deref(), Some("default"));
-        assert!(snap.outputs.iter().any(|o| o.path == "index.html"));
-    }
-
-    #[test]
-    fn workspace_snapshot_respects_a_nested_profile_input() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path();
-        write(root, "boris.json", r#"{"input":"site/posts/."}"#);
-        write(root, "site/posts/guide.md", "Guide");
-        write(root, "content/default.md", "Not the configured input");
-
-        let snap = workspace_snapshot(root, "dist", None, 1);
-        assert_eq!(paths(&snap.pages), ["guide.md"]);
-    }
-
-    #[test]
-    fn scan_preserves_skips_and_includes_pages_at_the_depth_limit() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path();
-        for path in [
-            ".hidden/no.md",
-            "dist/no.md",
-            "themes/no.md",
-            "node_modules/no.md",
-            "target/no.md",
-            "folder.md/within.md",
-            "folder.md/deeper/no.md",
-            "root.md",
-        ] {
-            write(root, path, "Body");
-        }
-
-        let mut scan = Scan::new("dist");
-        scan.max_depth = 1;
-        scan.walk(root, "", 0);
-        assert_eq!(paths(&scan.pages), ["folder.md/within.md", "root.md"]);
-    }
-
-    #[test]
-    fn scan_omits_oversized_and_invalid_pages_without_truncating_valid_pages() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path();
-        write(root, "a-oversized.md", "12345");
-        write(root, "b-invalid.md", [0xff]);
-        write(root, "c-exact.md", "1234");
-        write(root, "d-empty.md", "");
-
-        let mut scan = Scan::new("dist");
-        scan.max_source_bytes = 4;
-        scan.max_pages = 2;
-        scan.walk(root, "", 0);
-        assert_eq!(paths(&scan.pages), ["c-exact.md", "d-empty.md"]);
-        assert_eq!(scan.pages[0].body, "1234");
-        assert_eq!(scan.bytes_left, MAX_TOTAL_SOURCE_BYTES - 5);
-    }
-
-    #[test]
-    fn scan_never_accepts_more_than_the_remaining_source_budget() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path();
-        write(root, "a.md", "1234");
-        write(root, "b-cannot-fit.md", "1234");
-        write(root, "c-fits.md", "123");
-        write(root, "d-after-limit.md", "1");
-
-        let mut scan = Scan::new("dist");
-        scan.bytes_left = 7;
-        scan.walk(root, "", 0);
-        assert_eq!(paths(&scan.pages), ["a.md", "c-fits.md"]);
-        assert_eq!(scan.bytes_left, 0);
-    }
-
-    #[test]
-    fn bounded_reader_checks_actual_length_with_one_extra_byte() {
-        let mut remaining = 8;
-        let mut input = &b"12345678"[..];
-        assert!(bounded_text(&mut input, 4, &mut remaining).is_none());
-        assert_eq!(remaining, 3);
-        assert_eq!(input, b"678");
-        assert_eq!(
-            bounded_text(input, 4, &mut remaining).as_deref(),
-            Some("678")
-        );
-        assert_eq!(remaining, 0);
-    }
-
-    #[test]
-    fn scan_limits_pages_in_sort_order() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path();
-        for path in ["c.md", "a.md", "b.md"] {
-            write(root, path, "Body");
-        }
-        let mut scan = Scan::new("dist");
-        scan.max_pages = 2;
-        scan.walk(root, "", 0);
-        assert_eq!(paths(&scan.pages), ["a.md", "b.md"]);
-    }
-
-    #[test]
-    fn scan_limits_entries_before_sorting() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path();
-        for path in ["a.md", "b.md", "c.md"] {
-            write(root, path, "Body");
-        }
-        let mut scan = Scan::new("dist");
-        scan.entries_left = 2;
-        scan.walk(root, "", 0);
-        assert_eq!(scan.entries_left, 0);
-        assert_eq!(scan.pages.len(), 2);
-        assert!(scan.pages[0].path < scan.pages[1].path);
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn workspace_snapshot_skips_linked_files_and_directories() {
-        use std::os::unix::fs::symlink;
-
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path();
-        write(root, "content/real/one.md", "Inert page");
-        symlink("real/one.md", root.join("content/copied.md")).unwrap();
-        symlink("real", root.join("content/copied-dir")).unwrap();
-
-        let snap = workspace_snapshot(root, "dist", None, 1);
-        assert_eq!(paths(&snap.pages), ["real/one.md"]);
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn workspace_snapshot_refuses_a_link_in_the_content_root() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path();
-        write(root, "actual/nested/one.md", "Inert page");
-        std::os::unix::fs::symlink("actual", root.join("content")).unwrap();
-
-        let implicit = workspace_snapshot(root, "dist", None, 1);
-        assert!(implicit.pages.is_empty());
-        write(root, "boris.json", r#"{"input":"content/nested"}"#);
-        let explicit = workspace_snapshot(root, "dist", None, 2);
-        assert!(explicit.pages.is_empty());
-    }
-
-    #[test]
-    fn scan_skips_a_sparse_page_over_the_size_cap_without_reading_it() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path();
-        File::create(root.join("a-huge.md"))
-            .unwrap()
-            .set_len(MAX_SOURCE_BYTES + 1)
-            .unwrap();
-        write(root, "b-page.md", "Body");
-
-        let mut scan = Scan::new("dist");
-        scan.walk(root, "", 0);
-        assert_eq!(paths(&scan.pages), ["b-page.md"]);
-        assert_eq!(scan.bytes_left, MAX_TOTAL_SOURCE_BYTES - 4);
-    }
-
-    #[test]
-    fn scan_stops_descending_past_the_default_depth_cap() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path();
-        let deepest = vec!["d"; MAX_DEPTH].join("/");
-        write(root, &format!("{deepest}/in.md"), "Body");
-        write(root, &format!("{deepest}/d/out.md"), "Body");
-        write(root, "top.md", "Body");
-
-        let mut scan = Scan::new("dist");
-        scan.walk(root, "", 0);
-        assert_eq!(
-            paths(&scan.pages),
-            [format!("{deepest}/in.md").as_str(), "top.md"]
-        );
-    }
-
-    /// A regression that blocks in `open` fails here instead of hanging
-    /// the test run; the stuck thread is abandoned.
-    fn before_deadline<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> T {
-        let (tx, rx) = std::sync::mpsc::channel();
-        std::thread::spawn(move || {
-            let _ = tx.send(f());
-        });
-        rx.recv_timeout(std::time::Duration::from_secs(5))
-            .expect("reading the workspace blocked")
-    }
-
-    #[cfg(unix)]
-    fn mkfifo(path: &Path) {
-        use std::os::unix::ffi::OsStrExt;
-        let c = std::ffi::CString::new(path.as_os_str().as_bytes()).unwrap();
-        assert_eq!(unsafe { libc::mkfifo(c.as_ptr(), 0o600) }, 0, "mkfifo");
-    }
-
-    /// File links only: a Windows symlink and a Unix symlink both carry
-    /// the reparse bit `is_link` checks. std has no cross-platform link
-    /// API, so the tests share one helper. FIFOs and devices stay
-    /// unix-only — Windows has no equivalent a page open could hit.
-    #[cfg(unix)]
-    fn link_file(target: &Path, link: &Path) -> io::Result<()> {
-        std::os::unix::fs::symlink(target, link)
-    }
-
-    #[cfg(windows)]
-    fn link_file(target: &Path, link: &Path) -> io::Result<()> {
-        std::os::windows::fs::symlink_file(target, link)
-    }
-
-    fn scan_pages(root: &Path) -> Vec<String> {
-        let root = root.to_path_buf();
-        before_deadline(move || {
-            let mut scan = Scan::new("dist");
-            scan.walk(&root, "", 0);
-            scan.pages.into_iter().map(|p| p.path).collect()
-        })
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn scan_skips_a_fifo_named_like_a_page_without_blocking() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path();
-        mkfifo(&root.join("a-pipe.md"));
-        write(root, "b-page.md", "Body");
-
-        assert_eq!(scan_pages(root), ["b-page.md"]);
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn scan_skips_a_link_to_a_device_named_like_a_page() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path();
-        std::os::unix::fs::symlink("/dev/zero", root.join("a-zero.md")).unwrap();
-        write(root, "b-page.md", "Body");
-
-        assert_eq!(scan_pages(root), ["b-page.md"]);
-    }
-
-    #[test]
-    fn scan_skips_a_link_to_a_page_outside_the_root() {
-        let outside = tempfile::tempdir().unwrap();
-        write(outside.path(), "secret.md", "Outside");
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path();
-        link_file(&outside.path().join("secret.md"), &root.join("a-link.md")).unwrap();
-        write(root, "b-page.md", "Body");
-
-        assert_eq!(scan_pages(root), ["b-page.md"]);
-    }
-
-    /// Stands in for an entry replaced between the type check and the open.
-    fn read_swapped(swapped_in: PathBuf, checked: Metadata) -> Option<String> {
-        before_deadline(move || {
-            let mut left = MAX_TOTAL_SOURCE_BYTES;
-            regular_text(&swapped_in, &checked, MAX_SOURCE_BYTES, &mut left)
-        })
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn regular_text_does_not_block_on_a_fifo_swapped_in_after_the_type_check() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path();
-        write(root, "page.md", "Body");
-        mkfifo(&root.join("pipe.md"));
-        let checked = fs::symlink_metadata(root.join("page.md")).unwrap();
-
-        assert_eq!(read_swapped(root.join("pipe.md"), checked), None);
-    }
-
-    #[test]
-    fn regular_text_does_not_follow_a_link_swapped_in_after_the_type_check() {
-        let outside = tempfile::tempdir().unwrap();
-        write(outside.path(), "secret.md", "Outside");
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path();
-        write(root, "page.md", "Body");
-        link_file(&outside.path().join("secret.md"), &root.join("link.md")).unwrap();
-        let checked = fs::symlink_metadata(root.join("page.md")).unwrap();
-
-        assert_eq!(read_swapped(root.join("link.md"), checked.clone()), None);
-        assert_eq!(
-            read_swapped(root.join("page.md"), checked).as_deref(),
-            Some("Body")
-        );
-    }
-}
+mod tests;

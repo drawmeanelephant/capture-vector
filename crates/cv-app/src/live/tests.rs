@@ -13,6 +13,11 @@ use cv_model::workbench::Workbench;
 use std::path::Path;
 use std::sync::mpsc;
 
+mod adoption;
+mod generation;
+#[cfg(unix)]
+mod generation_attack;
+
 /// Never write the executable inode in this process: a sibling fork could
 /// inherit that fd and make Linux exec fail with ETXTBSY
 /// (rust-lang/rust#114554). Unlike cv-engine's child-copy installer, this
@@ -116,8 +121,12 @@ fn a_resync_requested_after_a_mutation_waits_behind_an_in_flight_scan() {
         started_tx.send(()).unwrap();
         release_rx.recv().unwrap();
     }));
+    let root = tempfile::tempdir().unwrap();
+    let wb = Workbench::new(Registry::with_all());
+    let mut delivery = test_delivery(root.path(), WatchMode::Native, &wb);
+    delivery.resyncer = resyncer.clone();
     let slot = EngineSlot::default();
-    let _ = slot.resyncer.set(resyncer.clone());
+    slot.install_verbs(slot.verb_route(delivery, None), slot.generation());
 
     resyncer.request();
     started_rx
@@ -813,4 +822,354 @@ fn slot_engine_refuses_while_absent() {
     assert!(e.locate().is_err());
     assert!(e.run(&Verb::Build, Box::new(|_| {})).is_err());
     assert!(!e.capabilities().watch && !e.capabilities().writes);
+}
+
+/// Blocker-1 probe: the adoption gate's contract. A build through the
+/// StopWatch scheduler stops the live watch; the gate must end with the
+/// watch restored, never silently dead.
+#[cfg(unix)]
+#[test]
+fn a_seat_taking_gate_restores_the_watch_it_stopped() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let root = tempfile::tempdir().unwrap();
+    let bin = root.path().join("boris");
+    std::fs::write(
+        &bin,
+        r#"#!/bin/sh
+case "$1" in
+watch) echo '{"event":"hello","watch_events_schema":1,"compiler":"boris/0.9.0"}' >&2; sleep 30;;
+validate) exit 0;;
+build) exit 0;;
+*) exit 2;;
+esac
+"#,
+    )
+    .unwrap();
+    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+    let wb = Workbench::new(Registry::with_all());
+    let delivery = test_delivery(root.path(), WatchMode::Native, &wb);
+    let sched = Arc::new(EngineScheduler::new(
+        delivery.engine.clone(),
+        SeatPolicy::StopWatch,
+    ));
+    let slot = EngineSlot::default();
+    let _ = slot.sched.set(sched.clone());
+    slot.install_verbs(slot.verb_route(delivery.clone(), None), slot.generation());
+
+    let session = sched.start_watch(Box::new(|_| {})).unwrap();
+    let watching = sched.watch_session();
+    assert_eq!(watching.as_ref(), Some(&session));
+
+    // What the adoption worker's gate does: validate then build through
+    // the scheduler. The build takes the seat and stops the watch.
+    let cancel = cv_core::engine::CancelToken::new();
+    let run =
+        |verb: Verb, sink: EventSink| sched.run_reported(&verb, sink, &cancel).map(|r| r.exit);
+    let sink = || Box::new(|_: Envelope| {}) as EventSink;
+    let (validate, build) = cv_engine::adopt::validate_then_build(&run, &sink).expect("gate runs");
+    assert_eq!(validate, ExitClass::Ok);
+    assert_eq!(build, Some(ExitClass::Ok));
+    assert_eq!(
+        sched.watch_session(),
+        None,
+        "the build takes the watch's seat under StopWatch"
+    );
+
+    // The worker's completion path restores it.
+    slot.restore_watch(watching, "adoption gate".into());
+    let deadline = std::time::Instant::now() + Duration::from_secs(3);
+    while sched.watch_session().is_none() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the watch is live again after the gate"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let restarted = sched.watch_session().unwrap();
+    assert_ne!(
+        restarted,
+        session.clone(),
+        "a replacement session, not the corpse"
+    );
+    assert!(sched.stop_watch_session(&restarted));
+    drop(wb);
+}
+
+/// A restore racing reopen can lose the writer-lock race to a healthy
+/// replacement watch. `WatchAlreadyLive` is proof of restoration there,
+/// never a dead watch: no later session-start event exists to clear a
+/// false banner when the validate gate fails before build.
+#[cfg(unix)]
+#[test]
+fn an_already_live_watch_is_not_disclosed_as_dead() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let root = tempfile::tempdir().unwrap();
+    let bin = root.path().join("boris");
+    std::fs::write(
+        &bin,
+        r#"#!/bin/sh
+case "$1" in
+watch) echo '{"event":"hello","watch_events_schema":1,"compiler":"boris/0.9.0"}' >&2; sleep 30;;
+*) exit 2;;
+esac
+"#,
+    )
+    .unwrap();
+    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+    let mut wb = Workbench::new(Registry::with_all());
+    let delivery = test_delivery(root.path(), WatchMode::Native, &wb);
+    let sched = Arc::new(EngineScheduler::new(
+        delivery.engine.clone(),
+        SeatPolicy::StopWatch,
+    ));
+    start_workspace_watch(sched.clone(), delivery.clone(), None, None);
+    let live = sched.watch_session().expect("first watch is live");
+
+    // Exact losing-restoration endpoint: the replacement already owns the
+    // single watch seat when another restore reaches start_watch.
+    start_workspace_watch(
+        sched.clone(),
+        delivery.clone(),
+        None,
+        Some("stale restore · watch resumed".into()),
+    );
+    wb.drain();
+    assert_ne!(
+        wb.app.degraded,
+        Some(DegradedReason::WatchDead),
+        "a live healthy watch must never be disclosed as dead"
+    );
+    assert!(sched.stop_watch_session(&live));
+    drop(wb);
+}
+
+/// The matching negative: a gate that leaves the watch untouched has
+/// nothing to restore and must not spawn a duplicate session.
+#[cfg(unix)]
+#[test]
+fn restore_watch_is_a_noop_when_the_watch_survived() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let root = tempfile::tempdir().unwrap();
+    let bin = root.path().join("boris");
+    std::fs::write(
+        &bin,
+        r#"#!/bin/sh
+case "$1" in
+watch) echo '{"event":"hello","watch_events_schema":1,"compiler":"boris/0.9.0"}' >&2; sleep 30;;
+validate) exit 0;;
+*) exit 2;;
+esac
+"#,
+    )
+    .unwrap();
+    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+    let wb = Workbench::new(Registry::with_all());
+    let delivery = test_delivery(root.path(), WatchMode::Native, &wb);
+    let sched = Arc::new(EngineScheduler::new(
+        delivery.engine.clone(),
+        SeatPolicy::StopWatch,
+    ));
+    let slot = EngineSlot::default();
+    let _ = slot.sched.set(sched.clone());
+    slot.install_verbs(slot.verb_route(delivery.clone(), None), slot.generation());
+
+    let session = sched.start_watch(Box::new(|_| {})).unwrap();
+    let watching = sched.watch_session();
+    slot.restore_watch(watching, "no-op".into());
+    assert_eq!(
+        sched.watch_session(),
+        Some(session.clone()),
+        "validate never touched the seat; the same session must survive"
+    );
+    assert!(sched.stop_watch_session(&session));
+    drop(wb);
+}
+
+/// Finding-3 probe: the adoption batch pauses the live watch for its
+/// whole duration — no intermediate file state can be observed by a
+/// watch build — and restores it afterwards in every outcome.
+#[cfg(unix)]
+#[test]
+fn a_mutation_batch_runs_with_the_watch_paused_and_restored() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let root = tempfile::tempdir().unwrap();
+    let bin = root.path().join("boris");
+    std::fs::write(
+        &bin,
+        r#"#!/bin/sh
+case "$1" in
+watch) echo '{"event":"hello","watch_events_schema":1,"compiler":"boris/0.9.0"}' >&2; sleep 30;;
+validate) exit 0;;
+build) exit 0;;
+*) exit 2;;
+esac
+"#,
+    )
+    .unwrap();
+    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+    let wb = Workbench::new(Registry::with_all());
+    let delivery = test_delivery(root.path(), WatchMode::Native, &wb);
+    let sched = Arc::new(EngineScheduler::new(
+        delivery.engine.clone(),
+        SeatPolicy::StopWatch,
+    ));
+    let slot = EngineSlot::default();
+    let _ = slot.sched.set(sched.clone());
+    slot.install_verbs(slot.verb_route(delivery.clone(), None), slot.generation());
+
+    let session = sched.start_watch(Box::new(|_| {})).unwrap();
+
+    // A slowed multi-file batch: several writes with real time between
+    // them, exactly the shape a migration copy has.
+    let sched_in_batch = sched.clone();
+    let mut observed_none = 0;
+    crate::migrate::adopt::batch_watch_safe(&slot, &sched, || {
+        for i in 0..3 {
+            std::thread::sleep(Duration::from_millis(40));
+            assert!(
+                sched_in_batch.watch_session().is_none(),
+                "the watch is paused for the whole batch (write {i})"
+            );
+            observed_none += 1;
+        }
+        "batch-done"
+    });
+    assert_eq!(observed_none, 3);
+
+    let deadline = std::time::Instant::now() + Duration::from_secs(3);
+    while sched.watch_session().is_none() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the watch is restored after the batch"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let restored = sched.watch_session().unwrap();
+    assert_ne!(
+        restored,
+        session.clone(),
+        "a replacement session, not the stopped corpse"
+    );
+    assert!(sched.stop_watch_session(&restored));
+    drop(wb);
+}
+
+/// The matching refusal path: a batch that fails still ends with the
+/// watch restored — a collision refusal must not strand it either.
+#[cfg(unix)]
+#[test]
+fn a_refused_mutation_batch_still_restores_the_watch() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let root = tempfile::tempdir().unwrap();
+    let bin = root.path().join("boris");
+    std::fs::write(
+        &bin,
+        r#"#!/bin/sh
+case "$1" in
+watch) echo '{"event":"hello","watch_events_schema":1,"compiler":"boris/0.9.0"}' >&2; sleep 30;;
+*) exit 2;;
+esac
+"#,
+    )
+    .unwrap();
+    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+    let wb = Workbench::new(Registry::with_all());
+    let delivery = test_delivery(root.path(), WatchMode::Native, &wb);
+    let sched = Arc::new(EngineScheduler::new(
+        delivery.engine.clone(),
+        SeatPolicy::StopWatch,
+    ));
+    let slot = EngineSlot::default();
+    let _ = slot.sched.set(sched.clone());
+    slot.install_verbs(slot.verb_route(delivery.clone(), None), slot.generation());
+
+    let session = sched.start_watch(Box::new(|_| {})).unwrap();
+    let result: Result<(), &str> = crate::migrate::adopt::batch_watch_safe(&slot, &sched, || {
+        Err("collision refusal before any write")
+    });
+    assert!(result.is_err());
+
+    let deadline = std::time::Instant::now() + Duration::from_secs(3);
+    while sched.watch_session().is_none() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "even a refused batch restores the watch"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let restored = sched.watch_session().unwrap();
+    assert_ne!(restored, session.clone());
+    assert!(sched.stop_watch_session(&restored));
+    drop(wb);
+}
+
+/// A panicking batch must not strand the watch: restoration rides the
+/// unwinding, and the scheduler stays usable because its locks tolerate
+/// the poisoning a panic leaves behind.
+#[cfg(unix)]
+#[test]
+fn a_panicking_batch_still_restores_the_watch_and_the_scheduler_survives() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let root = tempfile::tempdir().unwrap();
+    let bin = root.path().join("boris");
+    std::fs::write(
+        &bin,
+        r#"#!/bin/sh
+case "$1" in
+watch) echo '{"event":"hello","watch_events_schema":1,"compiler":"boris/0.9.0"}' >&2; sleep 30;;
+validate) exit 0;;
+*) exit 2;;
+esac
+"#,
+    )
+    .unwrap();
+    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+    let wb = Workbench::new(Registry::with_all());
+    let delivery = test_delivery(root.path(), WatchMode::Native, &wb);
+    let sched = Arc::new(EngineScheduler::new(
+        delivery.engine.clone(),
+        SeatPolicy::StopWatch,
+    ));
+    let slot = EngineSlot::default();
+    let _ = slot.sched.set(sched.clone());
+    slot.install_verbs(slot.verb_route(delivery.clone(), None), slot.generation());
+
+    let session = sched.start_watch(Box::new(|_| {})).unwrap();
+    let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        crate::migrate::adopt::batch_watch_safe(&slot, &sched, || {
+            panic!("a defect inside the transaction")
+        })
+    }));
+    assert!(panicked.is_err(), "the panic itself still propagates");
+
+    let deadline = std::time::Instant::now() + Duration::from_secs(3);
+    while sched.watch_session().is_none() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "restoration happens during unwinding, not only on normal return"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let restored = sched.watch_session().unwrap();
+    assert_ne!(restored, session.clone());
+
+    // The poisoned write lock did not brick the scheduler: a fresh batch
+    // still serializes and completes.
+    let after = sched.mutation_batch(|| "still usable");
+    assert_eq!(after, "still usable");
+
+    assert!(sched.stop_watch_session(&restored));
+    drop(wb);
 }

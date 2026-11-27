@@ -726,6 +726,9 @@ impl Module for PagesModule {
                 "from source frontmatter, no Boris IR yet".into(),
             ));
         }
+        if let Some((mode, source)) = &p.imported_from {
+            fields.push(("imported from".into(), format!("{mode} · {source}")));
+        }
         fields.extend(p.frontmatter.iter().filter(|(k, _)| k != "id").cloned());
         if let Some(b) = &self.build {
             fields.push(("build".into(), b.clone()));

@@ -15,3 +15,5 @@ pub mod lock;
 pub(crate) mod open;
 pub mod paths;
 pub mod sidecar;
+pub mod workspace_instance;
+pub mod workspace_mutation;

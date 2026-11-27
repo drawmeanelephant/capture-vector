@@ -44,9 +44,23 @@ use projection::IrProjection;
 /// the delivery palette verbs report through.
 #[derive(Clone, Default)]
 pub struct EngineSlot {
+    /// Workspace mutation identity: set once, then reused for the process
+    /// lifetime so reopen can never split one workspace across schedulers.
     sched: Arc<OnceLock<Arc<Scheduler>>>,
-    resyncer: Arc<OnceLock<Arc<Resyncer>>>,
-    verbs: Arc<OnceLock<VerbRoute>>,
+    /// The current shell generation's verb delivery. Unlike scheduler
+    /// identity this is replaced on every successful open because an
+    /// Inbox is generation-scoped and sends to a reset workbench correctly
+    /// land nowhere.
+    verbs: Arc<Mutex<Option<VerbRoute>>>,
+    /// Monotonic shell-delivery generation. A restore may carry a cloned
+    /// route while reopen replaces it; publication compares the clone's
+    /// generation under the scheduler start lock rather than assuming an
+    /// inbox send failure is the only stale-generation evidence.
+    generations: Arc<AtomicU64>,
+    /// Serializes boot attempts for this workspace identity. Without it,
+    /// a switch-away/back during the first locate could create two
+    /// successful engines before either OnceLock became visible.
+    boot: Arc<Mutex<()>>,
 }
 
 impl EngineSlot {
@@ -54,13 +68,114 @@ impl EngineSlot {
         self.sched.get()
     }
 
+    /// Why the current serialized engine incarnation is unavailable.
+    /// Readiness is scheduler-owned gate evidence, not a fresh probe.
+    pub fn unready(&self) -> Option<String> {
+        self.get().and_then(|s| s.readiness().err())
+    }
+
+    fn route(&self) -> Option<VerbRoute> {
+        self.verbs
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+            .filter(|route| route.is_current())
+    }
+
+    fn generation(&self) -> u64 {
+        self.generations.load(Ordering::SeqCst)
+    }
+
+    /// Install the delivery for one shell generation. Scheduler identity is
+    /// immutable, but delivery is not: workspace reopen resets the shell
+    /// inbox, and reusing the prior generation's route would silence every
+    /// event exactly as `reset_project` intends for stale workers.
+    fn verb_route(&self, delivery: LiveDelivery, warning: Option<String>) -> VerbRoute {
+        VerbRoute {
+            delivery,
+            warning,
+            generation: 0,
+            generations: self.generations.clone(),
+        }
+    }
+
+    fn install_verbs(&self, mut route: VerbRoute, boot_generation: u64) -> bool {
+        let mut verbs = self.verbs.lock().unwrap_or_else(|e| e.into_inner());
+        // A rapid reopen can retire this boot's shell while its engine probe
+        // is still serialized behind the boot mutex. Do not resurrect that
+        // dead inbox as the current route when the stale probe eventually
+        // finishes; the newest open owns the next generation instead.
+        if self.generations.load(Ordering::SeqCst) != boot_generation {
+            return false;
+        }
+        route.generation = self.generations.fetch_add(1, Ordering::SeqCst) + 1;
+        *verbs = Some(route);
+        true
+    }
+
+    /// Invalidate the installed shell delivery without waiting for the next
+    /// successful boot. Switching away or resetting the project retires the
+    /// old inbox immediately, and clones of its route must know they are
+    /// stale before they construct a new watch-owner publication.
+    pub fn retire_verbs(&self) {
+        let mut verbs = self.verbs.lock().unwrap_or_else(|e| e.into_inner());
+        self.generations.fetch_add(1, Ordering::SeqCst);
+        *verbs = None;
+    }
+
     /// Queue a convergent disk-truth scan when the workspace engine booted.
     /// A request made after a lifecycle mutation is guaranteed to run after
     /// that mutation even if an older scan is already in flight.
     pub fn request_resync(&self) {
-        if let Some(r) = self.resyncer.get() {
-            r.request();
+        if self.unready().is_some() {
+            return;
         }
+        if let Some(route) = self.route() {
+            route.delivery.resyncer.request();
+        }
+    }
+
+    /// A sink wired like the live session's own: cursor-tracked,
+    /// editor-tee'd, and queuing disk-truth resyncs on build results —
+    /// never a raw inbox channel that would skip those invariants.
+    /// `None` while the engine has not passed its gate.
+    pub fn live_sink(&self) -> Option<EventSink> {
+        if self.unready().is_some() {
+            return None;
+        }
+        let route = self.route()?;
+        Some(route.delivery.resync_sink(|deliver, env| deliver(env)))
+    }
+
+    /// Restart the workspace watch when the verb batch that ran after
+    /// `before` stopped it — the same contract the palette's verb route
+    /// honors (`SeatPolicy::StopWatch` means the caller restarts).
+    /// Compares sessions rather than trusting a report, because an error
+    /// path can lose `stopped_watch`. A no-op when the watch survived,
+    /// was never live, or the engine slot is not booted.
+    pub fn restore_watch(&self, before: Option<SessionId>, outcome: String) {
+        let (Some(sched), Some(route)) = (self.sched.get().cloned(), self.route()) else {
+            return;
+        };
+        if self.unready().is_some() || sched.watch_session().is_some() || !route.is_current() {
+            return;
+        }
+        // `before` is only evidence for retiring the old UI handle. Whether
+        // to restore is decided from current scheduler state: replacement
+        // may have stopped the old session before this gate began and then
+        // had its own fresh session stopped by the gate build. In every
+        // such interleaving the open workspace's watch converges live.
+        if let Some(stopped) = before {
+            let _ = route.delivery.inbox.send(Inbound::WatchStopped(stopped));
+        }
+        let gate = route.clone();
+        start_workspace_watch_gated(
+            sched.clone(),
+            route.delivery.clone(),
+            route.warning.clone(),
+            Some(format!("{outcome} · watch resumed")),
+            move || gate.is_current(),
+        );
     }
 
     /// Run a palette verb through the scheduler on a worker. Its events
@@ -68,10 +183,17 @@ impl EngineSlot {
     /// workbench like any engine envelope. A build that took the watch's
     /// seat restarts the watch afterwards, so the workspace stays live.
     pub fn start_verb(&self, run: VerbRun) -> Result<(), String> {
-        let (Some(sched), Some(route)) = (self.sched.get().cloned(), self.verbs.get().cloned())
-        else {
+        let Some(sched) = self.sched.get().cloned() else {
             return Err(absent().to_string());
         };
+        let Some(route) = self.route() else {
+            return Err(
+                "the workspace shell is reloading; Boris verbs are temporarily unavailable".into(),
+            );
+        };
+        if let Err(e) = sched.readiness() {
+            return Err(format!("the workspace engine is not ready: {e}"));
+        }
         std::thread::Builder::new()
             .name("cv-engine-verb".into())
             .spawn(move || route.run(&sched, run))
@@ -84,17 +206,29 @@ impl EngineSlot {
 struct VerbRoute {
     delivery: LiveDelivery,
     warning: Option<String>,
+    generation: u64,
+    generations: Arc<AtomicU64>,
 }
 
 impl VerbRoute {
+    fn is_current(&self) -> bool {
+        self.generation != 0 && self.generations.load(Ordering::SeqCst) == self.generation
+    }
+
     fn run(&self, sched: &Arc<Scheduler>, run: VerbRun) {
         let name = run.verb.name();
         let watching = sched.watch_session();
-        let result = sched.run_reported(
+        let generation_gate = self.clone();
+        let result = match sched.run_reported_admission(
             &run.verb,
             self.delivery.resync_sink(|deliver, env| deliver(env)),
             &run.cancel,
-        );
+            move || generation_gate.is_current(),
+        ) {
+            Ok(Some(report)) => Ok(report),
+            Ok(None) => return,
+            Err(e) => Err(e),
+        };
         let outcome = match &result {
             Ok(r) if r.exit == ExitClass::Ok => format!("boris {name} finished"),
             Ok(_) => format!("boris {name} failed · see Activity › Errors"),
@@ -108,11 +242,13 @@ impl VerbRoute {
             return;
         };
         if self.delivery.inbox.send(Inbound::WatchStopped(stopped)) {
-            start_workspace_watch(
+            let gate = self.clone();
+            start_workspace_watch_gated(
                 sched.clone(),
                 self.delivery.clone(),
                 self.warning.clone(),
                 Some(format!("{outcome} · watch resumed")),
+                move || gate.is_current(),
             );
         }
     }
@@ -123,10 +259,14 @@ pub struct SlotVerbs(pub EngineSlot);
 
 impl EnginePort for SlotVerbs {
     fn unavailable(&self) -> Option<String> {
-        self.0
-            .get()
-            .is_none()
-            .then(|| "Boris has not passed its version gate for this workspace (see Doctor)".into())
+        if self.0.get().is_none() || self.0.unready().is_some() {
+            return Some(
+                "Boris has not passed its version gate for this workspace (see Doctor)".into(),
+            );
+        }
+        self.0.route().is_none().then(|| {
+            "the workspace shell is reloading; Boris verbs are temporarily unavailable".into()
+        })
     }
     fn start(&mut self, run: VerbRun) -> Result<(), String> {
         self.0.start_verb(run)
@@ -320,9 +460,10 @@ pub fn spawn(b: EngineBoot) -> Option<JoinHandle<()>> {
     let notice = b.notice.clone();
     let root = b.cfg.root.clone();
     let doctor = b.doctor.clone();
+    let shell_generation = b.slot.generation();
     match std::thread::Builder::new()
         .name("cv-engine-boot".into())
-        .spawn(move || run(b))
+        .spawn(move || run(b, shell_generation))
     {
         Ok(handle) => Some(handle),
         Err(e) => {
@@ -648,7 +789,7 @@ fn recover_build(
     );
 }
 
-fn run(b: EngineBoot) {
+fn run(b: EngineBoot, shell_generation: u64) {
     let EngineBoot {
         cfg,
         slot,
@@ -657,6 +798,7 @@ fn run(b: EngineBoot) {
         notice,
         doctor,
     } = b;
+    let _boot = slot.boot.lock().unwrap_or_else(|e| e.into_inner());
     let root: PathBuf = cfg.root.clone();
     let epoch = Arc::new(AtomicU64::new(1));
     // Browsable from disk whether or not the engine passes.
@@ -666,6 +808,67 @@ fn run(b: EngineBoot) {
         None,
         1,
     ))) {
+        return;
+    }
+    if let Some(sched) = slot.get().cloned() {
+        // Reopen is the documented engine restart path. Scheduler identity
+        // stays stable so in-flight mutations cannot split-brain, but the
+        // engine incarnation behind it must refresh from the config just
+        // read from disk. The probe can create a write-capability temporary
+        // in the content input, so it is serialized as workspace mutation
+        // evidence rather than raced against an adoption batch. Replacement
+        // then takes the same writer lock, stops the old-config watch, and
+        // swaps engine + output-seat atomically against scheduler users.
+        let generation_gate = slot.clone();
+        let engine = match sched.replace_engine_with_admission(
+            || {
+                ProcessEngine::start(cfg).map(|engine| {
+                    let html_dir = engine.html_dir().to_string();
+                    (Arc::new(engine), html_dir)
+                })
+            },
+            move || generation_gate.generation() == shell_generation,
+        ) {
+            Ok(Some(engine)) => engine,
+            Ok(None) => return,
+            Err(e) => {
+                doctor.update(|f| f.engine = crate::doctor::engine_state(&e));
+                let status = format!("{}: {e}", root.display());
+                finish(&inbox, &warning, &notice, Some(degraded_reason(&e)), status);
+                return;
+            }
+        };
+        doctor.update(|f| {
+            f.engine = crate::doctor::located(engine.identity());
+            f.probe = Some(crate::doctor::probe(engine.report()));
+        });
+        let html_dir = engine.html_dir().to_string();
+        let version = engine.identity().version.clone();
+        let resyncer = Arc::new(Resyncer::spawn(
+            engine.clone(),
+            inbox.clone(),
+            epoch.clone(),
+        ));
+        let delivery = LiveDelivery {
+            engine,
+            inbox: inbox.clone(),
+            epoch,
+            resyncer,
+        };
+        if !slot.install_verbs(
+            slot.verb_route(delivery.clone(), warning.clone()),
+            shell_generation,
+        ) {
+            return;
+        }
+        let route = slot.route().expect("installed above");
+        let _ = inbox.send(Inbound::Snapshot(workspace_snapshot(
+            &root,
+            &html_dir,
+            Some(version),
+            1,
+        )));
+        start_workspace_watch_gated(sched, delivery, warning, notice, move || route.is_current());
         return;
     }
     let engine = match ProcessEngine::start(cfg) {
@@ -692,7 +895,6 @@ fn run(b: EngineBoot) {
             inbox.clone(),
             epoch.clone(),
         ));
-        let _ = slot.resyncer.set(resyncer.clone());
         LiveDelivery {
             engine,
             inbox,
@@ -700,19 +902,33 @@ fn run(b: EngineBoot) {
             resyncer,
         }
     };
-    let _ = slot.verbs.set(VerbRoute {
-        delivery: delivery.clone(),
-        warning: warning.clone(),
-    });
+    if !slot.install_verbs(
+        slot.verb_route(delivery.clone(), warning.clone()),
+        shell_generation,
+    ) {
+        return;
+    }
+    let route = slot.route().expect("installed above");
     let _ = slot.sched.set(sched.clone());
-    start_workspace_watch(sched, delivery, warning, notice);
+    start_workspace_watch_gated(sched, delivery, warning, notice, move || route.is_current());
 }
 
+#[cfg(test)]
 fn start_workspace_watch(
     sched: Arc<Scheduler>,
     delivery: LiveDelivery,
     warning: Option<String>,
     notice: Option<String>,
+) {
+    start_workspace_watch_gated(sched, delivery, warning, notice, || true);
+}
+
+fn start_workspace_watch_gated(
+    sched: Arc<Scheduler>,
+    delivery: LiveDelivery,
+    warning: Option<String>,
+    notice: Option<String>,
+    publishable: impl Fn() -> bool,
 ) {
     let mode = delivery.engine.report().watch_mode;
     let mode_label = match mode {
@@ -720,46 +936,99 @@ fn start_workspace_watch(
         WatchMode::OneShotFallback => "one-shot rebuilds",
     };
     let ready = Arc::new(OnceLock::new());
-    let recover_ready = ready.clone();
-    let recover_sched = Arc::downgrade(&sched);
-    let recover_delivery = delivery.clone();
-    let recover_warning = warning.clone();
-    let recover_notice = notice.clone();
-    let sink = delivery.watch_pipeline(mode, Arc::downgrade(&sched), move |session, cause| {
-        std::thread::spawn(move || {
-            // A fatal initial build can arrive before `start_watch`
-            // returns. Publish the watch handle/status before retiring it.
-            if *recover_ready.wait()
-                && let Some(sched) = recover_sched.upgrade()
-            {
-                recover_build(
-                    &sched,
-                    session,
-                    &cause,
-                    &recover_delivery,
-                    &recover_warning,
-                    &recover_notice,
-                );
+    let inbox = &delivery.inbox;
+    let mut attempts = 0;
+    let started = loop {
+        attempts += 1;
+        let recover_ready = ready.clone();
+        let recover_sched = Arc::downgrade(&sched);
+        let recover_delivery = delivery.clone();
+        let recover_warning = warning.clone();
+        let recover_notice = notice.clone();
+        let sink = delivery.watch_pipeline(mode, Arc::downgrade(&sched), move |session, cause| {
+            std::thread::spawn(move || {
+                // A fatal initial build can arrive before `start_watch`
+                // returns. Publish the watch handle/status before retiring it.
+                if *recover_ready.wait()
+                    && let Some(sched) = recover_sched.upgrade()
+                {
+                    recover_build(
+                        &sched,
+                        session,
+                        &cause,
+                        &recover_delivery,
+                        &recover_warning,
+                        &recover_notice,
+                    );
+                }
+            });
+        });
+        let publish_inbox = delivery.inbox.clone();
+        let publish_sched = sched.clone();
+        let publication = sched.start_watch_with_publication(sink, |session| {
+            if !publishable() {
+                return (false, None);
+            }
+            match publish_inbox.try_send(Inbound::Watch(Box::new(SessionWatch {
+                sched: publish_sched.clone(),
+                session: session.clone(),
+            }))) {
+                Ok(()) => (true, None),
+                Err(m) => (false, Some(m)),
             }
         });
-    });
-    let inbox = &delivery.inbox;
-    let published = match sched.start_watch(sink) {
-        Ok(session) => {
-            let published = inbox.send(Inbound::Watch(Box::new(SessionWatch { sched, session })));
+        // The publication artifact owns the failed `SessionWatch` message.
+        // `start_watch_with_publication` has returned, releasing both the
+        // scheduler writer lock and watch-slot mutex; only now may that
+        // message drop, because `SessionWatch::drop` reacquires the watch
+        // slot while cleaning up. Dropping it inside the publication
+        // closure is a same-thread self-deadlock.
+        let artifact = publication.artifact.flatten();
+        let outcome = publication.result;
+        drop(artifact);
+        // An already-live winner is normally a stable published session and
+        // is reported below as already-restored. If it has already converged
+        // away, though, it was transient stop/start state rather than a live
+        // publication: retry bounded times instead of making that race a
+        // terminal WatchDead. Atomic stop means this cannot spin on a
+        // half-stopped child; each retry observes a converged empty slot.
+        let retry_transient = matches!(&outcome, Err(e) if e.to_string().contains("already live"))
+            && sched.watch_session().is_none()
+            && attempts < 3;
+        if !retry_transient {
+            break outcome;
+        }
+    };
+    let published = match started {
+        Ok(Some(_session)) => {
             let status = format!("{} · {mode_label}", delivery.workspace_identity());
             finish(inbox, &warning, &notice, None, status);
-            published
+            true
+        }
+        Ok(None) => {
+            // The generation died before publication. The child was stopped
+            // inside the scheduler start lock, and every send on this inbox
+            // is intentionally dead; there is nothing useful to disclose there.
+            false
         }
         Err(e) => {
-            let status = format!("{}: {e}", delivery.engine.root().display());
-            finish(
-                inbox,
-                &warning,
-                &notice,
-                Some(DegradedReason::WatchDead),
-                status,
-            );
+            // A restore can lose the writer-lock race to reopen's healthy
+            // replacement watch. That is already-restored, not dead: unlike
+            // a real start failure there will be no later session-start
+            // event to clear a false WatchDead banner.
+            if sched.watch_session().is_some() {
+                let status = format!("{} · watch already live", delivery.workspace_identity());
+                finish(inbox, &warning, &notice, None, status);
+            } else {
+                let status = format!("{}: {e}", delivery.engine.root().display());
+                finish(
+                    inbox,
+                    &warning,
+                    &notice,
+                    Some(DegradedReason::WatchDead),
+                    status,
+                );
+            }
             false
         }
     };

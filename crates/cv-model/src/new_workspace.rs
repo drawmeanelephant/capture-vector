@@ -4,6 +4,7 @@
 //! the result opens as the workspace or returns to the form as its error.
 //! What a starter holds, and which folders may take one, is Boris's.
 
+use crate::adoption::{ADOPT_NEW_DIALOG, AdoptionRequest, AdoptionTarget};
 use crate::command::{ImportJob, Intent};
 use crate::dialog::{ActionTone, DialogAnswer, DialogKind, DialogSpec, Field, Pick, Progress};
 use crate::workbench::{ShellRequest, Waker, Workbench};
@@ -82,6 +83,15 @@ pub enum ShellNotice {
     Created {
         creation: WorkspaceCreation,
         result: Result<PathBuf, String>,
+    },
+    /// A migration-run adoption worker finished. Success with
+    /// `new_workspace` opens the adopted workspace through the ordinary
+    /// path; errors are disclosed in place.
+    Adopted {
+        run_id: String,
+        /// Stable identity of the adoption operation this notice belongs to.
+        cancel: CancelToken,
+        result: Result<crate::adoption::AdoptionReport, String>,
     },
     ImportStarted {
         /// The candidate id the wizard staged before the atomic filesystem
@@ -178,6 +188,94 @@ impl Workbench {
         spec
     }
 
+    /// Open the ordinary New workspace form for an adoption. The answer
+    /// stays shell-routed, but successful validation produces an adoption
+    /// job rather than a bare starter workspace.
+    pub(crate) fn adopt_new_workspace(&mut self, run_id: &str, suggested: Option<&str>) {
+        if self.create_cancel.is_some() {
+            self.status = "A workspace is already being created.".into();
+            return;
+        }
+        match self.archetypes.clone() {
+            Ok(a) => {
+                let archetype = suggested
+                    .filter(|s| a.names.iter().any(|n| n == s))
+                    .map(str::to_string)
+                    .or_else(|| a.names.get(a.default).cloned())
+                    .unwrap_or_default();
+                let parent = self
+                    .workspace
+                    .as_deref()
+                    .and_then(Path::parent)
+                    .map(Path::to_path_buf)
+                    .or_else(|| self.new_parent.clone())
+                    .unwrap_or_default();
+                let draft = NewWorkspace {
+                    parent,
+                    name: run_id.to_string(),
+                    archetype,
+                };
+                let mut spec = self.new_workspace_form(&a, Some(&draft), None);
+                spec.id = ADOPT_NEW_DIALOG.into();
+                spec.title = format!("Adopt {} into a new workspace", run_id);
+                spec.context = Some(run_id.to_string());
+                self.apply(Intent::dialog(spec));
+            }
+            Err(why) => self.status = format!("New workspace is unavailable: {why}"),
+        }
+    }
+
+    /// Validate the adoption form exactly like New workspace, then hand a
+    /// complete adoption request back to the shell.
+    pub(crate) fn adopt_new_workspace_answer(&mut self, answer: &DialogAnswer) {
+        if answer.action.is_none() {
+            return;
+        }
+        let Some(run_id) = answer.context.clone() else {
+            return;
+        };
+        let Ok(a) = self.archetypes.clone() else {
+            return;
+        };
+        let text = |k: &str| answer.text(k).unwrap_or_default().trim().to_string();
+        let draft = NewWorkspace {
+            parent: PathBuf::from(text("parent")),
+            name: text("name"),
+            archetype: text("archetype"),
+        };
+        let invalid = (!a.names.contains(&draft.archetype))
+            .then(|| "Choose one of the starters Boris lists.".to_string());
+        if let Err(e) = invalid.map_or(draft.check(), Err) {
+            let mut spec = self.new_workspace_form(&a, Some(&draft), Some(e));
+            spec.id = ADOPT_NEW_DIALOG.into();
+            spec.title = format!("Adopt {} into a new workspace", run_id);
+            spec.context = Some(run_id);
+            self.dialogs.push(spec);
+            return;
+        }
+        self.new_parent = Some(draft.parent.clone());
+        let creation = WorkspaceCreation::new(draft);
+        self.create_cancel = Some(creation.cancel.clone());
+        self.dialogs.push(
+            DialogSpec::new(
+                CREATING,
+                "Adopting into a new workspace",
+                DialogKind::Progress(Progress {
+                    label: format!(
+                        "boris init {} --type {}, then the migration content",
+                        creation.draft.name, creation.draft.archetype
+                    ),
+                    permille: None,
+                }),
+            )
+            .cancel("Cancel"),
+        );
+        self.apply(Intent::AdoptRun(AdoptionRequest {
+            run_id,
+            target: AdoptionTarget::NewWorkspace(creation),
+        }));
+    }
+
     pub(crate) fn new_workspace_answer(&mut self, answer: &DialogAnswer) {
         if answer.action.is_none() {
             return;
@@ -235,6 +333,44 @@ impl Workbench {
     pub(crate) fn notice(&mut self, n: ShellNotice) {
         match n {
             ShellNotice::Archetypes(a) => self.archetypes = a,
+            ShellNotice::Adopted {
+                run_id,
+                cancel,
+                result,
+            } => {
+                // Adoption and ordinary creation can overlap. Only the
+                // notice carrying the live creation's exact token may
+                // complete that dialog/token state; foreign adoption
+                // outcomes are status/refresh facts only.
+                let owns_creation = self
+                    .create_cancel
+                    .as_ref()
+                    .is_some_and(|live| *live == cancel);
+                if owns_creation {
+                    self.create_cancel = None;
+                    self.dialogs.close(CREATING);
+                }
+                match result {
+                    Ok(report) if report.new_workspace => {
+                        self.status = format!(
+                            "adopted {run_id}: {} file(s), validate {}, build {}",
+                            report.files_written, report.validate, report.build
+                        );
+                        self.requests
+                            .push(ShellRequest::OpenWorkspace(report.workspace));
+                    }
+                    Ok(report) => {
+                        self.status = format!(
+                            "adopted {run_id}: {} file(s), validate {}, build {}",
+                            report.files_written, report.validate, report.build
+                        );
+                        self.run_command(crate::modules::migrate::REFRESH);
+                    }
+                    Err(e) => {
+                        self.status = format!("adoption of {run_id} refused: {e}");
+                    }
+                }
+            }
             ShellNotice::Created { creation, result } => {
                 let cancelled = creation.cancel.is_cancelled();
                 if self
@@ -480,6 +616,77 @@ mod tests {
         wb.run_command(NEW);
         assert!(!wb.dialogs.is_open());
         assert_eq!(wb.status, "New workspace is unavailable: boris not found");
+    }
+
+    #[test]
+    fn a_foreign_adoption_failure_cannot_close_an_unrelated_creation() {
+        let mut wb = wb();
+        fill(&mut wb, "notes");
+        wb.key(&KeyPress::new(KeyInput::Enter));
+        let creation = take_creation(&mut wb);
+        let token = creation.cancel.clone();
+        assert!(wb.dialogs.open().is_some_and(|d| d.spec.id == CREATING));
+
+        // Existing-workspace adoption can overlap an ordinary creation;
+        // its failure is a different operation and must not complete it.
+        wb.notice(ShellNotice::Adopted {
+            run_id: "unrelated-existing-adoption".into(),
+            cancel: CancelToken::new(),
+            result: Err("adoption collision".into()),
+        });
+
+        assert!(
+            wb.create_cancel.as_ref().is_some_and(|c| *c == token),
+            "an unrelated adoption failure must not clear the live creation token"
+        );
+        assert!(
+            wb.dialogs.open().is_some_and(|d| d.spec.id == CREATING),
+            "an unrelated adoption failure must not close creation progress"
+        );
+    }
+
+    #[test]
+    fn a_foreign_adoption_success_cannot_close_an_unrelated_creation() {
+        let mut wb = wb();
+        fill(&mut wb, "notes");
+        wb.key(&KeyPress::new(KeyInput::Enter));
+        let creation = take_creation(&mut wb);
+        let token = creation.cancel.clone();
+        wb.notice(ShellNotice::Adopted {
+            run_id: "unrelated-existing-adoption".into(),
+            cancel: CancelToken::new(),
+            result: Ok(crate::adoption::AdoptionReport {
+                workspace: PathBuf::from("/elsewhere"),
+                files_written: 3,
+                validate: "ok".into(),
+                build: "ok".into(),
+                new_workspace: false,
+            }),
+        });
+
+        assert!(wb.create_cancel.as_ref().is_some_and(|c| *c == token));
+        assert!(wb.dialogs.open().is_some_and(|d| d.spec.id == CREATING));
+    }
+
+    #[test]
+    fn a_matching_adoption_failure_completes_its_own_creation_progress() {
+        let mut wb = wb();
+        fill(&mut wb, "notes");
+        wb.key(&KeyPress::new(KeyInput::Enter));
+        let creation = take_creation(&mut wb);
+        let token = creation.cancel.clone();
+        wb.notice(ShellNotice::Adopted {
+            run_id: "matching-adoption".into(),
+            cancel: token,
+            result: Err("adoption collision".into()),
+        });
+
+        assert!(wb.create_cancel.is_none());
+        assert!(!wb.dialogs.is_open());
+        assert_eq!(
+            wb.status,
+            "adoption of matching-adoption refused: adoption collision"
+        );
     }
 
     #[test]

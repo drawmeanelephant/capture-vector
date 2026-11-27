@@ -9,11 +9,13 @@
 //! items are triaged (open, accepted, deferred) like Audit findings and
 //! never block anything.
 
+mod adopt;
 #[cfg(test)]
 mod tests;
 mod wizard;
 
 use crate::command::{CommandSpec, Intent};
+use crate::dialog::DialogAnswer;
 use crate::module::{
     Chip, InspectorModel, Module, ModuleSpec, NavItem, NavModel, ReadingLine, ReadingModel,
     Registry, RowModel, Slot, Tone,
@@ -27,11 +29,10 @@ pub const ID: &str = "migrate";
 pub const NEW: &str = "migrate.new";
 pub const REFRESH: &str = "migrate.refresh";
 pub const ADOPT: &str = "migrate.adopt";
+pub const ADOPT_EXISTING: &str = "migrate.adopt.existing";
 pub const ACCEPT: &str = "migrate.review.accept";
 pub const DEFER: &str = "migrate.review.defer";
 pub const REOPEN: &str = "migrate.review.reopen";
-
-const ADOPT_UNAVAILABLE: &str = "adopting a run into a workspace is not in this build yet";
 
 /// Which lab binary this window found, as the `--version` gate saw it.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -171,6 +172,8 @@ pub struct ImportRun {
     /// The lab's `--out`.
     pub out: String,
     pub provenance: Option<String>,
+    /// Boris starter suggested for a new workspace, from mode metadata.
+    pub suggested_archetype: Option<String>,
     /// Count per disposition, in the order the lab reports them.
     pub counts: Vec<(String, u64)>,
     /// Positive evidence that count data exists in the decoded document in
@@ -211,6 +214,7 @@ impl ImportRun {
             duration_ms: None,
             out: String::new(),
             provenance: None,
+            suggested_archetype: None,
             counts: Vec::new(),
             count_evidence: false,
             totals: Vec::new(),
@@ -1029,7 +1033,8 @@ impl Module for MigrateModule {
             CommandSpec::new(ACCEPT, "Accept review item"),
             CommandSpec::new(DEFER, "Defer review item"),
             CommandSpec::new(REOPEN, "Reopen review item"),
-            CommandSpec::new(ADOPT, "Adopt run…").disabled(Some(ADOPT_UNAVAILABLE.into())),
+            CommandSpec::new(ADOPT, "Adopt run…")
+                .disabled(Self::adopt_unavailable(self.selected_run())),
         ]
     }
 
@@ -1046,13 +1051,17 @@ impl Module for MigrateModule {
                 ))]
             }
             NEW => self.begin_import(),
-            ADOPT => vec![Intent::Status(format!("Adopt: {ADOPT_UNAVAILABLE}"))],
+            ADOPT => self.adopt(),
             _ => Vec::new(),
         }
     }
 
-    fn answer(&mut self, command: &str, answer: &crate::dialog::DialogAnswer) -> Vec<Intent> {
-        self.answer_wizard(command, answer)
+    fn answer(&mut self, command: &str, answer: &DialogAnswer) -> Vec<Intent> {
+        match command {
+            ADOPT => self.adopt_answer(answer),
+            ADOPT_EXISTING => self.adopt_existing_answer(answer),
+            _ => self.answer_wizard(command, answer),
+        }
     }
 
     fn import_started(&mut self, requested: &str, job: &crate::command::ImportJob) -> Vec<Intent> {

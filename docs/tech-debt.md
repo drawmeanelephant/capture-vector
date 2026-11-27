@@ -21,6 +21,7 @@ Ledger format: one row per item, reviewed when the linked issue closes.
 | No on-disk `Store` port | Storage | `cv-store` owns the `.cv/` sidecar, audit journal, locks and confined paths, but nothing implements `cv_core::store::Store` on disk. `cv-app` wires the in-memory `StubStore` from `cv-fixtures` | `crates/cv-app/src/lib.rs` |
 | Packaging signing and physical-machine verification | Build | Pinned Boris fetch, bundled lookup, release pipeline and sidecar migrations landed. Signing, notarization and 3-OS launch parity need owner decisions | issue #12, `docs/PACKAGING.md` |
 | Acceptance-gate close-out | Build | Every gate was verified green; the issue waits on the maintainer's close-out | issue #11 |
+| Standard-site implicit session root | Engine boundary | User-controlled custom session verbs could make Boris create or mutate its implicit `$HOME` sessions root even though an explicit `--session-root` output path is refused. This is outside production reach because delivery remains disabled pending #185, but needs a hardening decision before `Engine::run` exposes user-controlled custom session verbs | issue #185, round-36 verifier candidate |
 
 Open questions for the maintainer:
 

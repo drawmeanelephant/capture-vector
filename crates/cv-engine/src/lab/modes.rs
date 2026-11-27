@@ -114,6 +114,9 @@ pub struct ModeSpec {
     pub inputs: &'static [InputSpec],
     /// Scalar pass-through options with lab defaults; all optional.
     pub extras: &'static [ExtraSpec],
+    /// Boris starter suggested when this mode is adopted into a new
+    /// workspace. `None` leaves Boris's own default selected.
+    pub archetype: Option<&'static str>,
 }
 
 const fn dir(flag: &'static str) -> InputSpec {
@@ -172,6 +175,7 @@ const fn root(name: &'static str, family: Family) -> ModeSpec {
         family,
         inputs: ROOT,
         extras: NO_EXTRAS,
+        archetype: None,
     }
 }
 
@@ -181,6 +185,7 @@ const fn with(name: &'static str, family: Family, inputs: &'static [InputSpec]) 
         family,
         inputs,
         extras: NO_EXTRAS,
+        archetype: None,
     }
 }
 
@@ -195,6 +200,39 @@ const fn full(
         family,
         inputs,
         extras,
+        archetype: None,
+    }
+}
+
+const fn root_as(name: &'static str, family: Family, archetype: &'static str) -> ModeSpec {
+    ModeSpec {
+        archetype: Some(archetype),
+        ..root(name, family)
+    }
+}
+
+const fn with_as(
+    name: &'static str,
+    family: Family,
+    inputs: &'static [InputSpec],
+    archetype: &'static str,
+) -> ModeSpec {
+    ModeSpec {
+        archetype: Some(archetype),
+        ..with(name, family, inputs)
+    }
+}
+
+const fn full_as(
+    name: &'static str,
+    family: Family,
+    inputs: &'static [InputSpec],
+    extras: &'static [ExtraSpec],
+    archetype: &'static str,
+) -> ModeSpec {
+    ModeSpec {
+        archetype: Some(archetype),
+        ..full(name, family, inputs, extras)
     }
 }
 
@@ -209,7 +247,7 @@ pub const MODES: &[ModeSpec] = &[
     ),
     root("wordpress-theme", CrossCutting),
     with("instagram", Social, &[dir("--dump")]),
-    with("obsidian", Notes, &[dir("--vault")]),
+    with_as("obsidian", Notes, &[dir("--vault")], "garden"),
     full(
         "tinderbox-inventory",
         Notes,
@@ -220,7 +258,7 @@ pub const MODES: &[ModeSpec] = &[
     with("notion", Notes, &[dir("--export")]),
     with("filed", StaticSite, &[dir("--filed-root")]),
     root("filed-scan", StaticSite),
-    full("starlight", StaticSite, ROOT, STARLIGHT_EXTRAS),
+    full_as("starlight", StaticSite, ROOT, STARLIGHT_EXTRAS, "docs"),
     root("asset-filename", CrossCutting),
     root("theme-archaeology", CrossCutting),
     with(
@@ -235,17 +273,17 @@ pub const MODES: &[ModeSpec] = &[
     root("jekyll-inventory", StaticSite),
     root("jekyll", StaticSite),
     root("ghost-inventory", BlogCms),
-    root("ghost", BlogCms),
+    root_as("ghost", BlogCms, "blog"),
     root("mkdocs-inventory", StaticSite),
-    root("mkdocs", StaticSite),
+    root_as("mkdocs", StaticSite, "docs"),
     root("mastodon-inventory", Social),
     root("mastodon", Social),
     root("atproto", Social),
     root("atproto-inventory", Social),
     root("enex-inventory", Notes),
-    root("enex", Notes),
+    root_as("enex", Notes, "garden"),
     root("substack-inventory", BlogCms),
-    root("substack", BlogCms),
+    root_as("substack", BlogCms, "blog"),
 ];
 /// The allowlisted mode named `name` (canonical names only).
 pub fn mode(name: &str) -> Option<&'static ModeSpec> {

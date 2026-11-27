@@ -178,6 +178,16 @@ fn io(rel: &str, what: &str, e: std::io::Error) -> cv_core::Error {
 impl ContentWriter for FsWriter {
     fn write(&self, draft: &PageDraft) -> cv_core::Result<WriteOutcome> {
         let rel = draft.path.as_str();
+        let _workspace_mutation = cv_store::workspace_mutation::lock_for_content_mutation(&self.root)
+            .map_err(|e| {
+                if e.kind() == std::io::ErrorKind::WouldBlock {
+                    cv_core::Error::Other(format!(
+                        "{rel}: workspace is busy with another mutation or migration adoption; try again when it completes"
+                    ))
+                } else {
+                    io(rel, "workspace mutation lock", e)
+                }
+            })?;
         let target =
             confined_file(&self.root, Path::new(rel)).map_err(|e| io(rel, "resolve", e))?;
         let check = |target: &Path| -> cv_core::Result<Option<WriteOutcome>> {

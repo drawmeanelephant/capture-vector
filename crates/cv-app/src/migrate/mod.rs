@@ -3,6 +3,7 @@
 //! review triage in `.cv/imports/review.jsonl`. Also records a lab run
 //! ([`run_lab`]): the spawn itself stays in `cv_engine::lab::run`.
 
+pub mod adopt;
 pub mod job;
 pub mod scene;
 
@@ -749,6 +750,8 @@ fn project(root: &Path, d: &RunDir) -> ImportRun {
         })
         .collect();
     run.family = family_of(&rec.mode);
+    run.suggested_archetype =
+        engine_lab::mode(&rec.mode).and_then(|m| m.archetype.map(str::to_string));
     run.source = rec
         .inputs
         .first()

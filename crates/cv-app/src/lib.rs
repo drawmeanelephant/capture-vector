@@ -14,6 +14,7 @@ pub mod migrate;
 pub mod new_workspace;
 pub mod pages;
 pub mod publish;
+pub mod slots;
 pub mod snapshot;
 pub mod verbs;
 pub mod workspace;
@@ -198,9 +199,29 @@ pub fn open_workspace(
         );
         return None;
     }
+    // Do not rely on the shell having already drained the asynchronous
+    // watch-handle publication: closing/switching a workspace must stop
+    // the scheduler-owned watch directly before the shared scheduler can
+    // be reopened. Adoption batches tolerate this because they stop the
+    // same session inside their serialized mutation batch.
+    if let Some(previous) = wb.workspace.as_ref() {
+        if let Some(slot) = slots::slot_for(previous) {
+            slot.retire_verbs();
+        }
+        if let Some(sched) = slots::scheduler_for(previous) {
+            sched.stop_watch();
+        }
+    }
     wb.stop_watch();
     wb.registry = Registry::default();
-    let slot = live::EngineSlot::default();
+    // Scheduler identity is workspace identity from the first open,
+    // including the boot window itself. Reopening this root reuses its
+    // slot/scheduler so long-running mutations serialized on it cannot
+    // split-brain against a replacement scheduler. A boot failure leaves
+    // the OnceLocks empty, so a later boot of the same stable slot can
+    // still retry; the slot's boot mutex prevents concurrent first boots
+    // from winning that race with duplicate engines.
+    let slot = slots::slot_or_register(&root);
     let input = snapshot::content_input(&root);
     cv_model::modules::engine::install(Box::new(live::SlotVerbs(slot.clone())));
     cv_model::modules::pages::install_in(
@@ -299,6 +320,7 @@ pub fn open_workspace(
     let feed = doctor::install(Some(&root));
     feed.update(|f| f.store = doctor::store(&root, &opened));
     wb.reset_project(workspace_registry());
+    wb.workspace_key = Some(slots::workspace_key(&root));
     wb.workspace = Some(root.clone());
     show(wb, "pages");
     let warning = research_err
@@ -396,6 +418,7 @@ pub fn boot_without_workspace(wb: &mut Workbench, demo: bool) {
         format!("No workspace open — showing the fixture demo. {how}")
     } else {
         cv_model::modules::engine::detach();
+        wb.workspace_key = None;
         wb.reset_project(workspace_registry());
         format!("No workspace open. {how}")
     };
@@ -758,6 +781,7 @@ pub fn launch() -> Launch {
         boot: native_boot,
         open: open_native,
         create: new_workspace::create_native,
+        adopt: migrate::adopt::adopt_native,
         edit: editor::edit_page,
         import: import_native,
         scenes: SCENES,

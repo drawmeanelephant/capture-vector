@@ -192,6 +192,13 @@ pub struct PageRecord {
     pub path: String,
     /// Graph id as authored (`id:` frontmatter or the content path stem).
     pub id: String,
+    /// Whether `id` was authored explicitly in frontmatter. Only explicit
+    /// ids are stable identity for provenance: the path-stem fallback
+    /// belongs to whatever file happens to sit at that path, so matching
+    /// sidecar provenance against it would let an unrelated squatter
+    /// inherit a migration's Imported from.
+    #[serde(default)]
+    pub explicit_id: bool,
     pub title: String,
     pub parent: Option<String>,
     pub tags: Vec<String>,
@@ -205,6 +212,10 @@ pub struct PageRecord {
     /// Rendered dist path, when the last build wrote one.
     pub output: Option<String>,
     pub fields: FieldSource,
+    /// `(mode, source)` from the `.cv/imports/<run>/adoption.json` sidecar
+    /// when this page was adopted from a migration run. Provenance lives
+    /// in the sidecar only — never in frontmatter.
+    pub imported_from: Option<(String, String)>,
 }
 
 /// Where a page's display fields (id, title, parent, tags, relations)
@@ -242,6 +253,12 @@ pub trait Module {
     fn spec(&self) -> ModuleSpec;
     /// Apply one committed envelope; return true when visible state changed.
     fn ingest(&mut self, env: &Envelope) -> bool;
+    /// Apply one committed envelope together with its causal delivery stamp.
+    /// Modules whose presentation is causally ordered override this; the
+    /// default preserves the ordinary envelope-only contract.
+    fn ingest_stamped(&mut self, env: &Envelope, _causal: u64) -> bool {
+        self.ingest(env)
+    }
     fn nav(&self) -> NavModel;
     fn list_len(&self, nav: Option<&str>) -> usize;
     fn row(&self, nav: Option<&str>, index: usize) -> RowModel;

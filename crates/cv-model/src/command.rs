@@ -1,6 +1,7 @@
 //! Command palette — verbs live here, not in the rail. Lanes contribute
 //! `CommandSpec`s; the shell adds its own `shell.*` verbs.
 
+use crate::adoption::AdoptionRequest;
 use crate::dialog::{DialogSpec, Pick};
 use cv_core::engine::CancelToken;
 use cv_core::events::pages::PagesEvent;
@@ -114,6 +115,14 @@ pub enum Intent {
         id: String,
         pick: Pick,
     },
+    /// Open the New workspace form for adopting `run_id`, preselecting
+    /// the archetype the migration mode suggests when Boris offers it.
+    PrepareAdoptNew {
+        run_id: String,
+        suggested_archetype: Option<String>,
+    },
+    /// Carry out a validated adoption request in the open workspace.
+    AdoptRun(AdoptionRequest),
     /// Run one migration-lab inventory or emit job in the background. The
     /// composition root owns the worker and reports completion as a shell
     /// notice; process execution remains inside `cv-engine`.

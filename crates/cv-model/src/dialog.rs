@@ -752,6 +752,10 @@ impl Workbench {
             self.new_workspace_answer(answer);
             return;
         }
+        if id == crate::adoption::ADOPT_NEW_DIALOG {
+            self.adopt_new_workspace_answer(answer);
+            return;
+        }
         if id == RECENT && answer.action.is_some() {
             let pick = answer.text(CHOICE).and_then(|i| i.parse::<usize>().ok());
             if let Some(p) = pick.and_then(|i| self.recent.get(i)) {
