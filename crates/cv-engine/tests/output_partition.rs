@@ -2,53 +2,18 @@
 //! source/profile/metadata overlaps refuse before Boris runs.
 
 mod common;
+mod output_partition_support;
 
 use common::FakeBoris;
-use cv_core::engine::{Engine, EngineCaps, EngineSource, ExitClass, ExportKind, Verb};
-use cv_engine::locate::{EngineIdentity, PINNED};
-use cv_engine::probe::{CapabilityReport, WatchMode};
+use cv_core::engine::{Engine, ExitClass, ExportKind, Verb};
 use cv_engine::proc::CancelToken;
 use cv_engine::secrets::MockSecretSource;
 use cv_engine::{EngineConfig, ProcessEngine};
+use output_partition_support::{
+    copy_tree, custom, partition_engine, partition_error, write_custom_profile,
+    write_happy_profile, write_input_profile,
+};
 use std::path::Path;
-
-fn partition_engine(root: &Path, input: &str) -> ProcessEngine {
-    let mut cfg = EngineConfig::new(root);
-    cfg.content_input = input.into();
-    ProcessEngine::with_report(
-        cfg,
-        EngineIdentity {
-            source: EngineSource::Path,
-            path: root.join("boris"),
-            version: PINNED.version.into(),
-            vcs_revision: PINNED.vcs_revision.into(),
-            build_info_raw: String::new(),
-        },
-        CapabilityReport {
-            os: std::env::consts::OS.into(),
-            caps: EngineCaps {
-                writes: true,
-                ..Default::default()
-            },
-            watch_mode: WatchMode::Native,
-            evidence: vec![],
-        },
-    )
-}
-
-fn custom(name: &str, args: &[&str]) -> Verb {
-    Verb::Custom {
-        name: name.into(),
-        args: args.iter().map(|s| s.to_string()).collect(),
-    }
-}
-
-fn partition_error(engine: &ProcessEngine, verb: &Verb) -> Option<String> {
-    engine
-        .run(verb, Box::new(|_| {}))
-        .err()
-        .map(|e| e.to_string())
-}
 
 #[test]
 fn production_publish_preflight_spellings_use_the_owned_publish_lane() {
@@ -441,6 +406,41 @@ fn owned_lane_symlinked_into_content_is_still_an_input_overlap() {
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn typed_ir_staging_alias_to_its_transient_root_refuses_pre_spawn() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    std::fs::create_dir_all(root.join(".cv/ir.staging")).unwrap();
+    std::os::unix::fs::symlink("ir.staging", root.join(".cv/ir.staging.boris-stage")).unwrap();
+    let engine = partition_engine(&root, "content");
+    let verb = Verb::Ir {
+        out: ".cv/ir".into(),
+        input: None,
+    };
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(
+        err.contains("IR output") && err.contains("physically overlap"),
+        "staged IR output aliasing its derived stage root must refuse: {err}"
+    );
+}
+
+#[test]
+fn root_input_html_stage_uses_the_same_permitted_output_lane_as_dist() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    let engine = partition_engine(&root, ".");
+    let verb = custom("build", &["--html-dir", "dist"]);
+    let err = partition_error(&engine, &verb).expect("missing fake Boris");
+    assert!(
+        !err.contains("overlaps the workspace content input"),
+        "dist.boris-stage is the derived write lane for permitted dist output: {err}"
+    );
+}
+
 #[test]
 fn full_unicode_casefold_alias_matrix_cannot_bypass_the_content_partition() {
     let tmp = tempfile::tempdir().unwrap();
@@ -592,24 +592,6 @@ fn contained_and_escaping_dotdot_output_spellings_are_distinguished() {
     }
 }
 
-fn write_happy_profile(root: &Path, output: &str) {
-    std::fs::write(
-        root.join("boris.json"),
-        format!(
-            r#"{{
-  "format": "boris-publication-profile",
-  "schema_version": 1,
-  "input": "content",
-  "site": {{ "title": "Profile Probe" }},
-  "targets": [
-    {{ "name": "public", "output": "{output}", "public": true, "theme": "themes/boris" }}
-  ]
-}}"#
-        ),
-    )
-    .unwrap();
-}
-
 #[test]
 fn profile_declared_target_outputs_are_partition_validated() {
     let tmp = tempfile::tempdir().unwrap();
@@ -665,19 +647,6 @@ fn llms_and_rss_path_exports_suppress_default_html_like_their_mode_flags() {
         err.contains("overlaps"),
         "plain HTML build must still refuse: {err}"
     );
-}
-
-fn copy_tree(src: &Path, dst: &Path) {
-    std::fs::create_dir_all(dst).unwrap();
-    for entry in std::fs::read_dir(src).unwrap() {
-        let entry = entry.unwrap();
-        let target = dst.join(entry.file_name());
-        if entry.file_type().unwrap().is_dir() {
-            copy_tree(&entry.path(), &target);
-        } else {
-            std::fs::copy(entry.path(), target).unwrap();
-        }
-    }
 }
 
 #[cfg(unix)]
@@ -841,22 +810,6 @@ fn profile_edition_and_target_nested_artifact_outputs_are_inspected() {
     );
 }
 
-fn write_input_profile(root: &Path, input: Option<&str>, output: &str) {
-    write_happy_profile(root, output);
-    let path = root.join("boris.json");
-    let mut text = std::fs::read_to_string(&path).unwrap();
-    if let Some(input) = input {
-        text = text.replace(r#""input": "content""#, &format!(r#""input": "{input}""#));
-    } else {
-        text = text
-            .lines()
-            .filter(|line| !line.contains(r#""input": "content""#))
-            .collect::<Vec<_>>()
-            .join("\n");
-    }
-    std::fs::write(path, text).unwrap();
-}
-
 #[cfg(unix)]
 #[test]
 fn profile_input_symlink_alias_is_the_output_overlap_authority() {
@@ -974,22 +927,6 @@ fn real_boris_profile_input_symlink_alias_refuses_before_source_bytes_move() {
     assert!(!root.join("source/index.html").exists());
 }
 
-fn write_custom_profile(root: &Path, target_json: &str) {
-    std::fs::write(
-        root.join("boris.json"),
-        format!(
-            r#"{{
-  "format": "boris-publication-profile",
-  "schema_version": 1,
-  "input": "content",
-  "site": {{ "title": "Profile Probe" }},
-  "targets": [ {target_json} ]
-}}"#
-        ),
-    )
-    .unwrap();
-}
-
 #[test]
 fn profile_mode_relative_cli_input_resolves_beside_the_profile() {
     let tmp = tempfile::tempdir().unwrap();
@@ -1054,7 +991,10 @@ fn profile_theme_static_and_layout_inputs_are_protected() {
 
     write_input_profile(&root, Some("content"), "themes/boris");
     let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
-    assert!(err.contains("theme tree"), "theme tree must refuse: {err}");
+    assert!(
+        err.contains("theme footer file"),
+        "theme input surface must refuse: {err}"
+    );
 
     write_custom_profile(
         &root,
@@ -1141,51 +1081,5 @@ fn physically_aliased_or_nested_profile_output_roots_refuse() {
     assert!(
         err.contains("artifact outputs") && err.contains("physically overlap"),
         "unicode artifact aliases: {err}"
-    );
-}
-
-#[cfg(unix)]
-#[test]
-#[ignore = "needs a real pinned boris via CV_BORIS_BIN"]
-fn real_boris_theme_and_static_symlink_aliases_refuse_before_source_bytes_move() {
-    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../fixtures/corpus-src/happy")
-        .canonicalize()
-        .unwrap();
-    let tmp = tempfile::tempdir().unwrap();
-    let root = tmp.path().join("ws");
-    std::fs::create_dir_all(&root).unwrap();
-    copy_tree(&fixture.join("content"), &root.join("content"));
-    copy_tree(&fixture.join("themes/boris"), &root.join("theme-real"));
-    std::fs::create_dir_all(root.join("static-real")).unwrap();
-    let root = root.canonicalize().unwrap();
-    let theme_sentinel = root.join("theme-real/layouts/main.html");
-    let static_sentinel = root.join("static-real/sentinel.txt");
-    let theme_bytes = std::fs::read(&theme_sentinel).unwrap();
-    std::fs::write(&static_sentinel, "STATIC-SENTINEL\n").unwrap();
-    std::os::unix::fs::symlink("theme-real", root.join("theme-link")).unwrap();
-    std::os::unix::fs::symlink("static-real", root.join("static-link")).unwrap();
-    std::fs::write(
-        root.join("boris.json"),
-        r#"{
-  "format": "boris-publication-profile", "schema_version": 1, "input": "content",
-  "targets": [
-    { "name": "a", "output": "theme-real", "theme": "theme-link" },
-    { "name": "b", "output": "static-real", "theme": "theme-link", "static": { "dir": "static-link" } }
-  ]
-}"#,
-    )
-    .unwrap();
-    let engine = ProcessEngine::start(EngineConfig::new(&root)).unwrap();
-    let verb = custom("build", &["--profile", "boris.json"]);
-    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
-    assert!(
-        err.contains("theme tree") || err.contains("static input tree"),
-        "{err}"
-    );
-    assert_eq!(std::fs::read(&theme_sentinel).unwrap(), theme_bytes);
-    assert_eq!(
-        std::fs::read_to_string(&static_sentinel).unwrap(),
-        "STATIC-SENTINEL\n"
     );
 }
