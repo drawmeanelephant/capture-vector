@@ -257,6 +257,63 @@ fn derived_theme_siblings_are_not_over_refused_but_read_surfaces_are_protected()
     );
 }
 
+#[test]
+fn html_sitemap_prev_is_output_authority_but_ir_does_not_acquire_it() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    let layout = root.join("out.boris-sitemap-prev");
+    std::fs::write(&layout, "LAYOUT-SENTINEL\n").unwrap();
+    let engine = partition_engine(&root, "content");
+
+    let verb = custom(
+        "build",
+        &[
+            "--html-layout",
+            "out.boris-sitemap-prev",
+            "--html-dir",
+            "out",
+            "--sitemap",
+            "--site-url",
+            "https://example.test/docs/",
+        ],
+    );
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(
+        err.contains("derived stage output")
+            && err.contains("out.boris-sitemap-prev")
+            && err.contains("layout file"),
+        "first sitemap build must refuse the later backup collision pre-spawn: {err}"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&layout).unwrap(),
+        "LAYOUT-SENTINEL\n"
+    );
+
+    write_custom_profile(
+        &root,
+        r#"{ "name": "public", "output": "out", "public": true,
+            "layout": "out.boris-sitemap-prev" }"#,
+    );
+    let verb = custom("build", &["--profile", "boris.json"]);
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(
+        err.contains("profile derived stage output") && err.contains("layout file"),
+        "profile HTML target must also validate sitemap-prev against layout input: {err}"
+    );
+
+    std::fs::remove_file(&layout).unwrap();
+    std::fs::create_dir_all(root.join("out.boris-sitemap-prev")).unwrap();
+    let ir_engine = partition_engine(&root, "out.boris-sitemap-prev");
+    let verb = custom("build", &["--out", "out"]);
+    let err = partition_error(&ir_engine, &verb).expect("missing fake Boris");
+    assert!(
+        !err.contains("boris-sitemap-prev"),
+        "IR output must not acquire the HTML-only sitemap backup sibling: {err}"
+    );
+}
+
 #[cfg(unix)]
 #[test]
 #[ignore = "needs a real pinned boris via CV_BORIS_BIN"]
@@ -357,4 +414,69 @@ fn real_boris_derived_theme_sibling_output_builds_and_preserves_boundary() {
         std::fs::read_to_string(root.join("derived-theme/arb sibling.txt")).unwrap(),
         "ARBITRARY"
     );
+}
+
+#[test]
+#[ignore = "needs a real pinned boris via CV_BORIS_BIN"]
+fn real_boris_sitemap_prev_layout_collision_refuses_first_build_and_legitimate_rebuild_passes() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/corpus-src/happy")
+        .canonicalize()
+        .unwrap();
+
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("ws");
+    copy_tree(&fixture, &root);
+    let root = root.canonicalize().unwrap();
+    let collision = root.join("out.boris-sitemap-prev");
+    std::fs::copy(root.join("themes/boris/layouts/main.html"), &collision).unwrap();
+    let before = std::fs::read(&collision).unwrap();
+    let engine = ProcessEngine::start(EngineConfig::new(&root)).unwrap();
+    let verb = custom(
+        "build",
+        &[
+            "--html-layout",
+            "out.boris-sitemap-prev",
+            "--html-dir",
+            "out",
+            "--sitemap",
+            "--site-url",
+            "https://example.test/docs/",
+        ],
+    );
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(
+        err.contains("derived stage output") && err.contains("layout file"),
+        "{err}"
+    );
+    assert_eq!(std::fs::read(&collision).unwrap(), before);
+    assert!(!root.join("out/index.html").exists());
+
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("ws");
+    copy_tree(&fixture, &root);
+    let root = root.canonicalize().unwrap();
+    let engine = ProcessEngine::start(EngineConfig::new(&root)).unwrap();
+    let sitemap_build = custom(
+        "build",
+        &[
+            "--html-dir",
+            "out",
+            "--sitemap",
+            "--site-url",
+            "https://example.test/docs/",
+        ],
+    );
+    assert_eq!(
+        engine.run(&sitemap_build, Box::new(|_| {})).unwrap(),
+        ExitClass::Ok
+    );
+    assert!(root.join("out/sitemap.xml").exists());
+    let plain_rebuild = custom("build", &["--html-dir", "out"]);
+    assert_eq!(
+        engine.run(&plain_rebuild, Box::new(|_| {})).unwrap(),
+        ExitClass::Ok
+    );
+    assert!(!root.join("out/sitemap.xml").exists());
+    assert!(!root.join("out.boris-sitemap-prev").exists());
 }

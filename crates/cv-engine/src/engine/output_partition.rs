@@ -154,12 +154,17 @@ fn validate_output_location(
     let input = configured.to_string_lossy();
     if input_parts == root_parts {
         let html = normalize_component(&cfg.html_dir);
-        let html_stage = normalized_parts(Path::new(&format!("{}.boris-stage", cfg.html_dir)));
+        let html_transients = [".boris-stage", ".boris-sitemap-prev"]
+            .iter()
+            .map(|suffix| normalized_parts(Path::new(&format!("{}{suffix}", cfg.html_dir))))
+            .collect::<Vec<_>>();
+        let html_transient = html_transients
+            .iter()
+            .any(|parts| lexical.starts_with(parts) || relative.starts_with(parts));
         let derived = relative.starts_with(&cv)
             || relative.starts_with(&boris_meta)
             || relative.first().is_some_and(|p| *p == html)
-            || lexical.starts_with(&html_stage)
-            || relative.starts_with(&html_stage);
+            || html_transient;
         if !derived {
             return Err(EngineError::Refused(format!(
                 "{what} {raw:?} overlaps the workspace content input, which is the workspace root"
@@ -370,7 +375,8 @@ fn validate_output_path_and_inputs(
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum DerivedOutputShape {
-    HtmlOrIrDirectory,
+    HtmlDirectory,
+    IrDirectory,
     RagDirectory,
     ContextDirectory,
     LlmsFile,
@@ -379,7 +385,11 @@ enum DerivedOutputShape {
 
 fn derived_output_spellings(raw: &str, shape: DerivedOutputShape) -> Vec<String> {
     match shape {
-        DerivedOutputShape::HtmlOrIrDirectory => vec![format!("{raw}.boris-stage")],
+        DerivedOutputShape::HtmlDirectory => [".boris-stage", ".boris-sitemap-prev"]
+            .iter()
+            .map(|suffix| format!("{raw}{suffix}"))
+            .collect(),
+        DerivedOutputShape::IrDirectory => vec![format!("{raw}.boris-stage")],
         DerivedOutputShape::RagDirectory => {
             [".boris-rag-stage", ".boris-rag-next", ".boris-rag-prev"]
                 .iter()
@@ -449,8 +459,8 @@ fn validate_shaped_output_group(
 
 fn shaped_output_for_flag(name: &str, flag: &str) -> Option<DerivedOutputShape> {
     match flag {
-        "--html-dir" => Some(DerivedOutputShape::HtmlOrIrDirectory),
-        "--out" if name == "build" => Some(DerivedOutputShape::HtmlOrIrDirectory),
+        "--html-dir" => Some(DerivedOutputShape::HtmlDirectory),
+        "--out" if name == "build" => Some(DerivedOutputShape::IrDirectory),
         "--rag-dir" => Some(DerivedOutputShape::RagDirectory),
         "--context-dir" => Some(DerivedOutputShape::ContextDirectory),
         "--llms-path" => Some(DerivedOutputShape::LlmsFile),
@@ -493,7 +503,7 @@ fn validate_custom_outputs(cfg: &EngineConfig, name: &str, args: &[String]) -> R
                 }
                 if let Some(shape) = shaped_output_for_flag(name, flag) {
                     let group = validate_shaped_output_group(cfg, value, flag, shape, &input_refs)?;
-                    if shape == DerivedOutputShape::HtmlOrIrDirectory {
+                    if shape == DerivedOutputShape::HtmlDirectory {
                         html_outputs.extend(group);
                     }
                 } else {
@@ -508,7 +518,7 @@ fn validate_custom_outputs(cfg: &EngineConfig, name: &str, args: &[String]) -> R
                 cfg,
                 output,
                 "--target",
-                DerivedOutputShape::HtmlOrIrDirectory,
+                DerivedOutputShape::HtmlDirectory,
                 &input_refs,
             )?;
             html_outputs.extend(group);
@@ -519,7 +529,7 @@ fn validate_custom_outputs(cfg: &EngineConfig, name: &str, args: &[String]) -> R
         ("--context", "context", DerivedOutputShape::ContextDirectory),
         ("--llms", "llms.txt", DerivedOutputShape::LlmsFile),
         ("--rss", "rss.xml", DerivedOutputShape::RssFile),
-        ("--no-rag", ".boris", DerivedOutputShape::HtmlOrIrDirectory),
+        ("--no-rag", ".boris", DerivedOutputShape::IrDirectory),
     ];
     for (flag, output, shape) in implicit {
         if args.iter().any(|a| a == flag) {
@@ -560,7 +570,7 @@ fn validate_default_html_output(cfg: &EngineConfig, name: &str, args: &[String])
             cfg,
             "dist",
             "default HTML output",
-            DerivedOutputShape::HtmlOrIrDirectory,
+            DerivedOutputShape::HtmlDirectory,
             &input_refs,
         )?;
     }
@@ -573,7 +583,7 @@ pub(super) fn validate_watch_output_paths(cfg: &EngineConfig) -> Result<()> {
         cfg,
         &cfg.html_dir,
         "watch HTML output",
-        DerivedOutputShape::HtmlOrIrDirectory,
+        DerivedOutputShape::HtmlDirectory,
         &input_refs,
     )?;
     let verb = Verb::Custom {
@@ -644,9 +654,11 @@ enum ProfileDeclaredOutput {
 
 fn profile_derived_outputs(output: &str, kind: ProfileOutputKind) -> Vec<String> {
     match kind {
-        ProfileOutputKind::HtmlTarget | ProfileOutputKind::IrEdition => {
-            vec![format!("{output}.boris-stage")]
-        }
+        ProfileOutputKind::HtmlTarget => [".boris-stage", ".boris-sitemap-prev"]
+            .iter()
+            .map(|suffix| format!("{output}{suffix}"))
+            .collect(),
+        ProfileOutputKind::IrEdition => vec![format!("{output}.boris-stage")],
         ProfileOutputKind::RagEdition => [".boris-rag-stage", ".boris-rag-next", ".boris-rag-prev"]
             .iter()
             .map(|suffix| format!("{output}{suffix}"))
@@ -1028,7 +1040,7 @@ pub(super) fn validate_verb_output_paths(cfg: &EngineConfig, verb: &Verb) -> Res
                 &effective,
                 out,
                 "IR output",
-                DerivedOutputShape::HtmlOrIrDirectory,
+                DerivedOutputShape::IrDirectory,
                 &[],
             )?;
         } else {
@@ -1041,12 +1053,12 @@ pub(super) fn validate_verb_output_paths(cfg: &EngineConfig, verb: &Verb) -> Res
     if let Verb::Export { kind } = verb {
         use cv_core::engine::ExportKind;
         let (output, shape) = match kind {
-            ExportKind::Out => (".boris", DerivedOutputShape::HtmlOrIrDirectory),
+            ExportKind::Out => (".boris", DerivedOutputShape::IrDirectory),
             ExportKind::Rag => ("rag", DerivedOutputShape::RagDirectory),
             ExportKind::Context => ("context", DerivedOutputShape::ContextDirectory),
             ExportKind::Llms => ("llms.txt", DerivedOutputShape::LlmsFile),
             ExportKind::Rss => ("rss.xml", DerivedOutputShape::RssFile),
-            ExportKind::Sitemap => ("dist", DerivedOutputShape::HtmlOrIrDirectory),
+            ExportKind::Sitemap => ("dist", DerivedOutputShape::HtmlDirectory),
         };
         validate_shaped_output_group(cfg, output, "export output", shape, &[])?;
     }
@@ -1064,7 +1076,7 @@ pub(super) fn validate_verb_output_paths(cfg: &EngineConfig, verb: &Verb) -> Res
             cfg,
             "dist",
             "build output",
-            DerivedOutputShape::HtmlOrIrDirectory,
+            DerivedOutputShape::HtmlDirectory,
             &input_refs,
         )?;
     }
