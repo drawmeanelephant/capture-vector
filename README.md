@@ -6,10 +6,12 @@ Outlook-style mailboxes for authoring, auditing, and publishing Boris
 content. A native Rust desktop app: rune for the UI, Boris and Oliver as
 subprocess engines.
 
-**Status:** pre-release. macOS and Linux window/IME behavior is proven;
-Windows is unproven (see [`spike/FINDINGS.md`](spike/FINDINGS.md)). The
-normative work order is [`spec/PROMPT-v3.md`](spec/PROMPT-v3.md); the full
-spec kit lives in [`spec/`](spec/README.md). Packaging and release:
+**Status:** pre-release. Specific macOS and Linux X11 window/IME paths are
+proven; Windows is unproven (see [`spike/FINDINGS.md`](spike/FINDINGS.md)).
+Linux evidence is real but narrow: it is not yet a matrix of Wayland,
+hardware-GPU, distribution, or physical-machine passes. The normative work
+order is [`spec/PROMPT-v3.md`](spec/PROMPT-v3.md); the full spec kit lives
+in [`spec/`](spec/README.md). Packaging and release:
 [`docs/PACKAGING.md`](docs/PACKAGING.md).
 
 ## What works today
@@ -20,6 +22,9 @@ spec kit lives in [`spec/`](spec/README.md). Packaging and release:
   conflict-aware workspace-contained saves.
 - Run engine-backed builds/watch sessions when pinned Boris is present;
   absent/mismatched/dead engine states are disclosed instead of hidden.
+- Run `boris-migration-lab` imports and adopt finished emit runs into a
+  new or existing workspace, with provenance under `.cv/imports/` and a
+  validate/build gate after the copy.
 - Verify the shell headlessly through element-tree/layout JSON goldens.
 
 Still ahead: signed installers, Windows proof, and the fully wired publish
@@ -91,9 +96,11 @@ The suite needs no Boris binary, display, GPU, or network.
 
 ## Interactive QA
 
-The app has no login gate and no external service. This path works on
-macOS (proven) and should work on Linux/Windows once the UI is verified
-there.
+The app has no login gate and no external service. macOS and Linux X11
+have real-window evidence, but the Linux evidence is a set of focused
+passes rather than one recorded run of this exact checklist. Windows
+should work by design but remains unproven until a native Windows pass is
+recorded.
 
 1. Launch against a throwaway copy of the happy corpus:
 
