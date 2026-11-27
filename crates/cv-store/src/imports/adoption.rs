@@ -156,9 +156,7 @@ pub fn write_adoption(lock: &RunLock, rec: &AdoptionRecord) -> Result<PathBuf, E
 pub fn read_adoption_record(root: &Path, run: &str) -> Result<Option<AdoptionRecord>, String> {
     let dir = run_dir(root, run).map_err(|e| e.to_string())?;
     let path = dir.join(ADOPTION);
-    if is_link(&path).map_err(|e| e.to_string())? {
-        return Err(format!("{ADOPTION} is a symlink"));
-    }
+    refuse_links(&[&root.join(".cv"), &root.join(DIR), &dir, &path]).map_err(|e| e.to_string())?;
     if !path.exists() {
         return Ok(None);
     }
@@ -219,6 +217,9 @@ pub fn scan_adoptions(root: &Path) -> Result<Vec<AdoptionRecord>, Error> {
             continue;
         }
         let path = e.path().join(ADOPTION);
+        if is_link(&path)? {
+            return Err(Error::Symlink(path));
+        }
         if !path.exists() {
             continue;
         }
@@ -320,9 +321,7 @@ pub fn write_pending(lock: &RunLock, rec: &PendingAdoption) -> Result<PathBuf, E
 pub fn read_pending(root: &Path, run: &str) -> Result<Option<PendingAdoption>, String> {
     let dir = run_dir(root, run).map_err(|e| e.to_string())?;
     let path = dir.join(PENDING);
-    if is_link(&path).map_err(|e| e.to_string())? {
-        return Err(format!("{PENDING} is a symlink"));
-    }
+    refuse_links(&[&root.join(".cv"), &root.join(DIR), &dir, &path]).map_err(|e| e.to_string())?;
     let bytes = match std::fs::read(&path) {
         Ok(b) => b,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),

@@ -86,6 +86,14 @@ fn create_junction(target: &Path, link: &Path) -> std::io::Result<()> {
     result
 }
 
+fn write_adoption_and_pending(root: &Path, run: &str) {
+    let lock = claim_run(root, run).unwrap();
+    let adoption = AdoptionRecord::new(run, "hugo", 5, "workspace", "existing");
+    write_adoption(&lock, &adoption).unwrap();
+    let pending = PendingAdoption::new(run, "existing", "content");
+    write_pending(&lock, &pending).unwrap();
+}
+
 #[test]
 fn a_junctioned_imports_dir_is_refused() {
     let d = tempfile::tempdir().unwrap();
@@ -104,4 +112,41 @@ fn a_junctioned_run_entry_is_skipped_by_scan() {
     std::fs::create_dir_all(&base).unwrap();
     create_junction(elsewhere.path(), &base.join("junction-run")).unwrap();
     assert!(scan(d.path()).unwrap().is_empty());
+}
+
+#[test]
+fn direct_adoption_readers_refuse_a_junctioned_run_directory() {
+    let d = tempfile::tempdir().unwrap();
+    write_adoption_and_pending(d.path(), "run");
+    let base = d.path().join(DIR);
+    let run = base.join("run");
+    let moved = d.path().join("moved-run");
+    std::fs::rename(&run, &moved).unwrap();
+    create_junction(&moved, &run).unwrap();
+
+    for err in [
+        read_adoption_record(d.path(), "run").unwrap_err(),
+        read_pending(d.path(), "run").unwrap_err(),
+    ] {
+        assert!(err.contains("refusing symlinked"), "{err}");
+    }
+    assert!(scan(d.path()).unwrap().is_empty());
+    assert!(scan_adoptions(d.path()).unwrap().is_empty());
+}
+
+#[test]
+fn direct_adoption_readers_refuse_a_junctioned_imports_dir() {
+    let d = tempfile::tempdir().unwrap();
+    write_adoption_and_pending(d.path(), "run");
+    let imports = d.path().join(DIR);
+    let moved = d.path().join(".cv/imports-real");
+    std::fs::rename(&imports, &moved).unwrap();
+    create_junction(&moved, &imports).unwrap();
+
+    for err in [
+        read_adoption_record(d.path(), "run").unwrap_err(),
+        read_pending(d.path(), "run").unwrap_err(),
+    ] {
+        assert!(err.contains("refusing symlinked"), "{err}");
+    }
 }

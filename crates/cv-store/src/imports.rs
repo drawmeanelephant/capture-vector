@@ -788,6 +788,9 @@ impl ReviewLog {
 #[cfg(all(test, windows))]
 mod windows_tests;
 
+#[cfg(all(test, unix))]
+mod adoption_tests;
+
 mod adoption;
 pub use adoption::{
     ADOPTION, ADOPTION_FORMAT, ADOPTION_SCHEMA_VERSION, AdoptedPage, AdoptionEvent, AdoptionRecord,
