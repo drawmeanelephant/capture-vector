@@ -334,6 +334,7 @@ fn switching_workspaces_during_import_keeps_the_run_lock_and_record_intact() {
     // independent capability held by the worker.
     let env = cv_app::WorkspaceEnv {
         locator: Some(cv_engine::locate::Locator::default()),
+        lab_locator: Some(cv_engine::locate::Locator::default()),
         recent_file: Some(other_root.join("recent-workspaces.json")),
     };
     if let Some(boot) = cv_app::open_workspace(h.state_mut(), other_root.clone(), &env) {
@@ -355,6 +356,7 @@ fn switching_workspaces_during_import_keeps_the_run_lock_and_record_intact() {
     // still owns the run lock and the record bytes stay exactly intact.
     let env_a = cv_app::WorkspaceEnv {
         locator: Some(cv_engine::locate::Locator::default()),
+        lab_locator: Some(cv_engine::locate::Locator::default()),
         recent_file: Some(other_root.join("recent-a.json")),
     };
     if let Some(boot) = cv_app::open_workspace(h.state_mut(), root.clone(), &env_a) {
@@ -426,6 +428,7 @@ fn foreign_workspace_completion_does_not_close_the_active_cancellation_dialog() 
     }
     let env = |other: &Path| cv_app::WorkspaceEnv {
         locator: Some(cv_engine::locate::Locator::default()),
+        lab_locator: Some(cv_engine::locate::Locator::default()),
         recent_file: Some(other.join("recent-workspaces.json")),
     };
 
@@ -468,6 +471,7 @@ fn stale_completion_after_reopen_does_not_complete_the_wrong_wizard() {
     std::fs::create_dir_all(root.join("hugo-source").join("content")).unwrap();
     let env = |dir: &Path| cv_app::WorkspaceEnv {
         locator: Some(cv_engine::locate::Locator::default()),
+        lab_locator: Some(cv_engine::locate::Locator::default()),
         recent_file: Some(dir.join("recent-workspaces.json")),
     };
 
@@ -524,6 +528,7 @@ fn collision_retarget_for_a_different_operation_does_not_rebind_the_wizard() {
     std::fs::create_dir_all(root.join("hugo-source").join("content")).unwrap();
     let env = |dir: &Path| cv_app::WorkspaceEnv {
         locator: Some(cv_engine::locate::Locator::default()),
+        lab_locator: Some(cv_engine::locate::Locator::default()),
         recent_file: Some(dir.join("recent-workspaces.json")),
     };
 

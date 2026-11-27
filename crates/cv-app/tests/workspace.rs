@@ -4,6 +4,8 @@
 //! through the cursor-resync sink, and the open/recent commands.
 
 mod common;
+#[path = "workspace/doctor_evidence.rs"]
+mod doctor_evidence;
 
 use cv_app::{WorkspaceEnv, init, open_workspace};
 use cv_core::events::shell::DegradedReason;
@@ -23,6 +25,8 @@ use std::time::{Duration, Instant};
 const SHIM_SH: &str = include_str!("../../cv-engine/tests/fake-boris/boris");
 #[cfg(windows)]
 const SHIM_BAT: &str = include_str!("../../cv-engine/tests/fake-boris/boris.bat");
+#[cfg(unix)]
+const LAB_SHIM_SH: &str = include_str!("../../cv-engine/tests/fake-lab/boris-migration-lab");
 
 #[test]
 fn new_workspace_from_an_archetype_creates_and_opens_the_workspace() {
@@ -318,7 +322,37 @@ impl Fake {
                 env_override: Some(self.bin.clone()),
                 ..Locator::default()
             }),
+            lab_locator: Some(Locator::default()),
             recent_file: Some(recent.join("recent.json")),
+        }
+    }
+}
+
+/// The fake migration-lab shim in a temp bin dir. Unix-only, like the
+/// cv-engine lab tests that own the shim.
+#[cfg(unix)]
+struct FakeLab {
+    _dir: tempfile::TempDir,
+    bin: PathBuf,
+}
+
+#[cfg(unix)]
+impl FakeLab {
+    fn new(version: &str) -> Self {
+        let dir = tempfile::Builder::new()
+            .prefix("cv-lab-bin-")
+            .tempdir()
+            .unwrap();
+        let bin = dir.path().join(cv_engine::lab::exe_name());
+        common::install_executable(&bin, LAB_SHIM_SH);
+        std::fs::write(dir.path().join("version.txt"), format!("{version}\n")).unwrap();
+        Self { _dir: dir, bin }
+    }
+
+    fn locator(&self) -> Locator {
+        Locator {
+            env_override: Some(self.bin.clone()),
+            ..Locator::default()
         }
     }
 }
@@ -327,6 +361,7 @@ impl Fake {
 fn absent_env(recent: &Path) -> WorkspaceEnv {
     WorkspaceEnv {
         locator: Some(Locator::default()),
+        lab_locator: Some(Locator::default()),
         recent_file: Some(recent.join("recent.json")),
     }
 }
@@ -638,6 +673,7 @@ fn live_boris_workspace_boot() {
     let cfg = tempfile::tempdir().unwrap();
     let env = WorkspaceEnv {
         locator: None,
+        lab_locator: Some(Locator::default()),
         recent_file: Some(cfg.path().join("recent.json")),
     };
     let mut wb = init();

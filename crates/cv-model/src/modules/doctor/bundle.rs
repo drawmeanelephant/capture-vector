@@ -3,14 +3,17 @@
 //! (`cv_core::redact`) and goes further, because it leaves the machine:
 //!
 //! - no page bodies and no frontmatter values;
-//! - no engine paths or search-order paths: they are environment values
-//!   (`PATH`, `CV_BORIS_BIN`), so only the binary's file name and source
-//!   are kept;
+//! - no engine/lab paths or search-order paths: they are environment values
+//!   (`PATH`, `CV_BORIS_BIN`, `CV_MIGRATION_LAB_BIN`), so only the binary's
+//!   file name and source are kept;
 //! - every string has the workspace root and home directory replaced by
 //!   placeholders ([`Facts::redact`]);
 //! - fields whose key looks like a secret are dropped, at any depth.
 
-use super::{EngineState, Facts, LockHolder, Stamp, WatchLog, pin_matches};
+use super::{
+    EngineState, Facts, LockHolder, Stamp, WatchLog, lab_path, lab_pin_matches, pin_matches,
+};
+use crate::modules::migrate::LabState;
 use cv_core::redact::drop_secret_keys;
 use serde_json::{Value, json};
 
@@ -67,6 +70,45 @@ fn engine(f: &Facts) -> Value {
     v["pin"] = json!({ "version": f.pin.version, "vcsRevision": f.pin.vcs_revision });
     v["pinMatches"] = json!(pin_matches(f));
     v["candidatesSearched"] = json!(f.candidates.len());
+    v
+}
+
+fn lab(f: &Facts) -> Value {
+    let binary = lab_path(&f.lab.state).map(file_name);
+    let mut v = match &f.lab.state {
+        LabState::NoWorkspace => json!({ "state": "not-started" }),
+        LabState::Fixture { tool_id } => json!({
+            "state": "fixture",
+            "toolId": tool_id,
+        }),
+        LabState::Located {
+            tool_id, source, ..
+        } => json!({
+            "state": "located",
+            "toolId": tool_id,
+            "source": source,
+        }),
+        LabState::Absent { .. } => json!({
+            "state": "not-found",
+        }),
+        LabState::OverrideMissing { .. } => json!({
+            "state": "override-missing",
+            "source": "CV_MIGRATION_LAB_BIN",
+        }),
+        LabState::Mismatch { found, want, .. } => json!({
+            "state": "version-mismatch",
+            "found": found,
+            "want": want,
+        }),
+        LabState::Failed { error } => json!({ "state": "failed", "error": error }),
+    };
+    v["binary"] = json!(binary);
+    v["pin"] = json!({
+        "version": f.lab.pin.version,
+        "vcsRevision": f.lab.pin.vcs_revision,
+    });
+    v["pinMatches"] = json!(lab_pin_matches(f));
+    v["candidatesSearched"] = json!(f.lab.candidates.len());
     v
 }
 
@@ -141,7 +183,23 @@ fn store(f: &Facts) -> Value {
             })
         })
         .collect();
-    json!({ "workspaceOpen": f.store.root.is_some(), "namespaces": namespaces })
+    let imports = f.store.imports.as_ref().map(|h| {
+        json!({
+            "runs": h.runs,
+            "unreadableRuns": h.unreadable_runs,
+            "reviewLines": h.review_lines,
+            "undecodableReviewLines": h.undecodable_review_lines,
+            "unsupportedReviewLines": h.unsupported_review_lines,
+            "tornReviewBytes": h.torn_review_bytes,
+            "scanError": h.scan_error,
+            "reviewError": h.review_error,
+        })
+    });
+    json!({
+        "workspaceOpen": f.store.root.is_some(),
+        "namespaces": namespaces,
+        "imports": imports,
+    })
 }
 
 fn scrub(v: &mut Value, redact: &[(String, String)]) {
@@ -174,6 +232,7 @@ pub fn build(f: &Facts, w: &WatchLog) -> Value {
             "logging": a.logging,
         },
         "engine": engine(f),
+        "lab": lab(f),
         "probe": probe(f),
         "watch": watch(w),
         "store": store(f),
@@ -189,6 +248,12 @@ pub fn build(f: &Facts, w: &WatchLog) -> Value {
             .into_iter()
             .chain(f.candidates.iter().map(|(_, p)| p.as_str()))
             .map(|p| (p.to_string(), format!("<engine:{}>", file_name(p)))),
+    );
+    redact.extend(
+        lab_path(&f.lab.state)
+            .into_iter()
+            .chain(f.lab.candidates.iter().map(|(_, p)| p.as_str()))
+            .map(|p| (p.to_string(), format!("<lab:{}>", file_name(p)))),
     );
     redact.sort_by_key(|(from, _)| std::cmp::Reverse(from.len()));
     scrub(&mut v, &redact);

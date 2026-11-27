@@ -579,7 +579,7 @@
         88.0,
         28.3,
         180.0,
-        139.0
+        166.0
       ],
       "role": "group"
     },
@@ -624,9 +624,9 @@
     },
     {
       "fill": "#0e1014ff",
-      "key": "nav-probe",
+      "key": "nav-lab",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-scroll/#1/nav-probe",
+      "path": "shell/body/nav/nav-scroll/#1/nav-lab",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -639,10 +639,48 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-scroll/#1/nav-probe/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-lab/#0",
       "rect": [
         104.0,
         59.3,
+        73.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "Migration lab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-lab/#1",
+      "rect": [
+        181.9,
+        66.8,
+        70.1,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-probe",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-probe",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        82.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-probe/#0",
+      "rect": [
+        104.0,
+        86.3,
         65.9,
         15.0
       ],
@@ -654,7 +692,7 @@
       "path": "shell/body/nav/nav-scroll/#1/nav-probe/#1",
       "rect": [
         173.9,
-        66.8,
+        93.8,
         78.1,
         0.0
       ],
@@ -668,7 +706,7 @@
       "radius": 4.0,
       "rect": [
         96.0,
-        82.3,
+        109.3,
         164.0,
         23.0
       ],
@@ -680,7 +718,7 @@
       "path": "shell/body/nav/nav-scroll/#1/nav-watch/#0",
       "rect": [
         104.0,
-        86.3,
+        113.3,
         82.3,
         15.0
       ],
@@ -692,7 +730,7 @@
       "path": "shell/body/nav/nav-scroll/#1/nav-watch/#1",
       "rect": [
         190.3,
-        93.8,
+        120.8,
         61.7,
         0.0
       ],
@@ -706,7 +744,7 @@
       "radius": 4.0,
       "rect": [
         96.0,
-        109.3,
+        136.3,
         164.0,
         23.0
       ],
@@ -718,7 +756,7 @@
       "path": "shell/body/nav/nav-scroll/#1/nav-store/#0",
       "rect": [
         104.0,
-        113.3,
+        140.3,
         52.5,
         15.0
       ],
@@ -730,7 +768,7 @@
       "path": "shell/body/nav/nav-scroll/#1/nav-store/#1",
       "rect": [
         160.5,
-        120.8,
+        147.8,
         91.5,
         0.0
       ],
@@ -744,7 +782,7 @@
       "radius": 4.0,
       "rect": [
         96.0,
-        136.3,
+        163.3,
         164.0,
         23.0
       ],
@@ -756,7 +794,7 @@
       "path": "shell/body/nav/nav-scroll/#1/nav-app/#0",
       "rect": [
         104.0,
-        140.3,
+        167.3,
         54.0,
         15.0
       ],
@@ -768,7 +806,7 @@
       "path": "shell/body/nav/nav-scroll/#1/nav-app/#1",
       "rect": [
         162.0,
-        147.8,
+        174.8,
         90.0,
         0.0
       ],
