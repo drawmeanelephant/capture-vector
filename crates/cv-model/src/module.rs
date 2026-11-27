@@ -316,6 +316,15 @@ pub trait Module {
     fn import_finished(&mut self, _job: &crate::command::ImportJob) -> Vec<Intent> {
         Vec::new()
     }
+    /// Merge decoded migration-lab link-audit evidence. Only Audit
+    /// implements it; other lanes ignore this composition-root handoff.
+    fn merge_link_audit(
+        &mut self,
+        _run_id: &str,
+        _findings: &[crate::modules::audit::LinkAuditEvidence],
+    ) {
+    }
+
     /// Intents an `ingest` left owing (a finished run closes its
     /// progress dialog); the shell applies them after each commit.
     fn take_owed(&mut self) -> Vec<Intent> {

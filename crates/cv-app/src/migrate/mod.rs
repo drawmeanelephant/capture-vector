@@ -431,6 +431,10 @@ fn report_entries(r: &Report) -> Vec<Entry<'_>> {
                 });
             }
         }
+        Report::AssetFilename(_) => {
+            // Aggregate counts are run evidence, not per-page human-review
+            // dispositions; the manifests carry the detailed rows.
+        }
         Report::WordPress(w) => {
             for p in w.pages.iter().filter(|p| needs_review(&p.conversion)) {
                 v.push(Entry {
@@ -507,10 +511,15 @@ fn items(entries: Vec<Entry<'_>>) -> Vec<ReviewItem> {
 }
 
 fn expected_lab_format(mode: &str) -> String {
-    format!(
-        "boris-{}-migration-lab",
-        mode.trim_end_matches("-inventory")
-    )
+    match mode {
+        "asset-filename" => cv_contracts::lab::format::ASSET_FILENAME.into(),
+        "link-audit" => cv_contracts::lab::format::LINK_AUDIT.into(),
+        "frontmatter-review" => cv_contracts::lab::format::FRONTMATTER_REVIEW.into(),
+        _ => format!(
+            "boris-{}-migration-lab",
+            mode.trim_end_matches("-inventory")
+        ),
+    }
 }
 
 fn report_facts(r: &Report, run: &mut ImportRun) {
@@ -538,6 +547,16 @@ fn report_facts(r: &Report, run: &mut ImportRun) {
             run.totals = vec![
                 ("pages".into(), j.summary.pages),
                 ("not emitted".into(), j.summary.not_emitted),
+            ];
+        }
+        Report::AssetFilename(a) => {
+            run.count_evidence = true;
+            run.totals = vec![
+                ("assets".into(), a.counts.assets),
+                ("unchanged".into(), a.counts.unchanged),
+                ("rewritten".into(), a.counts.rewritten),
+                ("rejected".into(), a.counts.rejected),
+                ("markdown rewrites".into(), a.counts.markdown_rewrites),
             ];
         }
         _ => {

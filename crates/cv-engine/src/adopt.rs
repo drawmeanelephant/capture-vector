@@ -160,6 +160,10 @@ fn adoptable_report_format(mode: &str) -> Option<&'static str> {
         "enex" => Some(format::ENEX),
         "obsidian" => Some(format::OBSIDIAN),
         "wordpress" => Some(format::WORDPRESS),
+        // The asset utility emits a sanitized candidate content tree but no
+        // page-id rows; adoption copies that tree through the same confined
+        // transaction and records no invented page provenance.
+        "asset-filename" => Some(format::ASSET_FILENAME),
         _ => None,
     }
 }

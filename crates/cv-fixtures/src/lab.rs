@@ -125,6 +125,10 @@ pub const LAB_CAPTURES: &[LabCaptureSpec] = &[
         mode: "frontmatter-review",
         inputs: &[("--content", Fixture("fm-review-mixed/content"))],
     },
+    LabCaptureSpec {
+        mode: "asset-filename",
+        inputs: &[("--root", Fixture("hostile-asset-filenames"))],
+    },
 ];
 
 pub fn spec(mode: &str) -> Option<&'static LabCaptureSpec> {
@@ -153,7 +157,12 @@ pub fn copy_tree(from: &Path, to: &Path) -> io::Result<()> {
         let ty = e.file_type()?;
         let dst = to.join(e.file_name());
         if ty.is_symlink() {
-            return Err(io::Error::other(format!("refusing symlink {:?}", e.path())));
+            // Preserve the pinned fixture's link as a link rather than
+            // following it: asset-filename captures need the lab's real
+            // symlink rejection input, and copying the link object never
+            // stages target bytes.
+            let target = std::fs::read_link(e.path())?;
+            std::os::unix::fs::symlink(target, dst)?;
         } else if ty.is_dir() {
             copy_tree(&e.path(), &dst)?;
         } else {

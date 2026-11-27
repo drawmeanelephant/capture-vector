@@ -1,0 +1,1 @@
+asset-filename-lab: wrote /CAPTURE_ROOT/out/asset-filename/content/, asset_filename_manifest.json, rewrite_manifest.json, report.json, REPORT.md

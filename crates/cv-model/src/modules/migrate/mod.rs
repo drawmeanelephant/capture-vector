@@ -33,6 +33,9 @@ pub const ADOPT_EXISTING: &str = "migrate.adopt.existing";
 pub const ACCEPT: &str = "migrate.review.accept";
 pub const DEFER: &str = "migrate.review.defer";
 pub const REOPEN: &str = "migrate.review.reopen";
+pub const LINK_AUDIT: &str = "migrate.utility.link_audit";
+pub const FRONTMATTER_REVIEW: &str = "migrate.utility.frontmatter_review";
+pub const ASSET_FILENAME: &str = "migrate.utility.asset_filename";
 
 /// Which lab binary this window found, as the `--version` gate saw it.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -1030,6 +1033,11 @@ impl Module for MigrateModule {
         vec![
             CommandSpec::new(NEW, "New import…").disabled(self.new_unavailable()),
             CommandSpec::new(REFRESH, "Reload import runs"),
+            CommandSpec::new(LINK_AUDIT, "Check rendered links").disabled(self.new_unavailable()),
+            CommandSpec::new(FRONTMATTER_REVIEW, "Review frontmatter")
+                .disabled(self.new_unavailable()),
+            CommandSpec::new(ASSET_FILENAME, "Fix asset filenames")
+                .disabled(self.new_unavailable()),
             CommandSpec::new(ACCEPT, "Accept review item"),
             CommandSpec::new(DEFER, "Defer review item"),
             CommandSpec::new(REOPEN, "Reopen review item"),
@@ -1051,6 +1059,9 @@ impl Module for MigrateModule {
                 ))]
             }
             NEW => self.begin_import(),
+            LINK_AUDIT => self.start_workspace_utility("link-audit"),
+            FRONTMATTER_REVIEW => self.start_workspace_utility("frontmatter-review"),
+            ASSET_FILENAME => self.start_workspace_utility("asset-filename"),
             ADOPT => self.adopt(),
             _ => Vec::new(),
         }

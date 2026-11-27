@@ -74,6 +74,14 @@ fn key_of(doc: &Document) -> FormatKey {
         Document::AttachmentsManifest(a) => (&a.format, a.schema_version, ATTACHMENTS_MANIFESTS),
         Document::LinkAudit(l) => (&l.format, l.schema_version, LINK_AUDITS),
         Document::FrontmatterReview(r) => (&r.format, r.schema_version, FRONTMATTER_REVIEWS),
+        Document::AssetFilenameManifest(m) => {
+            (&m.format, m.schema_version, ASSET_FILENAME_MANIFESTS)
+        }
+        Document::AssetFilenameRewriteManifest(m) => (
+            &m.format,
+            m.schema_version,
+            ASSET_FILENAME_REWRITE_MANIFESTS,
+        ),
     };
     *table
         .iter()
@@ -375,6 +383,7 @@ fn document_to_value(doc: Document) -> serde_json::Value {
         Document::Report(Report::Enex(v)) => serde_json::to_value(v),
         Document::Report(Report::Obsidian(v)) => serde_json::to_value(v),
         Document::Report(Report::WordPress(v)) => serde_json::to_value(v),
+        Document::Report(Report::AssetFilename(v)) => serde_json::to_value(v),
         Document::Inventory(Inventory::Hugo(v)) => serde_json::to_value(v),
         Document::Inventory(Inventory::Jekyll(v)) => serde_json::to_value(v),
         Document::Inventory(Inventory::Substack(v)) => serde_json::to_value(v),
@@ -386,6 +395,8 @@ fn document_to_value(doc: Document) -> serde_json::Value {
         Document::AttachmentsManifest(v) => serde_json::to_value(v),
         Document::LinkAudit(v) => serde_json::to_value(v),
         Document::FrontmatterReview(v) => serde_json::to_value(v),
+        Document::AssetFilenameManifest(v) => serde_json::to_value(v),
+        Document::AssetFilenameRewriteManifest(v) => serde_json::to_value(v),
     }
     .unwrap()
 }

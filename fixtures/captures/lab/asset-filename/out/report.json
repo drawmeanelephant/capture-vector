@@ -1,0 +1,20 @@
+{
+  "format": "boris-asset-filename-lab",
+  "schema_version": 1,
+  "tool_version": "0.1.0",
+  "source_root": "/CAPTURE_ROOT/src/hostile-asset-filenames",
+  "counts": {
+    "assets": 12,
+    "unchanged": 3,
+    "rewritten": 6,
+    "rejected": 3,
+    "markdown_rewrites": 7
+  },
+  "policy": {
+    "source_readonly": true,
+    "remote_fetch": false,
+    "execute_js": false,
+    "silent_overwrite": false,
+    "boris_core_unchanged": true
+  }
+}

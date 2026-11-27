@@ -32,6 +32,8 @@ pub mod format {
     pub const WORDPRESS_MEDIA: &str = "boris-wordpress-media-manifest";
     pub const LINK_AUDIT: &str = "boris-link-audit-lab";
     pub const FRONTMATTER_REVIEW: &str = "boris-frontmatter-review-lab";
+    pub const ASSET_FILENAME: &str = "boris-asset-filename-lab";
+    pub const ASSET_FILENAME_REWRITES: &str = "boris-asset-filename-rewrites";
 }
 
 const fn key(format: &'static str, schema_version: u32) -> FormatKey {
@@ -49,6 +51,7 @@ pub const REPORTS: &[FormatKey] = &[
     key(format::ENEX, 1),
     key(format::OBSIDIAN, 1),
     key(format::WORDPRESS, 3),
+    key(format::ASSET_FILENAME, 1),
 ];
 /// `inventory.json` (inventory modes, and the Substack and ENEX emit modes).
 pub const INVENTORIES: &[FormatKey] = &[
@@ -66,6 +69,9 @@ pub const MEDIA_MANIFESTS: &[FormatKey] = &[key(format::WORDPRESS_MEDIA, 1)];
 pub const ATTACHMENTS_MANIFESTS: &[FormatKey] = &[key(format::OBSIDIAN_ATTACHMENTS, 1)];
 pub const LINK_AUDITS: &[FormatKey] = &[key(format::LINK_AUDIT, 1)];
 pub const FRONTMATTER_REVIEWS: &[FormatKey] = &[key(format::FRONTMATTER_REVIEW, 2)];
+pub const ASSET_FILENAME_MANIFESTS: &[FormatKey] = &[key(format::ASSET_FILENAME, 1)];
+pub const ASSET_FILENAME_REWRITE_MANIFESTS: &[FormatKey] =
+    &[key(format::ASSET_FILENAME_REWRITES, 1)];
 
 /// Why a lab document did not decode.
 #[derive(Debug)]
@@ -548,6 +554,44 @@ pub struct WordPressPage {
     pub extra: Extra,
 }
 
+/// `asset-filename` `report.json` (schema 1). The mode copies a candidate
+/// content tree and reports aggregate policy/counts; it deliberately has
+/// no Boris page authority, so adoption copies its files without inventing
+/// page ids the lab did not emit.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AssetFilenameReport {
+    pub format: String,
+    pub schema_version: u32,
+    pub tool_version: String,
+    pub source_root: String,
+    pub counts: AssetFilenameCounts,
+    pub policy: AssetFilenamePolicy,
+    #[serde(flatten)]
+    pub extra: Extra,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AssetFilenameCounts {
+    pub assets: u64,
+    pub unchanged: u64,
+    pub rewritten: u64,
+    pub rejected: u64,
+    pub markdown_rewrites: u64,
+    #[serde(flatten)]
+    pub extra: Extra,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AssetFilenamePolicy {
+    pub source_readonly: bool,
+    pub remote_fetch: bool,
+    pub execute_js: bool,
+    pub silent_overwrite: bool,
+    pub boris_core_unchanged: bool,
+    #[serde(flatten)]
+    pub extra: Extra,
+}
+
 /// A `report.json`, by family.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Report {
@@ -557,6 +601,7 @@ pub enum Report {
     Enex(EnexReport),
     Obsidian(ObsidianReport),
     WordPress(WordPressReport),
+    AssetFilename(AssetFilenameReport),
 }
 
 impl Report {
@@ -569,6 +614,7 @@ impl Report {
             format::ENEX => Self::Enex(serde_json::from_value(v)?),
             format::OBSIDIAN => Self::Obsidian(serde_json::from_value(v)?),
             format::WORDPRESS => Self::WordPress(serde_json::from_value(v)?),
+            format::ASSET_FILENAME => Self::AssetFilename(serde_json::from_value(v)?),
             other => unreachable!("REPORTS lists {other} without a mirror"),
         })
     }
@@ -581,6 +627,7 @@ impl Report {
             Self::Enex(r) => (&r.format, r.schema_version),
             Self::Obsidian(r) => (&r.format, r.schema_version),
             Self::WordPress(r) => (&r.format, r.schema_version),
+            Self::AssetFilename(r) => (&r.format, r.schema_version),
         };
         *REPORTS
             .iter()
@@ -596,6 +643,7 @@ impl Report {
             Self::Enex(r) => &r.tool_version,
             Self::Obsidian(r) => &r.tool_version,
             Self::WordPress(r) => &r.tool_version,
+            Self::AssetFilename(r) => &r.tool_version,
         }
     }
 
@@ -662,6 +710,7 @@ impl Report {
                     disposition: &p.conversion,
                 })
                 .collect(),
+            Self::AssetFilename(_) => Vec::new(),
         }
     }
 }
@@ -867,14 +916,25 @@ pub struct Attachment {
 
 // ---- cross-cutting modes -------------------------------------------------
 
-/// `link-audit` `link_audit.json`. Findings are kept raw: the captured
-/// audit of a clean Boris build has none, so their shape is unmirrored.
+/// `link-audit` `link_audit.json`. Findings are the lab's advisory
+/// evidence only; Capture Vector never promotes them to Boris authority.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LinkAudit {
     pub format: String,
     pub schema_version: u32,
     pub html_files: u64,
-    pub findings: Vec<serde_json::Value>,
+    pub findings: Vec<LinkAuditFinding>,
+    #[serde(flatten)]
+    pub extra: Extra,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LinkAuditFinding {
+    pub source: String,
+    pub target: String,
+    pub line: u64,
+    pub kind: String,
+    pub reason: String,
     #[serde(flatten)]
     pub extra: Extra,
 }
@@ -923,6 +983,52 @@ pub struct UnknownKey {
     pub extra: Extra,
 }
 
+/// `asset_filename_manifest.json`: one row per discovered asset.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AssetFilenameManifest {
+    pub format: String,
+    pub schema_version: u32,
+    pub policy: String,
+    pub assets: Vec<AssetFilenameAsset>,
+    #[serde(flatten)]
+    pub extra: Extra,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AssetFilenameAsset {
+    pub source_path: String,
+    pub within_tree_source: String,
+    pub page_stem: String,
+    pub within_tree_dest: String,
+    pub dest_path: String,
+    pub action: String,
+    pub reason: String,
+    pub sha256: Option<String>,
+    pub bytes: u64,
+    #[serde(flatten)]
+    pub extra: Extra,
+}
+
+/// `rewrite_manifest.json`: Markdown destination rewrites in the candidate.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AssetFilenameRewriteManifest {
+    pub format: String,
+    pub schema_version: u32,
+    pub rewrites: Vec<AssetFilenameRewrite>,
+    #[serde(flatten)]
+    pub extra: Extra,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AssetFilenameRewrite {
+    pub page_path: String,
+    pub original_dest: String,
+    pub rewritten_dest: String,
+    pub reason: String,
+    #[serde(flatten)]
+    pub extra: Extra,
+}
+
 // ---- dispatch by file role -----------------------------------------------
 
 /// Any mirrored JSON document a lab run writes under `--out`.
@@ -937,6 +1043,8 @@ pub enum Document {
     AttachmentsManifest(AttachmentsManifest),
     LinkAudit(LinkAudit),
     FrontmatterReview(FrontmatterReview),
+    AssetFilenameManifest(AssetFilenameManifest),
+    AssetFilenameRewriteManifest(AssetFilenameRewriteManifest),
 }
 
 impl Document {
@@ -965,6 +1073,12 @@ impl Document {
             )?),
             "frontmatter_review.json" => Self::FrontmatterReview(serde_json::from_value(
                 one(FRONTMATTER_REVIEWS, "frontmatter_review.json")?.1,
+            )?),
+            "asset_filename_manifest.json" => Self::AssetFilenameManifest(serde_json::from_value(
+                one(ASSET_FILENAME_MANIFESTS, "asset_filename_manifest.json")?.1,
+            )?),
+            "rewrite_manifest.json" => Self::AssetFilenameRewriteManifest(serde_json::from_value(
+                one(ASSET_FILENAME_REWRITE_MANIFESTS, "rewrite_manifest.json")?.1,
             )?),
             _ if rel.starts_with("provenance/") && rel.ends_with(".json") => Self::PageProvenance(
                 serde_json::from_value(one(PAGE_PROVENANCE, "provenance/<id>.json")?.1)?,
