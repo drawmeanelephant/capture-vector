@@ -37,6 +37,16 @@ fn hugo_source() -> (tempfile::TempDir, String) {
 }
 
 #[test]
+fn subfolder_errors_name_the_content_input_not_a_hardcoded_content_tree() {
+    let absolute = adopt::subfolder("/abs").unwrap_err().to_string();
+    assert!(absolute.contains("content input"), "{absolute}");
+    assert!(!absolute.contains("content/"), "{absolute}");
+    let empty = adopt::subfolder("").unwrap_err().to_string();
+    assert!(empty.contains("content input"), "{empty}");
+    assert!(!empty.contains("content/"), "{empty}");
+}
+
+#[test]
 fn pathological_input_authority_is_refused_before_the_lock_carrier_or_content() {
     let (source, run_id) = hugo_source();
     let src = adopt::source(&source.path().canonicalize().unwrap(), &run_id).unwrap();

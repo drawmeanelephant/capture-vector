@@ -1161,13 +1161,6 @@ fn unsafe_subfolders_are_refused() {
         assert!(adopt::subfolder(bad).is_err(), "{bad:?} must be refused");
     }
     assert_eq!(adopt::subfolder("imported/site").unwrap(), "imported/site");
-
-    let absolute = adopt::subfolder("/abs").unwrap_err().to_string();
-    assert!(absolute.contains("content input"), "{absolute}");
-    assert!(!absolute.contains("content/"), "{absolute}");
-    let empty = adopt::subfolder("").unwrap_err().to_string();
-    assert!(empty.contains("content input"), "{empty}");
-    assert!(!empty.contains("content/"), "{empty}");
 }
 
 #[test]
