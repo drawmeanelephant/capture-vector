@@ -1,4 +1,33 @@
 use super::*;
+use crate::modules::migrate::{self, ImportRun, Imports, MemoryPort, RunStatus};
+
+#[test]
+fn palette_enablement_tracks_row_selection_before_any_command_runs() {
+    let mut run = ImportRun::new("20261127-hugo", RunStatus::Ok);
+    run.mode = "hugo".into();
+    run.source = "mini-hugo".into();
+    migrate::install(Box::new(MemoryPort {
+        imports: Imports {
+            runs: vec![run],
+            ..Imports::default()
+        },
+        records: Vec::new(),
+    }));
+    let mut wb = Workbench::new(Registry::with_all());
+    let migrate_index = wb.registry.index_of(migrate::ID).unwrap();
+    wb.activate(migrate_index);
+    wb.select_row(0);
+
+    let adopt = wb
+        .commands()
+        .into_iter()
+        .find(|c| c.id == migrate::ADOPT)
+        .unwrap();
+    assert_eq!(
+        adopt.disabled, None,
+        "the palette must use the row selection visible in the list"
+    );
+}
 
 #[test]
 fn watch_restart_is_offered_only_while_the_watch_is_dead() {

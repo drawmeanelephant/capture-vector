@@ -678,8 +678,8 @@ impl Workbench {
 
     pub fn activate(&mut self, index: usize) {
         if index < self.registry.len() && index != self.active {
-            self.active = index;
             self.clear_selection();
+            self.active = index;
         }
     }
 
@@ -707,10 +707,17 @@ impl Workbench {
         self.set_nav(&key);
     }
 
+    fn sync_module_selection(&mut self, key: Option<&str>) {
+        if let Some(m) = self.registry.get_mut(self.active) {
+            m.select(key);
+        }
+    }
+
     pub fn clear_selection(&mut self) {
         self.windows.primary.row = None;
         self.windows.primary.selection = Selection::default();
         self.app.selection = Selection::default();
+        self.sync_module_selection(None);
     }
 
     pub fn select_row(&mut self, i: usize) {
@@ -724,9 +731,11 @@ impl Workbench {
             mailbox: self.active_nav().map(str::to_string),
             noun,
         };
+        let module_key = key.clone();
         self.windows.primary.row = Some((i, key));
         self.windows.primary.selection = sel.clone();
         self.app.selection = sel;
+        self.sync_module_selection(Some(&module_key));
     }
 
     /// After a module mutates its list, keep the selected key selected at
