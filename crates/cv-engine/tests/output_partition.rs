@@ -840,3 +840,136 @@ fn profile_edition_and_target_nested_artifact_outputs_are_inspected() {
         "the contract shapes assumed by inspection must pass when clean: {err}"
     );
 }
+
+fn write_input_profile(root: &Path, input: Option<&str>, output: &str) {
+    write_happy_profile(root, output);
+    let path = root.join("boris.json");
+    let mut text = std::fs::read_to_string(&path).unwrap();
+    if let Some(input) = input {
+        text = text.replace(r#""input": "content""#, &format!(r#""input": "{input}""#));
+    } else {
+        text = text
+            .lines()
+            .filter(|line| !line.contains(r#""input": "content""#))
+            .collect::<Vec<_>>()
+            .join("\n");
+    }
+    std::fs::write(path, text).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn profile_input_symlink_alias_is_the_output_overlap_authority() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("source")).unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    std::os::unix::fs::symlink("source", root.join("inlink")).unwrap();
+    write_input_profile(&root, Some("inlink"), "source");
+    let engine = partition_engine(&root, "content");
+    let verb = custom("build", &["--profile", "boris.json"]);
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(
+        err.contains("profile target output") && err.contains("workspace content input"),
+        "canonical symlink input authority must refuse pre-spawn: {err}"
+    );
+}
+
+#[test]
+fn profile_input_unicode_alias_is_the_output_overlap_authority() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    write_input_profile(&root, Some("café"), "cafe\u{301}");
+    let engine = partition_engine(&root, "content");
+    let verb = custom("build", &["--profile", "boris.json"]);
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(
+        err.contains("profile target output") && err.contains("workspace content input"),
+        "unicode-canonical input authority must refuse pre-spawn: {err}"
+    );
+}
+
+#[test]
+fn profile_input_precedence_matches_pinned_boris() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    std::fs::create_dir_all(root.join("profilein")).unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    let engine = partition_engine(&root, "content");
+
+    write_input_profile(&root, Some("profilein"), "profilein/out");
+    let overridden = custom("build", &["--profile", "boris.json", "--input", "content"]);
+    let err = partition_error(&engine, &overridden).expect("missing fake Boris");
+    assert!(
+        !err.contains("workspace content input"),
+        "CLI --input overrides the profile input in pinned Boris: {err}"
+    );
+
+    write_input_profile(&root, Some("profilein"), "content/out");
+    let err = engine
+        .run(&overridden, Box::new(|_| {}))
+        .unwrap_err()
+        .to_string();
+    assert!(
+        err.contains("workspace content input"),
+        "the overriding CLI input is the overlap authority: {err}"
+    );
+}
+
+#[test]
+fn omitted_profile_input_defaults_to_content_beside_the_profile() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    std::fs::create_dir_all(root.join("profiles")).unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    write_input_profile(&root.join("profiles"), None, "content/out");
+    std::fs::rename(
+        root.join("profiles/boris.json"),
+        root.join("profiles/p.json"),
+    )
+    .unwrap();
+    let engine = partition_engine(&root, "content");
+    let verb = custom("build", &["--profile", "profiles/p.json"]);
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(
+        err.contains("profile target output") && err.contains("workspace content input"),
+        "omitted input must mean profiles/content, not workspace content: {err}"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+#[ignore = "needs a real pinned boris via CV_BORIS_BIN"]
+fn real_boris_profile_input_symlink_alias_refuses_before_source_bytes_move() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/corpus-src/happy")
+        .canonicalize()
+        .unwrap();
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("ws");
+    std::fs::create_dir_all(&root).unwrap();
+    copy_tree(&fixture.join("content"), &root.join("source"));
+    copy_tree(&fixture.join("themes"), &root.join("themes"));
+    let root = root.canonicalize().unwrap();
+    let sentinel = root.join("source/assets/css/boris.css");
+    std::fs::create_dir_all(sentinel.parent().unwrap()).unwrap();
+    std::fs::write(&sentinel, "AUTHOR-OWNED-SENTINEL\n").unwrap();
+    std::os::unix::fs::symlink("source", root.join("inlink")).unwrap();
+    write_input_profile(&root, Some("inlink"), "source");
+    let engine = ProcessEngine::start(EngineConfig::new(&root)).unwrap();
+    let verb = custom("build", &["--profile", "boris.json"]);
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(
+        err.contains("profile target output") && err.contains("workspace content input"),
+        "{err}"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&sentinel).unwrap(),
+        "AUTHOR-OWNED-SENTINEL\n"
+    );
+    assert!(!root.join("source/index.html").exists());
+}

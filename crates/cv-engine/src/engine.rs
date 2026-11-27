@@ -311,7 +311,7 @@ fn validate_custom_outputs(cfg: &EngineConfig, args: &[String]) -> Result<()> {
 }
 
 fn validate_default_html_output(cfg: &EngineConfig, name: &str, args: &[String]) -> Result<()> {
-    if !matches!(name, "build" | "watch") {
+    if !matches!(name, "build" | "watch") || flag_value(args, "--profile").is_some() {
         return Ok(());
     }
     let effective = output_cfg(cfg, flag_value(args, "--input"))?;
@@ -419,13 +419,26 @@ fn required_string_field<'a>(
     }
 }
 
-fn declared_profile_outputs(profile: &Path, bytes: &[u8]) -> Result<Vec<ProfileDeclaredOutput>> {
+fn declared_profile_outputs(
+    profile: &Path,
+    bytes: &[u8],
+) -> Result<(Option<String>, Vec<ProfileDeclaredOutput>)> {
     let value: serde_json::Value = serde_json::from_slice(bytes).map_err(|e| {
         EngineError::Refused(format!(
             "publication profile {} cannot be parsed for output inspection: {e}",
             profile.display()
         ))
     })?;
+    let input = match value.get("input") {
+        None => None,
+        Some(serde_json::Value::String(input)) => Some(input.clone()),
+        _ => {
+            return Err(profile_shape_error(
+                profile,
+                "non-string input; effective input authority cannot be proven",
+            ));
+        }
+    };
     let mut outputs = Vec::new();
     if let Some(targets) = value.get("targets") {
         let targets = targets
@@ -465,7 +478,7 @@ fn declared_profile_outputs(profile: &Path, bytes: &[u8]) -> Result<Vec<ProfileD
             }
         }
     }
-    Ok(outputs)
+    Ok((input, outputs))
 }
 
 /// Inspect the declared output strings of an explicitly selected Boris
@@ -501,18 +514,41 @@ fn validate_profile_declared_outputs(
             profile_path.display()
         ))
     })?;
-    for output in declared_profile_outputs(&profile_path, &bytes)? {
-        let base = profile_path.parent().unwrap_or(&cfg.root);
+    let base = profile_path.parent().unwrap_or(&cfg.root);
+    let (declared_input, outputs) = declared_profile_outputs(&profile_path, &bytes)?;
+    // Pinned Boris precedence: an invocation `--input` overrides the
+    // profile; otherwise the profile's `input` is the authority, and an
+    // omitted input defaults to `content`. Both profile spellings resolve
+    // against the profile file's directory. `cfg.content_input` is not
+    // implicitly passed to a custom profile invocation, so it is not the
+    // tree Boris will read here.
+    let mut effective = output_cfg(cfg, flag_value(args, "--input"))?;
+    if flag_value(args, "--input").is_none() {
+        let input = declared_input.as_deref().unwrap_or("content");
+        let input_parts = relative_parts(input, "profile input")?;
+        effective.content_input = path_from_parts(base, &input_parts);
+    }
+    for output in outputs {
         match output {
             ProfileDeclaredOutput::ProfileRelative(output) => {
-                validate_profile_output_at_base(cfg, base, &output, "profile target output")?;
+                validate_profile_output_at_base(
+                    &effective,
+                    base,
+                    &output,
+                    "profile target output",
+                )?;
             }
             ProfileDeclaredOutput::TargetNested {
                 target_output,
                 path,
             } => {
                 let output = format!("{target_output}/{path}");
-                validate_profile_output_at_base(cfg, base, &output, "profile artifact output")?;
+                validate_profile_output_at_base(
+                    &effective,
+                    base,
+                    &output,
+                    "profile artifact output",
+                )?;
             }
         }
     }
