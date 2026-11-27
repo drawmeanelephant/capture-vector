@@ -59,7 +59,7 @@ fn init_ports(
     cv_model::modules::publish::install(publish);
     cv_model::modules::engine::detach();
     cv_model::modules::migrate::install(migrate);
-    doctor::install(None);
+    doctor::install(None, None);
     Workbench::new(Registry::with_all()).with_store(Box::new(StubStore::new()))
 }
 
@@ -322,7 +322,7 @@ pub fn open_workspace(
         &root,
         lab.state.clone(),
     )));
-    let feed = doctor::install(Some(&root));
+    let feed = doctor::install(Some(&root), Some(&opened));
     feed.update(|f| {
         f.store = doctor::store(&root, &opened);
         f.lab.state = lab.state;

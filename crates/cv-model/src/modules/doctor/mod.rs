@@ -577,15 +577,19 @@ fn lab_items(f: &Facts) -> Vec<Item> {
                 .badge("absent", Tone::Error)
                 .say("An explicit override never falls through to another lab binary: fix or unset CV_MIGRATION_LAB_BIN, then reopen the workspace.")
         }
-        LabState::Mismatch { found, want, path } => {
-            Item::new("lab.status", found.clone(), format!("pinned {want}"))
-                .tone(Tone::Warn)
-                .badge("mismatch", Tone::Warn)
-                .line("found", found.clone())
-                .line("want", pin.clone())
-                .line("binary", path.clone())
-                .say(FIX_LAB)
-        }
+        LabState::Mismatch {
+            found,
+            want,
+            path,
+            source,
+        } => Item::new("lab.status", found.clone(), format!("pinned {want}"))
+            .tone(Tone::Warn)
+            .badge("mismatch", Tone::Warn)
+            .line("found", found.clone())
+            .line("want", pin.clone())
+            .line("located via", source.clone())
+            .line("binary", path.clone())
+            .say(FIX_LAB),
         LabState::Failed { error } => Item::new("lab.status", "Lab gate failed", error.clone())
             .tone(Tone::Error)
             .badge("failed", Tone::Error)
@@ -597,7 +601,7 @@ fn lab_items(f: &Facts) -> Vec<Item> {
         out.push(Item::new("lab.path", "Binary", p).path());
     }
     match state {
-        LabState::Located { source, .. } => {
+        LabState::Located { source, .. } | LabState::Mismatch { source, .. } => {
             out.push(
                 Item::new("lab.source", "Located via", source.clone())
                     .say(format!("Found through {source}."))
@@ -956,6 +960,10 @@ impl Module for DoctorModule {
         }
     }
 
+    fn activated(&mut self) {
+        self.feed.refresh_store();
+    }
+
     fn ingest(&mut self, env: &Envelope) -> bool {
         self.watch.ingest(env)
     }
@@ -1064,6 +1072,7 @@ impl Module for DoctorModule {
         if command != COPY_BUNDLE {
             return Vec::new();
         }
+        self.feed.refresh_store();
         let text = bundle::render(&self.feed.get(), &self.watch);
         vec![
             Intent::Status(format!(

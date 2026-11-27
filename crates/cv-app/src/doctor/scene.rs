@@ -216,6 +216,7 @@ pub fn lab_mismatch(wb: &mut Workbench) {
         found: "boris-migration-lab/0.8.0".into(),
         want: super::lab_pin().version,
         path: "/usr/local/bin/boris-migration-lab".into(),
+        source: "PATH".into(),
     };
     show(wb, f);
     wb.set_nav("lab");

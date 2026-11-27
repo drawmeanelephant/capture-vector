@@ -213,19 +213,55 @@ pub struct AppBuild {
     pub logging: String,
 }
 
+/// Read-only store evidence assembled at the composition root. The feed
+/// owns this probe so disclosure moments (opening Doctor, copying its
+/// bundle) can refresh filesystem facts without teaching the pure Doctor
+/// module how to touch disk.
+type StoreProbe = Arc<dyn Fn() -> Store + Send + Sync>;
+
 /// Shared between the composition root, which updates it from the
 /// engine boot thread, and the Doctor module, which reads it while
 /// rendering. A writer follows an update with an `Inbox` send, so the
 /// UI wakes and redraws with the new facts.
-#[derive(Debug, Clone, Default)]
-pub struct Feed(Arc<Mutex<Facts>>);
+#[derive(Clone, Default)]
+pub struct Feed {
+    facts: Arc<Mutex<Facts>>,
+    store_probe: Option<StoreProbe>,
+}
+
+impl std::fmt::Debug for Feed {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Feed")
+            .field("facts", &self.facts)
+            .field("store_probe", &self.store_probe.as_ref().map(|_| "<probe>"))
+            .finish()
+    }
+}
 
 impl Feed {
+    pub fn with_store_probe(probe: impl Fn() -> Store + Send + Sync + 'static) -> Self {
+        Self {
+            facts: Arc::new(Mutex::new(Facts::default())),
+            store_probe: Some(Arc::new(probe)),
+        }
+    }
+
     pub fn get(&self) -> Facts {
-        self.0.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.facts.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     pub fn update(&self, f: impl FnOnce(&mut Facts)) {
-        f(&mut self.0.lock().unwrap_or_else(|e| e.into_inner()));
+        f(&mut self.facts.lock().unwrap_or_else(|e| e.into_inner()));
+    }
+
+    /// Re-read the composition root's store evidence and replace that
+    /// slice atomically. Returns false for a feed with no workspace probe.
+    pub fn refresh_store(&self) -> bool {
+        let Some(probe) = &self.store_probe else {
+            return false;
+        };
+        let store = probe();
+        self.update(|f| f.store = store);
+        true
     }
 }

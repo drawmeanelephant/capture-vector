@@ -141,7 +141,7 @@ pub fn write_adoption(lock: &RunLock, rec: &AdoptionRecord) -> Result<PathBuf, E
     let root = &lock.root;
     let dir = &lock.dir;
     let path = dir.join(ADOPTION);
-    refuse_symlinks(&[&root.join(".cv"), &root.join(DIR), dir, &path])?;
+    refuse_links(&[&root.join(".cv"), &root.join(DIR), dir, &path])?;
     sidecar::ensure(root, &SCHEMA).map_err(Error::Schema)?;
     let rec = rec.clone().normalized();
     let mut bytes = serde_json::to_vec_pretty(&rec).map_err(Error::Json)?;
@@ -156,9 +156,7 @@ pub fn write_adoption(lock: &RunLock, rec: &AdoptionRecord) -> Result<PathBuf, E
 pub fn read_adoption_record(root: &Path, run: &str) -> Result<Option<AdoptionRecord>, String> {
     let dir = run_dir(root, run).map_err(|e| e.to_string())?;
     let path = dir.join(ADOPTION);
-    if is_symlink(&path).map_err(|e| e.to_string())? {
-        return Err(format!("{ADOPTION} is a symlink"));
-    }
+    refuse_links(&[&root.join(".cv"), &root.join(DIR), &dir, &path]).map_err(|e| e.to_string())?;
     if !path.exists() {
         return Ok(None);
     }
@@ -173,7 +171,7 @@ pub fn read_adoption_record(root: &Path, run: &str) -> Result<Option<AdoptionRec
 }
 
 fn read_adoption(path: &Path) -> Result<AdoptionRecord, String> {
-    if is_symlink(path).map_err(|e| e.to_string())? {
+    if is_link(path).map_err(|e| e.to_string())? {
         return Err(format!("{ADOPTION} is a symlink"));
     }
     let bytes = std::fs::read(path).map_err(|e| format!("{ADOPTION}: {e}"))?;
@@ -206,7 +204,7 @@ fn read_adoption(path: &Path) -> Result<AdoptionRecord, String> {
 /// are skipped here and stay visible in the run's ordinary scan problem.
 pub fn scan_adoptions(root: &Path) -> Result<Vec<AdoptionRecord>, Error> {
     let base = root.join(DIR);
-    refuse_symlinks(&[&root.join(".cv"), &base])?;
+    refuse_links(&[&root.join(".cv"), &base])?;
     let entries = match std::fs::read_dir(&base) {
         Ok(e) => e,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
@@ -215,10 +213,13 @@ pub fn scan_adoptions(root: &Path) -> Result<Vec<AdoptionRecord>, Error> {
     let mut out = Vec::new();
     for e in entries {
         let e = e?;
-        if !e.file_type()?.is_dir() {
+        if !entry_is_real_dir(&e)? {
             continue;
         }
         let path = e.path().join(ADOPTION);
+        if is_link(&path)? {
+            return Err(Error::Symlink(path));
+        }
         if !path.exists() {
             continue;
         }
@@ -305,7 +306,7 @@ pub fn write_pending(lock: &RunLock, rec: &PendingAdoption) -> Result<PathBuf, E
     let root = &lock.root;
     let dir = &lock.dir;
     let path = dir.join(PENDING);
-    refuse_symlinks(&[&root.join(".cv"), &root.join(DIR), dir, &path])?;
+    refuse_links(&[&root.join(".cv"), &root.join(DIR), dir, &path])?;
     sidecar::ensure(root, &SCHEMA).map_err(Error::Schema)?;
     let mut bytes = serde_json::to_vec_pretty(rec).map_err(Error::Json)?;
     bytes.push(b'\n');
@@ -320,9 +321,7 @@ pub fn write_pending(lock: &RunLock, rec: &PendingAdoption) -> Result<PathBuf, E
 pub fn read_pending(root: &Path, run: &str) -> Result<Option<PendingAdoption>, String> {
     let dir = run_dir(root, run).map_err(|e| e.to_string())?;
     let path = dir.join(PENDING);
-    if is_symlink(&path).map_err(|e| e.to_string())? {
-        return Err(format!("{PENDING} is a symlink"));
-    }
+    refuse_links(&[&root.join(".cv"), &root.join(DIR), &dir, &path]).map_err(|e| e.to_string())?;
     let bytes = match std::fs::read(&path) {
         Ok(b) => b,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
@@ -367,7 +366,7 @@ pub fn clear_pending(lock: &RunLock) -> Result<(), Error> {
     let root = &lock.root;
     let dir = &lock.dir;
     let path = dir.join(PENDING);
-    refuse_symlinks(&[&root.join(".cv"), &root.join(DIR), dir, &path])?;
+    refuse_links(&[&root.join(".cv"), &root.join(DIR), dir, &path])?;
     match std::fs::remove_file(&path) {
         Ok(()) => Ok(()),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),

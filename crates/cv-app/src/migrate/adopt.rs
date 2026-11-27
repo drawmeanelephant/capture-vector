@@ -501,6 +501,7 @@ pub fn adopt(wb: &mut Workbench, job: AdoptionJob, env: &WorkspaceEnv) -> Option
     let outcomes = wb.outcome_sink();
     let run_id = job.request.run_id.clone();
     let worker_notices = notices.clone();
+    let doctor = cv_model::modules::doctor::installed();
     let env_locator = env.locator.clone();
     let worker_run = run_id.clone();
     let cancel = job.cancel.clone();
@@ -527,6 +528,7 @@ pub fn adopt(wb: &mut Workbench, job: AdoptionJob, env: &WorkspaceEnv) -> Option
                      The watch was restored and any interrupted copy is resumable; detail: {detail}"
                 ))
             });
+            doctor.refresh_store();
             worker_notices.send(ShellNotice::Adopted {
                 run_id: worker_run,
                 cancel: worker_cancel,

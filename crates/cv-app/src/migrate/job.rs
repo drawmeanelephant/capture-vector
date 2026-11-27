@@ -108,6 +108,7 @@ pub fn spawn_import_with(
     lab_override: Option<LabIdentity>,
 ) -> Option<JoinHandle<()>> {
     let notices = wb.notices();
+    let doctor = cv_model::modules::doctor::installed();
     let notice_job = job.clone();
     let spawnfail_job = job.clone();
     let worker = std::thread::Builder::new()
@@ -122,6 +123,7 @@ pub fn spawn_import_with(
             .unwrap_or_else(|_| {
                 Err("the import worker panicked; the run record shows what was written".into())
             });
+            doctor.refresh_store();
             let evidence = if notice_job.mode == "link-audit" {
                 result.as_ref().ok().and_then(|actual_id| {
                     link_audit_evidence(&notice_job.workspace, actual_id)
