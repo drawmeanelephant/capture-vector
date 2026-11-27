@@ -505,3 +505,338 @@ fn absolute_invocation_input_reaches_boris_byte_exactly() {
     let argv = fake.read("argv.log");
     assert!(argv.contains(&format!("--input {input}")), "{argv}");
 }
+
+#[cfg(unix)]
+#[test]
+fn dangling_parent_symlink_cannot_bootstrap_an_output_escape() {
+    let base = tempfile::tempdir().unwrap();
+    let root = base.path().join("ws");
+    let outside = base.path().join("outside");
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    std::fs::create_dir_all(&outside).unwrap();
+    let root = root.canonicalize().unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    std::os::unix::fs::symlink("missing/../../outside", root.join("link")).unwrap();
+    let engine = partition_engine(&root, "content");
+    let verb = custom(
+        "build",
+        &["--html-dir", "missing", "--report", "link/report.json"],
+    );
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(err.contains("outside the workspace"), "{err}");
+    assert!(!outside.join("report.json").exists());
+    assert!(!root.join("missing").exists());
+
+    // The stronger form names an absolute external content input. The report
+    // is outside the workspace and therefore cannot be proven disjoint from
+    // that input; it must fail closed just the same.
+    let external_input = outside.join("input");
+    std::fs::create_dir_all(&external_input).unwrap();
+    let external_engine = partition_engine(&root, external_input.to_str().unwrap());
+    let err = external_engine
+        .run(&verb, Box::new(|_| {}))
+        .unwrap_err()
+        .to_string();
+    assert!(err.contains("outside the workspace"), "{err}");
+    assert!(!outside.join("report.json").exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn contained_dangling_parent_symlink_spellings_are_not_false_escapes() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    // missing/../inside collapses arithmetically to workspace child `inside`.
+    std::os::unix::fs::symlink("missing/../inside", root.join("link")).unwrap();
+    let engine = partition_engine(&root, "content");
+    let verb = custom(
+        "build",
+        &["--html-dir", "missing", "--report", "link/report.json"],
+    );
+    let err = partition_error(&engine, &verb).expect("missing fake Boris");
+    assert!(
+        !err.contains("outside the workspace") && !err.contains("overlaps"),
+        "contained dangling symlink arithmetic must not false-refuse: {err}"
+    );
+}
+
+#[test]
+fn contained_and_escaping_dotdot_output_spellings_are_distinguished() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    let engine = partition_engine(&root, "content");
+
+    let contained = custom("build", &["--html-dir", "sub/../site"]);
+    let err = partition_error(&engine, &contained).expect("missing fake Boris");
+    assert!(
+        !err.contains("overlaps") && !err.contains("outside the workspace"),
+        "contained sub/../site must not be a phantom escape: {err}"
+    );
+
+    for raw in [
+        "../outside",
+        "../../outside",
+        "sub/../../outside",
+        "a/b/../../../outside",
+    ] {
+        let verb = custom("build", &["--html-dir", raw]);
+        let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+        assert!(
+            err.contains("parent traversal") || err.contains("outside the workspace"),
+            "{raw}: {err}"
+        );
+    }
+}
+
+fn write_happy_profile(root: &Path, output: &str) {
+    std::fs::write(
+        root.join("boris.json"),
+        format!(
+            r#"{{
+  "format": "boris-publication-profile",
+  "schema_version": 1,
+  "input": "content",
+  "site": {{ "title": "Profile Probe" }},
+  "targets": [
+    {{ "name": "public", "output": "{output}", "public": true, "theme": "themes/boris" }}
+  ]
+}}"#
+        ),
+    )
+    .unwrap();
+}
+
+#[test]
+fn profile_declared_target_outputs_are_partition_validated() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    let engine = partition_engine(&root, "content");
+
+    write_happy_profile(&root, ".cv/imports");
+    let verb = custom("build", &["--profile", "boris.json"]);
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(
+        err.contains("Capture Vector metadata") && err.contains("profile target output"),
+        "{err}"
+    );
+    assert!(!root.join(".cv/imports/index.html").exists());
+
+    write_happy_profile(&root, "dist");
+    let err = partition_error(&engine, &verb).expect("missing fake Boris");
+    assert!(
+        !err.contains("overlaps") && !err.contains("profile target output"),
+        "happy profile shape must pass partition validation: {err}"
+    );
+
+    std::fs::write(root.join("boris.json"), b"not json").unwrap();
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(err.contains("cannot be parsed"), "{err}");
+}
+
+#[test]
+fn llms_and_rss_path_exports_suppress_default_html_like_their_mode_flags() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("dist")).unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    let engine = partition_engine(&root, "content");
+    for args in [
+        vec!["--input", "dist", "--llms-path", "x.txt"],
+        vec!["--input", "dist", "--rss-path", "x.xml"],
+        vec!["--input", "dist", "--llms"],
+        vec!["--input", "dist", "--rss"],
+    ] {
+        let verb = custom("build", &args);
+        let err = partition_error(&engine, &verb).expect("missing fake Boris");
+        assert!(
+            !err.contains("overlaps"),
+            "{args:?} is export-only in pinned Boris and must not be phantom-refused: {err}"
+        );
+    }
+    let verb = custom("build", &["--input", "dist"]);
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(
+        err.contains("overlaps"),
+        "plain HTML build must still refuse: {err}"
+    );
+}
+
+fn copy_tree(src: &Path, dst: &Path) {
+    std::fs::create_dir_all(dst).unwrap();
+    for entry in std::fs::read_dir(src).unwrap() {
+        let entry = entry.unwrap();
+        let target = dst.join(entry.file_name());
+        if entry.file_type().unwrap().is_dir() {
+            copy_tree(&entry.path(), &target);
+        } else {
+            std::fs::copy(entry.path(), target).unwrap();
+        }
+    }
+}
+
+#[cfg(unix)]
+#[test]
+#[ignore = "needs a real pinned boris via CV_BORIS_BIN"]
+fn real_boris_dangling_parent_symlink_bootstrap_refuses_pre_spawn() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/corpus-src/happy")
+        .canonicalize()
+        .unwrap();
+    let base = tempfile::tempdir().unwrap();
+    let root = base.path().join("ws");
+    let outside = base.path().join("outside");
+    copy_tree(&fixture, &root);
+    std::fs::create_dir_all(&outside).unwrap();
+    let root = root.canonicalize().unwrap();
+    std::os::unix::fs::symlink("missing/../../outside", root.join("link")).unwrap();
+    let engine = ProcessEngine::start(EngineConfig::new(&root)).unwrap();
+    let verb = custom(
+        "build",
+        &["--html-dir", "missing", "--report", "link/report.json"],
+    );
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(err.contains("outside the workspace"), "{err}");
+    assert!(!outside.join("report.json").exists());
+    assert!(!root.join("missing").exists());
+}
+
+#[test]
+#[ignore = "needs a real pinned boris via CV_BORIS_BIN"]
+fn real_boris_happy_profile_build_passes_and_malicious_profile_refuses() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/corpus-src/happy")
+        .canonicalize()
+        .unwrap();
+    for output in ["dist", ".cv/imports"] {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("ws");
+        copy_tree(&fixture, &root);
+        let root = root.canonicalize().unwrap();
+        write_happy_profile(&root, output);
+        let engine = ProcessEngine::start(EngineConfig::new(&root)).unwrap();
+        let verb = custom("build", &["--profile", "boris.json"]);
+        let result = engine.run(&verb, Box::new(|_| {}));
+        if output == "dist" {
+            assert_eq!(result.unwrap(), ExitClass::Ok);
+            assert!(root.join("dist/index.html").exists());
+        } else {
+            let err = result.unwrap_err().to_string();
+            assert!(err.contains("profile target output"), "{err}");
+            assert!(!root.join(".cv/imports/index.html").exists());
+        }
+    }
+}
+
+#[test]
+fn profile_outputs_resolve_against_the_profile_files_directory() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    std::fs::create_dir_all(root.join("profiles")).unwrap();
+    write_happy_profile(&root.join("profiles"), ".cv/imports");
+    std::fs::rename(
+        root.join("profiles/boris.json"),
+        root.join("profiles/p.json"),
+    )
+    .unwrap();
+    let engine = partition_engine(&root, "content");
+    let verb = custom("build", &["--profile", "profiles/p.json"]);
+    let err = partition_error(&engine, &verb).expect("missing fake Boris");
+    assert!(
+        !err.contains("Capture Vector metadata"),
+        "profiles/.cv/imports is ordinary workspace state, not the metadata lane: {err}"
+    );
+
+    write_happy_profile(&root.join(".cv"), "imports");
+    std::fs::rename(root.join(".cv/boris.json"), root.join(".cv/p.json")).unwrap();
+    let verb = custom("build", &["--profile", ".cv/p.json"]);
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(
+        err.contains("Capture Vector metadata") && err.contains("profile target output"),
+        "{err}"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn existing_symlink_hidden_behind_bootstrapped_dotdot_is_re_resolved() {
+    let base = tempfile::tempdir().unwrap();
+    let root = base.path().join("ws");
+    let outside = base.path().join("outside");
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    std::fs::create_dir_all(&outside).unwrap();
+    let root = root.canonicalize().unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    std::os::unix::fs::symlink(&outside, root.join("link")).unwrap();
+    let engine = partition_engine(&root, "content");
+    let verb = custom(
+        "build",
+        &[
+            "--html-dir",
+            "missing",
+            "--report",
+            "missing/../link/report.json",
+        ],
+    );
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(err.contains("outside the workspace"), "{err}");
+    assert!(!outside.join("report.json").exists());
+    assert!(!root.join("missing").exists());
+}
+
+#[test]
+fn profile_edition_and_target_nested_artifact_outputs_are_inspected() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    let engine = partition_engine(&root, "content");
+    let write_shape = |edition_output: &str, artifact_path: &str| {
+        std::fs::write(
+            root.join("boris.json"),
+            format!(
+                r#"{{
+  "format": "boris-publication-profile",
+  "schema_version": 1,
+  "input": "content",
+  "site": {{ "title": "Profile Probe", "url": "https://example.com/", "description": "probe" }},
+  "targets": [
+    {{ "name": "public", "output": "dist", "public": true, "theme": "themes/boris",
+       "llms": {{ "path": "{artifact_path}" }} }}
+  ],
+  "editions": {{ "ir": {{ "output": "{edition_output}" }} }}
+}}"#
+            ),
+        )
+        .unwrap();
+    };
+    let verb = custom("build", &["--profile", "boris.json"]);
+
+    write_shape(".cv/imports", "llms.txt");
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(
+        err.contains("profile target output") && err.contains("Capture Vector metadata"),
+        "edition output must be inspected: {err}"
+    );
+
+    write_shape(".boris", "../.cv/imports");
+    let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+    assert!(
+        err.contains("profile artifact output") && err.contains("Capture Vector metadata"),
+        "target-relative artifact path must be arithmetically resolved: {err}"
+    );
+
+    write_shape(".boris", "llms.txt");
+    let err = partition_error(&engine, &verb).expect("missing fake Boris");
+    assert!(
+        !err.contains("Capture Vector metadata"),
+        "the contract shapes assumed by inspection must pass when clean: {err}"
+    );
+}

@@ -161,3 +161,35 @@ fn existing_workspace_input_inside_import_evidence_is_refused_before_mutation() 
         "metadata input must not reach journal creation"
     );
 }
+
+#[cfg(unix)]
+#[test]
+fn parent_dir_symlink_input_resolving_into_metadata_is_refused_pre_carrier() {
+    let (source, run_id) = hugo_source();
+    let src = adopt::source(&source.path().canonicalize().unwrap(), &run_id).unwrap();
+    let target = tempfile::tempdir().unwrap();
+    let target_root = target.path().canonicalize().unwrap();
+    // `future/../.cv` is dangling until the transaction would create `.cv`.
+    // Lexical parent arithmetic must still prove that link/sub denotes
+    // `.cv/sub`, before the carrier can bootstrap the link into existence.
+    std::os::unix::fs::symlink("future/../.cv", target_root.join("link")).unwrap();
+    let err = adopt::transact(
+        &target_root,
+        &src,
+        "link/sub",
+        None,
+        "new",
+        &BTreeMap::new(),
+        1,
+    )
+    .unwrap_err();
+    assert!(
+        err.to_string().contains("resolves into workspace metadata"),
+        "{err}"
+    );
+    assert!(!target_root.join(".cv").exists(), "carrier must not exist");
+    assert!(
+        !target_root.join(".cv/workspace-mutation.lock").exists(),
+        "mutation lock must not exist"
+    );
+}

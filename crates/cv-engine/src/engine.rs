@@ -77,6 +77,7 @@ fn relative_parts(raw: &str, what: &str) -> Result<Vec<String>> {
         .filter(|c| *c != std::path::Component::CurDir)
         .map(|c| match c {
             std::path::Component::Normal(n) => Ok(n.to_string_lossy().into_owned()),
+            std::path::Component::ParentDir => Ok("..".to_string()),
             _ => Err(EngineError::Refused(format!(
                 "{what} {raw:?} must be a workspace-relative path"
             ))),
@@ -137,14 +138,35 @@ fn partition_parts(path: &Path, what: &str) -> Result<Vec<String>> {
     })
 }
 
-fn validate_output_path(cfg: &EngineConfig, raw: &str, what: &str) -> Result<()> {
-    let raw_parts = relative_parts(raw, what)?;
-    let lexical = raw_parts
-        .iter()
-        .map(|p| normalize_component(p))
-        .collect::<Vec<_>>();
-    let output_path = path_from_parts(&cfg.root, &raw_parts);
-    let absolute = partition_parts(&output_path, what)?;
+fn collapse_relative_parts(raw: &str, raw_parts: &[String], what: &str) -> Result<Vec<String>> {
+    let mut out: Vec<String> = Vec::new();
+    for part in raw_parts {
+        if part == ".." {
+            if out.pop().is_none() {
+                return Err(EngineError::Refused(format!(
+                    "{what} {raw:?} escapes the workspace through parent traversal"
+                )));
+            }
+        } else {
+            out.push(normalize_component(part));
+        }
+    }
+    if out.is_empty() {
+        return Err(EngineError::Refused(format!(
+            "{what} {raw:?} must name a workspace-relative child, not the workspace root"
+        )));
+    }
+    Ok(out)
+}
+
+fn validate_output_location(
+    cfg: &EngineConfig,
+    output_path: &Path,
+    lexical: &[String],
+    raw: &str,
+    what: &str,
+) -> Result<()> {
+    let absolute = partition_parts(output_path, what)?;
     let root_parts = partition_parts(&cfg.root, what)?;
     let Some(relative) = absolute.strip_prefix(root_parts.as_slice()) else {
         return Err(EngineError::Refused(format!(
@@ -155,13 +177,13 @@ fn validate_output_path(cfg: &EngineConfig, raw: &str, what: &str) -> Result<()>
     let cv = [".cv".to_string()];
     let boris_meta = [".boris".to_string()];
     let profile = ["boris.json".to_string()];
-    if overlaps(&lexical, &profile) || overlaps(relative, &profile) {
+    if overlaps(lexical, &profile) || overlaps(relative, &profile) {
         return Err(EngineError::Refused(format!(
             "{what} {raw:?} overlaps workspace profile metadata"
         )));
     }
     let cv_violation = |parts: &[String]| parts.starts_with(&cv) && !owned_cv_output(parts);
-    if cv_violation(&lexical) || cv_violation(relative) {
+    if cv_violation(lexical) || cv_violation(relative) {
         return Err(EngineError::Refused(format!(
             "{what} {raw:?} overlaps Capture Vector metadata outside an owned output lane"
         )));
@@ -196,6 +218,37 @@ fn validate_output_path(cfg: &EngineConfig, raw: &str, what: &str) -> Result<()>
         )));
     }
     Ok(())
+}
+
+fn validate_output_path(cfg: &EngineConfig, raw: &str, what: &str) -> Result<()> {
+    let raw_parts = relative_parts(raw, what)?;
+    let lexical = collapse_relative_parts(raw, &raw_parts, what)?;
+    let output_path = path_from_parts(&cfg.root, &raw_parts);
+    validate_output_location(cfg, &output_path, &lexical, raw, what)
+}
+
+/// Validate a profile-declared output at the base Boris 0.9.0 evidences for
+/// publication profiles: the directory containing the selected profile file.
+/// The raw spelling still cannot escape that base through leading `..`;
+/// after that, canonical containment decides whether the resolved location
+/// is inside the workspace.
+fn validate_profile_output_at_base(
+    cfg: &EngineConfig,
+    base: &Path,
+    raw: &str,
+    what: &str,
+) -> Result<()> {
+    let raw_parts = relative_parts(raw, what)?;
+    let collapsed = collapse_relative_parts(raw, &raw_parts, what)?;
+    let root_parts = partition_parts(&cfg.root, what)?;
+    let base_parts = partition_parts(base, what)?;
+    let mut lexical = base_parts
+        .strip_prefix(root_parts.as_slice())
+        .map(|prefix| prefix.to_vec())
+        .unwrap_or_default();
+    lexical.extend(collapsed);
+    let output_path = path_from_parts(base, &raw_parts);
+    validate_output_location(cfg, &output_path, &lexical, raw, what)
 }
 
 fn flag_value_at<'a>(args: &'a [String], i: usize, flag: &str) -> Option<&'a str> {
@@ -273,7 +326,9 @@ fn validate_default_html_output(cfg: &EngineConfig, name: &str, args: &[String])
             "--context",
             "--context-dir",
             "--llms",
+            "--llms-path",
             "--rss",
+            "--rss-path",
             "--no-rag",
         ]
         .iter()
@@ -333,6 +388,137 @@ fn validate_custom_init_targets(cfg: &EngineConfig, args: &[String]) -> Result<(
     Ok(())
 }
 
+enum ProfileDeclaredOutput {
+    /// Resolved against the directory containing the selected profile.
+    ProfileRelative(String),
+    /// Boris declares sitemap/rss/llms paths target-root-relative. Joining
+    /// the declared target root is inspection of the written location, not a
+    /// decision about whether the target is selected.
+    TargetNested { target_output: String, path: String },
+}
+
+fn profile_shape_error(profile: &Path, detail: &str) -> EngineError {
+    EngineError::Refused(format!(
+        "publication profile {} has {detail}; output overlap cannot be proven",
+        profile.display()
+    ))
+}
+
+fn required_string_field<'a>(
+    profile: &Path,
+    object: &'a serde_json::Value,
+    key: &str,
+    locus: &str,
+) -> Result<&'a str> {
+    match object.get(key) {
+        Some(serde_json::Value::String(s)) => Ok(s),
+        _ => Err(profile_shape_error(
+            profile,
+            &format!("missing or non-string {locus}.{key}"),
+        )),
+    }
+}
+
+fn declared_profile_outputs(profile: &Path, bytes: &[u8]) -> Result<Vec<ProfileDeclaredOutput>> {
+    let value: serde_json::Value = serde_json::from_slice(bytes).map_err(|e| {
+        EngineError::Refused(format!(
+            "publication profile {} cannot be parsed for output inspection: {e}",
+            profile.display()
+        ))
+    })?;
+    let mut outputs = Vec::new();
+    if let Some(targets) = value.get("targets") {
+        let targets = targets
+            .as_array()
+            .ok_or_else(|| profile_shape_error(profile, "non-array targets"))?;
+        for (index, target) in targets.iter().enumerate() {
+            let locus = format!("targets[{index}]");
+            let target_output =
+                required_string_field(profile, target, "output", &locus)?.to_string();
+            outputs.push(ProfileDeclaredOutput::ProfileRelative(
+                target_output.clone(),
+            ));
+            for section in ["sitemap", "rss", "llms"] {
+                if let Some(section_value) = target.get(section) {
+                    let section_locus = format!("{locus}.{section}");
+                    let path =
+                        required_string_field(profile, section_value, "path", &section_locus)?;
+                    outputs.push(ProfileDeclaredOutput::TargetNested {
+                        target_output: target_output.clone(),
+                        path: path.to_string(),
+                    });
+                }
+            }
+            // `static.dir` is an input tree copied into the already validated
+            // target root; it is not itself an output root.
+        }
+    }
+    if let Some(editions) = value.get("editions") {
+        if !editions.is_object() {
+            return Err(profile_shape_error(profile, "non-object editions"));
+        }
+        for edition in ["ir", "rag", "context"] {
+            if let Some(section) = editions.get(edition) {
+                let locus = format!("editions.{edition}");
+                let output = required_string_field(profile, section, "output", &locus)?;
+                outputs.push(ProfileDeclaredOutput::ProfileRelative(output.to_string()));
+            }
+        }
+    }
+    Ok(outputs)
+}
+
+/// Inspect the declared output strings of an explicitly selected Boris
+/// publication profile. This is not target resolution: Capture Vector does
+/// not decide which targets Boris will execute, apply mode implications, or
+/// interpret publication semantics. Once `--profile` is present on an
+/// HTML-aware invocation, however, every declared output is potentially
+/// attacker-controlled output authority, so v1 validates the complete
+/// declared set conservatively. Boris 0.9.0's plain build without
+/// `--profile` uses its synthetic `default` target rather than boris.json.
+fn validate_profile_declared_outputs(
+    cfg: &EngineConfig,
+    name: &str,
+    args: &[String],
+) -> Result<()> {
+    if !matches!(name, "build" | "validate" | "watch" | "proof") {
+        return Ok(());
+    }
+    let Some(profile) = flag_value(args, "--profile") else {
+        return Ok(());
+    };
+    let profile_path = {
+        let path = Path::new(profile);
+        if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            cfg.root.join(path)
+        }
+    };
+    let bytes = std::fs::read(&profile_path).map_err(|e| {
+        EngineError::Refused(format!(
+            "publication profile {} cannot be read for output inspection: {e}",
+            profile_path.display()
+        ))
+    })?;
+    for output in declared_profile_outputs(&profile_path, &bytes)? {
+        let base = profile_path.parent().unwrap_or(&cfg.root);
+        match output {
+            ProfileDeclaredOutput::ProfileRelative(output) => {
+                validate_profile_output_at_base(cfg, base, &output, "profile target output")?;
+            }
+            ProfileDeclaredOutput::TargetNested {
+                target_output,
+                path,
+            } => {
+                let output = format!("{target_output}/{path}");
+                validate_profile_output_at_base(cfg, base, &output, "profile artifact output")?;
+            }
+        }
+    }
+    Ok(())
+}
+
 fn validate_verb_output_paths(cfg: &EngineConfig, verb: &Verb) -> Result<()> {
     if let Verb::Ir { out, input } = verb {
         let effective = output_cfg(cfg, input.as_deref())?;
@@ -358,6 +544,7 @@ fn validate_verb_output_paths(cfg: &EngineConfig, verb: &Verb) -> Result<()> {
             validate_custom_init_targets(cfg, args)?;
         }
         validate_custom_outputs(cfg, args)?;
+        validate_profile_declared_outputs(cfg, name, args)?;
         validate_default_html_output(cfg, name, args)?;
     }
     if matches!(verb, Verb::Build) {
