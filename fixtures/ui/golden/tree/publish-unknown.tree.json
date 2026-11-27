@@ -1826,7 +1826,7 @@
         1040.0,
         28.3,
         240.0,
-        626.8
+        651.5
       ],
       "role": "group"
     },
@@ -2094,17 +2094,29 @@
         1048.0,
         134.8,
         224.0,
-        13.8
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "field-base url-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-base url/field-base url-head",
+      "rect": [
+        1048.0,
+        134.8,
+        224.0,
+        16.0
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-base url/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-base url/field-base url-head/#0",
       "rect": [
         1048.0,
-        134.8,
+        135.9,
         72.0,
         13.8
       ],
@@ -2114,15 +2126,42 @@
     {
       "color": "#00d1ffff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-base url/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-base url/field-base url-head/#1",
       "rect": [
         1128.0,
-        134.8,
-        144.0,
+        135.9,
+        118.0,
         13.8
       ],
       "role": "link",
       "text": "https://example.test/"
+    },
+    {
+      "help": "Show the full base url value",
+      "key": "field-base url-expand",
+      "label": "Show the full base url value",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-base url/field-base url-head/field-base url-expand",
+      "radius": 4.0,
+      "rect": [
+        1254.0,
+        134.8,
+        18.0,
+        16.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-base url/field-base url-head/field-base url-expand/#0",
+      "rect": [
+        1258.0,
+        137.8,
+        10.0,
+        10.0
+      ],
+      "role": "icon"
     },
     {
       "key": "field-adapter",
@@ -2130,7 +2169,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-adapter",
       "rect": [
         1048.0,
-        152.5,
+        154.8,
         224.0,
         13.8
       ],
@@ -2142,7 +2181,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-adapter/#0",
       "rect": [
         1048.0,
-        152.5,
+        154.8,
         72.0,
         13.8
       ],
@@ -2155,7 +2194,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-adapter/#1",
       "rect": [
         1128.0,
-        152.5,
+        154.8,
         144.0,
         13.8
       ],
@@ -2168,19 +2207,31 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-destination",
       "rect": [
         1048.0,
-        170.3,
+        172.5,
         224.0,
-        13.8
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "field-destination-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-destination/field-destination-head",
+      "rect": [
+        1048.0,
+        172.5,
+        224.0,
+        16.0
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-destination/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-destination/field-destination-head/#0",
       "rect": [
         1048.0,
-        170.3,
+        173.6,
         72.0,
         13.8
       ],
@@ -2189,16 +2240,44 @@
     },
     {
       "color": "#00d1ffff",
+      "help": "https://relay.example.test/",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-destination/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-destination/field-destination-head/#1",
       "rect": [
         1128.0,
-        170.3,
-        144.0,
+        173.6,
+        118.0,
         13.8
       ],
       "role": "link",
       "text": "https://relay.example.test/"
+    },
+    {
+      "help": "Show the full destination value",
+      "key": "field-destination-expand",
+      "label": "Show the full destination value",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-destination/field-destination-head/field-destination-expand",
+      "radius": 4.0,
+      "rect": [
+        1254.0,
+        172.5,
+        18.0,
+        16.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-destination/field-destination-head/field-destination-expand/#0",
+      "rect": [
+        1258.0,
+        175.5,
+        10.0,
+        10.0
+      ],
+      "role": "icon"
     },
     {
       "key": "field-files",
@@ -2206,7 +2285,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-files",
       "rect": [
         1048.0,
-        188.0,
+        192.5,
         224.0,
         13.8
       ],
@@ -2218,7 +2297,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-files/#0",
       "rect": [
         1048.0,
-        188.0,
+        192.5,
         72.0,
         13.8
       ],
@@ -2231,7 +2310,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-files/#1",
       "rect": [
         1128.0,
-        188.0,
+        192.5,
         144.0,
         13.8
       ],
@@ -2244,7 +2323,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-bytes",
       "rect": [
         1048.0,
-        205.8,
+        210.3,
         224.0,
         13.8
       ],
@@ -2256,7 +2335,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-bytes/#0",
       "rect": [
         1048.0,
-        205.8,
+        210.3,
         72.0,
         13.8
       ],
@@ -2269,7 +2348,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-bytes/#1",
       "rect": [
         1128.0,
-        205.8,
+        210.3,
         144.0,
         13.8
       ],
@@ -2282,7 +2361,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-artifacts",
       "rect": [
         1048.0,
-        223.5,
+        228.0,
         224.0,
         13.8
       ],
@@ -2294,7 +2373,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-artifacts/#0",
       "rect": [
         1048.0,
-        223.5,
+        228.0,
         72.0,
         13.8
       ],
@@ -2307,7 +2386,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-artifacts/#1",
       "rect": [
         1128.0,
-        223.5,
+        228.0,
         144.0,
         13.8
       ],
@@ -2320,19 +2399,31 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-artifact set",
       "rect": [
         1048.0,
-        241.3,
+        245.8,
         224.0,
-        13.8
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "field-artifact set-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-artifact set/field-artifact set-head",
+      "rect": [
+        1048.0,
+        245.8,
+        224.0,
+        16.0
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-artifact set/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-artifact set/field-artifact set-head/#0",
       "rect": [
         1048.0,
-        241.3,
+        246.9,
         72.0,
         13.8
       ],
@@ -2343,15 +2434,42 @@
       "color": "#e6e9efff",
       "help": "60be5bf00f07b0e4214275803ac6bc69098fabce93d67bc688edc95afa4de25e",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-artifact set/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-artifact set/field-artifact set-head/#1",
       "rect": [
         1128.0,
-        241.3,
-        144.0,
+        246.9,
+        118.0,
         13.8
       ],
       "role": "text",
       "text": "60be5bf00f07b0e4214275803ac6bc69098fabce93d67bc688edc95afa4de25e"
+    },
+    {
+      "help": "Show the full artifact set value",
+      "key": "field-artifact set-expand",
+      "label": "Show the full artifact set value",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-artifact set/field-artifact set-head/field-artifact set-expand",
+      "radius": 4.0,
+      "rect": [
+        1254.0,
+        245.8,
+        18.0,
+        16.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-artifact set/field-artifact set-head/field-artifact set-expand/#0",
+      "rect": [
+        1258.0,
+        248.8,
+        10.0,
+        10.0
+      ],
+      "role": "icon"
     },
     {
       "key": "field-graph",
@@ -2359,19 +2477,31 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-graph",
       "rect": [
         1048.0,
-        259.0,
+        265.8,
         224.0,
-        13.8
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "field-graph-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-graph/field-graph-head",
+      "rect": [
+        1048.0,
+        265.8,
+        224.0,
+        16.0
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-graph/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-graph/field-graph-head/#0",
       "rect": [
         1048.0,
-        259.0,
+        266.9,
         72.0,
         13.8
       ],
@@ -2382,15 +2512,42 @@
       "color": "#e6e9efff",
       "help": "d1020957f0580499d98c5ed096777c2c3cd1c4e92569288cc60f81dcfba580f5",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-graph/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-graph/field-graph-head/#1",
       "rect": [
         1128.0,
-        259.0,
-        144.0,
+        266.9,
+        118.0,
         13.8
       ],
       "role": "text",
       "text": "d1020957f0580499d98c5ed096777c2c3cd1c4e92569288cc60f81dcfba580f5"
+    },
+    {
+      "help": "Show the full graph value",
+      "key": "field-graph-expand",
+      "label": "Show the full graph value",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-graph/field-graph-head/field-graph-expand",
+      "radius": 4.0,
+      "rect": [
+        1254.0,
+        265.8,
+        18.0,
+        16.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-graph/field-graph-head/field-graph-expand/#0",
+      "rect": [
+        1258.0,
+        268.8,
+        10.0,
+        10.0
+      ],
+      "role": "icon"
     },
     {
       "key": "field-plan",
@@ -2398,19 +2555,31 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-plan",
       "rect": [
         1048.0,
-        276.8,
+        285.8,
         224.0,
-        13.8
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "field-plan-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-plan/field-plan-head",
+      "rect": [
+        1048.0,
+        285.8,
+        224.0,
+        16.0
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-plan/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-plan/field-plan-head/#0",
       "rect": [
         1048.0,
-        276.8,
+        286.9,
         72.0,
         13.8
       ],
@@ -2421,15 +2590,42 @@
       "color": "#e6e9efff",
       "help": "259eebde62b1a2edd3d7dce4fa6473056a9635080e24310eed07f8500b442460",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-plan/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-plan/field-plan-head/#1",
       "rect": [
         1128.0,
-        276.8,
-        144.0,
+        286.9,
+        118.0,
         13.8
       ],
       "role": "text",
       "text": "259eebde62b1a2edd3d7dce4fa6473056a9635080e24310eed07f8500b442460"
+    },
+    {
+      "help": "Show the full plan value",
+      "key": "field-plan-expand",
+      "label": "Show the full plan value",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-plan/field-plan-head/field-plan-expand",
+      "radius": 4.0,
+      "rect": [
+        1254.0,
+        285.8,
+        18.0,
+        16.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-plan/field-plan-head/field-plan-expand/#0",
+      "rect": [
+        1258.0,
+        288.8,
+        10.0,
+        10.0
+      ],
+      "role": "icon"
     },
     {
       "key": "field-target cfg",
@@ -2437,19 +2633,31 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-target cfg",
       "rect": [
         1048.0,
-        294.5,
+        305.8,
         224.0,
-        13.8
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "field-target cfg-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-target cfg/field-target cfg-head",
+      "rect": [
+        1048.0,
+        305.8,
+        224.0,
+        16.0
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-target cfg/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-target cfg/field-target cfg-head/#0",
       "rect": [
         1048.0,
-        294.5,
+        306.9,
         72.0,
         13.8
       ],
@@ -2460,15 +2668,42 @@
       "color": "#e6e9efff",
       "help": "3aa5433a6e85d2ee42c179fef5f4285241180fd7684646823571a04074d44f30",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-target cfg/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-target cfg/field-target cfg-head/#1",
       "rect": [
         1128.0,
-        294.5,
-        144.0,
+        306.9,
+        118.0,
         13.8
       ],
       "role": "text",
       "text": "3aa5433a6e85d2ee42c179fef5f4285241180fd7684646823571a04074d44f30"
+    },
+    {
+      "help": "Show the full target cfg value",
+      "key": "field-target cfg-expand",
+      "label": "Show the full target cfg value",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-target cfg/field-target cfg-head/field-target cfg-expand",
+      "radius": 4.0,
+      "rect": [
+        1254.0,
+        305.8,
+        18.0,
+        16.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-target cfg/field-target cfg-head/field-target cfg-expand/#0",
+      "rect": [
+        1258.0,
+        308.8,
+        10.0,
+        10.0
+      ],
+      "role": "icon"
     },
     {
       "key": "field-ruleset",
@@ -2476,19 +2711,31 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ruleset",
       "rect": [
         1048.0,
-        312.3,
+        325.8,
         224.0,
-        13.8
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "field-ruleset-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ruleset/field-ruleset-head",
+      "rect": [
+        1048.0,
+        325.8,
+        224.0,
+        16.0
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ruleset/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ruleset/field-ruleset-head/#0",
       "rect": [
         1048.0,
-        312.3,
+        326.9,
         72.0,
         13.8
       ],
@@ -2499,15 +2746,42 @@
       "color": "#e6e9efff",
       "help": "5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ruleset/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ruleset/field-ruleset-head/#1",
       "rect": [
         1128.0,
-        312.3,
-        144.0,
+        326.9,
+        118.0,
         13.8
       ],
       "role": "text",
       "text": "5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c"
+    },
+    {
+      "help": "Show the full ruleset value",
+      "key": "field-ruleset-expand",
+      "label": "Show the full ruleset value",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ruleset/field-ruleset-head/field-ruleset-expand",
+      "radius": 4.0,
+      "rect": [
+        1254.0,
+        325.8,
+        18.0,
+        16.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ruleset/field-ruleset-head/field-ruleset-expand/#0",
+      "rect": [
+        1258.0,
+        328.8,
+        10.0,
+        10.0
+      ],
+      "role": "icon"
     },
     {
       "key": "field-boris",
@@ -2515,7 +2789,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-boris",
       "rect": [
         1048.0,
-        330.0,
+        345.8,
         224.0,
         13.8
       ],
@@ -2527,7 +2801,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-boris/#0",
       "rect": [
         1048.0,
-        330.0,
+        345.8,
         72.0,
         13.8
       ],
@@ -2540,7 +2814,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-boris/#1",
       "rect": [
         1128.0,
-        330.0,
+        345.8,
         144.0,
         13.8
       ],
@@ -2553,7 +2827,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-approved",
       "rect": [
         1048.0,
-        347.8,
+        363.5,
         224.0,
         13.8
       ],
@@ -2565,7 +2839,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-approved/#0",
       "rect": [
         1048.0,
-        347.8,
+        363.5,
         72.0,
         13.8
       ],
@@ -2578,7 +2852,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-approved/#1",
       "rect": [
         1128.0,
-        347.8,
+        363.5,
         144.0,
         13.8
       ],
@@ -2591,19 +2865,31 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ledger",
       "rect": [
         1048.0,
-        365.5,
+        381.3,
         224.0,
-        13.8
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "field-ledger-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ledger/field-ledger-head",
+      "rect": [
+        1048.0,
+        381.3,
+        224.0,
+        16.0
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ledger/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ledger/field-ledger-head/#0",
       "rect": [
         1048.0,
-        365.5,
+        382.4,
         72.0,
         13.8
       ],
@@ -2613,15 +2899,42 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ledger/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ledger/field-ledger-head/#1",
       "rect": [
         1128.0,
-        365.5,
-        144.0,
+        382.4,
+        118.0,
         13.8
       ],
       "role": "text",
       "text": ".cv/ledger/ledger.jsonl"
+    },
+    {
+      "help": "Show the full ledger value",
+      "key": "field-ledger-expand",
+      "label": "Show the full ledger value",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ledger/field-ledger-head/field-ledger-expand",
+      "radius": 4.0,
+      "rect": [
+        1254.0,
+        381.3,
+        18.0,
+        16.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ledger/field-ledger-head/field-ledger-expand/#0",
+      "rect": [
+        1258.0,
+        384.3,
+        10.0,
+        10.0
+      ],
+      "role": "icon"
     },
     {
       "key": "list-0",
@@ -2630,7 +2943,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0",
       "rect": [
         1048.0,
-        391.3,
+        409.3,
         224.0,
         15.0
       ],
@@ -2642,7 +2955,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/#0",
       "rect": [
         1048.0,
-        392.8,
+        410.8,
         12.0,
         12.0
       ],
@@ -2654,7 +2967,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/#1",
       "rect": [
         1064.0,
-        391.3,
+        409.3,
         42.1,
         15.0
       ],
@@ -2669,7 +2982,7 @@
       "radius": 999.0,
       "rect": [
         1110.1,
-        391.9,
+        409.9,
         18.8,
         13.8
       ],
@@ -2681,7 +2994,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/list-0-count/#0",
       "rect": [
         1116.1,
-        391.9,
+        409.9,
         6.8,
         13.8
       ],
@@ -2695,7 +3008,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0-0",
       "rect": [
         1048.0,
-        410.3,
+        428.3,
         224.0,
         13.8
       ],
@@ -2709,7 +3022,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0-1",
       "rect": [
         1048.0,
-        428.0,
+        446.0,
         224.0,
         13.8
       ],
@@ -2723,7 +3036,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1",
       "rect": [
         1048.0,
-        453.8,
+        471.8,
         224.0,
         15.0
       ],
@@ -2735,7 +3048,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1/#0",
       "rect": [
         1048.0,
-        455.3,
+        473.3,
         12.0,
         12.0
       ],
@@ -2747,7 +3060,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1/#1",
       "rect": [
         1064.0,
-        453.8,
+        471.8,
         44.6,
         15.0
       ],
@@ -2762,7 +3075,7 @@
       "radius": 999.0,
       "rect": [
         1112.6,
-        454.4,
+        472.4,
         19.1,
         13.8
       ],
@@ -2774,7 +3087,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1/list-1-count/#0",
       "rect": [
         1118.6,
-        454.4,
+        472.4,
         7.1,
         13.8
       ],
@@ -2788,7 +3101,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-2",
       "rect": [
         1048.0,
-        480.8,
+        498.8,
         224.0,
         15.0
       ],
@@ -2800,7 +3113,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-2/#0",
       "rect": [
         1048.0,
-        482.3,
+        500.3,
         12.0,
         12.0
       ],
@@ -2812,7 +3125,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-2/#1",
       "rect": [
         1064.0,
-        480.8,
+        498.8,
         57.6,
         15.0
       ],
@@ -2827,7 +3140,7 @@
       "radius": 999.0,
       "rect": [
         1125.6,
-        481.4,
+        499.4,
         16.6,
         13.8
       ],
@@ -2839,7 +3152,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-2/list-2-count/#0",
       "rect": [
         1131.6,
-        481.4,
+        499.4,
         4.6,
         13.8
       ],
@@ -2853,7 +3166,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-2-0",
       "rect": [
         1048.0,
-        499.8,
+        517.8,
         224.0,
         13.8
       ],
@@ -2867,7 +3180,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-3",
       "rect": [
         1048.0,
-        525.5,
+        543.5,
         224.0,
         15.0
       ],
@@ -2879,7 +3192,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-3/#0",
       "rect": [
         1048.0,
-        527.0,
+        545.0,
         12.0,
         12.0
       ],
@@ -2891,7 +3204,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-3/#1",
       "rect": [
         1064.0,
-        525.5,
+        543.5,
         95.3,
         15.0
       ],
@@ -2906,7 +3219,7 @@
       "radius": 999.0,
       "rect": [
         1163.3,
-        526.1,
+        544.1,
         18.9,
         13.8
       ],
@@ -2918,7 +3231,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-3/list-3-count/#0",
       "rect": [
         1169.3,
-        526.1,
+        544.1,
         6.9,
         13.8
       ],
@@ -2932,7 +3245,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-3-0",
       "rect": [
         1048.0,
-        544.5,
+        562.5,
         224.0,
         13.8
       ],
@@ -2946,7 +3259,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-3-1",
       "rect": [
         1048.0,
-        562.3,
+        580.3,
         224.0,
         13.8
       ],
@@ -2960,7 +3273,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-3-2",
       "rect": [
         1048.0,
-        580.0,
+        598.0,
         224.0,
         13.8
       ],
@@ -2968,49 +3281,163 @@
       "text": "rendered-search: passed"
     },
     {
-      "color": "#e6e9efff",
-      "help": "committed-artifacts-match-inventory: verified",
       "key": "list-3-3",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-3-3",
       "rect": [
         1048.0,
-        597.8,
+        615.8,
         224.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "committed-artifacts-match-inventory: verified",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-3-3/#0",
+      "rect": [
+        1048.0,
+        615.8,
+        202.0,
         13.8
       ],
       "role": "text",
       "text": "committed-artifacts-match-inventory: verified"
     },
     {
-      "color": "#e6e9efff",
-      "help": "rendered-html-passed-declared-audit: verified",
+      "help": "Show the full value",
+      "key": "list-3-3-expand",
+      "label": "Show the full value",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-3-3/list-3-3-expand",
+      "radius": 4.0,
+      "rect": [
+        1254.0,
+        615.8,
+        18.0,
+        16.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-3-3/list-3-3-expand/#0",
+      "rect": [
+        1258.0,
+        618.8,
+        10.0,
+        10.0
+      ],
+      "role": "icon"
+    },
+    {
       "key": "list-3-4",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-3-4",
       "rect": [
         1048.0,
-        615.5,
+        635.8,
         224.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "rendered-html-passed-declared-audit: verified",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-3-4/#0",
+      "rect": [
+        1048.0,
+        635.8,
+        202.0,
         13.8
       ],
       "role": "text",
       "text": "rendered-html-passed-declared-audit: verified"
     },
     {
-      "color": "#e6e9efff",
-      "help": "rendered-search-matches-selected-html: verified",
+      "help": "Show the full value",
+      "key": "list-3-4-expand",
+      "label": "Show the full value",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-3-4/list-3-4-expand",
+      "radius": 4.0,
+      "rect": [
+        1254.0,
+        635.8,
+        18.0,
+        16.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-3-4/list-3-4-expand/#0",
+      "rect": [
+        1258.0,
+        638.8,
+        10.0,
+        10.0
+      ],
+      "role": "icon"
+    },
+    {
       "key": "list-3-5",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-3-5",
       "rect": [
         1048.0,
-        633.3,
+        655.8,
         224.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "rendered-search-matches-selected-html: verified",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-3-5/#0",
+      "rect": [
+        1048.0,
+        655.8,
+        202.0,
         13.8
       ],
       "role": "text",
       "text": "rendered-search-matches-selected-html: verified"
+    },
+    {
+      "help": "Show the full value",
+      "key": "list-3-5-expand",
+      "label": "Show the full value",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-3-5/list-3-5-expand",
+      "radius": 4.0,
+      "rect": [
+        1254.0,
+        655.8,
+        18.0,
+        16.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-3-5/list-3-5-expand/#0",
+      "rect": [
+        1258.0,
+        658.8,
+        10.0,
+        10.0
+      ],
+      "role": "icon"
     },
     {
       "fill": "#08090cff",

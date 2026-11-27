@@ -1080,7 +1080,7 @@
         1040.0,
         28.3,
         240.0,
-        134.0
+        138.5
       ],
       "role": "group"
     },
@@ -1092,17 +1092,29 @@
         1048.0,
         28.3,
         224.0,
-        13.8
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "field-page-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-page/field-page-head",
+      "rect": [
+        1048.0,
+        28.3,
+        224.0,
+        16.0
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-page/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-page/field-page-head/#0",
       "rect": [
         1048.0,
-        28.3,
+        29.4,
         72.0,
         13.8
       ],
@@ -1112,15 +1124,42 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-page/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-page/field-page-head/#1",
       "rect": [
         1128.0,
-        28.3,
-        144.0,
+        29.4,
+        118.0,
         13.8
       ],
       "role": "text",
       "text": "guides/getting-started"
+    },
+    {
+      "help": "Show the full page value",
+      "key": "field-page-expand",
+      "label": "Show the full page value",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-page/field-page-head/field-page-expand",
+      "radius": 4.0,
+      "rect": [
+        1254.0,
+        28.3,
+        18.0,
+        16.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-page/field-page-head/field-page-expand/#0",
+      "rect": [
+        1258.0,
+        31.3,
+        10.0,
+        10.0
+      ],
+      "role": "icon"
     },
     {
       "key": "field-command",
@@ -1128,19 +1167,31 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-command",
       "rect": [
         1048.0,
-        46.0,
+        48.3,
         224.0,
-        13.8
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "field-command-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-command/field-command-head",
+      "rect": [
+        1048.0,
+        48.3,
+        224.0,
+        16.0
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-command/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-command/field-command-head/#0",
       "rect": [
         1048.0,
-        46.0,
+        49.4,
         72.0,
         13.8
       ],
@@ -1151,15 +1202,42 @@
       "color": "#e6e9efff",
       "help": "boris impact guides/getting-started --format json",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-command/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-command/field-command-head/#1",
       "rect": [
         1128.0,
-        46.0,
-        144.0,
+        49.4,
+        118.0,
         13.8
       ],
       "role": "text",
       "text": "boris impact guides/getting-started --format json"
+    },
+    {
+      "help": "Show the full command value",
+      "key": "field-command-expand",
+      "label": "Show the full command value",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-command/field-command-head/field-command-expand",
+      "radius": 4.0,
+      "rect": [
+        1254.0,
+        48.3,
+        18.0,
+        16.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-command/field-command-head/field-command-expand/#0",
+      "rect": [
+        1258.0,
+        51.3,
+        10.0,
+        10.0
+      ],
+      "role": "icon"
     },
     {
       "key": "list-0",
@@ -1168,7 +1246,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0",
       "rect": [
         1048.0,
-        71.8,
+        76.3,
         224.0,
         15.0
       ],
@@ -1180,7 +1258,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/#0",
       "rect": [
         1048.0,
-        73.3,
+        77.8,
         12.0,
         12.0
       ],
@@ -1192,7 +1270,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/#1",
       "rect": [
         1064.0,
-        71.8,
+        76.3,
         54.3,
         15.0
       ],
@@ -1207,7 +1285,7 @@
       "radius": 999.0,
       "rect": [
         1122.3,
-        72.4,
+        76.9,
         18.8,
         13.8
       ],
@@ -1219,7 +1297,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/list-0-count/#0",
       "rect": [
         1128.3,
-        72.4,
+        76.9,
         6.8,
         13.8
       ],
@@ -1233,7 +1311,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0-0",
       "rect": [
         1048.0,
-        90.8,
+        95.3,
         224.0,
         13.8
       ],
@@ -1247,7 +1325,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0-1",
       "rect": [
         1048.0,
-        108.5,
+        113.0,
         224.0,
         13.8
       ],
@@ -1263,7 +1341,7 @@
       "radius": 4.0,
       "rect": [
         1048.0,
-        134.3,
+        138.8,
         224.0,
         20.0
       ],
@@ -1286,7 +1364,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/follow-link/label",
       "rect": [
         1131.2,
-        138.3,
+        142.8,
         57.7,
         12.0
       ],
