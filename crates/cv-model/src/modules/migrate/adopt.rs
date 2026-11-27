@@ -88,7 +88,7 @@ impl MigrateModule {
                     DialogKind::Form(vec![
                         Field::text("subfolder", "Content subfolder", "")
                             .placeholder("imported/site")
-                            .hint("The candidate tree is copied below content/<subfolder>; existing paths or page ids refuse the whole merge before anything is written."),
+                            .hint("The candidate tree is copied into <subfolder> inside the workspace content input; existing paths or page ids refuse the whole merge before anything is written."),
                     ]),
                 )
                 .body("Choose a new subfolder inside this workspace's content input. Nothing is overwritten silently.")

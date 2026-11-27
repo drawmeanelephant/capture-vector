@@ -276,7 +276,7 @@ pub struct PlannedFile {
     pub source: PathBuf,
     /// Workspace-relative staged-write target, `/`-separated.
     pub target: String,
-    /// Page path relative to the content input (no `content/` prefix).
+    /// Page path relative to the content input (no input prefix).
     pub display: String,
 }
 
@@ -286,13 +286,13 @@ pub struct PlannedFile {
 pub fn subfolder(raw: &str) -> Result<String, AdoptError> {
     if raw.starts_with(['/', '\\']) || raw.trim_start() != raw {
         return Err(AdoptError::Subfolder(
-            "the subfolder must be relative to content/, not absolute".into(),
+            "the subfolder must be relative to the content input, not absolute".into(),
         ));
     }
     let s = raw.trim_end_matches('/');
     if s.is_empty() {
         return Err(AdoptError::Subfolder(
-            "choose a subfolder below content/".into(),
+            "choose a subfolder inside the content input".into(),
         ));
     }
     portable_relative(s).map_err(|_| {
