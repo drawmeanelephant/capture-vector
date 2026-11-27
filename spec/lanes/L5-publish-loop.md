@@ -33,8 +33,10 @@
 5. **Ship-the-outputs pass**: after a successful run, machine exports
    (sitemap, RSS, llms.txt, context/RAG) confirmed present+fresh in
    evidence — "always publishing back" enforced.
-6. **Delivery adapters** (extension point): copy-to-folder,
-   run-command, HTTP POST — IndexNow-class adapters slot here.
+6. **Delivery adapters**: v1 ships `copy-to-folder` only. Run-command
+   and HTTP POST remain extension points; IndexNow, webhook, and sitemap
+   ping are post-v1. Sitemap ping needs a live-consumer verification plan
+   because Google's classic endpoint is deprecated.
 7. **Secrets**: keychain (mock for CI), stdin channel only; canary test
    proves no secret in logs/events/docs.
 8. **Publish module**: nav = targets + runs; list = runs/steps;
