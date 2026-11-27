@@ -8,9 +8,9 @@
 //! an interrupted attempt converges instead of overwriting user edits.
 
 use super::{
-    AdoptError, AdoptionSource, ExpectedWorkspaceInstance, IdentityCheckPhase, TxReport,
-    content_input_authority, content_input_target_authority, copy_provenance, record_adoption,
-    revalidate_workspace_instance,
+    AdoptError, AdoptionSource, ExpectedWorkspaceInstance, IdentityCheckPhase, RecordAdoptionInput,
+    TxReport, content_input_authority, content_input_target_authority, copy_provenance,
+    record_adoption, revalidate_workspace_instance,
 };
 use crate::write;
 use cv_contracts::lab::{
@@ -31,6 +31,8 @@ pub struct AssetFilenameTransaction<'a> {
     pub at_ms: i64,
     pub expected_instance: &'a ExpectedWorkspaceInstance,
 }
+
+type WorkspaceFileState = (String, u64, Fingerprint, Vec<u8>);
 
 #[derive(Debug)]
 struct Evidence {
@@ -115,10 +117,7 @@ fn read_workspace_file(
     Ok(Some((bytes, fp)))
 }
 
-fn file_state(
-    root: &Path,
-    rel: &str,
-) -> Result<Option<(String, u64, Fingerprint, Vec<u8>)>, AdoptError> {
+fn file_state(root: &Path, rel: &str) -> Result<Option<WorkspaceFileState>, AdoptError> {
     Ok(read_workspace_file(root, rel)?.map(|(bytes, fp)| {
         let len = bytes.len() as u64;
         (fp_hex(fp), len, fp, bytes)
@@ -758,16 +757,16 @@ pub fn transact_existing_with_identity(
             execute_operations(tx.target_root, input, &operations, &meta)?;
         let provenance_copied = copy_provenance(tx.src, tx.target_root, &lock)?;
         let rows = provenance(&evidence, &meta, input, &outcomes);
-        record_adoption(
-            tx.src,
-            tx.target_root,
-            &lock,
-            tx.at_ms,
-            "existing",
-            None,
-            &[],
-            rows,
-        )?;
+        record_adoption(RecordAdoptionInput {
+            src: tx.src,
+            target_root: tx.target_root,
+            lock: &lock,
+            at_ms: tx.at_ms,
+            target_kind: "existing",
+            subfolder_name: None,
+            planned: &[],
+            asset_operations: rows,
+        })?;
         Ok::<_, AdoptError>((written, resumed, provenance_copied))
     })();
     let (written, resumed, provenance_copied) = match copied {

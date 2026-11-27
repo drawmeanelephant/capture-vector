@@ -1,16 +1,28 @@
 use super::*;
 
+pub struct RecordAdoptionInput<'a> {
+    pub src: &'a AdoptionSource,
+    pub target_root: &'a Path,
+    pub lock: &'a store::RunLock,
+    pub at_ms: i64,
+    pub target_kind: &'a str,
+    pub subfolder_name: Option<&'a str>,
+    pub planned: &'a [PlannedFile],
+    pub asset_operations: Vec<store::AssetOperationProvenance>,
+}
+
 /// Write the page-level adoption sidecar and mark the run adopted.
-pub fn record_adoption(
-    src: &AdoptionSource,
-    target_root: &Path,
-    lock: &store::RunLock,
-    at_ms: i64,
-    target_kind: &str,
-    subfolder_name: Option<&str>,
-    planned: &[PlannedFile],
-    asset_operations: Vec<store::AssetOperationProvenance>,
-) -> Result<(), AdoptError> {
+pub fn record_adoption(input: RecordAdoptionInput<'_>) -> Result<(), AdoptError> {
+    let RecordAdoptionInput {
+        src,
+        target_root,
+        lock,
+        at_ms,
+        target_kind,
+        subfolder_name,
+        planned,
+        asset_operations,
+    } = input;
     let workspace = target_root.display().to_string();
     let mut rec = AdoptionRecord::new(&src.run_id, &src.mode, at_ms, &workspace, target_kind);
     rec.content_subfolder = subfolder_name.map(str::to_string);

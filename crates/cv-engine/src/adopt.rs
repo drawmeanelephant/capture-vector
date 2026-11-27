@@ -350,7 +350,7 @@ mod record;
 use input_authority::{content_input_authority, content_input_target_authority};
 pub use preflight::{Collision, CollisionKind, collisions, copy_content};
 use preflight::{bytes_identical, incoming_id_collisions, preflight_write_target_shapes};
-pub use record::record_adoption;
+pub use record::{RecordAdoptionInput, record_adoption};
 
 /// Byte evidence of every file currently inside the content input,
 /// keyed by workspace-relative target — the starter manifest recorded
@@ -1104,16 +1104,16 @@ fn transact_impl(params: TxParams<'_>) -> Result<TxReport, AdoptError> {
             workspace_mutation_lock.as_ref(),
         )?;
     }
-    record_adoption(
+    record_adoption(RecordAdoptionInput {
         src,
         target_root,
-        &lock,
+        lock: &lock,
         at_ms,
         target_kind,
-        subfolder_name.as_deref(),
-        &planned,
-        Vec::new(),
-    )?;
+        subfolder_name: subfolder_name.as_deref(),
+        planned: &planned,
+        asset_operations: Vec::new(),
+    })?;
     store::clear_pending(&lock)?;
     // Final ownership check immediately before success is reported. The
     // earlier post-content check preserves the recovery journal in the
