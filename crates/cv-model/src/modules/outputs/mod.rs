@@ -135,6 +135,7 @@ impl Module for OutputsModule {
             target: snap.target.clone(),
             pages: Vec::new(),
             outputs: snap.outputs.clone(),
+            ir_graph: None,
             last_publish: snap.last_publish.clone(),
             artifact_root: snap.artifact_root.clone(),
         };

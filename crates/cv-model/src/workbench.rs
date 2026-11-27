@@ -574,7 +574,7 @@ impl Workbench {
     /// Fan a project snapshot out to every module (snapshot resync).
     pub fn load_snapshot(&mut self, snap: &ProjectSnapshot) -> bool {
         self.app.snapshot_epoch = snap.epoch;
-        let mut changed = false;
+        let mut changed = self.app.graph.update(snap.ir_graph.clone()).changed;
         for m in self.registry.iter_mut() {
             changed |= m.load(snap);
         }

@@ -186,6 +186,20 @@ fn quoted_scalars_display_as_boris_reports_them() {
 }
 
 #[test]
+fn workspace_snapshot_shares_the_frozen_ir_graph_it_projects() {
+    let ws = captured_workspace("quoted-scalars", ".cv/ir/graph.json");
+    let snap = workspace_snapshot(ws.path(), "dist", None, 1);
+    let graph = snap
+        .ir_graph
+        .as_ref()
+        .expect("IR graph is retained in memory");
+    assert_eq!(graph.schema_version, "0.3.0");
+    assert_eq!(graph.nodes.len(), 2);
+    assert_eq!(graph.relations.len(), 1);
+    assert_eq!(graph.relations[0].kind, "relates_to");
+}
+
+#[test]
 fn an_ir_graph_beside_the_html_dir_is_read_too() {
     let ws = captured_workspace("quoted-scalars", "dist/graph.json");
     let snap = workspace_snapshot(ws.path(), "dist", None, 1);

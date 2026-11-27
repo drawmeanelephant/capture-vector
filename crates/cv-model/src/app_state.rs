@@ -1,6 +1,7 @@
 //! Per-lane state slices. Additive by design — a lane's slice lives in
 //! `modules/<lane>/`, the shell never matches on module identity.
 
+use crate::graph::GraphNavIndex;
 use cv_core::events::shell::DegradedReason;
 use cv_core::id::Selection;
 use serde::{Deserialize, Serialize};
@@ -12,6 +13,10 @@ pub struct AppState {
     pub selection: Selection,
     /// Current snapshot epoch — bumped on IR resync.
     pub snapshot_epoch: u64,
+    /// Indexed navigation projection of the snapshot's frozen Boris IR
+    /// graph. It is snapshot-derived state, never serialized into shell state.
+    #[serde(skip)]
+    pub graph: GraphNavIndex,
     /// Disclosed degraded runtime state, if any. Latest wins.
     pub degraded: Option<DegradedReason>,
     /// Engine identity from the watch `hello` handshake.
