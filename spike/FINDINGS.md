@@ -32,26 +32,33 @@ Vendored forks required at `<rune>/vendor/`: `parley_engine`, `winit`, `wgpu-hal
 block. `xtask` should own the pin (clone/checkout at `MANIFEST.toml`'s rev) so
 lanes and CI don't each improvise the checkout.
 
-## NOT YET PROVEN
+## CURRENT PLATFORM EVIDENCE
 
-- `rune_kit::markdown::Markdown` — **PROVEN 2026-11-23 (Linux)**, see below.
-- Multi-window — **PROVEN on macOS (2026-11-23) and Linux (2026-11-24)**,
-  using real native windows. See both results below.
-- IME composition — **US dead-key native path proven on macOS (2026-11-23)**
-  and **full ibus/anthy composition proven on Linux X11 (2026-11-24)**; see
-  below. One macOS Japanese conversion was observed; candidate placement,
-  broader replay and all of Windows remain unproven.
-- Windows/Linux — all results above are macOS-only. Nothing here can be claimed
-  for the other two OSes until run there.
-- `TextEdit::rich` decorations — rune-edit compiles with `typing_tests`; a typed
-  probe wasn't written.
-- `rune-ref` — **PROBED 2026-11-23 (Linux)**: works headless and reproducibly, but is
-  not a drop-in Lavapipe replacement. See below.
+Proven and recorded below:
 
-IME: the macOS US dead-key path is proven below (issue #26), and the
-Linux ibus/anthy path further down; Windows still needs a real OS input
-method. Windows native multi-window behavior remains unproven.
-The Linux real-window results below remain separate evidence.
+- `rune_kit::markdown::Markdown` — **PROVEN 2026-11-23 (Linux)**.
+- Multi-window — **PROVEN on macOS (2026-11-23) and Linux X11
+  (2026-11-24)** using real native windows.
+- IME composition — **US dead-key native path proven on macOS
+  (2026-11-23)** and **ibus/anthy composition proven on Linux X11
+  (2026-11-24)**.
+- `rune-ref` — **PROBED 2026-11-23 (Linux)**: headless and reproducible,
+  but not a drop-in Lavapipe replacement.
+- Migration adoption GUI/copy/provenance path — **PROVEN for one scripted
+  native Linux X11/llvmpipe pass (2026-11-27)** using real pinned
+  `boris/0.9.0` and `boris-migration-lab/0.8.1`; see the dated entry at
+  the end of this file.
+
+Still unproven or narrow:
+
+- Windows native multi-window behavior, IME composition, and dirty-close
+  behavior.
+- macOS broader Japanese input replay and candidate-window placement.
+- `TextEdit::rich` decorations — rune-edit compiles with `typing_tests`;
+  no typed probe has been written.
+- Linux beyond the recorded X11 evidence: Wayland, hardware-GPU diversity,
+  distribution differences, native portal dialogs, and physical-machine
+  behavior. Linux evidence is real, but it is not yet a support matrix.
 
 ## 2026-11-23 — issue #26 macOS native probes
 
@@ -289,3 +296,41 @@ support. Fixtures re-captured: same exit matrix, watch hello now
 `"compiler":"boris/0.9.0"`. oliver 1.3.0 verified installed. Rust floor
 1.99.1; Lavapipe = canonical PNG rasterizer; signature-graph (nostr/
 atproto signing surface) approved — secrets stdin-only per spec.
+
+## 2026-11-27 — Linux run-through of merged PR #210
+
+Environment: Ubuntu 22.04.5 x86_64 cloud VM, KDE on X11 through TigerVNC,
+llvmpipe CPU Vulkan, no hardware GPU; rustc/cargo 1.99.1; zig 0.17.0 for
+the pinned engines. Tested revision: `main` at
+`f06a4ac25b653b9e67bbee74fab812ee86d03a4f` (the PR #210 merge). This is
+real Linux evidence, but it is still one narrow environment rather than a
+Wayland/hardware-GPU/distribution/physical-machine matrix.
+
+Passed locally:
+
+- `cargo build --workspace` with the vendored rune pin.
+- `./scripts/check-ui-png.sh`; every captured scene diff was below the
+  canonical Lavapipe tolerance.
+- Ignored live engine tests with real pinned binaries:
+  `live_smoke` 1/1 using locally built `boris/0.9.0` (vcs `66efcfb5`),
+  and `lab_live` 4/4 using locally built `boris-migration-lab/0.8.1`.
+  The lab emit-output matrix was accepted or honestly refused by pinned
+  Boris exactly as the test expects.
+- A scripted native Linux GUI migration-adoption pass using only the real
+  pinned tools. The lab generated a finished Hugo emit run; the actual
+  `cv-app` window adopted it into an existing workspace below
+  `content/pinned/site`; the UI reported `validate ok, build ok`; the real
+  Boris build populated `dist/`; 12/12 adopted Markdown files were
+  byte-identical to the generated candidate files; adoption metadata,
+  receipts, and provenance stayed under `.cv/imports/1795789013209-hugo/`;
+  no provenance-like keys were written into adopted Markdown frontmatter.
+- All four currently open adoption UX issues reproduced in Linux GUI use:
+  #216 (selection does not enable adoption until **Reload import runs**),
+  #217 (subfolder placeholder is not an actual default), #218 (long
+  inspector values clip), and #219 (completion feedback emphasizes the
+  validate/build/watch gate more than what was adopted and where).
+
+Limits of this evidence: no Wayland session, hardware GPU, distribution
+matrix, native portal chooser, physical machine, screen reader, or full
+Linux desktop CI runner was exercised. The complete issue #90 interaction
+capture matrix was not finished, so it is not claimed here.

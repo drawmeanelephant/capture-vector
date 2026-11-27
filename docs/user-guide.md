@@ -49,6 +49,30 @@ need the pinned engine. Discovery order is `CV_BORIS_BIN`, bundled engine,
 `PATH`, then an explicitly opted-in sibling checkout. Version mismatch is
 a hard disclosure, not a warning to patch around.
 
+## Migration imports and adoption
+
+The Migrate module reads import runs from `.cv/imports/` and can start new
+runs when the pinned `boris-migration-lab` is installed. Inventory-only
+runs are evidence, not adoptable content. A successfully finished emit run
+can be adopted in two ways:
+
+- **New workspace** — create a workspace from the candidate tree;
+- **Existing workspace** — copy the candidate tree below a new
+  `content/<subfolder>` you type in the adoption form.
+
+Adoption keeps provenance under `.cv/imports/<run-id>/`; it never writes
+Capture Vector provenance into Boris frontmatter. Existing-workspace
+adoption preflights path and page-id collisions before writing and refuses
+the whole merge rather than overwriting. After the content converges,
+Capture Vector runs the pinned engine's validate/build gate before
+resuming watch.
+
+Current rough edges are visible in the UI rather than hidden: selecting a
+run may require **Reload import runs** before **Adopt run…** enables
+(issue #216), the subfolder placeholder is not a typed default (#217),
+long inspector values can clip (#218), and the completion toast emphasizes
+the engine gate more than the adopted content summary (#219).
+
 ## The shell
 
 The shell follows an Outlook-style arrangement:
@@ -170,10 +194,14 @@ only canonical on the Linux Lavapipe configuration.
 ## Platform status
 
 - macOS is the primary development platform.
-- Linux has real-window evidence. A bundled fallback covers common
-  Japanese, Chinese and Korean text, but not U+9FA6..U+9FFF, nearly all
-  CJK Extension A, any Extension B, some kana, or regional `locl` glyph
-  variants; those gaps and GPU behavior still have open edges.
+- Linux has X11 evidence spanning real windows, multi-window behavior,
+  ibus/anthy IME, headless scene captures, and a scripted native
+  migration-adoption pass. Treat Linux as evidence-backed but still narrow:
+  CI has no Linux desktop runner, and Wayland, hardware GPUs, distribution
+  differences, native portal dialogs, and physical-machine behavior are not
+  a support matrix. A bundled fallback covers common Japanese, Chinese and Korean
+  text, but not U+9FA6..U+9FFF, nearly all CJK Extension A, any Extension
+  B, some kana, or regional `locl` glyph variants.
 - Windows is explicitly unproven unless a linked issue/test says
   otherwise.
 

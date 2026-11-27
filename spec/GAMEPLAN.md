@@ -30,8 +30,11 @@ Status inputs (facts, not assumptions):
   `v0.9.0` w/ zig 0.17.1, fixtures re-captured (0.8.2 lacks native Windows
   support). Oliver 1.3.0 matches the pin. Rust floor 1.99.1.
   Lavapipe = canonical PNG gate on Linux CI.
-- Windows/Linux: nothing proven. The rune probe must eventually run in the
-  3-OS CI matrix; IME needs real windows per OS.
+- At the original wave-0 checkpoint, Windows/Linux were unproven. That is
+  historical context, not current state: Linux evidence is reconciled in
+  the header and `spike/FINDINGS.md`; Windows remains unproven. The rune
+  probe must eventually run in the 3-OS CI matrix; IME needs real windows
+  per OS.
 
 ## Wave 0 — remaining (all doable on this machine)
 
