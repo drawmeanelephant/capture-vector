@@ -287,15 +287,34 @@ pub(crate) fn batch_watch_safe<R>(
     }
 }
 
+fn destination_display(content_input: &str, subfolder: Option<&str>) -> String {
+    let mut parts = Vec::new();
+    let input = content_input.trim_matches('/');
+    if !input.is_empty() && input != "." {
+        parts.push(input);
+    }
+    if let Some(subfolder) = subfolder {
+        parts.push(subfolder.trim_matches('/'));
+    }
+    let out = parts.join("/");
+    if out.is_empty() { ".".into() } else { out }
+}
+
 fn finish_report(
     workspace: &Path,
     tx: &TxReport,
     gate: (ExitClass, Option<ExitClass>),
     new_workspace: bool,
+    pages: usize,
+    assets: usize,
+    destination: String,
 ) -> AdoptionReport {
     AdoptionReport {
         workspace: workspace.to_path_buf(),
         files_written: tx.written + tx.resumed,
+        pages,
+        assets,
+        destination,
         validate: gate_text(&gate.0),
         build: gate
             .1
@@ -314,6 +333,8 @@ fn execute(
 ) -> Result<AdoptionReport, String> {
     let err = |e: adopt::AdoptError| e.to_string();
     let src = adopt::source(&job.source_root, &job.request.run_id).map_err(err)?;
+    let pages = src.pages.len();
+    let assets = src.files.len().saturating_sub(pages);
     let at_ms = now_ms();
     match &job.request.target {
         AdoptionTarget::ExistingWorkspace { subfolder } => {
@@ -392,7 +413,15 @@ fn execute(
                 &workspace_key,
                 &adopted_input,
             )?;
-            Ok(finish_report(&root, &tx, gate, false))
+            Ok(finish_report(
+                &root,
+                &tx,
+                gate,
+                false,
+                pages,
+                assets,
+                destination_display(&adopted_input, Some(subfolder)),
+            ))
         }
         AdoptionTarget::NewWorkspace(creation) => {
             let draft = &creation.draft;
@@ -450,7 +479,15 @@ fn execute(
                         .into(),
                 );
             }
-            Ok(finish_report(&root, &tx, gate, true))
+            Ok(finish_report(
+                &root,
+                &tx,
+                gate,
+                true,
+                pages,
+                assets,
+                destination_display(&input, None),
+            ))
         }
     }
 }
