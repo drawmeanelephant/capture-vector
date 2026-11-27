@@ -4,6 +4,8 @@ use crate::dialog::DialogKind;
 use crate::module::Module;
 use std::collections::BTreeMap;
 
+mod utilities;
+
 fn blank_answer() -> DialogAnswer {
     DialogAnswer {
         action: None,
@@ -1176,26 +1178,4 @@ fn inventory_with_no_decoded_counts_blocks_emit_even_without_a_problem() {
             .any(|i| matches!(i, Intent::Status(s) if s.contains("no count data"))),
         "the missing-data reason is named: {finished:?}"
     );
-}
-
-#[test]
-fn workspace_utility_commands_start_utility_phase_jobs() {
-    for (command, mode) in [
-        (LINK_AUDIT, "link-audit"),
-        (FRONTMATTER_REVIEW, "frontmatter-review"),
-        (ASSET_FILENAME, "asset-filename"),
-    ] {
-        let mut m = module();
-        let intents = m.run(command);
-        let job = intents
-            .iter()
-            .find_map(|i| match i {
-                Intent::RunImport(j) => Some(j),
-                _ => None,
-            })
-            .unwrap_or_else(|| panic!("{command} emits a job"));
-        assert_eq!(job.mode, mode);
-        assert_eq!(job.phase, ImportPhase::Utility);
-        assert!(job.inputs.is_empty());
-    }
 }
