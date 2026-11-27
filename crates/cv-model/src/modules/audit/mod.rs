@@ -164,7 +164,7 @@ fn link_audit_finding(run_id: &str, f: &LinkAuditEvidence) -> AuditFinding {
         kind: NounKind::register(noun_kind::ARTIFACT),
         stable: StableId(format!("link-audit:{}", f.source)),
     };
-    let target = format!("{}:{}:{}:{}", run_id, f.source, f.line, f.target);
+    let target = format!("{}:{}:{}", f.source, f.line, f.target);
     let code = format!("link_audit_{}", f.kind);
     AuditFinding {
         pack: LINK_AUDIT_PACK.into(),

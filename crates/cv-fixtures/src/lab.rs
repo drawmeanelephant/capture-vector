@@ -147,8 +147,8 @@ pub fn stage_fixture(lab_fixtures: &Path, rel: &str, root: &Path) -> io::Result<
     Ok(root.join("src").join(rel))
 }
 
-/// Recursive copy that refuses symlinks: the lab refuses them too, and a
-/// followed link would stage bytes from outside the fixture.
+/// Recursive copy that never follows symlinks: the lab refuses them too,
+/// and a followed link would stage bytes from outside the fixture.
 pub fn copy_tree(from: &Path, to: &Path) -> io::Result<()> {
     std::fs::create_dir_all(to)?;
     let mut entries: Vec<_> = std::fs::read_dir(from)?.collect::<Result<_, _>>()?;
@@ -162,7 +162,14 @@ pub fn copy_tree(from: &Path, to: &Path) -> io::Result<()> {
             // symlink rejection input, and copying the link object never
             // stages target bytes.
             let target = std::fs::read_link(e.path())?;
+            #[cfg(unix)]
             std::os::unix::fs::symlink(target, dst)?;
+            #[cfg(windows)]
+            if e.path().is_dir() {
+                std::os::windows::fs::symlink_dir(target, dst)?;
+            } else {
+                std::os::windows::fs::symlink_file(target, dst)?;
+            }
         } else if ty.is_dir() {
             copy_tree(&e.path(), &dst)?;
         } else {

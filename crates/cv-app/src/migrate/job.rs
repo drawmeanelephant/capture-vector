@@ -15,7 +15,7 @@ fn execute(
     job: &ImportJob,
     lab_override: Option<LabIdentity>,
     notices: &Notices,
-) -> Result<(), String> {
+) -> Result<String, String> {
     let mode = engine_lab::mode(&job.mode)
         .ok_or_else(|| format!("migration mode {} is not registered", job.mode))?;
     let mut inputs = job.inputs.clone();
@@ -67,38 +67,36 @@ fn execute(
         job.extras.clone(),
         &job.cancel,
     )
-    .map(|_| ())
+    .map(|_| actual_id)
     .map_err(|e| e.to_string())
 }
 
 fn link_audit_evidence(
     workspace: &std::path::Path,
     run_id: &str,
-) -> Vec<cv_model::modules::audit::LinkAuditEvidence> {
+) -> Option<Vec<cv_model::modules::audit::LinkAuditEvidence>> {
     let path = workspace
         .join(".cv/imports")
         .join(run_id)
         .join("out/link_audit.json");
-    let Ok(bytes) = std::fs::read(path) else {
-        return Vec::new();
-    };
-    let Ok(doc) = cv_contracts::lab::Document::decode("link_audit.json", &bytes) else {
-        return Vec::new();
-    };
+    let bytes = std::fs::read(path).ok()?;
+    let doc = cv_contracts::lab::Document::decode("link_audit.json", &bytes).ok()?;
     let cv_contracts::lab::Document::LinkAudit(audit) = doc else {
-        return Vec::new();
+        return None;
     };
-    audit
-        .findings
-        .iter()
-        .map(|f| cv_model::modules::audit::LinkAuditEvidence {
-            source: f.source.clone(),
-            target: f.target.clone(),
-            line: f.line,
-            kind: f.kind.clone(),
-            reason: f.reason.clone(),
-        })
-        .collect()
+    Some(
+        audit
+            .findings
+            .iter()
+            .map(|f| cv_model::modules::audit::LinkAuditEvidence {
+                source: f.source.clone(),
+                target: f.target.clone(),
+                line: f.line,
+                kind: f.kind.clone(),
+                reason: f.reason.clone(),
+            })
+            .collect(),
+    )
 }
 
 /// Start `job` on a named worker and report it as a shell notice. The
@@ -124,22 +122,24 @@ pub fn spawn_import_with(
             .unwrap_or_else(|_| {
                 Err("the import worker panicked; the run record shows what was written".into())
             });
-            let evidence = if result.is_ok() && notice_job.mode == "link-audit" {
-                link_audit_evidence(&notice_job.workspace, &notice_job.run_id)
+            let evidence = if notice_job.mode == "link-audit" {
+                result.as_ref().ok().and_then(|actual_id| {
+                    link_audit_evidence(&notice_job.workspace, actual_id)
+                        .map(|findings| (actual_id.clone(), findings))
+                })
             } else {
-                Vec::new()
+                None
             };
             let workspace = notice_job.workspace.clone();
-            let run_id = notice_job.run_id.clone();
             notices.send(ShellNotice::ImportFinished {
                 job: notice_job,
-                result,
+                result: result.map(|_| ()),
             });
-            if !evidence.is_empty() {
+            if let Some((run_id, findings)) = evidence {
                 notices.send(ShellNotice::LinkAuditEvidence {
                     workspace,
                     run_id,
-                    findings: evidence,
+                    findings,
                 });
             }
         });
