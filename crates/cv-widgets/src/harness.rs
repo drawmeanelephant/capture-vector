@@ -28,7 +28,7 @@ impl Harness {
             scale: 1.0,
         };
         let reduced = wb.theme.motion.reduced;
-        let mut rt = Runtime::new(wb, shell::view, size, env);
+        let mut rt = Runtime::with_text(wb, shell::view, size, env, crate::fonts::text_system());
         rt.poll = Some(input_poll);
         rt.on_key = Some(input_on_key);
         rt.set_system_reduced_motion(reduced);

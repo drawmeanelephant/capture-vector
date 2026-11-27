@@ -383,6 +383,20 @@ fn editor_accessibility_tree_names_each_editable_field() {
     }
 }
 
+fn cjk_window() -> Runtime<EditorWindow> {
+    const TEXT: &str = "日本語お\n中文漢字\n한국어\n";
+    let ses = session();
+    let buf = ses.borrow_mut().open("cjk.md", TEXT, None);
+    if let Some(e) = ses.borrow_mut().get_mut(buf) {
+        e.save = SaveStatus::Failed {
+            message: "日本語お".into(),
+        };
+    }
+    let mut rt = window(&ses, 1, buf);
+    settle(&mut rt);
+    rt
+}
+
 #[test]
 fn editor_goldens() {
     let ses = session();
@@ -394,7 +408,12 @@ fn editor_goldens() {
     let (_ses, _buf, close, _dir) = dirty_closed_window();
     let dir = repo().join("fixtures/ui/golden/editor");
     let mut errs = vec![];
-    for (scene, rt) in [("broken-wikilink", &rt), ("close-prompt", &close)] {
+    let cjk = cjk_window();
+    for (scene, rt) in [
+        ("broken-wikilink", &rt),
+        ("close-prompt", &close),
+        ("editor-cjk", &cjk),
+    ] {
         let els = rt.elements();
         for (kind, v) in [
             ("tree", cv_widgets::tree::element_tree(rt)),

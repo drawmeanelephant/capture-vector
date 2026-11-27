@@ -161,12 +161,16 @@ fn sync_companions(s: &mut Workbench, t: f64, tx: &mut Tx) -> bool {
         let handle = rune::open_window(
             WindowSpec::new(
                 format!("companion-{}", c.id.0),
-                AppSpec::new(
-                    "Capture Vector — companion",
-                    (560.0, 640.0),
-                    companion_init,
-                    companion_view,
-                ),
+                AppSpec {
+                    fonts: crate::fonts::FONTS,
+                    families: crate::fonts::FAMILIES,
+                    ..AppSpec::new(
+                        "Capture Vector — companion",
+                        (560.0, 640.0),
+                        companion_init,
+                        companion_view,
+                    )
+                },
             )
             .on_close(companion_closed),
         );
@@ -366,6 +370,8 @@ pub fn run(l: Launch) {
     let _ = IMPORT.set(l.import);
     // `rune::run` without the hooks: quitting must stop the engine watch.
     let app = rune::App::new(AppSpec {
+        fonts: crate::fonts::FONTS,
+        families: crate::fonts::FAMILIES,
         scenes: l.scenes,
         setup: Some(setup),
         poll: Some(poll),
@@ -411,7 +417,13 @@ mod tests {
             system_dark: true,
             scale: 1.0,
         };
-        let mut rt = rune::Runtime::new(s, companion_view, (560.0, 640.0), env);
+        let mut rt = rune::Runtime::with_text(
+            s,
+            companion_view,
+            (560.0, 640.0),
+            env,
+            crate::fonts::text_system(),
+        );
         rt.frame(0.0);
         for key in ["companion", "crumb-0", "line-0", "sketch"] {
             assert!(rt.find(key).is_some(), "no {key}");

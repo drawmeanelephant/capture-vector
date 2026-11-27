@@ -36,6 +36,11 @@ enum WatchProbe {
     Refused { why: String, usage: bool },
 }
 
+/// The one-shot validation probe argv for a content input root.
+pub fn validate_input_args(input: &str) -> Vec<String> {
+    vec!["validate".into(), "--input".into(), input.into()]
+}
+
 /// Spawn `boris watch --watch-json <extra>` in a scratch workspace and
 /// wait for the handshake on stderr; kill the tree either way.
 fn probe_watch(bin: &Path, scratch: &Path, extra: &[&str], timeout: Duration) -> WatchProbe {
@@ -173,7 +178,7 @@ pub fn probe(bin: &Path, root: &Path, content_input: &Path, timeout: Duration) -
             }
 
             let mut v = boris_command(bin, s.path());
-            v.args(["validate", "--input", &input]);
+            v.args(validate_input_args(&input));
             match run_captured(v, None, &CancelToken::new()) {
                 Ok(c) => {
                     let class = c.outcome.class();

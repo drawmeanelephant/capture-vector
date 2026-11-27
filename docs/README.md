@@ -27,6 +27,8 @@ spec remains normative.
   agents work parallel issues without colliding.
 - [`architecture-overview.md`](architecture-overview.md) — readable crate,
   boundary, and verification map before diving into the normative spec.
+- [`runbooks/boris-cli-contract.md`](runbooks/boris-cli-contract.md) — static
+  and black-box checks for every Boris argv shape the app emits.
 - [`tech-debt.md`](tech-debt.md) — accepted debt and the conditions for
   paying it down.
 
