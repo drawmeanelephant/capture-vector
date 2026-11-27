@@ -108,6 +108,37 @@ fn is_secret_flag(arg: &str) -> bool {
     SECRET_FLAGS.contains(&name)
 }
 
+/// Capture Vector exposes only Standard.site's offline artifact verbs through
+/// custom Boris commands. Login, session inspection/erasure, live publish, and
+/// smoke all read or mutate Boris's persistent session store (by default under
+/// `$HOME`); without a CV-owned session authority boundary those verbs are not
+/// merely unsafe flags, they are unsupported product surface. Unknown future
+/// subcommands fail closed for the same reason.
+pub(crate) fn validate_standard_site_boundary(name: &str, args: &[String]) -> Result<()> {
+    if name != "standard-site" {
+        return Ok(());
+    }
+    if args
+        .iter()
+        .any(|a| a == "--session-root" || a.starts_with("--session-root="))
+    {
+        return Err(EngineError::Refused(
+            "--session-root is not exposed: Capture Vector does not own a Standard.site session store boundary"
+                .into(),
+        ));
+    }
+    if !matches!(
+        args.first().map(String::as_str),
+        Some("plan" | "records" | "verify")
+    ) {
+        return Err(EngineError::UnsupportedVerb(
+            "standard-site custom verbs are limited to offline plan/records/verify; session-capable login, sessions, logout, publish, smoke, and unknown subcommands are not exposed"
+                .into(),
+        ));
+    }
+    Ok(())
+}
+
 /// The argv after the binary name.
 pub fn argv(verb: &Verb) -> Result<Vec<String>> {
     let s = |v: &[&str]| v.iter().map(|x| x.to_string()).collect();
@@ -175,6 +206,7 @@ pub fn argv(verb: &Verb) -> Result<Vec<String>> {
             if name.starts_with('-') {
                 return Err(EngineError::Refused("verb name must not be a flag".into()));
             }
+            validate_standard_site_boundary(name, args)?;
             if name == "nostr" && args.first().is_some_and(|a| a == "sign") {
                 return Err(EngineError::UnsupportedVerb(
                     "nostr sign goes through cv_engine::secrets::nostr_sign (stdin-only key)"
@@ -361,6 +393,52 @@ mod tests {
             })
             .is_err()
         );
+    }
+
+    #[test]
+    fn standard_site_custom_verbs_fail_closed_to_offline_artifacts() {
+        let custom = |args: &[&str]| Verb::Custom {
+            name: "standard-site".into(),
+            args: args.iter().map(|a| a.to_string()).collect(),
+        };
+        for args in [
+            &["plan", "--profile", "boris.json"][..],
+            &["records", "--profile", "boris.json"][..],
+            &[
+                "verify",
+                "--profile",
+                "boris.json",
+                "--dist",
+                ".cv/publish/run-1/site",
+            ][..],
+        ] {
+            let got = argv(&custom(args)).unwrap();
+            assert_eq!(got[0], "standard-site");
+            assert_eq!(got[1], args[0]);
+        }
+        for args in [
+            &[][..],
+            &["login", "--did", "did:plc:example"][..],
+            &["sessions"][..],
+            &["logout", "--did", "did:plc:example"][..],
+            &["publish", "--profile", "boris.json"][..],
+            &["smoke", "--did", "did:plc:example"][..],
+            &["future-session-command"][..],
+        ] {
+            assert!(
+                matches!(argv(&custom(args)), Err(EngineError::UnsupportedVerb(_))),
+                "{args:?} must be unsupported before spawn"
+            );
+        }
+        for args in [
+            &["verify", "--session-root", ".cv/sessions"][..],
+            &["verify", "--session-root=.cv/sessions"][..],
+        ] {
+            assert!(
+                matches!(argv(&custom(args)), Err(EngineError::Refused(_))),
+                "{args:?} must not expose a session root"
+            );
+        }
     }
 
     #[test]

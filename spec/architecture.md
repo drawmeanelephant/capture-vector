@@ -77,6 +77,13 @@ snapshot recovery). Re-evaluate if upstream gains Windows watch.
 - Per-OS capability probe at startup; Windows fallback = one-shot
   builds + file watcher, decided by probe not assumption.
 - Secrets: keychain → stdin at sign time only. Mock backend for CI.
+- Custom Boris verbs fail closed when they would cross an authority
+  boundary Capture Vector does not own. Standard.site custom access is
+  limited to the offline artifact verbs `plan`, `records`, and `verify`;
+  session-capable `login`, `sessions`, `logout`, `publish`, `smoke`,
+  unknown future subcommands, and every `--session-root` spelling are
+  refused before spawn rather than allowed to read or mutate Boris's
+  default `$HOME` session store.
 
 ## State & identity
 

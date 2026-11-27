@@ -6,6 +6,7 @@ mod output_partition_support;
 
 use common::FakeBoris;
 use cv_core::engine::{Engine, ExitClass, ExportKind, Verb};
+use cv_engine::locate::Locator;
 use cv_engine::proc::CancelToken;
 use cv_engine::secrets::MockSecretSource;
 use cv_engine::{EngineConfig, ProcessEngine};
@@ -54,6 +55,75 @@ fn production_publish_preflight_spellings_use_the_owned_publish_lane() {
             "{verb:?} was partition-refused: {err}"
         );
     }
+}
+
+#[test]
+fn standard_site_session_verbs_are_refused_before_boris_spawns() {
+    let fake = FakeBoris::new();
+    std::fs::create_dir_all(fake.root().join("content")).unwrap();
+    let engine = fake.engine();
+    for args in [
+        &["login", "--did", "did:plc:example"][..],
+        &["sessions"][..],
+        &["logout", "--did", "did:plc:example"][..],
+        &["publish", "--profile", "boris.json"][..],
+        &["smoke", "--did", "did:plc:example"][..],
+        &["future-session-command"][..],
+        &["verify", "--session-root", ".cv/sessions"][..],
+    ] {
+        let verb = custom("standard-site", args);
+        let err = engine.run(&verb, Box::new(|_| {})).unwrap_err().to_string();
+        assert!(
+            err.contains("standard-site custom verbs") || err.contains("--session-root"),
+            "{args:?}: {err}"
+        );
+    }
+    let argv = fake.read("argv.log");
+    assert!(
+        !argv.lines().any(|line| line.starts_with("standard-site ")),
+        "a session verb reached Boris argv: {argv}"
+    );
+}
+
+#[test]
+#[ignore = "needs a real pinned boris via CV_BORIS_BIN"]
+fn real_boris_standard_site_sessions_touch_home_but_cv_refuses_pre_spawn() {
+    let bin = std::env::var_os(cv_engine::locate::ENV_OVERRIDE)
+        .expect("CV_BORIS_BIN=/path/to/real/pinned/boris");
+    let home = tempfile::tempdir().unwrap();
+    let direct = std::process::Command::new(&bin)
+        .args(["standard-site", "sessions"])
+        .env("HOME", home.path())
+        .output()
+        .unwrap();
+    assert!(
+        direct.status.success(),
+        "pinned Boris sessions probe failed: {}",
+        String::from_utf8_lossy(&direct.stderr)
+    );
+    assert!(
+        home.path().join(".local/share/boris/sessions").exists(),
+        "the pinned binary must demonstrate why the boundary exists: even read-only session inspection creates its $HOME store"
+    );
+
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    cv_store::workspace_instance::ensure(&root).unwrap();
+    let mut cfg = EngineConfig::new(&root);
+    cfg.locator = Locator {
+        env_override: Some(bin.into()),
+        ..Locator::default()
+    };
+    let engine = ProcessEngine::start(cfg).unwrap();
+    let err = engine
+        .run(&custom("standard-site", &["sessions"]), Box::new(|_| {}))
+        .unwrap_err()
+        .to_string();
+    assert!(
+        err.contains("standard-site custom verbs"),
+        "CV must refuse before the real binary can create or inspect a session store: {err}"
+    );
 }
 
 #[test]
