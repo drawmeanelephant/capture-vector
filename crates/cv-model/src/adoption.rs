@@ -35,6 +35,14 @@ pub struct AdoptionJob {
 pub struct AdoptionReport {
     pub workspace: PathBuf,
     pub files_written: usize,
+    /// Pages in the converged adoption plan, whether this attempt wrote
+    /// their bytes or a crash resume proved they had already landed.
+    pub pages: usize,
+    /// Non-page files in that same converged plan.
+    pub assets: usize,
+    /// User-facing content destination, `/`-separated and relative to the
+    /// workspace (`content/imported/site`, for example).
+    pub destination: String,
     pub validate: String,
     pub build: String,
     pub new_workspace: bool,

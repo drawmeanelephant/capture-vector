@@ -129,6 +129,25 @@ impl Notices {
     }
 }
 
+fn count_text(n: usize, one: &str, many: &str) -> String {
+    if n == 1 {
+        format!("1 {one}")
+    } else {
+        format!("{n} {many}")
+    }
+}
+
+fn adoption_status(run_id: &str, report: &crate::adoption::AdoptionReport) -> String {
+    format!(
+        "adopted {} and {} from {run_id} into {} · validate {}, build {}",
+        count_text(report.pages, "page", "pages"),
+        count_text(report.assets, "asset", "assets"),
+        report.destination,
+        report.validate,
+        report.build
+    )
+}
+
 impl Workbench {
     /// `shell.workspace.new`: ask with the form, or say why it can't.
     pub(crate) fn new_workspace(&mut self) {
@@ -352,19 +371,17 @@ impl Workbench {
                 }
                 match result {
                     Ok(report) if report.new_workspace => {
-                        self.status = format!(
-                            "adopted {run_id}: {} file(s), validate {}, build {}",
-                            report.files_written, report.validate, report.build
-                        );
+                        self.status = adoption_status(&run_id, &report);
                         self.requests
                             .push(ShellRequest::OpenWorkspace(report.workspace));
                     }
                     Ok(report) => {
-                        self.status = format!(
-                            "adopted {run_id}: {} file(s), validate {}, build {}",
-                            report.files_written, report.validate, report.build
-                        );
+                        let status = adoption_status(&run_id, &report);
                         self.run_command(crate::modules::migrate::REFRESH);
+                        // Reloading the mailbox is bookkeeping; the adoption
+                        // outcome is the user-facing completion and must not
+                        // be replaced by the refresh count.
+                        self.status = status;
                     }
                     Err(e) => {
                         self.status = format!("adoption of {run_id} refused: {e}");
@@ -658,6 +675,9 @@ mod tests {
             result: Ok(crate::adoption::AdoptionReport {
                 workspace: PathBuf::from("/elsewhere"),
                 files_written: 3,
+                pages: 2,
+                assets: 1,
+                destination: "content/imported/site".into(),
                 validate: "ok".into(),
                 build: "ok".into(),
                 new_workspace: false,
@@ -666,6 +686,28 @@ mod tests {
 
         assert!(wb.create_cancel.as_ref().is_some_and(|c| *c == token));
         assert!(wb.dialogs.open().is_some_and(|d| d.spec.id == CREATING));
+        assert_eq!(
+            wb.status,
+            "adopted 2 pages and 1 asset from unrelated-existing-adoption into content/imported/site · validate ok, build ok"
+        );
+    }
+
+    #[test]
+    fn adoption_completion_status_states_pages_assets_and_destination() {
+        let report = crate::adoption::AdoptionReport {
+            workspace: PathBuf::from("/site"),
+            files_written: 3,
+            pages: 2,
+            assets: 1,
+            destination: "content/imported/site".into(),
+            validate: "ok".into(),
+            build: "ok".into(),
+            new_workspace: false,
+        };
+        assert_eq!(
+            adoption_status("20261127-hugo", &report),
+            "adopted 2 pages and 1 asset from 20261127-hugo into content/imported/site · validate ok, build ok"
+        );
     }
 
     #[test]
