@@ -54,18 +54,25 @@ a hard disclosure, not a warning to patch around.
 The Migrate module reads import runs from `.cv/imports/` and can start new
 runs when the pinned `boris-migration-lab` is installed. Inventory-only
 runs are evidence, not adoptable content. A successfully finished emit run
-can be adopted in two ways:
+can be adopted when its mode exactly matches one of the six mirrored report
+contracts: `hugo`, `jekyll`, `substack`, `enex`, `obsidian`, or
+`wordpress`. Other successful emit modes remain evidence but are not
+adoptable because Capture Vector has not mirrored their report contracts.
+Adoption then has two forms:
 
 - **New workspace** — create a workspace from the candidate tree;
-- **Existing workspace** — copy the candidate tree below a new
-  `content/<subfolder>` you type in the adoption form.
+- **Existing workspace** — copy the candidate tree into a new subfolder
+  you type in the adoption form, rooted at the workspace's configured
+  Boris input. For the default `content` input that is
+  `content/<subfolder>`; a custom input uses that input instead.
 
 Adoption keeps provenance under `.cv/imports/<run-id>/`; it never writes
 Capture Vector provenance into Boris frontmatter. Existing-workspace
 adoption preflights path and page-id collisions before writing and refuses
-the whole merge rather than overwriting. After the content converges,
-Capture Vector runs the pinned engine's validate/build gate before
-resuming watch.
+the whole merge rather than overwriting. The copy is watch-safe: watch is
+paused for the merge batch and restored when that batch ends. Capture
+Vector then runs the pinned engine's validate/build gate under the normal
+engine-seat contract, which may pause and resume watch again.
 
 Current rough edges are visible in the UI rather than hidden: selecting a
 run may require **Reload import runs** before **Adopt run…** enables

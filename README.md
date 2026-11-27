@@ -22,9 +22,11 @@ in [`spec/`](spec/README.md). Packaging and release:
   conflict-aware workspace-contained saves.
 - Run engine-backed builds/watch sessions when pinned Boris is present;
   absent/mismatched/dead engine states are disclosed instead of hidden.
-- Run `boris-migration-lab` imports and adopt finished emit runs into a
-  new or existing workspace, with provenance under `.cv/imports/` and a
-  validate/build gate after the copy.
+- Run `boris-migration-lab` imports and adopt finished emit runs for the
+  six mirrored report contracts (`hugo`, `jekyll`, `substack`, `enex`,
+  `obsidian`, `wordpress`) into a new or existing workspace, with
+  provenance under `.cv/imports/` and a validate/build gate after the
+  copy.
 - Verify the shell headlessly through element-tree/layout JSON goldens.
 
 Still ahead: signed installers, Windows proof, and the fully wired publish
