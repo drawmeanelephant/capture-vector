@@ -851,7 +851,9 @@ fn toasts(s: &Workbench) -> Option<El> {
     if let Some(b) = body {
         toast = toast.description(b);
     }
-    toast = toast.on_close(|s: &mut Workbench| s.status.clear());
+    toast = toast.on_close(|s: &mut Workbench| {
+        s.clear_status();
+    });
     Some(ToastRegion::new().toast(toast.build(&k)).build(&k))
 }
 /// The shell view (rune `view` fn).

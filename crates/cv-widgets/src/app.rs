@@ -223,7 +223,9 @@ fn boot(s: &mut Workbench, tx: &mut Tx) {
 fn open_workspace(s: &mut Workbench, root: PathBuf) {
     match OPEN.get() {
         Some(open) => open(s, root),
-        None => s.status = "this build cannot open workspaces".into(),
+        None => {
+            s.outcome_status("this build cannot open workspaces");
+        }
     }
 }
 
@@ -232,7 +234,7 @@ fn picked(s: &mut Workbench, purpose: PickPurpose, answer: rune::FileDialogResul
         Ok(path) => s.picked(purpose, path),
         Err(e) => {
             let e: String = e.to_string().chars().take(60).collect();
-            s.status = format!("No file picker ({e})");
+            s.outcome_status(format!("No file picker ({e})"));
         }
     }
 }
@@ -256,9 +258,9 @@ fn serve_requests(s: &mut Workbench, tx: &mut Tx) -> bool {
                     Err(e) => {
                         // The hint first: the error text can be long (raw D-Bus).
                         let e: String = e.to_string().chars().take(60).collect();
-                        s.status = format!(
+                        s.outcome_status(format!(
                             "No folder picker — launch with --project <dir> or set CV_PROJECT ({e})"
-                        )
+                        ));
                     }
                 });
             }
@@ -289,15 +291,21 @@ fn serve_requests(s: &mut Workbench, tx: &mut Tx) -> bool {
             ShellRequest::OpenWorkspace(root) => open_workspace(s, root),
             ShellRequest::AdoptRun(job) => match ADOPT.get() {
                 Some(f) => f(s, job),
-                None => s.status = "migration adoption is not available here".into(),
+                None => {
+                    s.outcome_status("migration adoption is not available here");
+                }
             },
             ShellRequest::CreateWorkspace(creation) => match CREATE.get() {
                 Some(create) => create(s, creation),
-                None => s.status = "this build cannot create workspaces".into(),
+                None => {
+                    s.outcome_status("this build cannot create workspaces");
+                }
             },
             ShellRequest::EditPage(page) => match EDIT.get() {
                 Some(edit) => edit(s, &page),
-                None => s.status = "this build cannot edit pages".into(),
+                None => {
+                    s.outcome_status("this build cannot edit pages");
+                }
             },
             ShellRequest::RunImport(job) => match IMPORT.get() {
                 Some(import) => import(s, job),
@@ -307,7 +315,9 @@ fn serve_requests(s: &mut Workbench, tx: &mut Tx) -> bool {
                     // StubLab or a fake lab and send the completion notice.
                     s.requests.push(ShellRequest::RunImport(job));
                 }
-                None => s.status = "this build cannot run migration imports".into(),
+                None => {
+                    s.outcome_status("this build cannot run migration imports");
+                }
             },
             ShellRequest::Copy(text) => tx.copy(text),
         }

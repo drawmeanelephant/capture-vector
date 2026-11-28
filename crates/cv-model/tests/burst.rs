@@ -11,6 +11,7 @@ use cv_model::module::{
     Module, ModuleSpec, NavModel, PageRecord, ProjectSnapshot, ReadingModel, Registry, RowModel,
     Slot,
 };
+use cv_model::status::StatusNotice;
 use cv_model::workbench::{Inbound, Workbench};
 use std::sync::{Arc, Mutex};
 
@@ -162,7 +163,7 @@ fn a_snapshot_sent_after_a_drain_keeps_its_place() {
     inbox.send(built(2));
     inbox.send(snapshot(2, &["a.md", "b.md"]));
     inbox.send(built(3));
-    inbox.send(Inbound::Status("done".into()));
+    inbox.send(Inbound::Status(StatusNotice::engine_evidence("done")));
     wb.drain();
     assert_eq!(take(&log), ["e2", "load 2", "e3"]);
     assert_eq!(wb.status, "done");
@@ -175,7 +176,7 @@ fn a_reset_drops_the_pending_snapshot_and_refuses_later_sends() {
     assert!(inbox.send(snapshot(1, &["a.md"])));
     wb.reset_project(Registry::default());
     assert!(!inbox.send(snapshot(2, &["a.md"])));
-    assert!(!inbox.send(Inbound::Status("late".into())));
+    assert!(!inbox.send(Inbound::Status(StatusNotice::engine_evidence("late"))));
     assert!(!wb.drain());
     assert!(take(&log).is_empty());
     assert_eq!(wb.app.snapshot_epoch, 0);

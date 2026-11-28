@@ -158,7 +158,7 @@ fn snooze_survives_the_next_build_and_a_reopen() {
     let key = first_open(&m);
     m.select(Some(&key));
     let st = m.run("audit.snooze");
-    assert!(matches!(&st[..], [Intent::Status(s)] if s.ends_with("snoozed")));
+    assert!(matches!(&st[..], [Intent::Outcome(s)] if s.ends_with("snoozed")));
     assert_eq!(m.badge(), Some(before - 1));
     assert_eq!(m.list_len(Some("snoozed")), 1);
     assert_eq!(
@@ -218,7 +218,9 @@ fn unreadable_artifacts_degrade_to_not_checked() {
             .any(|l| l.tone == Tone::Warn && l.text.contains("unreadable"))
     );
     m.select(Some(&k));
-    assert!(matches!(&m.run("audit.snooze")[..], [Intent::Status(s)] if s.contains("not checked")));
+    assert!(
+        matches!(&m.run("audit.snooze")[..], [Intent::Outcome(s)] if s.contains("not checked"))
+    );
 }
 
 #[test]

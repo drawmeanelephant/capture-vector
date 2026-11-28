@@ -24,7 +24,8 @@ use cv_engine::{
 };
 use cv_model::cascade::WANT_ENGINE;
 use cv_model::modules::doctor::{EngineState, Feed};
-use cv_model::modules::engine::{EnginePort, VerbRun};
+use cv_model::modules::engine::{EnginePort, VerbRun, product_label};
+use cv_model::status::StatusNotice;
 use cv_model::workbench::{Inbound, Inbox};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -229,13 +230,16 @@ impl VerbRoute {
             Ok(None) => return,
             Err(e) => Err(e),
         };
+        let label = product_label(&name);
         let outcome = match &result {
-            Ok(r) if r.exit == ExitClass::Ok => format!("boris {name} finished"),
-            Ok(_) => format!("boris {name} failed · see Activity › Errors"),
-            Err(e) => format!("boris {name} did not finish: {e}"),
+            Ok(r) if r.exit == ExitClass::Ok => format!("{label} finished"),
+            Ok(_) => format!("{label} failed · see Activity"),
+            Err(_) => format!("{label} did not finish · see Activity"),
         };
         if result.is_err() {
-            self.delivery.inbox.send(Inbound::Status(outcome.clone()));
+            self.delivery
+                .inbox
+                .send(Inbound::Status(StatusNotice::outcome(outcome.clone())));
         }
         // Err loses the report's `stopped_watch`, so compare sessions.
         let Some(stopped) = watching.filter(|_| sched.watch_session().is_none()) else {
@@ -443,11 +447,13 @@ fn finish(
     };
     match warning {
         Some(w) => {
-            inbox.send(Inbound::Status(format!("{w} · {status}")));
+            inbox.send(Inbound::Status(StatusNotice::engine_evidence(format!(
+                "{w} · {status}"
+            ))));
             inbox.send(Inbound::Degraded(DegradedReason::StoreCorrupt));
         }
         None => {
-            inbox.send(Inbound::Status(status));
+            inbox.send(Inbound::Status(StatusNotice::engine_evidence(status)));
         }
     }
 }
@@ -749,10 +755,12 @@ fn recover_build(
     let inbox = &delivery.inbox;
     let identity = delivery.workspace_identity();
     let trying = format!("Boris watch stopped · running one build for diagnostics… · {identity}");
-    inbox.send(Inbound::Status(match warning {
-        Some(w) => format!("{w} · {trying}"),
-        None => trying,
-    }));
+    inbox.send(Inbound::Status(StatusNotice::engine_evidence(
+        match warning {
+            Some(w) => format!("{w} · {trying}"),
+            None => trying,
+        },
+    )));
     // Route output to the UI, never back through the watch recovery sink.
     let result = sched.run_recovery_build_caused(
         delivery.resync_sink(|deliver, env| deliver(env)),

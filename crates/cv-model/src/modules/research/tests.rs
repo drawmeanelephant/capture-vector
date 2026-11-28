@@ -41,7 +41,7 @@ fn module(port: Box<dyn ResearchPort>) -> ResearchModule {
 
 fn status(v: Vec<Intent>) -> String {
     match v.as_slice() {
-        [Intent::Status(s)] => s.clone(),
+        [Intent::Outcome(s)] => s.clone(),
         o => panic!("{o:?}"),
     }
 }

@@ -30,6 +30,44 @@ fn palette_enablement_tracks_row_selection_before_any_command_runs() {
 }
 
 #[test]
+fn bookkeeping_never_overwrites_an_operation_outcome() {
+    migrate::install(Box::new(MemoryPort {
+        imports: Imports::default(),
+        records: Vec::new(),
+    }));
+    let mut wb = Workbench::new(Registry::with_all());
+    wb.outcome_status("adopted 2 pages and 1 asset from run-1 into content/imported/site");
+
+    wb.run_command(migrate::REFRESH);
+
+    assert_eq!(
+        wb.status,
+        "adopted 2 pages and 1 asset from run-1 into content/imported/site"
+    );
+    assert_eq!(wb.status_kind(), Some(crate::status::StatusKind::Outcome));
+}
+
+#[test]
+fn outcomes_are_sticky_for_progress_bookkeeping_and_engine_evidence() {
+    let mut wb = Workbench::new(Registry::with_all());
+    wb.outcome_status("Import finished; the run is in Runs");
+
+    assert!(!wb.progress_status("Building the site…"));
+    assert!(!wb.evidence_status("boris build finished (exit 0, 12 ms)"));
+    assert!(!wb.bookkeeping_status("3 import run(s) loaded"));
+    assert_eq!(wb.status, "Import finished; the run is in Runs");
+    assert_eq!(wb.status_kind(), Some(crate::status::StatusKind::Outcome));
+
+    assert!(wb.outcome_status("Site build finished"));
+    assert_eq!(wb.status, "Site build finished");
+
+    wb.clear_status();
+    assert!(wb.progress_status("Building the site…"));
+    assert!(wb.evidence_status("boris build finished (exit 0, 12 ms)"));
+    assert_eq!(wb.status, "boris build finished (exit 0, 12 ms)");
+}
+
+#[test]
 fn watch_restart_is_offered_only_while_the_watch_is_dead() {
     let mut wb = Workbench::new(Registry::with_all());
     assert!(wb.commands().iter().all(|c| c.id != "watch.restart"));

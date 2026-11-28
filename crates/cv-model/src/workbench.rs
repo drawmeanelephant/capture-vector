@@ -8,21 +8,23 @@ use crate::app_state::AppState;
 use crate::cascade;
 use crate::command::{CommandSpec, Intent, Palette};
 use crate::dialog::{Dialogs, PickPurpose, SecretPort};
-use crate::module::{Link, ProjectSnapshot, Registry, RowModel};
+use crate::module::{Link, ProjectSnapshot, Registry};
 use crate::modules::activity;
 use crate::new_workspace::{self, Archetypes, Notices, ShellNotice};
+use crate::status::{StatusKind, StatusNotice};
 use crate::theme::{Mode, Theme};
 use crate::windows::{CloseOutcome, PRIMARY, WindowId, Windows};
 use crate::workspace_key::WorkspaceKey;
 mod disclosure;
 mod input;
+mod navigation;
 mod outcome_retention;
 mod viewport;
 use cv_core::engine::{CancelToken, EventSink, WatchHandle};
 use cv_core::events::Envelope;
 use cv_core::events::shell::{DegradedReason, ShellEvent};
 use cv_core::events::{AppEvent, Cursor, EventId, SessionId, SnapshotEpoch};
-use cv_core::id::{Selection, StableId, WorkspaceId};
+use cv_core::id::{StableId, WorkspaceId};
 use cv_core::store::{Namespace, Store};
 pub use disclosure::ValueExpansionKey;
 pub use input::{KeyInput, KeyPress, ShellRequest};
@@ -52,7 +54,7 @@ pub enum Inbound {
     /// The engine worker stopped this watch and released its writer seat.
     WatchStopped(SessionId),
     Degraded(DegradedReason),
-    Status(String),
+    Status(StatusNotice),
 }
 
 /// What the queue carries. A snapshot waits in the `SnapshotSlot`; the
@@ -244,6 +246,9 @@ pub struct Workbench {
     /// inspector; a debugging aid, off by default.
     pub debug_windows: bool,
     pub status: String,
+    /// Classification of `status`, used to keep ambient refresh/engine
+    /// notices from overwriting foreground operation outcomes and progress.
+    status_kind: Option<StatusKind>,
     /// Root of the open workspace, if any.
     pub workspace: Option<PathBuf>,
     /// Instance identity of `workspace`, shared with scheduler registration.
@@ -310,6 +315,7 @@ impl Workbench {
             values_expanded: BTreeSet::new(),
             debug_windows: false,
             status: String::new(),
+            status_kind: None,
             workspace: None,
             workspace_key: None,
             identity_disclosures: BTreeSet::new(),
@@ -394,6 +400,62 @@ impl Workbench {
             waker: self.waker.clone(),
             causal: self.causal.clone(),
         }
+    }
+
+    /// Classification of the current status line.
+    pub fn status_kind(&self) -> Option<StatusKind> {
+        self.status_kind
+    }
+
+    /// Present a classified status notice. Outcomes replace anything and are
+    /// never replaced by progress, bookkeeping, or engine evidence; non-outcome
+    /// notices replace one another as they arrive. Returns whether the visible
+    /// status changed.
+    pub fn set_status_notice(&mut self, notice: StatusNotice) -> bool {
+        self.set_status_kind(notice.kind, notice.text)
+    }
+
+    /// [`set_status_notice`] with the kind and text separate.
+    pub fn set_status_kind(&mut self, kind: StatusKind, text: impl Into<String>) -> bool {
+        let text = text.into();
+        let outcome_is_live = self.status_kind.is_some_and(StatusKind::is_outcome);
+        if outcome_is_live && !kind.is_outcome() {
+            return false;
+        }
+        if self.status == text && self.status_kind == Some(kind) {
+            return false;
+        }
+        self.status = text;
+        self.status_kind = Some(kind);
+        true
+    }
+
+    /// Convenience for a completed user-requested operation.
+    pub fn outcome_status(&mut self, text: impl Into<String>) -> bool {
+        self.set_status_kind(StatusKind::Outcome, text)
+    }
+
+    /// Convenience for foreground operation progress.
+    pub fn progress_status(&mut self, text: impl Into<String>) -> bool {
+        self.set_status_kind(StatusKind::Progress, text)
+    }
+
+    /// Convenience for ambient refresh/presentation bookkeeping.
+    pub fn bookkeeping_status(&mut self, text: impl Into<String>) -> bool {
+        self.set_status_kind(StatusKind::Bookkeeping, text)
+    }
+
+    /// Convenience for machinery evidence that Activity also carries.
+    pub fn evidence_status(&mut self, text: impl Into<String>) -> bool {
+        self.set_status_kind(StatusKind::EngineEvidence, text)
+    }
+
+    /// Dismiss the status line; the next ambient notice may show again.
+    pub fn clear_status(&mut self) -> bool {
+        let changed = !self.status.is_empty();
+        self.status.clear();
+        self.status_kind = None;
+        changed
     }
 
     /// Swap in a fresh project: stop the watch, drop the old queue (late
@@ -526,10 +588,7 @@ impl Workbench {
                             let env = self.degraded_envelope(reason);
                             self.commit(&env, seq)
                         }
-                        Inbound::Status(s) => {
-                            self.status = s;
-                            true
-                        }
+                        Inbound::Status(s) => self.set_status_notice(s),
                     };
                 }
             }
@@ -538,8 +597,7 @@ impl Workbench {
             changed |= self.commit(&env, seq);
         }
         if !disclosures.is_empty() {
-            self.status = disclosures.join(" · ");
-            changed = true;
+            changed |= self.outcome_status(disclosures.join(" · "));
         }
         changed
     }
@@ -610,7 +668,9 @@ impl Workbench {
                 key: l.key,
                 nav: None,
             }),
-            None => self.status = "nothing to open".into(),
+            None => {
+                self.outcome_status("nothing to open");
+            }
         }
     }
 
@@ -664,202 +724,6 @@ impl Workbench {
         let effects = self.theme.effects;
         self.theme = Theme::for_mode(mode, reduced);
         self.theme.effects = effects;
-    }
-
-    // ---- navigation & selection ----
-
-    pub fn active_nav(&self) -> Option<&str> {
-        self.nav.get(self.active).and_then(|n| n.as_deref())
-    }
-
-    pub fn list_len(&self) -> usize {
-        self.registry
-            .get(self.active)
-            .map_or(0, |m| m.list_len(self.active_nav()))
-    }
-
-    pub fn row(&self, i: usize) -> RowModel {
-        self.registry
-            .get(self.active)
-            .map(|m| m.row(self.active_nav(), i))
-            .unwrap_or_default()
-    }
-
-    pub fn selected_key(&self) -> Option<&str> {
-        self.windows.primary.row.as_ref().map(|(_, k)| k.as_str())
-    }
-
-    pub fn activate(&mut self, index: usize) {
-        if index >= self.registry.len() {
-            return;
-        }
-        if index != self.active {
-            // `Selection` is shell-wide identity, not row position. When the
-            // newly active module can represent the same noun, reveal it
-            // there instead of dropping the round-trip at the module boundary.
-            let noun = self.app.selection.noun.clone();
-            self.clear_selection();
-            self.active = index;
-            if let Some(m) = self.registry.get_mut(index) {
-                m.activated();
-            }
-            if let Some(noun) = noun {
-                let key = self.registry.get(index).and_then(|m| m.key_for(&noun));
-                if let Some(key) = key {
-                    let in_current_nav = self
-                        .registry
-                        .get(index)
-                        .and_then(|m| m.index_of_key(self.active_nav(), &key))
-                        .is_some();
-                    if !in_current_nav {
-                        let nav = self
-                            .registry
-                            .get(index)
-                            .map(|m| m.nav().items)
-                            .unwrap_or_default()
-                            .into_iter()
-                            .find(|item| {
-                                self.registry
-                                    .get(index)
-                                    .and_then(|m| m.index_of_key(Some(&item.key), &key))
-                                    .is_some()
-                            })
-                            .map(|item| item.key);
-                        if let Some(nav) = nav {
-                            self.set_nav(&nav);
-                        }
-                    }
-                    self.select_key(&key);
-                }
-            }
-        } else if let Some(m) = self.registry.get_mut(index) {
-            m.activated();
-        }
-    }
-
-    pub fn set_nav(&mut self, key: &str) {
-        if let Some(slot) = self.nav.get_mut(self.active) {
-            *slot = Some(key.to_string());
-        }
-        self.clear_selection();
-    }
-
-    fn cycle_nav(&mut self, delta: isize) {
-        let Some(m) = self.registry.get(self.active) else {
-            return;
-        };
-        let items = m.nav().items;
-        if items.is_empty() {
-            return;
-        }
-        let cur = items
-            .iter()
-            .position(|i| Some(i.key.as_str()) == self.active_nav())
-            .unwrap_or(0) as isize;
-        let next = (cur + delta).rem_euclid(items.len() as isize) as usize;
-        let key = items[next].key.clone();
-        self.set_nav(&key);
-    }
-
-    fn sync_module_selection(&mut self, key: Option<&str>) {
-        if let Some(m) = self.registry.get_mut(self.active) {
-            m.select(key);
-        }
-    }
-
-    pub fn clear_selection(&mut self) {
-        self.windows.primary.row = None;
-        self.windows.primary.selection = Selection::default();
-        self.app.selection = Selection::default();
-        self.sync_module_selection(None);
-    }
-
-    pub fn select_row(&mut self, i: usize) {
-        if i >= self.list_len() {
-            return;
-        }
-        let key = self.row(i).key;
-        let noun = self.registry.get(self.active).and_then(|m| m.noun(&key));
-        let sel = Selection {
-            account: noun.as_ref().map(|n| n.account.clone()),
-            mailbox: self.active_nav().map(str::to_string),
-            noun,
-        };
-        let module_key = key.clone();
-        self.windows.primary.row = Some((i, key));
-        self.windows.primary.selection = sel.clone();
-        self.app.selection = sel;
-        self.sync_module_selection(Some(&module_key));
-    }
-
-    /// After a module mutates its list, keep the selected key selected at
-    /// its new index, or clear the selection when the key left the list.
-    pub(crate) fn revalidate_selection(&mut self) {
-        let Some((i, key)) = self.windows.primary.row.clone() else {
-            return;
-        };
-        if i < self.list_len() && self.row(i).key == key {
-            return;
-        }
-        match self.row_index(&key) {
-            Some(j) => self.select_row(j),
-            None => self.clear_selection(),
-        }
-    }
-
-    pub fn select_key(&mut self, key: &str) {
-        if let Some(i) = self.row_index(key) {
-            self.select_row(i);
-        }
-    }
-
-    /// The first row of the active mailbox whose key is `key`.
-    fn row_index(&self, key: &str) -> Option<usize> {
-        self.registry
-            .get(self.active)?
-            .index_of_key(self.active_nav(), key)
-    }
-
-    fn move_row(&mut self, delta: isize) {
-        let len = self.list_len();
-        if len == 0 {
-            return;
-        }
-        let next = match &self.windows.primary.row {
-            None if delta >= 0 => 0,
-            None => len - 1,
-            Some((i, _)) => (*i as isize + delta).clamp(0, len as isize - 1) as usize,
-        };
-        self.select_row(next);
-    }
-
-    fn reclamp_rows(&mut self) {
-        let Some((_, key)) = self.windows.primary.row.clone() else {
-            return;
-        };
-        let key = match self.row_index(&key) {
-            Some(i) => {
-                if let Some(row) = &mut self.windows.primary.row {
-                    row.0 = i;
-                }
-                return;
-            }
-            None => self
-                .windows
-                .primary
-                .selection
-                .noun
-                .clone()
-                .and_then(|noun| {
-                    self.registry
-                        .get(self.active)
-                        .and_then(|m| m.key_for(&noun))
-                }),
-        };
-        match key.and_then(|k| self.row_index(&k).map(|i| (i, k))) {
-            Some((i, _)) => self.select_row(i),
-            None => self.clear_selection(),
-        }
     }
 
     // ---- commands ----
@@ -961,7 +825,9 @@ impl Workbench {
             // and the next `WatchSessionStarted` clears `WatchDead`.
             "watch.restart" => match &self.workspace {
                 Some(p) => self.requests.push(ShellRequest::OpenWorkspace(p.clone())),
-                None => self.status = "no workspace open".into(),
+                None => {
+                    self.outcome_status("no workspace open");
+                }
             },
             "shell.workspace.open" => self.requests.push(ShellRequest::PickWorkspace),
             new_workspace::NEW => self.new_workspace(),
@@ -969,13 +835,17 @@ impl Workbench {
             // Reopening the open workspace starts a new watch and rearms recovery.
             "shell.watch.restart" => match self.workspace.clone() {
                 Some(root) => self.requests.push(ShellRequest::OpenWorkspace(root)),
-                None => self.status = "no workspace is open; open one to start a watch".into(),
+                None => {
+                    self.outcome_status("no workspace is open; open one to start a watch");
+                }
             },
             _ => {
                 if let Some(i) = id.strip_prefix("shell.workspace.recent.") {
                     match i.parse::<usize>().ok().and_then(|i| self.recent.get(i)) {
                         Some(p) => self.requests.push(ShellRequest::OpenWorkspace(p.clone())),
-                        None => self.status = format!("unknown command {id}"),
+                        None => {
+                            self.outcome_status(format!("unknown command {id}"));
+                        }
                     }
                     return;
                 }
@@ -987,7 +857,7 @@ impl Workbench {
                 }
                 let module = id.split('.').next().unwrap_or_default();
                 let Some(i) = self.registry.index_of(module) else {
-                    self.status = format!("unknown command {id}");
+                    self.outcome_status(format!("unknown command {id}"));
                     return;
                 };
                 // Re-resolve the selection so the module acts on what is
@@ -1021,7 +891,7 @@ impl Workbench {
     /// Select, in Activity, the diagnostic a failed initial build names.
     fn reveal_degraded_cause(&mut self) {
         let Some(DegradedReason::InitialBuildFailed { code, message }) = &self.app.degraded else {
-            self.status = "no failed build to show".into();
+            self.outcome_status("no failed build to show");
             return;
         };
         let title = activity::diagnostic_title(code, message);
@@ -1041,7 +911,9 @@ impl Workbench {
                 key,
                 nav: None,
             }),
-            None => self.status = format!("{code} is not in Activity"),
+            None => {
+                self.outcome_status(format!("{code} is not in Activity"));
+            }
         }
     }
 
@@ -1060,13 +932,26 @@ impl Workbench {
                 self.commit(&env, causal);
             }
             Intent::Recover => self.app.degraded = None,
-            Intent::Status(s) => self.status = s,
+            Intent::Outcome(s) => {
+                self.outcome_status(s);
+            }
+            Intent::Progress(s) => {
+                self.progress_status(s);
+            }
+            Intent::Bookkeeping(s) => {
+                self.bookkeeping_status(s);
+            }
+            Intent::EngineEvidence(s) => {
+                self.evidence_status(s);
+            }
             Intent::RebuildIndexes => match self.workspace.clone() {
                 Some(root) => {
                     self.index_rebuild_requested = true;
                     self.requests.push(ShellRequest::OpenWorkspace(root));
                 }
-                None => self.status = "no workspace open; nothing to rebuild".into(),
+                None => {
+                    self.outcome_status("no workspace open; nothing to rebuild");
+                }
             },
             Intent::MarkDirty => self.windows.set_dirty(PRIMARY, true),
             Intent::Copy(text) => self.requests.push(ShellRequest::Copy(text)),
@@ -1083,11 +968,11 @@ impl Workbench {
                 let title = m.reading(&key).title;
                 let module = m.spec().id;
                 self.windows.open_companion(module, &key, &title);
-                self.status = format!("companion: {title}");
+                self.bookkeeping_status(format!("companion: {title}"));
             }
             Intent::Reveal { module, key, nav } => {
                 let Some(i) = self.registry.index_of(&module) else {
-                    self.status = format!("no module {module}");
+                    self.outcome_status(format!("no module {module}"));
                     return;
                 };
                 self.activate(i);
@@ -1104,7 +989,7 @@ impl Workbench {
                 }
                 self.select_key(&key);
                 if self.selected_key() != Some(key.as_str()) {
-                    self.status = format!("{key} is not in {module}");
+                    self.outcome_status(format!("{key} is not in {module}"));
                 }
             }
             Intent::Dialog(spec) => self.dialogs.push(*spec),
@@ -1133,12 +1018,14 @@ impl Workbench {
                         cancel,
                     }));
                 }
-                None => self.status = "open the workspace that owns this import run first".into(),
+                None => {
+                    self.outcome_status("open the workspace that owns this import run first");
+                }
             },
             Intent::RunImport(mut job) => {
                 if job.workspace.as_os_str().is_empty() {
                     let Some(root) = self.workspace.clone() else {
-                        self.status = "no workspace open; the import cannot start".into();
+                        self.outcome_status("no workspace open; the import cannot start");
                         return;
                     };
                     job.workspace = root;
@@ -1158,14 +1045,16 @@ impl Workbench {
                     self.select_row(0);
                 }
             }
-            None => self.status = "Doctor is not registered in this build".into(),
+            None => {
+                self.outcome_status("Doctor is not registered in this build");
+            }
         }
     }
 
     pub fn close_window(&mut self, id: WindowId, force: bool) -> CloseOutcome {
         let out = self.windows.close(id, force);
         if let CloseOutcome::NeedsConfirm(ws) = &out {
-            self.status = format!("{} window(s) have unsaved changes", ws.len());
+            self.outcome_status(format!("{} window(s) have unsaved changes", ws.len()));
         }
         out
     }

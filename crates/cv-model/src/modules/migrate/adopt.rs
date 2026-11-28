@@ -36,10 +36,10 @@ impl MigrateModule {
 
     pub(super) fn adopt(&mut self) -> Vec<Intent> {
         let Some(run) = self.selected_run().cloned() else {
-            return vec![Intent::Status("select a finished import run first".into())];
+            return vec![Intent::Outcome("select a finished import run first".into())];
         };
         if let Some(why) = Self::adopt_unavailable(Some(&run)) {
-            return vec![Intent::Status(format!("Adopt: {why}"))];
+            return vec![Intent::Outcome(format!("Adopt: {why}"))];
         }
         let mut choices = vec![Choice {
             id: "new".into(),
@@ -76,11 +76,11 @@ impl MigrateModule {
             return Vec::new();
         }
         let Some(run_id) = a.context.clone() else {
-            return vec![Intent::Status("adoption lost its run context".into())];
+            return vec![Intent::Outcome("adoption lost its run context".into())];
         };
         let run = self.imports.runs.iter().find(|r| r.id == run_id).cloned();
         let Some(run) = run else {
-            return vec![Intent::Status(format!(
+            return vec![Intent::Outcome(format!(
                 "import run {run_id} is no longer present"
             ))];
         };
@@ -109,7 +109,7 @@ impl MigrateModule {
                 .cancel("Cancel")
                 .action("adopt", "Adopt", ActionTone::Primary),
             )],
-            _ => vec![Intent::Status("choose New workspace or Existing workspace".into())],
+            _ => vec![Intent::Outcome("choose New workspace or Existing workspace".into())],
         }
     }
 
@@ -118,7 +118,7 @@ impl MigrateModule {
             return Vec::new();
         }
         let Some(run_id) = a.context.clone() else {
-            return vec![Intent::Status("adoption lost its run context".into())];
+            return vec![Intent::Outcome("adoption lost its run context".into())];
         };
         let typed = a.text("subfolder").unwrap_or_default();
         // Trailing slashes are the same folder; leading ones make it

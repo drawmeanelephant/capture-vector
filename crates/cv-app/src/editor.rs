@@ -57,7 +57,7 @@ pub fn open_page(wb: &mut Workbench, root: &Path, rel: &str) -> std::io::Result<
 /// content input, as Pages keys are.
 pub fn edit_page(wb: &mut Workbench, page: &str) {
     let Some(root) = wb.workspace.clone() else {
-        wb.status = format!("open a workspace to edit {page}");
+        wb.outcome_status(format!("open a workspace to edit {page}"));
         return;
     };
     let input = crate::snapshot::content_input(&root);
@@ -102,7 +102,7 @@ fn open_for_editing(wb: &mut Workbench, rel: &str) {
                     ("error", serde_json::json!(e.to_string())),
                 ],
             );
-            wb.status = format!("cannot open {rel} for editing: {e}");
+            wb.outcome_status(format!("cannot open {rel} for editing: {e}"));
         }
     }
 }

@@ -7,6 +7,7 @@ use cv_core::events::shell::DegradedReason;
 use cv_core::events::{AppEvent, Cursor, Envelope, EventId, SessionId, SnapshotEpoch};
 use cv_core::id::WorkspaceId;
 use cv_model::module::Registry;
+use cv_model::status::StatusNotice;
 use cv_model::workbench::Workbench;
 use cv_model::workspace_key::WorkspaceKey;
 use cv_store::workspace_instance::FILE;
@@ -250,8 +251,9 @@ fn r14_malformed_instance_must_not_silently_downgrade_identity_or_strand_outcome
         Some(DegradedReason::StoreCorrupt),
         "malformed workspace-instance evidence must use the persistent degraded-state channel"
     );
-    wb.inbox()
-        .send(cv_model::workbench::Inbound::Status("engine ready".into()));
+    wb.inbox().send(cv_model::workbench::Inbound::Status(
+        StatusNotice::engine_evidence("engine ready"),
+    ));
     wb.drain();
     assert_eq!(
         wb.app.degraded,

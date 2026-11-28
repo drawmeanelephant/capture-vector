@@ -259,7 +259,7 @@ fn show(wb: &mut Workbench, prepare: impl FnOnce(&Path)) {
     wb.run_command("shell.goto.publish");
     if let Some(w) = warning {
         wb.disclose(DegradedReason::StoreCorrupt);
-        wb.status = w;
+        wb.evidence_status(w);
     }
 }
 

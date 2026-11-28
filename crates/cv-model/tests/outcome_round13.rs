@@ -8,6 +8,7 @@ use cv_core::events::shell::DegradedReason;
 use cv_core::events::{AppEvent, BuildId, Cursor, Envelope, EventId, SessionId, SnapshotEpoch};
 use cv_core::id::WorkspaceId;
 use cv_model::module::{Module, Registry};
+use cv_model::status::StatusNotice;
 use cv_model::workbench::{Inbound, Workbench};
 use cv_model::workspace_key::WorkspaceKey;
 
@@ -449,7 +450,10 @@ fn r13_retention_disclosure_survives_batched_status_high_reps() {
                 verb_outcome(&format!("held-{rep}-{i:02}"), "validate", i + 1, 0),
             );
         }
-        wb.inbox().send(Inbound::Status("engine ready".into()));
+        wb.inbox()
+            .send(Inbound::Status(StatusNotice::engine_evidence(
+                "engine ready",
+            )));
         wb.drain();
         assert!(
             wb.status.contains("discarded 1 held outcome(s)"),

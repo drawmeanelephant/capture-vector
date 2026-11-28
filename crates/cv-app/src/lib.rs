@@ -182,7 +182,10 @@ pub fn open_workspace(
                     ("reason", serde_json::json!("not a folder")),
                 ],
             );
-            wb.status = format!("cannot open workspace {}: not a folder", root.display());
+            wb.outcome_status(format!(
+                "cannot open workspace {}: not a folder",
+                root.display()
+            ));
             return None;
         }
     };
@@ -199,10 +202,10 @@ pub fn open_workspace(
             "workspace_switch_blocked",
             &[("editors", serde_json::json!(editors))],
         );
-        wb.status = format!(
+        wb.outcome_status(format!(
             "close {editors} editor window(s) before opening {}",
             root.display()
-        );
+        ));
         return None;
     }
     // Do not rely on the shell having already drained the asynchronous
@@ -339,9 +342,12 @@ pub fn open_workspace(
         .or(publish_err);
     if let Some(w) = &warning {
         wb.disclose(DegradedReason::StoreCorrupt);
-        wb.status = w.clone();
+        // Storage degradation is evidence carried by the engine boot status;
+        // classing it as a completed operation would make it sticky across
+        // the reopen that clears it.
+        wb.evidence_status(w.clone());
     } else {
-        wb.status = format!("{} · locating Boris…", root.display());
+        wb.bookkeeping_status(format!("Opening workspace {}…", root.display()));
     }
     let mut recent = env.recent();
     recent.push(&root);
@@ -424,15 +430,17 @@ pub fn demo_available() -> bool {
 /// present, otherwise an empty workbench. Either way, say how to open one.
 pub fn boot_without_workspace(wb: &mut Workbench, demo: bool) {
     let how = "Open workspace… (mod+shift+O) or launch with --project <dir>.";
-    wb.status = if demo {
+    if demo {
         let _ = open_corpus(wb, CANARY_CORPUS);
-        format!("No workspace open — showing the fixture demo. {how}")
+        wb.bookkeeping_status(format!(
+            "No workspace open — showing the fixture demo. {how}"
+        ));
     } else {
         cv_model::modules::engine::detach();
         wb.workspace_key = None;
         wb.reset_project(workspace_registry());
-        format!("No workspace open. {how}")
-    };
+        wb.bookkeeping_status(format!("No workspace open. {how}"));
+    }
 }
 
 /// `CV_DEBUG=1` keeps the demo module in every workspace.
@@ -746,7 +754,7 @@ fn engine_absent_toast(wb: &mut Workbench) {
         .map(|i| PathBuf::from(format!("/opt/tool-{i}/bin/boris")))
         .collect();
     let e = cv_engine::error::EngineError::NotFound { searched };
-    wb.status = format!("/workspace/happy: {e}");
+    wb.evidence_status(format!("/workspace/happy: {e}"));
 }
 
 fn audit(wb: &mut Workbench) {

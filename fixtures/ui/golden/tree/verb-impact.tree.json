@@ -1718,24 +1718,24 @@
       "path": "shell/toast-region",
       "rect": [
         928.0,
-        664.0,
+        708.0,
         320.0,
-        88.0
+        44.0
       ],
       "role": "region"
     },
     {
       "fill": "#1a1e26ff",
       "key": "status-msg",
-      "label": "Status",
+      "label": "Impact review finished",
       "opacity": 1.0,
       "path": "shell/toast-region/status-msg",
       "radius": 8.0,
       "rect": [
         928.0,
-        664.0,
+        708.0,
         320.0,
-        88.0
+        44.0
       ],
       "role": "status",
       "shadows": [
@@ -1763,9 +1763,9 @@
       "path": "shell/toast-region/status-msg/top",
       "rect": [
         940.0,
-        676.0,
+        720.0,
         296.0,
-        64.0
+        20.0
       ],
       "role": "group"
     },
@@ -1775,9 +1775,9 @@
       "path": "shell/toast-region/status-msg/top/content",
       "rect": [
         940.0,
-        676.0,
+        720.0,
         264.0,
-        64.0
+        20.0
       ],
       "role": "group"
     },
@@ -1788,26 +1788,12 @@
       "path": "shell/toast-region/status-msg/top/content/title",
       "rect": [
         940.0,
-        676.0,
+        720.0,
         264.0,
         20.0
       ],
       "role": "text",
-      "text": "Status"
-    },
-    {
-      "color": "#8a93a3ff",
-      "key": "description",
-      "opacity": 1.0,
-      "path": "shell/toast-region/status-msg/top/content/description",
-      "rect": [
-        940.0,
-        700.0,
-        264.0,
-        40.0
-      ],
-      "role": "text",
-      "text": "boris impact guides/getting-started --format json finished (exit 0, 0 ms)"
+      "text": "Impact review finished"
     },
     {
       "key": "close",
@@ -1817,7 +1803,7 @@
       "radius": 4.0,
       "rect": [
         1216.0,
-        676.0,
+        720.0,
         20.0,
         20.0
       ],
@@ -1829,7 +1815,7 @@
       "path": "shell/toast-region/status-msg/top/close/#0",
       "rect": [
         1218.0,
-        678.0,
+        722.0,
         16.0,
         16.0
       ],

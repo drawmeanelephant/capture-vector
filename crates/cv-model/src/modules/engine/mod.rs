@@ -199,13 +199,12 @@ impl EngineModule {
 
     fn launch(&mut self, verb: Verb) -> Vec<Intent> {
         let name = verb.name();
-        let label = match &verb {
-            Verb::Impact { id } => format!("boris impact {id}"),
-            _ => format!("boris {}", name.replace(':', " ")),
-        };
+        let label = product_label(&name);
+        let progress = progress_copy(&name);
         let long = is_long(&verb);
         if long && let Some(other) = self.long_running() {
-            return vec![Intent::Status(format!(
+            let other = lowercase_first(product_label(other));
+            return vec![Intent::outcome(format!(
                 "{other} is still running; wait for it or cancel it first"
             ))];
         }
@@ -214,21 +213,21 @@ impl EngineModule {
             cancel: CancelToken::new(),
         };
         if let Err(e) = start(run.clone()) {
-            return vec![Intent::Status(format!("{label} could not start: {e}"))];
+            return vec![Intent::outcome(format!("{label} could not start: {e}"))];
         }
         self.running.push((name, run));
-        let mut out = vec![Intent::Status(format!("Running {label}…"))];
+        let mut out = vec![Intent::progress(progress.clone())];
         if long {
             out.push(Intent::dialog(
                 DialogSpec::new(
                     RUNNING,
-                    "Running Boris",
+                    label,
                     DialogKind::Progress(Progress {
-                        label,
+                        label: progress,
                         permille: None,
                     }),
                 )
-                .body("The run is recorded in Activity when Boris exits.")
+                .body("The run is recorded in Activity when it finishes.")
                 .cancel("Cancel"),
             ));
         }
@@ -250,15 +249,12 @@ impl EngineModule {
         let Some(run) = self.finish(&r.verb) else {
             return false;
         };
-        let code = r
-            .code
-            .map_or_else(|| format!("{:?}", r.exit), |c| format!("exit {c}"));
-        let what = r.command();
+        let label = product_label(&r.verb);
         let status = match r.exit {
-            ExitClass::Ok => format!("{what} finished ({code}, {} ms)", r.duration_ms),
-            _ => format!("{what} failed ({code}) · see Activity › Errors"),
+            ExitClass::Ok => format!("{label} {}", success_word(&r.verb)),
+            _ => format!("{label} failed · see Activity"),
         };
-        self.owed.push(Intent::Status(status));
+        self.owed.push(Intent::outcome(status));
         if let (Verb::Impact { id }, ExitClass::Ok) = (&run.verb, r.exit)
             && let Some(impact) = parse_impact(id, r)
         {
@@ -274,21 +270,77 @@ impl EngineModule {
         true
     }
 
-    fn failed(&mut self, verb: &str, error: &str) -> bool {
+    fn failed(&mut self, verb: &str, _error: &str) -> bool {
         let Some(run) = self.finish(verb) else {
             return false;
         };
+        let label = product_label(verb);
         let status = if run.cancel.is_cancelled() {
-            format!("boris {verb} cancelled")
+            format!("{label} cancelled")
         } else {
-            format!("boris {verb} failed: {error}")
+            format!("{label} failed · see Activity")
         };
-        self.owed.push(Intent::Status(status));
+        self.owed.push(Intent::outcome(status));
         true
     }
 
     fn impact(&self, key: &str) -> Option<&Impact> {
         self.impacts.iter().find(|i| i.key() == key)
+    }
+}
+
+fn lowercase_first(mut s: String) -> String {
+    if let Some(first) = s.get(..1) {
+        s.replace_range(..1, &first.to_lowercase());
+    }
+    s
+}
+
+fn progress_copy(verb: &str) -> String {
+    match verb {
+        "build" => "Building the site…".into(),
+        "validate" => "Validating the site…".into(),
+        "check" => "Checking the site…".into(),
+        "plan" => "Planning publication…".into(),
+        "graph" => "Reading the page graph…".into(),
+        "impact" => "Reviewing impact…".into(),
+        "export:out" => "Exporting IR…".into(),
+        "export:rag" => "Exporting the RAG catalog…".into(),
+        "export:context" => "Exporting the context bundle…".into(),
+        "export:llms" => "Exporting llms.txt…".into(),
+        "export:rss" => "Exporting the RSS feed…".into(),
+        "export:sitemap" => "Exporting the sitemap…".into(),
+        other => format!("Running Boris {other}…"),
+    }
+}
+
+fn success_word(verb: &str) -> &'static str {
+    match verb {
+        "validate" => "passed",
+        "check" => "completed",
+        "plan" => "is ready",
+        _ => "finished",
+    }
+}
+
+/// The user-facing product result name for one Boris verb. Activity keeps
+/// the exact argv, exit class and duration; the status names what the user
+/// asked Capture Vector to do.
+pub fn product_label(verb: &str) -> String {
+    match verb {
+        "build" => "Site build".into(),
+        "validate" => "Validation".into(),
+        "check" => "Check".into(),
+        "plan" => "Publication plan".into(),
+        "graph" => "Graph".into(),
+        "impact" => "Impact review".into(),
+        "export:out" => "IR export".into(),
+        "export:rag" => "RAG catalog export".into(),
+        "export:context" => "Context bundle export".into(),
+        "export:llms" => "llms.txt export".into(),
+        "export:rss" => "RSS feed export".into(),
+        "export:sitemap" => "Sitemap export".into(),
+        other => format!("Boris {other}"),
     }
 }
 
@@ -436,7 +488,7 @@ impl Module for EngineModule {
             return vec![];
         };
         if let Some(why) = unavailable() {
-            return vec![Intent::Status(format!(
+            return vec![Intent::outcome(format!(
                 "Boris verbs are unavailable: {why}"
             ))];
         }
@@ -444,14 +496,14 @@ impl Module for EngineModule {
             let id = self.focus.as_deref().and_then(|k| self.page_id(k));
             return match id {
                 Some(id) => self.launch(Verb::Impact { id: id.into() }),
-                None => vec![Intent::Status(
-                    "Select a page in Pages first; impact runs on the selected page.".into(),
+                None => vec![Intent::outcome(
+                    "Select a page in Pages first; impact runs on the selected page.",
                 )],
             };
         }
         match verbs().into_iter().find(|(id, _, _)| *id == suffix) {
             Some((_, _, Some(verb))) => self.launch(verb),
-            _ => vec![Intent::Status(format!("unknown command {command}"))],
+            _ => vec![Intent::outcome(format!("unknown command {command}"))],
         }
     }
 
@@ -463,7 +515,8 @@ impl Module for EngineModule {
             return vec![];
         };
         run.cancel.cancel();
-        vec![Intent::Status(format!("Cancelling boris {name}…"))]
+        let label = lowercase_first(product_label(name));
+        vec![Intent::progress(format!("Cancelling {label}…"))]
     }
 }
 
