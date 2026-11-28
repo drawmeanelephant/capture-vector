@@ -282,6 +282,28 @@ fn link_dests(root: &Path, take: impl Fn(&store::PlannedAssetMove) -> bool) {
     }
 }
 
+/// Replace `content/<rel>` with a byte-identical file under a provably new
+/// storage identity. The replacement is allocated while the original still
+/// holds its inode — two live files cannot share one — then swapped into
+/// place. Delete-then-rewrite is not enough: filesystems that reissue a
+/// just-freed inode number (ext4/overlayfs on Linux) can hand the recreate
+/// the same inode back, making the restored file indistinguishable from the
+/// journaled original.
+fn restore_with_new_identity(root: &Path, rel: &str) {
+    let target = root.join("content").join(rel);
+    let bytes = std::fs::read(&target).unwrap();
+    let before = cv_engine::file_identity::identity(&target);
+    let staged = target.with_extension("cv-restoring");
+    write(&staged, &bytes);
+    std::fs::remove_file(&target).unwrap();
+    std::fs::rename(&staged, &target).unwrap();
+    assert_ne!(
+        cv_engine::file_identity::identity(&target),
+        before,
+        "{rel} restored copy must carry a new storage identity"
+    );
+}
+
 /// Apply the candidate post-image to one page as if the MarkdownWritten
 /// phase had reached it.
 fn write_page_post(root: &Path, page_rel: &str) {
@@ -601,9 +623,7 @@ fn user_restored_source_survives_instead_of_being_taken_for_a_partial() {
     // The user deletes the asset and restores a byte-identical copy: same
     // bytes, new identity. The resume must not unlink it.
     let rel = "spaces.assets/hello world.png";
-    let bytes = std::fs::read(root.join("content").join(rel)).unwrap();
-    std::fs::remove_file(root.join("content").join(rel)).unwrap();
-    write(&root.join("content").join(rel), bytes);
+    restore_with_new_identity(&root, rel);
 
     let err = transact(&root, &src, &expected).unwrap_err();
     assert!(matches!(err, adopt::AdoptError::Foreign(_)), "{err}");
@@ -853,9 +873,7 @@ fn journaled_identity_bound_asset_is_unlinked_only_while_original() {
     // Between MarkdownWritten and SourcesUnlinked the user replaced a source
     // with a byte-identical file: different identity, must survive.
     let rel = "unicode.assets/café.png";
-    let bytes = std::fs::read(root.join("content").join(rel)).unwrap();
-    std::fs::remove_file(root.join("content").join(rel)).unwrap();
-    write(&root.join("content").join(rel), bytes);
+    restore_with_new_identity(&root, rel);
 
     let err = transact(&root, &src, &expected).unwrap_err();
     assert!(matches!(err, adopt::AdoptError::Foreign(_)), "{err}");
