@@ -145,6 +145,22 @@ fn count_text(n: usize, one: &str, many: &str) -> String {
 }
 
 fn adoption_status(run_id: &str, report: &crate::adoption::AdoptionReport) -> String {
+    // An in-place asset-filename transformation records no adopted pages;
+    // it moved assets and rewrote Markdown references in place.
+    if !report.new_workspace && report.pages == 0 && report.markdown_writes + report.assets > 0 {
+        return format!(
+            "applied {} and {} from {run_id} in {} · validate {}, build {}",
+            count_text(report.assets, "asset rename", "asset renames"),
+            count_text(
+                report.markdown_writes,
+                "Markdown rewrite",
+                "Markdown rewrites"
+            ),
+            report.destination,
+            report.validate,
+            report.build
+        );
+    }
     format!(
         "adopted {} and {} from {run_id} into {} · validate {}, build {}",
         count_text(report.pages, "page", "pages"),
@@ -698,6 +714,7 @@ mod tests {
                 files_written: 3,
                 pages: 2,
                 assets: 1,
+                markdown_writes: 0,
                 destination: "content/imported/site".into(),
                 validate: "ok".into(),
                 build: "ok".into(),
@@ -720,6 +737,7 @@ mod tests {
             files_written: 3,
             pages: 2,
             assets: 1,
+            markdown_writes: 0,
             destination: "content/imported/site".into(),
             validate: "ok".into(),
             build: "ok".into(),

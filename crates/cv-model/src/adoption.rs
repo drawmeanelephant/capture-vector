@@ -45,6 +45,10 @@ pub struct AdoptionReport {
     pub pages: usize,
     /// Non-page files in that same converged plan.
     pub assets: usize,
+    /// In-place Markdown reference rewrites inside the converged plan.
+    /// Zero for foreign-tree copy adoptions, which count written pages in
+    /// `pages` instead.
+    pub markdown_writes: usize,
     /// User-facing content destination, `/`-separated and relative to the
     /// workspace (`content/imported/site`, for example).
     pub destination: String,

@@ -314,6 +314,7 @@ fn finish_report(
         files_written: tx.written + tx.resumed,
         pages,
         assets,
+        markdown_writes: tx.markdown_writes,
         destination,
         validate: gate_text(&gate.0),
         build: gate

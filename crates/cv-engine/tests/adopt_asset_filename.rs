@@ -1,6 +1,7 @@
-//! Regression tests for operation-based in-place asset-filename adoption.
-//! The lab output is the pinned capture; only the workspace content that
-//! capture was captured from is reconstructed in scratch space.
+//! Regression tests for snapshot/phase in-place asset-filename adoption.
+//! The lab output is the pinned capture; the workspace content it was
+//! captured from is reconstructed in scratch space along with the
+//! Capture Vector-owned input inventory the lab run recorded.
 
 use cv_engine::adopt::{self, ExpectedWorkspaceInstance, asset_filename};
 use cv_fixtures::lab::StubLab;
@@ -17,13 +18,6 @@ fn symlink_file(target: &Path, link: &Path) {
     std::os::unix::fs::symlink(target, link).unwrap();
     #[cfg(windows)]
     std::os::windows::fs::symlink_file(target, link).unwrap();
-}
-
-fn symlink_dir(target: &Path, link: &Path) {
-    #[cfg(unix)]
-    std::os::unix::fs::symlink(target, link).unwrap();
-    #[cfg(windows)]
-    std::os::windows::fs::symlink_dir(target, link).unwrap();
 }
 
 fn page(id: &str, title: &str, body: &str) -> String {
@@ -154,6 +148,9 @@ fn stage_workspace(root: &Path) {
     );
 }
 
+/// Mirrors `run_lab_with_lock`: the stub lab writes `out/`, the run record is
+/// stored, and the content-input inventory is captured under the run lock —
+/// the freshness authority every later adoption attempt reconciles against.
 fn seed_run(root: &Path, run_id: &str) {
     let dir = store::run_dir(root, run_id).unwrap();
     let transcript = StubLab::new()
@@ -185,6 +182,7 @@ fn seed_run(root: &Path, run_id: &str) {
         duration_ms: 0,
     });
     store::write(&lock, &rec).unwrap();
+    store::capture_input_inventory(&lock, &input).unwrap();
 }
 
 fn fixture(root: &Path) -> (String, adopt::AdoptionSource, ExpectedWorkspaceInstance) {
@@ -201,137 +199,140 @@ fn fixture(root: &Path) -> (String, adopt::AdoptionSource, ExpectedWorkspaceInst
     (run_id.into(), src, expected)
 }
 
-fn transact(
-    root: &Path,
-    src: &adopt::AdoptionSource,
-    expected: &ExpectedWorkspaceInstance,
-) -> Result<adopt::TxReport, adopt::AdoptError> {
-    asset_filename::transact_existing_with_identity(asset_filename::AssetFilenameTransaction {
+fn tx<'a>(
+    root: &'a Path,
+    src: &'a adopt::AdoptionSource,
+    expected: &'a ExpectedWorkspaceInstance,
+) -> asset_filename::AssetFilenameTransaction<'a> {
+    asset_filename::AssetFilenameTransaction {
         target_root: root,
         src,
         content_input: "content",
         at_ms: 2,
         expected_instance: expected,
-    })
+    }
+}
+
+fn transact(
+    root: &Path,
+    src: &adopt::AdoptionSource,
+    expected: &ExpectedWorkspaceInstance,
+) -> Result<adopt::TxReport, adopt::AdoptError> {
+    asset_filename::transact_existing_with_identity(tx(root, src, expected))
+}
+
+/// Journal the plan and stop before any content mutation — the state a crash
+/// immediately after preflight would leave on disk.
+fn journal_only(root: &Path, src: &adopt::AdoptionSource, expected: &ExpectedWorkspaceInstance) {
+    asset_filename::journal_only_for_tests(tx(root, src, expected)).unwrap();
 }
 
 fn read(root: &Path, rel: &str) -> String {
     std::fs::read_to_string(root.join(rel)).unwrap()
 }
 
-fn replace_once(haystack: &[u8], needle: &[u8], replacement: &[u8]) -> Vec<u8> {
-    let at = haystack
-        .windows(needle.len())
-        .position(|w| w == needle)
-        .unwrap();
-    let mut out = Vec::new();
-    out.extend_from_slice(&haystack[..at]);
-    out.extend_from_slice(replacement);
-    out.extend_from_slice(&haystack[at + needle.len()..]);
-    out
-}
-
-fn asset_op(root: &Path, source: &str, target: &str) -> store::PendingAssetOperation {
-    let source_ws = format!("content/{source}");
-    let bytes = std::fs::read(root.join(&source_ws)).unwrap();
-    let hash = store::sha256_hex(&bytes);
-    store::PendingAssetOperation {
-        kind: store::AssetOperationKind::Asset,
-        source: source_ws,
-        target: format!("content/{target}"),
-        source_sha256: hash.clone(),
-        source_bytes: bytes.len() as u64,
-        target_sha256: hash,
-        target_bytes: bytes.len() as u64,
-    }
-}
-
-fn markdown_op(root: &Path, page: &str, rows: &[(&str, &str)]) -> store::PendingAssetOperation {
-    let ws = format!("content/{page}");
-    let original = std::fs::read(root.join(&ws)).unwrap();
-    let mut final_bytes = original.clone();
-    for (old, new) in rows {
-        final_bytes = replace_once(&final_bytes, old.as_bytes(), new.as_bytes());
-    }
-    store::PendingAssetOperation {
-        kind: store::AssetOperationKind::Markdown,
-        source: ws.clone(),
-        target: ws,
-        source_sha256: store::sha256_hex(&original),
-        source_bytes: original.len() as u64,
-        target_sha256: store::sha256_hex(&final_bytes),
-        target_bytes: final_bytes.len() as u64,
-    }
-}
-
-/// The complete pre-write operation journal for the pinned fixture, in the
-/// deterministic order the planner uses: authorized asset moves in manifest
-/// order, then authorized Markdown rewrites in candidate order.
-fn complete_operations(root: &Path) -> Vec<store::PendingAssetOperation> {
-    vec![
-        asset_op(
-            root,
-            "nested.assets/deep/sub dir/shot.png",
-            "nested.assets/deep/sub-dir/shot.png",
-        ),
-        asset_op(
-            root,
-            "percent.assets/diagram%20copy.png",
-            "percent.assets/diagram-copy.png",
-        ),
-        asset_op(
-            root,
-            "spaces.assets/hello world.png",
-            "spaces.assets/hello-world.png",
-        ),
-        asset_op(root, "unicode.assets/café.png", "unicode.assets/caf.png"),
-        markdown_op(
-            root,
-            "nested.md",
-            &[(
-                "nested.assets/deep/sub dir/shot.png",
-                "nested.assets/deep/sub-dir/shot.png",
-            )],
-        ),
-        markdown_op(
-            root,
-            "percent.md",
-            &[(
-                "percent.assets/diagram%20copy.png",
-                "percent.assets/diagram-copy.png",
-            )],
-        ),
-        markdown_op(
-            root,
-            "spaces.md",
-            &[
-                (
-                    "spaces.assets/hello world.png",
-                    "spaces.assets/hello-world.png",
-                ),
-                (
-                    "spaces.assets/hello%20world.png",
-                    "spaces.assets/hello-world.png",
-                ),
-            ],
-        ),
-        markdown_op(
-            root,
-            "unicode.md",
-            &[("unicode.assets/café.png", "unicode.assets/caf.png")],
-        ),
-    ]
-}
-
-fn write_operations_journal(root: &Path, operations: Vec<store::PendingAssetOperation>) {
-    let mut journal = store::PendingAdoption::new("asset-run", "existing", "content");
-    journal.asset_operations = Some(operations);
-    let lock = store::lock_run(root, "asset-run").unwrap();
-    store::write_pending(&lock, &journal).unwrap();
+fn run_dir(root: &Path) -> std::path::PathBuf {
+    root.join(".cv/imports/asset-run")
 }
 
 fn pending_path(root: &Path) -> std::path::PathBuf {
-    root.join(".cv/imports/asset-run").join(store::PENDING)
+    run_dir(root).join(store::PENDING)
+}
+
+fn journal(root: &Path) -> store::PendingAdoption {
+    store::read_pending(root, "asset-run").unwrap().unwrap()
+}
+
+fn all_moves(root: &Path) -> Vec<store::PlannedAssetMove> {
+    journal(root)
+        .transformation
+        .as_ref()
+        .unwrap()
+        .components
+        .iter()
+        .flat_map(|c| c.asset_moves.clone())
+        .collect()
+}
+
+/// Link a transaction-scoped backup for each move as if the BackupsLinked
+/// phase had completed for it.
+fn link_backups(root: &Path, take: impl Fn(&store::PlannedAssetMove) -> bool) {
+    for mv in all_moves(root) {
+        if !take(&mv) {
+            continue;
+        }
+        let backup = root.join(&mv.backup);
+        let src = root.join("content").join(&mv.source);
+        std::fs::create_dir_all(backup.parent().unwrap()).unwrap();
+        std::fs::hard_link(&src, &backup).unwrap();
+    }
+}
+
+/// Link destinations from their backups as if DestinationsLinked had run.
+fn link_dests(root: &Path, take: impl Fn(&store::PlannedAssetMove) -> bool) {
+    for mv in all_moves(root) {
+        if !take(&mv) {
+            continue;
+        }
+        let backup = root.join(&mv.backup);
+        let dest = root.join("content").join(&mv.dest);
+        std::fs::create_dir_all(dest.parent().unwrap()).unwrap();
+        std::fs::hard_link(&backup, &dest).unwrap();
+    }
+}
+
+/// Apply the candidate post-image to one page as if the MarkdownWritten
+/// phase had reached it.
+fn write_page_post(root: &Path, page_rel: &str) {
+    let post = store::read_out_file(root, "asset-run", &format!("content/{page_rel}")).unwrap();
+    write(&root.join("content").join(page_rel), post);
+}
+
+/// Rewrite one journaled field, simulating journal corruption between
+/// attempts.
+fn patch_journal(root: &Path, patch: impl FnOnce(&mut serde_json::Value)) {
+    let mut v: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(pending_path(root)).unwrap()).unwrap();
+    patch(&mut v);
+    std::fs::write(pending_path(root), serde_json::to_vec(&v).unwrap()).unwrap();
+}
+
+/// Rewrite one evidence file inside `out/`, simulating tampering or a bad lab.
+fn patch_out(root: &Path, rel: &str, patch: impl FnOnce(&mut serde_json::Value)) {
+    let path = run_dir(root).join(store::OUT).join(rel);
+    let mut v: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    patch(&mut v);
+    std::fs::write(&path, serde_json::to_vec(&v).unwrap()).unwrap();
+}
+
+fn backup_dir(root: &Path) -> std::path::PathBuf {
+    run_dir(root).join("asset-backup")
+}
+
+fn assert_no_content_effect(root: &Path) {
+    assert!(!backup_dir(root).exists(), "backup links must not exist");
+    for rel in [
+        "nested.assets/deep/sub-dir/shot.png",
+        "percent.assets/diagram-copy.png",
+        "spaces.assets/hello-world.png",
+        "unicode.assets/caf.png",
+    ] {
+        assert!(
+            !root.join("content").join(rel).exists(),
+            "{rel} must not have been linked"
+        );
+    }
+    for rel in [
+        "nested.assets/deep/sub dir/shot.png",
+        "percent.assets/diagram%20copy.png",
+        "spaces.assets/hello world.png",
+        "unicode.assets/café.png",
+    ] {
+        assert!(
+            root.join("content").join(rel).is_file(),
+            "{rel} must be untouched"
+        );
+    }
 }
 
 #[test]
@@ -339,8 +340,9 @@ fn transformation_moves_safe_assets_rewrites_pages_and_leaves_collisions_untouch
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path().canonicalize().unwrap();
     let (_id, src, expected) = fixture(&root);
-    let tx = transact(&root, &src, &expected).unwrap();
-    assert!(tx.written >= 8, "{tx:?}");
+    let report = transact(&root, &src, &expected).unwrap();
+    assert_eq!((report.asset_moves, report.markdown_writes), (4, 4));
+    assert!(report.written >= 8, "{report:?}");
 
     for (gone, present) in [
         (
@@ -383,7 +385,10 @@ fn transformation_moves_safe_assets_rewrites_pages_and_leaves_collisions_untouch
             "{collision} must be untouched"
         );
     }
+    // The transitive block: collision-contaminated pages keep their original
+    // references, so no reference dangles to a move that never happened.
     assert!(read(&root, "content/sanitize-collision.md").contains("foo bar.png"));
+    assert!(read(&root, "content/case-collision.md").contains("Foo Bar.png"));
     assert!(
         root.join("content/symlink.assets/alias.png")
             .symlink_metadata()
@@ -391,22 +396,78 @@ fn transformation_moves_safe_assets_rewrites_pages_and_leaves_collisions_untouch
             .file_type()
             .is_symlink()
     );
-    assert!(
-        !root
-            .join(".cv/imports/asset-run")
-            .join(store::PENDING)
-            .exists()
-    );
+    assert!(!pending_path(&root).exists());
+    assert!(!backup_dir(&root).exists());
+}
+
+#[test]
+fn provenance_covers_every_outcome_with_final_hashes_and_collision_reasons() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, src, expected) = fixture(&root);
+    transact(&root, &src, &expected).unwrap();
     let adoption = store::read_adoption_record(&root, "asset-run")
         .unwrap()
         .unwrap();
     assert!(adoption.pages.is_empty(), "no page ids are invented");
-    assert!(
-        adoption
-            .asset_operations
-            .iter()
-            .any(|o| o.status == store::AssetOperationStatus::SkippedCollision)
-    );
+
+    // Every manifest row lands in provenance exactly once with a status.
+    let manifest: serde_json::Value = serde_json::from_slice(
+        &store::read_out_file(&root, "asset-run", "asset_filename_manifest.json").unwrap(),
+    )
+    .unwrap();
+    let row_count = manifest["assets"].as_array().unwrap().len();
+    let asset_rows: Vec<_> = adoption
+        .asset_operations
+        .iter()
+        .filter(|o| o.kind == store::AssetOperationKind::Asset)
+        .collect();
+    assert_eq!(asset_rows.len(), row_count);
+    for op in &asset_rows {
+        match op.status {
+            store::AssetOperationStatus::SkippedCollision => {
+                assert!(
+                    op.reason.contains("collision"),
+                    "skipped row must name the collision: {op:?}"
+                );
+            }
+            store::AssetOperationStatus::Applied | store::AssetOperationStatus::Resumed => {
+                assert!(op.sha256.is_some() && op.bytes > 0, "{op:?}");
+            }
+            store::AssetOperationStatus::Unchanged | store::AssetOperationStatus::Rejected => {}
+        }
+    }
+
+    // Markdown rows: written pages carry the final post-image hash/bytes;
+    // collision-blocked pages name the blocking reason and carry no hash.
+    let markdown: Vec<_> = adoption
+        .asset_operations
+        .iter()
+        .filter(|o| o.kind == store::AssetOperationKind::Markdown)
+        .collect();
+    let applied: Vec<_> = markdown
+        .iter()
+        .filter(|o| o.status == store::AssetOperationStatus::Applied)
+        .collect();
+    let blocked: Vec<_> = markdown
+        .iter()
+        .filter(|o| o.status == store::AssetOperationStatus::SkippedCollision)
+        .collect();
+    assert_eq!(applied.len(), 4, "{markdown:?}");
+    assert_eq!(blocked.len(), 2, "{markdown:?}");
+    for op in applied {
+        let live = std::fs::read(root.join("content").join(&op.target)).unwrap();
+        assert_eq!(
+            op.sha256.as_deref(),
+            Some(store::sha256_hex(&live).as_str())
+        );
+        assert_eq!(op.bytes, live.len() as u64);
+        assert!(op.rewrites >= 1);
+    }
+    for op in blocked {
+        assert!(op.reason.contains("collision"), "{op:?}");
+        assert!(op.sha256.is_none(), "{op:?}");
+    }
 }
 
 #[test]
@@ -421,8 +482,7 @@ fn stale_markdown_refuses_before_the_first_write() {
     .unwrap();
     let err = transact(&root, &src, &expected).unwrap_err();
     assert!(matches!(err, adopt::AdoptError::Stale(_)), "{err}");
-    assert!(root.join("content/spaces.assets/hello world.png").exists());
-    assert!(!root.join("content/spaces.assets/hello-world.png").exists());
+    assert_no_content_effect(&root);
     assert!(store::read_pending(&root, "asset-run").unwrap().is_none());
 }
 
@@ -431,6 +491,8 @@ fn foreign_destination_is_never_overwritten() {
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path().canonicalize().unwrap();
     let (_id, src, expected) = fixture(&root);
+    // A file that appeared at a would-be destination after the lab ran is a
+    // live entry outside the inventory: refuse, never overwrite.
     write(
         &root.join("content/spaces.assets/hello-world.png"),
         b"foreign",
@@ -441,6 +503,7 @@ fn foreign_destination_is_never_overwritten() {
         std::fs::read(root.join("content/spaces.assets/hello-world.png")).unwrap(),
         b"foreign"
     );
+    assert!(!backup_dir(&root).exists());
     assert!(root.join("content/spaces.assets/hello world.png").exists());
 }
 
@@ -457,25 +520,18 @@ fn completed_transformation_is_an_idempotent_noop() {
 }
 
 #[test]
-fn journaled_interruption_resumes_without_treating_partial_output_as_foreign() {
+fn crash_during_destination_link_resumes() {
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path().canonicalize().unwrap();
     let (_id, src, expected) = fixture(&root);
-    let operations = complete_operations(&root);
-    // A crash after the first journaled asset rename: the journal still
-    // contains every operation, and disk contains only that partial effect.
-    std::fs::create_dir_all(root.join("content/nested.assets/deep/sub-dir")).unwrap();
-    std::fs::rename(
-        root.join("content/nested.assets/deep/sub dir/shot.png"),
-        root.join("content/nested.assets/deep/sub-dir/shot.png"),
-    )
-    .unwrap();
-    write_operations_journal(&root, operations);
+    journal_only(&root, &src, &expected);
+    // Crash after all backups but only the first destination link.
+    link_backups(&root, |_| true);
+    let first = all_moves(&root)[0].dest.clone();
+    link_dests(&root, |m| m.dest == first);
 
-    let tx = transact(&root, &src, &expected).unwrap();
-    assert_eq!((tx.planned, tx.written, tx.resumed), (8, 7, 1));
-    assert_eq!(tx.asset_moves, 4);
-    assert_eq!(tx.markdown_writes, 4);
+    let report = transact(&root, &src, &expected).unwrap();
+    assert!(report.written > 0 && report.resumed > 0, "{report:?}");
     for rel in [
         "nested.assets/deep/sub-dir/shot.png",
         "percent.assets/diagram-copy.png",
@@ -484,7 +540,286 @@ fn journaled_interruption_resumes_without_treating_partial_output_as_foreign() {
     ] {
         assert!(root.join("content").join(rel).is_file(), "{rel}");
     }
-    assert!(store::read_pending(&root, "asset-run").unwrap().is_none());
+    assert!(!pending_path(&root).exists());
+    assert!(!backup_dir(&root).exists());
+}
+
+#[test]
+fn crash_after_first_markdown_write_resumes() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, src, expected) = fixture(&root);
+    journal_only(&root, &src, &expected);
+    link_backups(&root, |_| true);
+    link_dests(&root, |_| true);
+    write_page_post(&root, "nested.md");
+
+    let report = transact(&root, &src, &expected).unwrap();
+    assert!(report.resumed > 0, "{report:?}");
+    for page in ["nested.md", "percent.md", "spaces.md", "unicode.md"] {
+        let live = std::fs::read(root.join("content").join(page)).unwrap();
+        let post = store::read_out_file(&root, "asset-run", &format!("content/{page}")).unwrap();
+        assert_eq!(live, post, "{page} must hold the post-image");
+    }
+    assert!(!pending_path(&root).exists());
+    assert!(!backup_dir(&root).exists());
+}
+
+#[test]
+fn fully_linked_backup_state_resumes_every_move_as_hard_links() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, src, expected) = fixture(&root);
+    journal_only(&root, &src, &expected);
+    link_backups(&root, |_| true);
+    link_dests(&root, |_| true);
+
+    let report = transact(&root, &src, &expected).unwrap();
+    assert_eq!(report.asset_moves, 4);
+    let adoption = store::read_adoption_record(&root, "asset-run")
+        .unwrap()
+        .unwrap();
+    let resumed = adoption
+        .asset_operations
+        .iter()
+        .filter(|o| {
+            o.kind == store::AssetOperationKind::Asset
+                && o.status == store::AssetOperationStatus::Resumed
+        })
+        .count();
+    assert_eq!(resumed, 4, "every journaled move resumes via its links");
+    assert!(!backup_dir(&root).exists());
+}
+
+#[test]
+fn user_restored_source_survives_instead_of_being_taken_for_a_partial() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, src, expected) = fixture(&root);
+    journal_only(&root, &src, &expected);
+    // The user deletes the asset and restores a byte-identical copy: same
+    // bytes, new identity. The resume must not unlink it.
+    let rel = "spaces.assets/hello world.png";
+    let bytes = std::fs::read(root.join("content").join(rel)).unwrap();
+    std::fs::remove_file(root.join("content").join(rel)).unwrap();
+    write(&root.join("content").join(rel), bytes);
+
+    let err = transact(&root, &src, &expected).unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Foreign(_)), "{err}");
+    assert!(err.to_string().contains("journaled move source"), "{err}");
+    assert_eq!(
+        std::fs::read(root.join("content").join(rel)).unwrap(),
+        b"asset-stub-v1-spaces\n"
+    );
+    assert!(pending_path(&root).is_file(), "journal stays for review");
+}
+
+#[test]
+fn foreign_destination_replacement_after_journaling_refuses_and_is_preserved() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, src, expected) = fixture(&root);
+    journal_only(&root, &src, &expected);
+    write(
+        &root.join("content/spaces.assets/hello-world.png"),
+        b"foreign-bytes",
+    );
+    let err = transact(&root, &src, &expected).unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Foreign(_)), "{err}");
+    assert_eq!(
+        std::fs::read(root.join("content/spaces.assets/hello-world.png")).unwrap(),
+        b"foreign-bytes"
+    );
+    assert!(root.join("content/spaces.assets/hello world.png").exists());
+    assert!(pending_path(&root).is_file());
+}
+
+#[test]
+fn in_place_source_write_after_journaling_is_detected() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, src, expected) = fixture(&root);
+    journal_only(&root, &src, &expected);
+    // Rewrite the source in place: same path, same inode, new bytes.
+    write(
+        &root.join("content/spaces.assets/hello world.png"),
+        b"edited-in-place",
+    );
+    let err = transact(&root, &src, &expected).unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Foreign(_)), "{err}");
+    assert!(err.to_string().contains("journaled move source"), "{err}");
+    assert_eq!(
+        std::fs::read(root.join("content/spaces.assets/hello world.png")).unwrap(),
+        b"edited-in-place"
+    );
+}
+
+#[test]
+fn corrupted_markdown_journal_refuses_before_any_asset_write() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, src, expected) = fixture(&root);
+    journal_only(&root, &src, &expected);
+    patch_journal(&root, |v| {
+        v["transformation"]["components"][0]["markdown"][0]["pre_sha256"] =
+            serde_json::Value::String("0".repeat(64));
+    });
+    let err = transact(&root, &src, &expected).unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Run(_)), "{err}");
+    assert_no_content_effect(&root);
+    assert!(pending_path(&root).is_file());
+}
+
+#[test]
+fn foreign_addition_after_journaling_blocks_recovery() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, src, expected) = fixture(&root);
+    journal_only(&root, &src, &expected);
+    write(
+        &root.join("content/late.md"),
+        page("late", "Late", "# Late\n"),
+    );
+    let err = transact(&root, &src, &expected).unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Foreign(_)), "{err}");
+    assert!(err.to_string().contains("appeared after"), "{err}");
+    assert_no_content_effect(&root);
+    assert!(pending_path(&root).is_file());
+}
+
+#[test]
+fn foreign_edit_of_an_untouched_file_after_journaling_blocks_recovery() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, src, expected) = fixture(&root);
+    journal_only(&root, &src, &expected);
+    write(&root.join("content/safe.md"), "foreign edit\n");
+    let err = transact(&root, &src, &expected).unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Foreign(_)), "{err}");
+    assert!(err.to_string().contains("changed after"), "{err}");
+    assert_no_content_effect(&root);
+}
+
+#[test]
+fn rewrite_row_for_an_absent_candidate_page_is_malformed() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, src, expected) = fixture(&root);
+    // Point one rewrite row at a page the candidate does not contain.
+    patch_out(&root, "rewrite_manifest.json", |v| {
+        v["rewrites"][0]["page_path"] = serde_json::Value::String("ghost.md".into());
+    });
+    let err = transact(&root, &src, &expected).unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Report(_)), "{err}");
+    assert!(
+        err.to_string().contains("absent from the lab candidate"),
+        "{err}"
+    );
+    assert_no_content_effect(&root);
+}
+
+#[test]
+fn unchanged_row_whose_destination_differs_is_malformed() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, src, expected) = fixture(&root);
+    patch_out(&root, "asset_filename_manifest.json", |v| {
+        for row in v["assets"].as_array_mut().unwrap() {
+            if row["action"] == "unchanged" {
+                // An empty destination skips candidate acceptance but
+                // violates the unchanged-row invariant itself.
+                row["dest_path"] = serde_json::Value::String(String::new());
+            }
+        }
+    });
+    let err = transact(&root, &src, &expected).unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Report(_)), "{err}");
+    assert!(err.to_string().contains("unchanged"), "{err}");
+    assert_no_content_effect(&root);
+}
+
+#[test]
+fn ambiguous_crash_left_temp_is_foreign_and_never_replaced() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, src, expected) = fixture(&root);
+    journal_only(&root, &src, &expected);
+    // A temp file at the journaled staging path whose identity was never
+    // recorded — ambiguous foreign data.
+    let j = journal(&root);
+    let temp_rel = j.transformation.as_ref().unwrap().components[0].markdown[0]
+        .temp
+        .clone();
+    let temp_abs = root.join("content").join(&temp_rel);
+    write(&temp_abs, b"ambiguous partial temp\n");
+
+    let err = transact(&root, &src, &expected).unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Foreign(_)), "{err}");
+    assert!(err.to_string().contains("unexplained"), "{err}");
+    assert_eq!(
+        std::fs::read(&temp_abs).unwrap(),
+        b"ambiguous partial temp\n"
+    );
+    assert!(pending_path(&root).is_file());
+}
+
+#[test]
+fn journaled_move_identity_that_no_longer_matches_refuses_recovery() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, src, expected) = fixture(&root);
+    journal_only(&root, &src, &expected);
+    patch_journal(&root, |v| {
+        v["transformation"]["components"][0]["asset_moves"][0]["identity"]["index"] =
+            serde_json::json!(1);
+    });
+    let err = transact(&root, &src, &expected).unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Run(_)), "{err}");
+    assert!(err.to_string().contains("component plan"), "{err}");
+    assert_no_content_effect(&root);
+}
+
+#[test]
+fn evidence_mutated_after_journaling_invalidates_the_journal() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, src, expected) = fixture(&root);
+    journal_only(&root, &src, &expected);
+    patch_out(&root, "asset_filename_manifest.json", |v| {
+        v["policy"] = serde_json::Value::String("tampered".into());
+    });
+    let err = transact(&root, &src, &expected).unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Run(_)), "{err}");
+    assert_no_content_effect(&root);
+    assert!(pending_path(&root).is_file());
+}
+
+#[test]
+fn run_without_input_inventory_is_a_run_again_error() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, src, expected) = fixture(&root);
+    std::fs::remove_file(run_dir(&root).join(store::INPUT_INVENTORY)).unwrap();
+    let err = transact(&root, &src, &expected).unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Run(_)), "{err}");
+    assert!(err.to_string().contains("input inventory"), "{err}");
+    assert_no_content_effect(&root);
+}
+
+#[test]
+fn journaled_plan_from_a_different_workspace_is_refused() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().canonicalize().unwrap();
+    let (_id, src, expected) = fixture(&root);
+    journal_only(&root, &src, &expected);
+    // The same journal file in a foreign workspace cannot bind this one.
+    patch_journal(&root, |v| {
+        v["transformation"]["workspace_token"] = serde_json::json!("deadbeef");
+    });
+    let err = transact(&root, &src, &expected).unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Run(_)), "{err}");
+    assert!(err.to_string().contains("different workspace"), "{err}");
+    assert_no_content_effect(&root);
 }
 
 #[test]
@@ -494,211 +829,41 @@ fn workspace_additions_after_the_lab_invalidate_fresh_evidence() {
     let (_id, src, expected) = fixture(&root);
     write(
         &root.join("content/late.md"),
-        page(
-            "late",
-            "Late page",
-            "# Late\n\n![hero](spaces.assets/hello world.png)\n",
-        ),
+        page("late", "Late page", "# Late\n"),
     );
-
     let err = transact(&root, &src, &expected).unwrap_err();
     assert!(matches!(err, adopt::AdoptError::Stale(_)), "{err}");
-    assert!(root.join("content/spaces.assets/hello world.png").exists());
-    assert!(!root.join("content/spaces.assets/hello-world.png").exists());
+    assert_no_content_effect(&root);
     assert!(store::read_pending(&root, "asset-run").unwrap().is_none());
 }
 
 #[test]
-fn partial_journals_are_refused_without_completing_or_clearing_them() {
+fn journaled_identity_bound_asset_is_unlinked_only_while_original() {
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path().canonicalize().unwrap();
     let (_id, src, expected) = fixture(&root);
-    let operations = complete_operations(&root);
-    write_operations_journal(&root, operations.into_iter().take(2).collect());
-    let before = std::fs::read(pending_path(&root)).unwrap();
+    journal_only(&root, &src, &expected);
+    link_backups(&root, |_| true);
+    link_dests(&root, |_| true);
+    for p in ["nested.md", "percent.md", "spaces.md", "unicode.md"] {
+        write_page_post(&root, p);
+    }
+
+    // Between MarkdownWritten and SourcesUnlinked the user replaced a source
+    // with a byte-identical file: different identity, must survive.
+    let rel = "unicode.assets/café.png";
+    let bytes = std::fs::read(root.join("content").join(rel)).unwrap();
+    std::fs::remove_file(root.join("content").join(rel)).unwrap();
+    write(&root.join("content").join(rel), bytes);
 
     let err = transact(&root, &src, &expected).unwrap_err();
-    assert!(matches!(err, adopt::AdoptError::Run(_)), "{err}");
-    assert!(err.to_string().contains("requires exactly 8"), "{err}");
-    assert_eq!(std::fs::read(pending_path(&root)).unwrap(), before);
-    assert!(
-        store::read_adoption_record(&root, "asset-run")
-            .unwrap()
-            .is_none()
-    );
-    assert!(
-        root.join("content/nested.assets/deep/sub dir/shot.png")
-            .exists()
-    );
-    assert!(
-        !root
-            .join("content/nested.assets/deep/sub-dir/shot.png")
-            .exists()
-    );
-}
-
-#[test]
-fn forged_journals_cannot_move_files_outside_the_content_input() {
-    let tmp = tempfile::tempdir().unwrap();
-    let root = tmp.path().canonicalize().unwrap();
-    let (_id, src, expected) = fixture(&root);
-    write(&root.join("boris.json"), br#"{"input":"content"}"#);
-    let bytes = std::fs::read(root.join("boris.json")).unwrap();
-    let hash = store::sha256_hex(&bytes);
-    write_operations_journal(
-        &root,
-        vec![store::PendingAssetOperation {
-            kind: store::AssetOperationKind::Asset,
-            source: "boris.json".into(),
-            target: "moved-boris.json".into(),
-            source_sha256: hash.clone(),
-            source_bytes: bytes.len() as u64,
-            target_sha256: hash,
-            target_bytes: bytes.len() as u64,
-        }],
-    );
-
-    let err = transact(&root, &src, &expected).unwrap_err();
-    assert!(matches!(err, adopt::AdoptError::Run(_)), "{err}");
-    assert!(root.join("boris.json").is_file());
-    assert!(!root.join("moved-boris.json").exists());
-    assert!(pending_path(&root).is_file());
-    assert!(
-        store::read_adoption_record(&root, "asset-run")
-            .unwrap()
-            .is_none()
-    );
-}
-
-#[test]
-fn aliased_journal_operations_are_refused_without_deleting_the_only_copy() {
-    let tmp = tempfile::tempdir().unwrap();
-    let root = tmp.path().canonicalize().unwrap();
-    let (_id, src, expected) = fixture(&root);
-    let rel = "content/safe.assets/already-ok.png";
-    let bytes = std::fs::read(root.join(rel)).unwrap();
-    let hash = store::sha256_hex(&bytes);
-    write_operations_journal(
-        &root,
-        vec![store::PendingAssetOperation {
-            kind: store::AssetOperationKind::Asset,
-            source: rel.into(),
-            target: rel.into(),
-            source_sha256: hash.clone(),
-            source_bytes: bytes.len() as u64,
-            target_sha256: hash,
-            target_bytes: bytes.len() as u64,
-        }],
-    );
-
-    let err = transact(&root, &src, &expected).unwrap_err();
-    assert!(matches!(err, adopt::AdoptError::Run(_)), "{err}");
-    assert_eq!(std::fs::read(root.join(rel)).unwrap(), bytes);
-    assert!(pending_path(&root).is_file());
-    assert!(
-        store::read_adoption_record(&root, "asset-run")
-            .unwrap()
-            .is_none()
-    );
-}
-
-#[test]
-fn corrupted_journals_are_refused_and_retained() {
-    let tmp = tempfile::tempdir().unwrap();
-    let root = tmp.path().canonicalize().unwrap();
-    let (_id, src, expected) = fixture(&root);
-    let pending = pending_path(&root);
-    write(&pending, b"{not valid adoption json");
-
-    let err = transact(&root, &src, &expected).unwrap_err();
-    assert!(matches!(err, adopt::AdoptError::Report(_)), "{err}");
+    assert!(matches!(err, adopt::AdoptError::Foreign(_)), "{err}");
     assert_eq!(
-        std::fs::read(&pending).unwrap(),
-        b"{not valid adoption json"
+        std::fs::read(root.join("content").join(rel)).unwrap(),
+        b"asset-stub-v1-unicode\n",
+        "restored source must survive — no unlink of foreign identity"
     );
-    assert!(
-        store::read_adoption_record(&root, "asset-run")
-            .unwrap()
-            .is_none()
-    );
+    // Every other source is still present: the whole attempt aborted before
+    // the unlink phase.
     assert!(root.join("content/spaces.assets/hello world.png").exists());
-}
-
-#[test]
-fn symlinked_machine_evidence_is_refused_without_writes() {
-    let tmp = tempfile::tempdir().unwrap();
-    let root = tmp.path().canonicalize().unwrap();
-    let (_id, src, expected) = fixture(&root);
-    let manifest = root.join(".cv/imports/asset-run/out/asset_filename_manifest.json");
-    let copy = root.join("manifest-copy.json");
-    std::fs::write(&copy, std::fs::read(&manifest).unwrap()).unwrap();
-    std::fs::remove_file(&manifest).unwrap();
-    symlink_file(&copy, &manifest);
-
-    let err = transact(&root, &src, &expected).unwrap_err();
-    assert!(matches!(err, adopt::AdoptError::Report(_)), "{err}");
-    assert!(
-        std::fs::symlink_metadata(&manifest)
-            .unwrap()
-            .file_type()
-            .is_symlink()
-    );
-    assert!(!root.join("content/spaces.assets/hello-world.png").exists());
-    assert!(store::read_pending(&root, "asset-run").unwrap().is_none());
-}
-
-#[test]
-fn nonordinary_machine_evidence_is_refused_without_writes() {
-    let tmp = tempfile::tempdir().unwrap();
-    let root = tmp.path().canonicalize().unwrap();
-    let (_id, src, expected) = fixture(&root);
-    let manifest = root.join(".cv/imports/asset-run/out/rewrite_manifest.json");
-    std::fs::remove_file(&manifest).unwrap();
-    std::fs::create_dir(&manifest).unwrap();
-
-    let err = transact(&root, &src, &expected).unwrap_err();
-    assert!(matches!(err, adopt::AdoptError::Report(_)), "{err}");
-    assert!(!root.join("content/spaces.assets/hello-world.png").exists());
-    assert!(store::read_pending(&root, "asset-run").unwrap().is_none());
-}
-
-#[test]
-fn the_initial_report_load_does_not_follow_a_symlink() {
-    let tmp = tempfile::tempdir().unwrap();
-    let root = tmp.path().canonicalize().unwrap();
-    let (_id, _src, _expected) = fixture(&root);
-    let report = root.join(".cv/imports/asset-run/out/report.json");
-    let copy = root.join("report-copy.json");
-    std::fs::write(&copy, std::fs::read(&report).unwrap()).unwrap();
-    std::fs::remove_file(&report).unwrap();
-    symlink_file(&copy, &report);
-
-    assert!(adopt::source(&root, "asset-run").is_err());
-    assert!(
-        std::fs::symlink_metadata(&report)
-            .unwrap()
-            .file_type()
-            .is_symlink()
-    );
-}
-
-#[test]
-fn a_symlinked_asset_ancestor_is_never_followed() {
-    let tmp = tempfile::tempdir().unwrap();
-    let root = tmp.path().canonicalize().unwrap();
-    let (_id, src, expected) = fixture(&root);
-    let outside = tempfile::tempdir().unwrap();
-    let outside_assets = outside.path().join("spaces.assets");
-    std::fs::create_dir(&outside_assets).unwrap();
-    std::fs::copy(
-        root.join("content/spaces.assets/hello world.png"),
-        outside_assets.join("hello world.png"),
-    )
-    .unwrap();
-    std::fs::remove_dir_all(root.join("content/spaces.assets")).unwrap();
-    symlink_dir(&outside_assets, &root.join("content/spaces.assets"));
-
-    assert!(transact(&root, &src, &expected).is_err());
-    assert!(outside_assets.join("hello world.png").is_file());
-    assert!(store::read_pending(&root, "asset-run").unwrap().is_none());
 }

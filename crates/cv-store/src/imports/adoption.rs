@@ -297,7 +297,97 @@ pub fn scan_adoptions(root: &Path) -> Result<Vec<AdoptionRecord>, Error> {
 pub const PENDING: &str = "adoption-pending.json";
 pub const PENDING_FORMAT: &str = "cv-import-adoption-pending";
 /// Version of `<run-id>/adoption-pending.json`, independent of the run-record schema.
-pub const PENDING_SCHEMA_VERSION: u32 = 2;
+pub const PENDING_SCHEMA_VERSION: u32 = 3;
+
+/// Furthest completed phase of an in-place asset-filename transformation.
+/// Progress only ever advances: a recovery attempt re-runs earlier phases
+/// idempotently but never records a smaller state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TransformationPhase {
+    /// The journaled plan exists; no backup, link, write, or unlink ran.
+    Planned,
+    BackupsLinked,
+    DestinationsLinked,
+    MarkdownWritten,
+    SourcesUnlinked,
+    Verified,
+    /// The adoption sidecar and run record are durable; only journal
+    /// cleanup remains.
+    Recorded,
+}
+
+/// One journaled asset relocation. `source`/`dest` are content-input
+/// relative; `backup` is workspace-relative inside `.cv/imports/<run>/`.
+/// The move is a hard-link chain: backup and dest both link the journaled
+/// source identity, so `identity` + `sha256` pin every hop.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PlannedAssetMove {
+    pub source: String,
+    pub dest: String,
+    pub backup: String,
+    pub sha256: String,
+    pub bytes: u64,
+    pub identity: FileIdentity,
+}
+
+/// One journaled in-place Markdown rewrite. `page`/`temp` are
+/// content-input relative; `temp` is a sibling path only this
+/// transformation may create. `pre_*` comes from the run-time input
+/// inventory, `post_*` from the lab candidate. `staged_identity` is filled
+/// while the phase runs so a crash-left temp is recognized as ours rather
+/// than deleted as foreign data; an unjournaled temp is ambiguous foreign
+/// evidence and refuses recovery.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PlannedMarkdown {
+    pub page: String,
+    pub temp: String,
+    pub pre_sha256: String,
+    pub pre_bytes: u64,
+    pub pre_identity: FileIdentity,
+    pub post_sha256: String,
+    pub post_bytes: u64,
+    #[serde(default)]
+    pub staged_identity: Option<FileIdentity>,
+}
+
+/// One dependency component: a set of asset moves and Markdown writes
+/// that must land coherently or not at all. Collision-bound components
+/// never reach this list — they are provenance, not plans.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PlannedComponent {
+    pub asset_moves: Vec<PlannedAssetMove>,
+    pub markdown: Vec<PlannedMarkdown>,
+}
+
+/// The version-3 snapshot journal for an in-place asset-filename
+/// transformation: every external fact the recovery attempt is allowed to
+/// trust, bound at journal time. Workspace token/file/lock evidence ties
+/// the journal to the workspace instance that wrote it; evidence digests
+/// pin the lab documents and Capture Vector's input inventory; the
+/// embedded inventory and component plans are the whole authorized
+/// operation. Anything on disk that is neither this inventory nor these
+/// plans is foreign and refuses recovery.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PendingTransformation {
+    pub phase: TransformationPhase,
+    pub workspace_token: String,
+    pub workspace_file: Option<FileIdentity>,
+    pub mutation_lock: Option<FileIdentity>,
+    pub report_sha256: String,
+    pub manifest_sha256: String,
+    pub rewrite_sha256: String,
+    /// Digest over the sorted `(path, sha256, bytes)` candidate file list.
+    pub candidate_sha256: String,
+    /// sha256 of the `input-inventory.json` file bytes.
+    pub inventory_sha256: String,
+    pub inventory: Vec<InputEntry>,
+    pub components: Vec<PlannedComponent>,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PendingFile {
@@ -329,9 +419,17 @@ pub struct PendingAdoption {
     /// Operation rows for an in-place asset-filename transformation.
     /// `Some` marks the journal as operation-based; `None` is the older
     /// foreign-tree copy recovery unit. Version-1 journals must decode as
-    /// `None` even if a foreign hand added this field.
+    /// `None` even if a foreign hand added this field. Superseded by
+    /// `transformation`: the version-3 schema keeps the field so old
+    /// journals still decode, but nothing new writes it.
     #[serde(default)]
     pub asset_operations: Option<Vec<PendingAssetOperation>>,
+    /// Version-3 snapshot journal for an in-place asset-filename
+    /// transformation. `None` for copy-tree adoptions and every journal
+    /// predating the snapshot schema; journals older than version 3 must
+    /// decode as `None` even if a foreign hand added this field.
+    #[serde(default)]
+    pub transformation: Option<PendingTransformation>,
 }
 
 impl PendingAdoption {
@@ -350,6 +448,7 @@ impl PendingAdoption {
             files: Vec::new(),
             starter: Vec::new(),
             asset_operations: None,
+            transformation: None,
         }
     }
 
@@ -413,6 +512,12 @@ pub fn read_pending(root: &Path, run: &str) -> Result<Option<PendingAdoption>, S
     if h.schema_version == 1 && parsed.asset_operations.is_some() {
         return Err(format!(
             "{PENDING} schema_version 1 cannot carry asset transformation operations"
+        ));
+    }
+    if h.schema_version < 3 && parsed.transformation.is_some() {
+        return Err(format!(
+            "{PENDING} schema_version {} cannot carry a transformation snapshot",
+            h.schema_version
         ));
     }
     // The journal lives inside the run's own directory; if the embedded

@@ -67,10 +67,16 @@ two forms:
   `boris.json`'s `input` wins; otherwise `content` is the fallback only
   when it exists. A root input (`.`) is refused rather than copying into
   the whole workspace. For `asset-filename`, the choice is instead an
-  in-place transformation of the same workspace the utility inspected:
-  accepted asset renames are moved atomically where the filesystem allows,
-  Markdown references are rewritten from the pinned rewrite manifest, and
-  rejected or colliding assets are left untouched and recorded.
+  in-place transformation of the same workspace the utility inspected: a
+  captured content-input inventory proves the tree has not changed since
+  the lab ran, accepted asset renames move through transaction-scoped hard
+  links on the same volume (never a copy fallback, and refused where the
+  filesystem cannot link or report file identity), and each Markdown page
+  is replaced with the lab's post-image bytes after a best-effort compare
+  against its journaled pre-image — portable atomic compare-and-replace
+  does not exist, so that compare narrows the race but cannot close it.
+  Rejected or colliding assets, and every page or asset transitively bound
+  to a collision, stay untouched and are recorded.
 
 Adoption keeps provenance under `.cv/imports/<run-id>/`; it never writes
 Capture Vector provenance into Boris frontmatter. Existing-workspace
@@ -78,9 +84,13 @@ importer adoption preflights path and page-id collisions before writing
 and refuses the whole merge rather than overwriting. In-place
 asset-filename adoption invents no page ids and copies no pages into the
 workspace; it rewrites existing Markdown references in place, so it cannot
-duplicate an explicit Boris id. Its fingerprinted journal makes interruption
-resume convergent, while changed source bytes or foreign destination bytes
-refuse the write instead of being overwritten. Both forms are watch-safe and end
+duplicate an explicit Boris id. Its snapshot journal — bound to the run's
+input inventory, the evidence digests, and the workspace instance — makes an
+interrupted attempt converge phase by phase on retry, while any foreign
+addition or edit after the journal refuses recovery instead of being folded
+in; a staged temporary file whose identity was never journaled is left in
+place as ambiguous foreign data for manual review. Both forms are watch-safe
+and end
 in the pinned engine's validate/build gate under the normal engine-seat
 contract.
 

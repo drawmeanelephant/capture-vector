@@ -211,6 +211,14 @@ pub fn run_stub_lab(
         .map(|a| a.to_string_lossy().into_owned())
         .collect();
     store::write(&lock, &rec).map_err(|e| e.to_string())?;
+    // Mirror the production run path: an in-place asset-filename adoption
+    // needs Capture Vector's own snapshot of the content input, taken before
+    // the lab output exists.
+    if mode_name == "asset-filename"
+        && let Some((_, source_root)) = prepared.inputs.iter().find(|(f, _)| *f == "--root")
+    {
+        store::capture_input_inventory(&lock, source_root).map_err(|e| e.to_string())?;
+    }
     let done = match lab.run(mode_name, &run.out) {
         Ok(done) => done,
         Err(cv_fixtures::lab::StubLabError::NoCapture(mode)) => {

@@ -1119,6 +1119,20 @@ pub(crate) fn run_lab_with_lock(
         .map(|a| a.to_string_lossy().into_owned())
         .collect();
     store::write(&lock, &rec).map_err(RunError::Store)?;
+    // An in-place asset-filename run transforms the content input itself, so
+    // Capture Vector keeps its own snapshot of that input from just before
+    // the lab process exists; the adoption can then prove the workspace did
+    // not change between the lab run and the transformation.
+    if mode.name == "asset-filename"
+        && let Some((_, source_root)) = prepared.inputs.iter().find(|(f, _)| *f == "--root")
+        && let Err(e) = store::capture_input_inventory(&lock, source_root)
+    {
+        rec.refused = Some(format!(
+            "The content-input inventory could not be recorded ({e}); the run was not started."
+        ));
+        store::write(&lock, &rec).map_err(RunError::Store)?;
+        return Ok(rec);
+    }
     let wait_started = std::time::Instant::now();
     let out = match engine_lab::run(lab, &run, cancel) {
         Ok(out) => out,
