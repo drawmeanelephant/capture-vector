@@ -28,7 +28,7 @@ evidence in the workspace `.cv/` sidecar.
 | cv-notes    | cv-publish, cv-rules | cv-ledger, store  |
 +-------------+------------------------+-------------------+
 | cv-engine                         | cv-store            |
-| only process spawner              | SQLite/JSONL owner  |
+| only process spawner              | sidecar/index paths |
 +-----------------------------------+---------------------+
 | cv-core / cv-contracts                                  |
 | domain vocabulary / serde mirrors of Boris contracts    |
@@ -71,7 +71,7 @@ inheriting UI, storage, or process machinery.
 |---|---|
 | `cv-core` | Domain types, identifiers, sync ports, event vocabulary |
 | `cv-contracts` | Serde mirrors of pinned Boris JSON contracts |
-| `cv-fixtures` | Captured corpora plus stub implementations for tests |
+| `cv-fixtures` | Captured corpora plus stub implementations for tests, fixture-backed scenes, and the in-memory Store |
 | `cv-engine` | Boris discovery, subprocess execution, watch sessions |
 | `cv-store` | Sidecar schema/migrations, `.cv/` JSONL helpers, confined paths, app-data index location (the SQLite indexes themselves live in `cv-ledger` and `cv-notes`) |
 | `cv-rules` | Deterministic audit rule evaluation |

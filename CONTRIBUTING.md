@@ -40,8 +40,8 @@ it is free. The full lease, race, heartbeat, and release rules are in
 - `cargo test --workspace --locked`
 - `cargo fmt --all -- --check`
 - `cargo clippy --workspace --all-targets --no-deps -- -D warnings`
-- `./scripts/lint.sh` for the full local gate (fmt + clippy + cargo-deny
-  + unused deps)
+- `./scripts/lint.sh` for the full local gate: fmt, clippy, hygiene,
+  unused deps, and cargo-deny when installed
 
 Hard rules that PRs are rejected for violating: no reimplementing
 Boris/Oliver semantics in Rust; no hand-authored Boris JSON fixtures

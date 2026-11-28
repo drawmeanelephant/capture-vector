@@ -4,7 +4,7 @@ version = "0.0.0"
 publish = false
 edition.workspace = true
 rust-version.workspace = true
-description = "Captured corpora + StubEngine + StubStore. Dev-dep of every lane."
+description = "Captured corpora plus stub implementations for tests, scenes, and the in-memory Store."
 
 [dependencies]
 cv-core.workspace = true
