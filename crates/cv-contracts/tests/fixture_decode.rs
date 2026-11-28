@@ -6,7 +6,10 @@
 
 use cv_contracts::{
     build_info::BuildInfo,
-    graph::{Graph, GraphDecodeError, decode_graph, decode_graph_value},
+    graph::{
+        DependencyKind, EndpointType, Graph, GraphDecodeError, NodeRole, NodeStatus,
+        SemanticRelationKind, decode_graph, decode_graph_value,
+    },
     proof::*,
     watch,
 };
@@ -141,8 +144,11 @@ fn every_captured_ir_graph_decodes() {
             .unwrap(),
     )
     .unwrap();
-    assert_eq!(quoted.relations[0].kind, "relates_to");
-    assert_eq!(quoted.relations[0].from.kind, "page");
+    assert_eq!(
+        quoted.relations[0].kind,
+        SemanticRelationKind::Token("relates_to".into())
+    );
+    assert_eq!(quoted.relations[0].from.kind, EndpointType::Page);
 }
 
 #[test]
@@ -200,9 +206,114 @@ fn required_node_keys_are_required_even_when_nullable() {
     // Null in the nullable keys is conforming: the real captures already
     // carry explicit nulls for trunk parent/parentIndex/status.
     let g = decode_graph_value(dogfood02()).expect("0.2 capture decodes");
-    let trunk = g.nodes.iter().find(|n| n.role == "trunk").unwrap();
+    let trunk = g.nodes.iter().find(|n| n.role == NodeRole::Trunk).unwrap();
     assert_eq!(trunk.parent, None);
     assert_eq!(trunk.parent_index, None);
+}
+
+#[test]
+fn closed_vocabularies_decode_known_values_as_typed_variants() {
+    let g = decode_graph_value(dogfood02()).expect("0.2 capture decodes");
+    assert!(g.nodes.iter().any(|n| n.role == NodeRole::Trunk));
+    assert!(g.nodes.iter().any(|n| n.role == NodeRole::Satellite));
+    assert!(
+        g.nodes
+            .iter()
+            .any(|n| n.status.as_ref() == Some(&NodeStatus::Published))
+    );
+    for kind in [
+        DependencyKind::Parent,
+        DependencyKind::Include,
+        DependencyKind::Reference,
+    ] {
+        assert!(g.edges.iter().any(|e| e.kind == kind), "missing {kind:?}");
+    }
+    assert!(
+        g.edges
+            .iter()
+            .any(|e| e.from.kind == EndpointType::Page || e.to.kind == EndpointType::Page)
+    );
+    assert!(
+        g.edges
+            .iter()
+            .any(|e| e.from.kind == EndpointType::Source || e.to.kind == EndpointType::Source)
+    );
+
+    let h = decode_graph_value(happy03()).expect("0.3 capture decodes");
+    assert_eq!(
+        h.relations[0].kind,
+        SemanticRelationKind::Token("relates_to".into())
+    );
+}
+
+#[test]
+fn nullable_status_is_none_and_each_known_status_is_typed() {
+    let g = decode_graph_value(happy03()).expect("0.3 capture decodes");
+    assert!(
+        g.nodes.iter().all(|n| n.status.is_none()),
+        "the real capture carries explicit null statuses"
+    );
+
+    for (wire, want) in [
+        ("draft", NodeStatus::Draft),
+        ("published", NodeStatus::Published),
+        ("archived", NodeStatus::Archived),
+    ] {
+        let mut v = happy03();
+        v["nodes"][0]["status"] = Value::from(wire);
+        let g = decode_graph_value(v).expect("known status decodes");
+        assert_eq!(g.nodes[0].status.as_ref(), Some(&want));
+    }
+}
+
+#[test]
+fn closed_vocabulary_drift_decodes_to_typed_unknown_verbatim() {
+    let mut v = happy03();
+    v["nodes"][0]["role"] = Value::from("branch");
+    v["nodes"][0]["status"] = Value::from("live");
+    v["edges"][0]["kind"] = Value::from("layout");
+    v["edges"][0]["from"]["type"] = Value::from("asset");
+    let g = decode_graph_value(v).expect("closed-vocabulary drift does not crash decode");
+
+    assert_eq!(g.nodes[0].role, NodeRole::Unknown("branch".into()));
+    assert_eq!(
+        g.nodes[0].status,
+        Some(NodeStatus::Unknown("live".into())),
+        "a drifted non-null string is distinct from the wire null"
+    );
+    assert_eq!(g.edges[0].kind, DependencyKind::Unknown("layout".into()));
+    assert_eq!(g.edges[0].from.kind, EndpointType::Unknown("asset".into()));
+}
+
+#[test]
+fn semantic_relation_kind_is_open_but_schema_drift_is_typed() {
+    let cases: Vec<(String, bool)> = vec![
+        ("verified_by2".into(), true),
+        ("novel_author_token9".into(), true),
+        ("Unknown".into(), false),
+        ("unknown-kind".into(), false),
+        ("1kind".into(), false),
+        ("".into(), false),
+        ("a".repeat(65), false),
+    ];
+    for (wire, conforming) in cases {
+        let mut v = happy03();
+        v["relations"][0]["kind"] = Value::from(wire.clone());
+        let g = decode_graph_value(v).expect("relation-kind drift does not crash decode");
+        let kind = &g.relations[0].kind;
+        assert_eq!(kind.as_str(), wire);
+        if conforming {
+            assert!(
+                matches!(kind, SemanticRelationKind::Token(_)),
+                "{wire:?} must remain an open author token"
+            );
+        } else {
+            assert!(
+                matches!(kind, SemanticRelationKind::Unknown(_)),
+                "{wire:?} is outside the constrained-open grammar"
+            );
+        }
+    }
 }
 
 #[test]
@@ -355,7 +466,10 @@ fn ir_04_tolerates_relations_present_and_absent() {
     }]);
     let g = decode_graph_value(present).expect("present relations decode");
     assert_eq!(g.relations.len(), 1);
-    assert_eq!(g.relations[0].kind, "relates_to");
+    assert_eq!(
+        g.relations[0].kind,
+        SemanticRelationKind::Token("relates_to".into())
+    );
 }
 
 #[test]

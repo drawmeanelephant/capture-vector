@@ -196,7 +196,10 @@ fn workspace_snapshot_shares_the_frozen_ir_graph_it_projects() {
     assert_eq!(graph.schema_version, "0.3.0");
     assert_eq!(graph.nodes.len(), 2);
     assert_eq!(graph.relations.len(), 1);
-    assert_eq!(graph.relations[0].kind, "relates_to");
+    assert_eq!(
+        graph.relations[0].kind,
+        cv_contracts::graph::SemanticRelationKind::Token("relates_to".into())
+    );
 }
 
 #[test]

@@ -8,7 +8,7 @@
 //! frontmatter is read as a marked guess (`FieldSource::Source`); Boris
 //! diagnostics stay authoritative for what is valid.
 
-use cv_contracts::graph::{Graph, Node};
+use cv_contracts::graph::{DependencyKind, EndpointType, Graph, Node};
 use cv_engine::verbs::IR_DIR;
 use cv_fixtures::{Manifest, corpus, fixtures_root};
 use cv_model::module::{FieldSource, OutputRecord, PageRecord, ProjectSnapshot};
@@ -437,7 +437,7 @@ fn apply_ir(pages: &mut [PageRecord], graph: &Graph) {
     // floor). The filter predicates and ordering are unchanged.
     let mut relations_by_source: HashMap<&str, Vec<(&str, &str)>> = HashMap::new();
     for r in &graph.relations {
-        if r.from.kind == "page" {
+        if r.from.kind == EndpointType::Page {
             relations_by_source
                 .entry(r.from.value.as_str())
                 .or_default()
@@ -446,7 +446,10 @@ fn apply_ir(pages: &mut [PageRecord], graph: &Graph) {
     }
     let mut wikilinks_by_source: HashMap<&str, Vec<&str>> = HashMap::new();
     for e in &graph.edges {
-        if e.kind == "reference" && e.from.kind == "page" && e.to.kind == "page" {
+        if e.kind == DependencyKind::Reference
+            && e.from.kind == EndpointType::Page
+            && e.to.kind == EndpointType::Page
+        {
             wikilinks_by_source
                 .entry(e.from.value.as_str())
                 .or_default()

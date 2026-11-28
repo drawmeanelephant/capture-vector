@@ -4,7 +4,10 @@
 //! marker says so, it exists only as in-memory model input, and it is used to
 //! scale-test CV's indexing data structure without claiming Boris emitted it.
 
-use cv_contracts::graph::{Endpoint, Graph, NavEntry, Node, Relation, ReverseIndexEntry};
+use cv_contracts::graph::{
+    DependencyEdge, DependencyKind, Endpoint, EndpointType, Graph, NavEntry, Node, NodeRole,
+    ReverseIndexEntry, SemanticRelation, SemanticRelationKind,
+};
 use std::collections::BTreeMap;
 
 pub const SCALE_NODES: usize = 5_000;
@@ -19,7 +22,7 @@ pub fn page_id(i: usize) -> String {
 
 fn endpoint(value: String) -> Endpoint {
     Endpoint {
-        kind: "page".into(),
+        kind: EndpointType::Page,
         value,
     }
 }
@@ -46,11 +49,10 @@ pub fn synthetic_scale_graph() -> Graph {
                 id: page_id(i),
                 source_path: format!("synthetic/{i:05}.md"),
                 role: if parents[i].is_none() {
-                    "trunk"
+                    NodeRole::Trunk
                 } else {
-                    "satellite"
-                }
-                .into(),
+                    NodeRole::Satellite
+                },
                 parent: parents[i].map(page_id),
                 parent_index: parents[i],
                 title: Some(format!("Synthetic page {i:05}")),
@@ -98,13 +100,13 @@ pub fn synthetic_scale_graph() -> Graph {
 
     // Parent structure also appears as build-dependency edges in the real IR.
     // They are distinct from the 30k semantic relations below.
-    let edges: Vec<Relation> = (1..SCALE_NODES)
-        .map(|child| Relation {
+    let edges: Vec<DependencyEdge> = (1..SCALE_NODES)
+        .map(|child| DependencyEdge {
             from: endpoint(page_id(child)),
             to: endpoint(page_id(
                 parents[child].expect("non-root synthetic nodes have parents"),
             )),
-            kind: "parent".into(),
+            kind: DependencyKind::Parent,
         })
         .collect();
     let mut incoming: BTreeMap<String, Vec<usize>> = BTreeMap::new();
@@ -129,16 +131,20 @@ pub fn synthetic_scale_graph() -> Graph {
             // 799 is coprime with 5000, so each source's six targets are
             // distinct and evenly distributed without randomness.
             let target = (source + 1 + j * 799) % SCALE_NODES;
-            relations.push(Relation {
+            relations.push(SemanticRelation {
                 from: endpoint(page_id(source)),
                 to: endpoint(page_id(target)),
-                kind: kinds[(source + j) % kinds.len()].into(),
+                kind: SemanticRelationKind::Token(kinds[(source + j) % kinds.len()].into()),
             });
         }
     }
     assert_eq!(relations.len(), SCALE_RELATIONS);
     relations.sort_by(|a, b| {
-        (&a.from.value, &a.to.value, &a.kind).cmp(&(&b.from.value, &b.to.value, &b.kind))
+        (&a.from.value, &a.to.value, a.kind.as_str()).cmp(&(
+            &b.from.value,
+            &b.to.value,
+            b.kind.as_str(),
+        ))
     });
     Graph {
         schema_version: "synthetic-scale-v1".into(),
