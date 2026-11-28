@@ -846,6 +846,32 @@ fn destination_beneath_a_foreign_volume_refuses_before_journaling() {
     assert_no_content_effect(root);
 }
 
+// A mount beneath the run directory's asset-backup path is also a
+// journaled creation boundary: backup links are created there before any
+// destination link, so the same pre-journal volume proof must cover it.
+#[test]
+fn backup_beneath_a_foreign_volume_refuses_before_journaling() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path();
+    let (_id, src, expected) = fixture(root);
+    let mount = run_dir(root).join("asset-backup");
+    std::fs::create_dir_all(&mount).unwrap();
+    let volume_of = foreign_volume_at(&mount);
+
+    let err = asset_filename::transact_existing_with_identity(tx_with_volume(
+        root, &src, &expected, &volume_of,
+    ))
+    .unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Run(_)), "{err:?}");
+    assert!(err.to_string().contains("journaled backup"), "{err}");
+    assert!(err.to_string().contains("different volume"), "{err}");
+    assert!(!pending_path(root).exists(), "no journal may be written");
+    assert!(
+        std::fs::read_dir(&mount).unwrap().next().is_none(),
+        "the pre-existing mount directory is untouched and no backup link was created"
+    );
+}
+
 // A mount that appears between journaling and the resume attempt blocks
 // recovery the same way — the journal stays for a retry after the mount is
 // removed, and no phase ran.

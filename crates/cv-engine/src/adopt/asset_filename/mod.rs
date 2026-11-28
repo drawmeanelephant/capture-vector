@@ -233,7 +233,13 @@ fn prepare(
         Some(f) => f,
         None => &platform_volume,
     };
-    inventory::journaled_creation_volume(&input_root, &plan.components, run_volume, volume_of)?;
+    inventory::journaled_creation_volume(
+        &input_root,
+        tx.target_root,
+        &plan.components,
+        run_volume,
+        volume_of,
+    )?;
 
     let journal = match pending {
         Some(journal) if journal.matches("existing", input, None) => {

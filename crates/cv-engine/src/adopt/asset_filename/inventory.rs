@@ -158,9 +158,33 @@ fn deepest_existing(input_root: &Path, rel: &str) -> Result<PathBuf, AdoptError>
     }
 }
 
-/// Every path the journaled plan creates inside the content input — asset
-/// destinations and staged Markdown temporaries — must land on the run
-/// directory's volume: the transformation's only move primitive is a hard
+fn check_creation_volume(
+    root: &Path,
+    kind: &str,
+    rel: &str,
+    run_volume: u64,
+    volume_of: &dyn Fn(&Path) -> Option<u64>,
+    violations: &mut Vec<String>,
+) -> Result<(), AdoptError> {
+    let ancestor = deepest_existing(root, rel)?;
+    let volume = volume_of(&ancestor).ok_or_else(|| {
+        AdoptError::Run(format!(
+            "this platform cannot report a file identity for {}; the asset transformation cannot run",
+            ancestor.display()
+        ))
+    })?;
+    if volume != run_volume {
+        violations.push(format!(
+            "journaled {kind} {rel} would be created beneath {} on a different volume than the run directory",
+            ancestor.display()
+        ));
+    }
+    Ok(())
+}
+
+/// Every path the journaled plan creates — asset destinations, staged
+/// Markdown temporaries, and backup links — must land on the run directory's
+/// volume: the transformation's only move primitive is a hard
 /// link, and hard links cannot cross volumes. Checking only the move
 /// *source* misses a mount point covering part of the input: a dest whose
 /// not-yet-existing parents hang beneath a foreign mount fails EXDEV at
@@ -172,6 +196,7 @@ fn deepest_existing(input_root: &Path, rel: &str) -> Result<PathBuf, AdoptError>
 /// volume at a mount boundary.
 pub(super) fn journaled_creation_volume(
     input_root: &Path,
+    workspace_root: &Path,
     components: &[store::PlannedComponent],
     run_volume: u64,
     volume_of: &dyn Fn(&Path) -> Option<u64>,
@@ -189,24 +214,29 @@ pub(super) fn journaled_creation_volume(
                     .map(|m| ("staged temporary", m.temp.as_str())),
             );
         for (kind, rel) in creations {
-            let ancestor = deepest_existing(input_root, rel)?;
-            let volume = volume_of(&ancestor).ok_or_else(|| {
-                AdoptError::Run(format!(
-                    "this platform cannot report a file identity for {}; the asset transformation cannot run",
-                    ancestor.display()
-                ))
-            })?;
-            if volume != run_volume {
-                violations.push(format!(
-                    "journaled {kind} {rel} would be created beneath {} on a different volume than the run directory",
-                    ancestor.display()
-                ));
-            }
+            check_creation_volume(
+                input_root,
+                kind,
+                rel,
+                run_volume,
+                volume_of,
+                &mut violations,
+            )?;
+        }
+        for mv in &component.asset_moves {
+            check_creation_volume(
+                workspace_root,
+                "backup",
+                &mv.backup,
+                run_volume,
+                volume_of,
+                &mut violations,
+            )?;
         }
     }
     if !violations.is_empty() {
         return Err(AdoptError::Run(format!(
-            "the asset transformation cannot run: hard links cannot cross volumes: {}. Unmount the foreign volume or move the content input onto the run volume and retry",
+            "the asset transformation cannot run: hard links cannot cross volumes: {}. Unmount the foreign volume or move the content input and run directory onto one volume and retry",
             violations.join("; ")
         )));
     }
