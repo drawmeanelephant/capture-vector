@@ -434,13 +434,64 @@
       "text": "Demo"
     },
     {
+      "fill": "#08090cff",
+      "key": "rail-graph",
       "opacity": 1.0,
-      "path": "shell/body/rail/#7",
+      "path": "shell/body/rail/rail-graph",
+      "radius": 6.0,
       "rect": [
         4.0,
         393.8,
         80.0,
-        302.3
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-graph/#0",
+      "rect": [
+        12.0,
+        399.8,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-graph-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-graph/#0/rail-graph-icon",
+      "rect": [
+        12.0,
+        399.8,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-graph/#1",
+      "rect": [
+        12.0,
+        419.8,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Graph"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/#8",
+      "rect": [
+        4.0,
+        446.0,
+        80.0,
+        250.0
       ],
       "role": "group"
     },
@@ -2762,7 +2813,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦en⁩"
+      "text": "⁦  ⁦en⁩  ⁩"
     },
     {
       "key": "c1",
@@ -2912,7 +2963,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦en/about⁩"
+      "text": "⁦  ⁦en/about⁩  ⁩"
     },
     {
       "key": "c1",
@@ -3062,7 +3113,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦en/guides⁩"
+      "text": "⁦  ⁦en/guides⁩  ⁩"
     },
     {
       "key": "c1",
@@ -3212,7 +3263,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦en/guides/inner⁩"
+      "text": "⁦  ⁦en/guides/inner⁩  ⁩"
     },
     {
       "key": "c1",
@@ -3362,7 +3413,7 @@
         40.0
       ],
       "role": "text",
-      "text": "⁦  ⁦en/guides/inner/deep-page⁩"
+      "text": "⁦  ⁦en/guides/inner/deep-page⁩  ⁩"
     },
     {
       "key": "c1",
@@ -3512,7 +3563,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦en/posts⁩"
+      "text": "⁦  ⁦en/posts⁩  ⁩"
     },
     {
       "key": "c1",
@@ -3662,7 +3713,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦en/posts/draft-note⁩"
+      "text": "⁦  ⁦en/posts/draft-note⁩  ⁩"
     },
     {
       "key": "c1",
@@ -3812,7 +3863,7 @@
         40.0
       ],
       "role": "text",
-      "text": "⁦  ⁦en/posts/hello-bundle⁩"
+      "text": "⁦  ⁦en/posts/hello-bundle⁩  ⁩"
     },
     {
       "key": "c1",
@@ -3962,7 +4013,7 @@
         40.0
       ],
       "role": "text",
-      "text": "⁦  ⁦en/posts/markup-shortcode⁩"
+      "text": "⁦  ⁦en/posts/markup-shortcode⁩  ⁩"
     },
     {
       "key": "c1",
@@ -4112,7 +4163,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦fr⁩"
+      "text": "⁦  ⁦fr⁩  ⁩"
     },
     {
       "key": "c1",
@@ -4262,7 +4313,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦fr/posts⁩"
+      "text": "⁦  ⁦fr/posts⁩  ⁩"
     },
     {
       "key": "c1",
@@ -4412,7 +4463,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦fr/posts/bonjour⁩"
+      "text": "⁦  ⁦fr/posts/bonjour⁩  ⁩"
     },
     {
       "key": "c1",
@@ -4928,7 +4979,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦/legacy/hb⁩"
+      "text": "⁦  ⁦/legacy/hb⁩  ⁩"
     },
     {
       "key": "c2",
@@ -4953,7 +5004,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦en/posts/hello-bundle⁩"
+      "text": "⁦  ⁦en/posts/hello-bundle⁩  ⁩"
     },
     {
       "fill": "#262b35ff",
@@ -5028,7 +5079,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦/old/hello-bundle/⁩"
+      "text": "⁦  ⁦/old/hello-bundle/⁩  ⁩"
     },
     {
       "key": "c2",
@@ -5053,7 +5104,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦en/posts/hello-bundle⁩"
+      "text": "⁦  ⁦en/posts/hello-bundle⁩  ⁩"
     },
     {
       "fill": "#262b35ff",
@@ -5128,7 +5179,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦hello-custom-slug⁩"
+      "text": "⁦  ⁦hello-custom-slug⁩  ⁩"
     },
     {
       "key": "c2",
@@ -5153,7 +5204,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦en/posts/hello-bundle⁩"
+      "text": "⁦  ⁦en/posts/hello-bundle⁩  ⁩"
     },
     {
       "color": "#e6e9efff",

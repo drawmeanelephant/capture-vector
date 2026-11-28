@@ -10,7 +10,7 @@
 
 use cv_contracts::graph::{DependencyKind, EndpointType, Graph, Node};
 use cv_engine::verbs::IR_DIR;
-use cv_fixtures::{Manifest, corpus, fixtures_root};
+use cv_fixtures::{Manifest, corpus, fixtures_root, ir_capture};
 use cv_model::module::{FieldSource, OutputRecord, PageRecord, ProjectSnapshot};
 use cv_store::paths::{confined, confined_file, is_link};
 use serde_json::Value;
@@ -44,6 +44,21 @@ pub fn corpus_snapshot(name: &str) -> ProjectSnapshot {
         .any(|(k, _)| *k == artifacts_key)
         .then(|| c.file(ARTIFACTS))
         .and_then(|raw| serde_json::from_slice(&raw).ok());
+    // IR captures are named after their corpus when one exists. These are
+    // the same pinned Boris bytes the live path reads from `.cv/ir` — never
+    // a hand-authored projection — so demo/headless scenes exercise the same
+    // graph authority as a real workspace.
+    let mut frozen_graph = None;
+    if fixtures_root()
+        .join("ir/captures")
+        .join(name)
+        .join("graph.json")
+        .is_file()
+        && let Ok(graph) = serde_json::from_slice::<Graph>(&ir_capture(name).file("graph.json"))
+    {
+        apply_ir(&mut pages, &graph);
+        frozen_graph = Some(Arc::new(graph));
+    }
     let mut outputs: Vec<OutputRecord> = index
         .as_ref()
         .and_then(|v| v["artifacts"].as_array())
@@ -86,7 +101,7 @@ pub fn corpus_snapshot(name: &str) -> ProjectSnapshot {
             .map(String::from),
         pages,
         outputs,
-        ir_graph: None,
+        ir_graph: frozen_graph,
         last_publish: None,
         artifact_root: Some(fixtures_root().join(format!("captures/{name}/dist/dist")))
             .filter(|d| d.is_dir())

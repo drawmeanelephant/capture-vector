@@ -39,6 +39,8 @@ pub enum KeyInput {
     Command(char),
     Up,
     Down,
+    Left,
+    Right,
     Enter,
     Escape,
     Backspace,

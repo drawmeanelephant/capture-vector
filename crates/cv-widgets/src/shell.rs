@@ -433,6 +433,7 @@ fn rail_icon(key: &str) -> &'static Icon {
         "outputs" => &icons::PACKAGE,
         "activity" => &icons::ACTIVITY,
         cv_model::modules::demo::ID => &icons::PLAY,
+        cv_model::modules::graph::ID => &icons::NETWORK,
         cv_model::modules::migrate::ID => &icons::IMPORT,
         _ => &icons::CIRCLE,
     }
@@ -635,6 +636,7 @@ fn list(s: &Workbench) -> El {
         .virtual_rows_version((
             s.active,
             s.active_nav().map(str::to_string),
+            s.selected_key().map(str::to_string),
             s.app.committed,
         ));
     let empty = s.list_len() == 0;

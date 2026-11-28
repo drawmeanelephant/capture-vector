@@ -433,6 +433,28 @@ fn corpus_snapshot_reads_the_captured_artifact_index() {
 }
 
 #[test]
+fn corpus_snapshot_shares_the_pinned_ir_capture_with_the_graph_surface() {
+    let snap = corpus_snapshot("happy");
+    let graph = snap.ir_graph.as_ref().expect("happy IR capture is loaded");
+    assert_eq!(graph.nodes.len(), 3);
+    assert_eq!(graph.relations.len(), 1);
+    let publishing = snap
+        .pages
+        .iter()
+        .find(|p| p.path == "guides/publishing.md")
+        .expect("publishing page");
+    assert_eq!(publishing.id, "guides/publishing");
+    assert_eq!(publishing.fields, FieldSource::Boris);
+    assert_eq!(
+        publishing.relations,
+        [(
+            "relates_to".to_string(),
+            "guides/getting-started".to_string()
+        )]
+    );
+}
+
+#[test]
 fn workspace_snapshot_respects_a_nested_profile_input() {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path();

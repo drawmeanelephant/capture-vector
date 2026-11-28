@@ -1,0 +1,2205 @@
+{
+  "nodes": [
+    {
+      "fill": "#0e1014ff",
+      "key": "shell",
+      "opacity": 1.0,
+      "path": "shell",
+      "rect": [
+        0.0,
+        0.0,
+        1280.0,
+        800.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "body",
+      "opacity": 1.0,
+      "path": "shell/body",
+      "rect": [
+        0.0,
+        0.0,
+        1280.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/rail",
+      "rect": [
+        0.0,
+        0.0,
+        88.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-pages",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        28.0,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages/#0",
+      "rect": [
+        12.0,
+        34.0,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-pages-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages/#0/rail-pages-icon",
+      "rect": [
+        12.0,
+        34.0,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-pages/#1",
+      "rect": [
+        12.0,
+        54.0,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Pages"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-research",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        80.3,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research/#0",
+      "rect": [
+        12.0,
+        86.3,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-research-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research/#0/rail-research-icon",
+      "rect": [
+        12.0,
+        86.3,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-research/#1",
+      "rect": [
+        12.0,
+        106.3,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Research"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-audit",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        132.5,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#0",
+      "rect": [
+        12.0,
+        138.5,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-audit-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#0/rail-audit-icon",
+      "rect": [
+        12.0,
+        138.5,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#0/#1",
+      "rect": [
+        28.0,
+        146.5,
+        29.1,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#00d1ffff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#0/#2",
+      "radius": 999.0,
+      "rect": [
+        57.1,
+        139.6,
+        18.9,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#001018ff",
+      "key": "rail-audit-badge",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#0/#2/rail-audit-badge",
+      "rect": [
+        63.1,
+        139.6,
+        6.9,
+        13.8
+      ],
+      "role": "text",
+      "text": "8"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-audit/#1",
+      "rect": [
+        12.0,
+        158.5,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Audit"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-publish",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        184.8,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish/#0",
+      "rect": [
+        12.0,
+        190.8,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-publish-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish/#0/rail-publish-icon",
+      "rect": [
+        12.0,
+        190.8,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-publish/#1",
+      "rect": [
+        12.0,
+        210.8,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Publish"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-outputs",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        237.0,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs/#0",
+      "rect": [
+        12.0,
+        243.0,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-outputs-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs/#0/rail-outputs-icon",
+      "rect": [
+        12.0,
+        243.0,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-outputs/#1",
+      "rect": [
+        12.0,
+        263.0,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Outputs"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-activity",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        289.3,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity/#0",
+      "rect": [
+        12.0,
+        295.3,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-activity-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity/#0/rail-activity-icon",
+      "rect": [
+        12.0,
+        295.3,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-activity/#1",
+      "rect": [
+        12.0,
+        315.3,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Activity"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-demo",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        341.5,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo/#0",
+      "rect": [
+        12.0,
+        347.5,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-demo-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo/#0/rail-demo-icon",
+      "rect": [
+        12.0,
+        347.5,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-demo/#1",
+      "rect": [
+        12.0,
+        367.5,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Demo"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-graph",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-graph",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        393.8,
+        80.0,
+        48.3
+      ],
+      "role": "tab",
+      "selected": true
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-graph/#0",
+      "rect": [
+        12.0,
+        399.8,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#00d1ffff",
+      "key": "rail-graph-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-graph/#0/rail-graph-icon",
+      "rect": [
+        12.0,
+        399.8,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-graph/#1",
+      "rect": [
+        12.0,
+        419.8,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Graph"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/#8",
+      "rect": [
+        4.0,
+        446.0,
+        80.0,
+        250.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "rail-group-utilities",
+      "label": "Utilities",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-group-utilities",
+      "rect": [
+        4.0,
+        700.0,
+        80.0,
+        17.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-group-utilities/#0",
+      "rect": [
+        12.0,
+        704.0,
+        64.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "Utilities"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "rail-migrate",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate",
+      "radius": 6.0,
+      "rect": [
+        4.0,
+        721.8,
+        80.0,
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#0",
+      "rect": [
+        12.0,
+        727.8,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-migrate-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#0/rail-migrate-icon",
+      "rect": [
+        12.0,
+        727.8,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-migrate/#1",
+      "rect": [
+        12.0,
+        747.8,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Migrate"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav",
+      "opacity": 1.0,
+      "path": "shell/body/nav",
+      "rect": [
+        88.0,
+        0.0,
+        180.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "nav-scroll",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll",
+      "rect": [
+        88.0,
+        0.0,
+        180.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-head",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/nav-head",
+      "rect": [
+        88.0,
+        0.0,
+        180.0,
+        28.3
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/nav-head/#0",
+      "rect": [
+        96.0,
+        8.0,
+        164.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Graph"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1",
+      "rect": [
+        88.0,
+        28.3,
+        180.0,
+        85.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-corpus",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-corpus",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        28.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-corpus/#0",
+      "rect": [
+        104.0,
+        32.3,
+        41.5,
+        15.0
+      ],
+      "role": "text",
+      "text": "Corpus"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-corpus/#1",
+      "rect": [
+        149.5,
+        39.8,
+        79.6,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-corpus/#2",
+      "radius": 999.0,
+      "rect": [
+        233.1,
+        32.9,
+        18.9,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-corpus/#2/#0",
+      "rect": [
+        239.1,
+        32.9,
+        6.9,
+        13.8
+      ],
+      "role": "text",
+      "text": "3"
+    },
+    {
+      "fill": "#ffffff14",
+      "key": "nav-neighborhood",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-neighborhood",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        55.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem",
+      "selected": true
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-neighborhood/#0",
+      "rect": [
+        104.0,
+        59.3,
+        83.4,
+        15.0
+      ],
+      "role": "text",
+      "text": "Neighborhood"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-neighborhood/#1",
+      "rect": [
+        191.4,
+        66.8,
+        37.7,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-neighborhood/#2",
+      "radius": 999.0,
+      "rect": [
+        233.1,
+        59.9,
+        18.9,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-neighborhood/#2/#0",
+      "rect": [
+        239.1,
+        59.9,
+        6.9,
+        13.8
+      ],
+      "role": "text",
+      "text": "3"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-search",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-search",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        82.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-search/#0",
+      "rect": [
+        104.0,
+        86.3,
+        69.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "Search/filter"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-search/#1",
+      "rect": [
+        177.9,
+        93.8,
+        51.0,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#ffffff14",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-search/#2",
+      "radius": 999.0,
+      "rect": [
+        232.9,
+        86.9,
+        19.1,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-search/#2/#0",
+      "rect": [
+        238.9,
+        86.9,
+        7.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "list-pane",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane",
+      "rect": [
+        268.0,
+        0.0,
+        320.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "list-viewport",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport",
+      "rect": [
+        268.0,
+        0.0,
+        320.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-guides/publishing",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fpublishing",
+      "rect": [
+        268.0,
+        0.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem",
+      "selected": true
+    },
+    {
+      "fill": "#3dff9aff",
+      "key": "rail",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fpublishing/rail",
+      "radius": 1.5,
+      "rect": [
+        276.0,
+        4.4,
+        3.0,
+        13.2
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fpublishing/#1",
+      "rect": [
+        287.0,
+        3.5,
+        155.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "Publishing"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "guides/publishing · focus · satellite · 1 relations",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fpublishing/#2",
+      "rect": [
+        450.6,
+        4.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "guides/publishing · focus · satellite · 1 relations"
+    },
+    {
+      "color": "#3dff9aff",
+      "fill": "#3dff9a26",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fpublishing/#3",
+      "radius": 999.0,
+      "rect": [
+        538.6,
+        4.1,
+        41.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "focus"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-index",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-index",
+      "rect": [
+        268.0,
+        22.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-index/#0",
+      "rect": [
+        276.0,
+        25.5,
+        216.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "My Boris Site"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "index · parent · trunk · 2 satellites",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/row-index/#1",
+      "rect": [
+        500.0,
+        26.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "index · parent · trunk · 2 satellites"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "row-guides/getting-started",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fgetting-started",
+      "rect": [
+        268.0,
+        44.0,
+        320.0,
+        22.0
+      ],
+      "role": "listitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fgetting-started/#0",
+      "rect": [
+        276.0,
+        47.5,
+        216.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "Getting Started"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "guides/getting-started · sibling, outgoing · relates_to · satellite · 1 relations",
+      "opacity": 1.0,
+      "path": "shell/body/list-pane/list-viewport/list/#!row-guides%2Fgetting-started/#1",
+      "rect": [
+        500.0,
+        48.1,
+        80.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "guides/getting-started · sibling, outgoing · relates_to · satellite · 1 relations"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "reading",
+      "opacity": 1.0,
+      "path": "shell/body/reading",
+      "rect": [
+        588.0,
+        0.0,
+        452.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "reading-scroll",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll",
+      "rect": [
+        588.0,
+        0.0,
+        452.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#14171dff",
+      "key": "reading-head",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head",
+      "rect": [
+        588.0,
+        0.0,
+        452.0,
+        63.8
+      ],
+      "role": "group"
+    },
+    {
+      "key": "breadcrumbs",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs",
+      "rect": [
+        604.0,
+        16.0,
+        420.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "crumb-0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs/crumb-0",
+      "rect": [
+        604.0,
+        16.0,
+        69.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "My Boris Site"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs/#1",
+      "rect": [
+        677.2,
+        16.0,
+        4.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "›"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "crumb-1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs/crumb-1",
+      "rect": [
+        685.6,
+        16.0,
+        54.8,
+        13.8
+      ],
+      "role": "text",
+      "text": "Publishing"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "reading-title",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-head/reading-title",
+      "rect": [
+        604.0,
+        35.8,
+        420.0,
+        20.0
+      ],
+      "role": "text",
+      "text": "Publishing"
+    },
+    {
+      "key": "reading-body",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body",
+      "rect": [
+        588.0,
+        63.8,
+        452.0,
+        133.5
+      ],
+      "role": "group"
+    },
+    {
+      "key": "line-0",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-0",
+      "rect": [
+        604.0,
+        63.8,
+        420.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-0/#0",
+      "rect": [
+        604.0,
+        63.8,
+        96.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "page id"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-0/#1",
+      "rect": [
+        708.0,
+        63.8,
+        316.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "guides/publishing"
+    },
+    {
+      "key": "line-1",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-1",
+      "rect": [
+        604.0,
+        83.5,
+        420.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-1/#0",
+      "rect": [
+        604.0,
+        83.5,
+        96.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "source"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-1/#1",
+      "rect": [
+        708.0,
+        83.5,
+        316.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "guides/publishing.md"
+    },
+    {
+      "key": "line-2",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-2",
+      "rect": [
+        604.0,
+        103.3,
+        420.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-2/#0",
+      "rect": [
+        604.0,
+        103.3,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "role"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-2/#1",
+      "rect": [
+        708.0,
+        103.3,
+        316.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "satellite"
+    },
+    {
+      "key": "line-3",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-3",
+      "rect": [
+        604.0,
+        124.3,
+        420.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-3/#0",
+      "rect": [
+        604.0,
+        124.3,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "tags"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-3/#1",
+      "rect": [
+        708.0,
+        124.3,
+        316.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "guides"
+    },
+    {
+      "key": "line-4",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-4",
+      "rect": [
+        604.0,
+        145.3,
+        420.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-4/#0",
+      "rect": [
+        604.0,
+        145.3,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "parent"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-4/#1",
+      "rect": [
+        708.0,
+        145.3,
+        316.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "My Boris Site"
+    },
+    {
+      "key": "line-5",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-5",
+      "rect": [
+        604.0,
+        166.3,
+        420.0,
+        15.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-5/#0",
+      "rect": [
+        604.0,
+        166.3,
+        96.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "outgoing · relates_to"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/reading/reading-scroll/reading-body/line-5/#1",
+      "rect": [
+        708.0,
+        166.3,
+        316.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "Getting Started (guides/getting-started)"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "inspector",
+      "label": "Inspector",
+      "opacity": 1.0,
+      "path": "shell/body/inspector",
+      "rect": [
+        1040.0,
+        0.0,
+        240.0,
+        778.0
+      ],
+      "role": "complementary"
+    },
+    {
+      "key": "inspector-scroll",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll",
+      "rect": [
+        1040.0,
+        0.0,
+        240.0,
+        778.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "inspector-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-head",
+      "rect": [
+        1040.0,
+        0.0,
+        240.0,
+        28.3
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-head/#0",
+      "rect": [
+        1048.0,
+        8.0,
+        224.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Inspector"
+    },
+    {
+      "key": "inspector-body",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body",
+      "rect": [
+        1040.0,
+        28.3,
+        240.0,
+        242.8
+      ],
+      "role": "group"
+    },
+    {
+      "key": "inspector-badges",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/inspector-badges",
+      "rect": [
+        1048.0,
+        28.3,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#e6e9ef2e",
+      "key": "badge-0",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/inspector-badges/badge-0",
+      "radius": 999.0,
+      "rect": [
+        1048.0,
+        28.3,
+        87.3,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/inspector-badges/badge-0/#0",
+      "rect": [
+        1054.0,
+        28.3,
+        75.3,
+        13.8
+      ],
+      "role": "text",
+      "text": "1 relation rows"
+    },
+    {
+      "key": "field-page id",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-page id",
+      "rect": [
+        1048.0,
+        46.0,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-page id/#0",
+      "rect": [
+        1048.0,
+        46.0,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "page id"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-page id/#1",
+      "rect": [
+        1128.0,
+        46.0,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "guides/publishing"
+    },
+    {
+      "key": "field-source",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-source",
+      "rect": [
+        1048.0,
+        63.8,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-source/#0",
+      "rect": [
+        1048.0,
+        63.8,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "source"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-source/#1",
+      "rect": [
+        1128.0,
+        63.8,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "guides/publishing.md"
+    },
+    {
+      "key": "field-role",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-role",
+      "rect": [
+        1048.0,
+        81.5,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-role/#0",
+      "rect": [
+        1048.0,
+        81.5,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "role"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-role/#1",
+      "rect": [
+        1128.0,
+        81.5,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "satellite"
+    },
+    {
+      "key": "field-status",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-status",
+      "rect": [
+        1048.0,
+        99.3,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-status/#0",
+      "rect": [
+        1048.0,
+        99.3,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "status"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-status/#1",
+      "rect": [
+        1128.0,
+        99.3,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "none"
+    },
+    {
+      "key": "field-tags",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-tags",
+      "rect": [
+        1048.0,
+        117.0,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-tags/#0",
+      "rect": [
+        1048.0,
+        117.0,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "tags"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-tags/#1",
+      "rect": [
+        1128.0,
+        117.0,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "guides"
+    },
+    {
+      "key": "field-satellites",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-satellites",
+      "rect": [
+        1048.0,
+        134.8,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-satellites/#0",
+      "rect": [
+        1048.0,
+        134.8,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "satellites"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-satellites/#1",
+      "rect": [
+        1128.0,
+        134.8,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "key": "field-incoming relations",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-incoming relations",
+      "rect": [
+        1048.0,
+        152.5,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-incoming relations/#0",
+      "rect": [
+        1048.0,
+        152.5,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "incoming relations"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-incoming relations/#1",
+      "rect": [
+        1128.0,
+        152.5,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "0"
+    },
+    {
+      "key": "field-outgoing relations",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-outgoing relations",
+      "rect": [
+        1048.0,
+        170.3,
+        224.0,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-outgoing relations/#0",
+      "rect": [
+        1048.0,
+        170.3,
+        72.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "outgoing relations"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-outgoing relations/#1",
+      "rect": [
+        1128.0,
+        170.3,
+        144.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "1"
+    },
+    {
+      "key": "list-0",
+      "label": "Relations by direction and kind",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0",
+      "rect": [
+        1048.0,
+        196.0,
+        224.0,
+        15.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/#0",
+      "rect": [
+        1048.0,
+        197.5,
+        12.0,
+        12.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/#1",
+      "rect": [
+        1064.0,
+        196.0,
+        177.6,
+        15.0
+      ],
+      "role": "text",
+      "text": "Relations by direction and kind"
+    },
+    {
+      "fill": "#8a93a32e",
+      "key": "list-0-count",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/list-0-count",
+      "radius": 999.0,
+      "rect": [
+        1245.6,
+        196.6,
+        16.6,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/list-0-count/#0",
+      "rect": [
+        1251.6,
+        196.6,
+        4.6,
+        13.8
+      ],
+      "role": "text",
+      "text": "1"
+    },
+    {
+      "key": "list-0-0",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0-0",
+      "rect": [
+        1048.0,
+        215.0,
+        224.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "outgoing · relates_to → Getting Started (guides/getting-started)",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0-0/#0",
+      "rect": [
+        1048.0,
+        215.0,
+        202.0,
+        13.8
+      ],
+      "role": "text",
+      "text": "outgoing · relates_to → Getting Started (guides/getting-started)"
+    },
+    {
+      "help": "Show the full value",
+      "key": "list-0-0-expand",
+      "label": "Show the full value",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0-0/list-0-0-expand",
+      "radius": 4.0,
+      "rect": [
+        1254.0,
+        215.0,
+        18.0,
+        16.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0-0/list-0-0-expand/#0",
+      "rect": [
+        1258.0,
+        218.0,
+        10.0,
+        10.0
+      ],
+      "role": "icon"
+    },
+    {
+      "fill": "#00d1ffff",
+      "key": "follow-link",
+      "label": "Open in Pages",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/follow-link",
+      "radius": 4.0,
+      "rect": [
+        1048.0,
+        243.0,
+        224.0,
+        20.0
+      ],
+      "role": "button",
+      "shadows": [
+        [
+          0.0,
+          1.0,
+          1.5,
+          0.0,
+          "#0000004d",
+          false
+        ]
+      ]
+    },
+    {
+      "color": "#001018ff",
+      "key": "label",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/follow-link/label",
+      "rect": [
+        1122.0,
+        247.0,
+        76.0,
+        12.0
+      ],
+      "role": "text",
+      "text": "Open in Pages"
+    },
+    {
+      "fill": "#08090cff",
+      "key": "status",
+      "opacity": 1.0,
+      "path": "shell/status",
+      "rect": [
+        0.0,
+        778.0,
+        1280.0,
+        22.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "help": "Open Doctor: engine, watch and .cv/ health",
+      "key": "status-0",
+      "opacity": 1.0,
+      "path": "shell/status/status-0",
+      "radius": 999.0,
+      "rect": [
+        8.0,
+        780.0,
+        85.4,
+        18.0
+      ],
+      "role": "button"
+    },
+    {
+      "fill": "#3dff9aff",
+      "key": "status-dot",
+      "opacity": 1.0,
+      "path": "shell/status/status-0/status-dot",
+      "radius": 999.0,
+      "rect": [
+        16.0,
+        786.0,
+        6.0,
+        6.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/status/status-0/#1",
+      "rect": [
+        28.0,
+        782.1,
+        57.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "boris/0.9.0"
+    },
+    {
+      "key": "status-1",
+      "label": "3 events",
+      "opacity": 1.0,
+      "path": "shell/status/status-1",
+      "rect": [
+        102.1,
+        780.5,
+        51.4,
+        17.0
+      ],
+      "role": "text",
+      "text": "3 events"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.10",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.10",
+      "rect": [
+        105.4,
+        782.1,
+        6.9,
+        13.8
+      ],
+      "role": "text",
+      "text": "3"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.2",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.2",
+      "rect": [
+        112.3,
+        782.1,
+        2.9,
+        13.8
+      ],
+      "role": "text",
+      "text": " "
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.3",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.3",
+      "rect": [
+        115.2,
+        782.1,
+        6.3,
+        13.8
+      ],
+      "role": "text",
+      "text": "e"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.4",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.4",
+      "rect": [
+        121.5,
+        782.1,
+        6.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "v"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.5",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.5",
+      "rect": [
+        127.6,
+        782.1,
+        6.5,
+        13.8
+      ],
+      "role": "text",
+      "text": "e"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.6",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.6",
+      "rect": [
+        134.0,
+        782.1,
+        6.6,
+        13.8
+      ],
+      "role": "text",
+      "text": "n"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.7",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.7",
+      "rect": [
+        140.6,
+        782.1,
+        3.7,
+        13.8
+      ],
+      "role": "text",
+      "text": "t"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "status-1.8",
+      "opacity": 1.0,
+      "path": "shell/status/status-1/status-1.8",
+      "rect": [
+        144.3,
+        782.1,
+        5.9,
+        13.8
+      ],
+      "role": "text",
+      "text": "s"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "key": "status-2",
+      "opacity": 1.0,
+      "path": "shell/status/status-2",
+      "radius": 2.0,
+      "rect": [
+        162.2,
+        782.1,
+        52.1,
+        13.8
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/status/status-2/#0",
+      "rect": [
+        168.2,
+        782.1,
+        40.1,
+        13.8
+      ],
+      "role": "text",
+      "text": "epoch 1"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/status/#3",
+      "rect": [
+        226.3,
+        789.0,
+        870.5,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/status/#4",
+      "rect": [
+        1108.8,
+        782.1,
+        99.2,
+        13.8
+      ],
+      "role": "text",
+      "text": "mod+K commands"
+    },
+    {
+      "help": "Switch to light theme",
+      "key": "status-3",
+      "label": "Switch to light theme",
+      "opacity": 1.0,
+      "path": "shell/status/status-3",
+      "radius": 4.0,
+      "rect": [
+        1220.0,
+        779.0,
+        20.0,
+        20.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "icon",
+      "opacity": 1.0,
+      "path": "shell/status/status-3/icon",
+      "rect": [
+        1222.0,
+        781.0,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "help": "Motion on — reduce motion",
+      "key": "status-4",
+      "label": "Motion on — reduce motion",
+      "opacity": 1.0,
+      "path": "shell/status/status-4",
+      "radius": 4.0,
+      "rect": [
+        1252.0,
+        779.0,
+        20.0,
+        20.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "key": "icon",
+      "opacity": 1.0,
+      "path": "shell/status/status-4/icon",
+      "rect": [
+        1254.0,
+        781.0,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    }
+  ],
+  "schema": 2
+}

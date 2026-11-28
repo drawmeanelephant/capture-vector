@@ -26,6 +26,7 @@ const TREE_SCENES: &[&str] = &[
     "palette",
     "light",
     "pages",
+    "graph",
     "outputs",
     "activity",
     "broken-duplicate-id",

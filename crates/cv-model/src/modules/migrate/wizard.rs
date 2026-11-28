@@ -675,6 +675,7 @@ impl MigrateModule {
                 Intent::Reveal {
                     module: super::ID.into(),
                     key: format!("run:{run_id}"),
+                    nav: None,
                 },
             ];
         }
@@ -688,6 +689,7 @@ impl MigrateModule {
                 Intent::Reveal {
                     module: super::ID.into(),
                     key: format!("run:{run_id}"),
+                    nav: None,
                 },
             ];
         }
@@ -706,6 +708,7 @@ impl MigrateModule {
                 Intent::Reveal {
                     module: super::ID.into(),
                     key: format!("run:{run_id}"),
+                    nav: None,
                 },
             ];
         }
@@ -734,6 +737,7 @@ impl MigrateModule {
                         Intent::Reveal {
                             module: super::ID.into(),
                             key: format!("run:{run_id}"),
+                            nav: None,
                         },
                     ];
                 }
@@ -763,6 +767,7 @@ impl MigrateModule {
                         Intent::Reveal {
                             module: super::ID.into(),
                             key: format!("run:{run_id}"),
+                            nav: None,
                         },
                     ];
                 }
@@ -771,6 +776,7 @@ impl MigrateModule {
                     Intent::Reveal {
                         module: super::ID.into(),
                         key: format!("run:{run_id}"),
+                        nav: None,
                     },
                 ]
             }
@@ -785,6 +791,7 @@ impl MigrateModule {
                     Intent::Reveal {
                         module: super::ID.into(),
                         key: format!("run:{run_id}"),
+                        nav: None,
                     },
                 ]
             }

@@ -586,13 +586,64 @@
       "text": "Demo"
     },
     {
+      "fill": "#08090cff",
+      "key": "rail-graph",
       "opacity": 1.0,
-      "path": "shell/body/rail/#7",
+      "path": "shell/body/rail/rail-graph",
+      "radius": 6.0,
       "rect": [
         4.0,
         405.8,
         80.0,
-        290.3
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-graph/#0",
+      "rect": [
+        12.0,
+        411.8,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-graph-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-graph/#0/rail-graph-icon",
+      "rect": [
+        12.0,
+        411.8,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-graph/#1",
+      "rect": [
+        12.0,
+        431.8,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Graph"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/#8",
+      "rect": [
+        4.0,
+        458.0,
+        80.0,
+        238.0
       ],
       "role": "group"
     },
@@ -1738,7 +1789,7 @@
         1040.0,
         60.3,
         240.0,
-        279.0
+        259.0
       ],
       "role": "group"
     },
@@ -1819,90 +1870,12 @@
       "text": "trunk"
     },
     {
-      "key": "field-fields",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-fields",
-      "rect": [
-        1048.0,
-        95.8,
-        224.0,
-        16.0
-      ],
-      "role": "group"
-    },
-    {
-      "key": "field-fields-head",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-fields/field-fields-head",
-      "rect": [
-        1048.0,
-        95.8,
-        224.0,
-        16.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-fields/field-fields-head/#0",
-      "rect": [
-        1048.0,
-        96.9,
-        72.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "fields"
-    },
-    {
-      "color": "#e6e9efff",
-      "help": "from source frontmatter, no Boris IR yet",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-fields/field-fields-head/#1",
-      "rect": [
-        1128.0,
-        96.9,
-        118.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "from source frontmatter, no Boris IR yet"
-    },
-    {
-      "help": "Show the full fields value",
-      "key": "field-fields-expand",
-      "label": "Show the full fields value",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-fields/field-fields-head/field-fields-expand",
-      "radius": 4.0,
-      "rect": [
-        1254.0,
-        95.8,
-        18.0,
-        16.0
-      ],
-      "role": "button"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-fields/field-fields-head/field-fields-expand/#0",
-      "rect": [
-        1258.0,
-        98.8,
-        10.0,
-        10.0
-      ],
-      "role": "icon"
-    },
-    {
       "key": "field-title",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-title",
       "rect": [
         1048.0,
-        115.8,
+        95.8,
         224.0,
         13.8
       ],
@@ -1914,7 +1887,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-title/#0",
       "rect": [
         1048.0,
-        115.8,
+        95.8,
         72.0,
         13.8
       ],
@@ -1927,7 +1900,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-title/#1",
       "rect": [
         1128.0,
-        115.8,
+        95.8,
         144.0,
         13.8
       ],
@@ -1940,7 +1913,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-tags",
       "rect": [
         1048.0,
-        133.5,
+        113.5,
         224.0,
         13.8
       ],
@@ -1952,7 +1925,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-tags/#0",
       "rect": [
         1048.0,
-        133.5,
+        113.5,
         72.0,
         13.8
       ],
@@ -1965,7 +1938,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-tags/#1",
       "rect": [
         1128.0,
-        133.5,
+        113.5,
         144.0,
         13.8
       ],
@@ -1978,7 +1951,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-build",
       "rect": [
         1048.0,
-        151.3,
+        131.3,
         224.0,
         13.8
       ],
@@ -1990,7 +1963,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-build/#0",
       "rect": [
         1048.0,
-        151.3,
+        131.3,
         72.0,
         13.8
       ],
@@ -2003,7 +1976,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-build/#1",
       "rect": [
         1128.0,
-        151.3,
+        131.3,
         144.0,
         13.8
       ],
@@ -2017,7 +1990,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0",
       "rect": [
         1048.0,
-        177.0,
+        157.0,
         224.0,
         15.0
       ],
@@ -2029,7 +2002,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/#0",
       "rect": [
         1048.0,
-        178.5,
+        158.5,
         12.0,
         12.0
       ],
@@ -2041,7 +2014,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/#1",
       "rect": [
         1064.0,
-        177.0,
+        157.0,
         170.0,
         15.0
       ],
@@ -2056,7 +2029,7 @@
       "radius": 999.0,
       "rect": [
         1238.0,
-        177.6,
+        157.6,
         18.8,
         13.8
       ],
@@ -2068,7 +2041,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/list-0-count/#0",
       "rect": [
         1244.0,
-        177.6,
+        157.6,
         6.8,
         13.8
       ],
@@ -2082,7 +2055,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0-0",
       "rect": [
         1048.0,
-        196.0,
+        176.0,
         224.0,
         13.8
       ],
@@ -2096,7 +2069,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0-1",
       "rect": [
         1048.0,
-        213.8,
+        193.8,
         224.0,
         13.8
       ],
@@ -2110,7 +2083,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1",
       "rect": [
         1048.0,
-        239.5,
+        219.5,
         224.0,
         15.0
       ],
@@ -2122,7 +2095,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1/#0",
       "rect": [
         1048.0,
-        241.0,
+        221.0,
         12.0,
         12.0
       ],
@@ -2134,7 +2107,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1/#1",
       "rect": [
         1064.0,
-        239.5,
+        219.5,
         84.1,
         15.0
       ],
@@ -2149,7 +2122,7 @@
       "radius": 999.0,
       "rect": [
         1152.1,
-        240.1,
+        220.1,
         19.1,
         13.8
       ],
@@ -2161,7 +2134,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1/list-1-count/#0",
       "rect": [
         1158.1,
-        240.1,
+        220.1,
         7.1,
         13.8
       ],
@@ -2175,7 +2148,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-2",
       "rect": [
         1048.0,
-        266.5,
+        246.5,
         224.0,
         15.0
       ],
@@ -2187,7 +2160,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-2/#0",
       "rect": [
         1048.0,
-        268.0,
+        248.0,
         12.0,
         12.0
       ],
@@ -2199,7 +2172,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-2/#1",
       "rect": [
         1064.0,
-        266.5,
+        246.5,
         46.4,
         15.0
       ],
@@ -2214,7 +2187,7 @@
       "radius": 999.0,
       "rect": [
         1114.4,
-        267.1,
+        247.1,
         16.6,
         13.8
       ],
@@ -2226,7 +2199,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-2/list-2-count/#0",
       "rect": [
         1120.4,
-        267.1,
+        247.1,
         4.6,
         13.8
       ],
@@ -2240,7 +2213,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-2-0",
       "rect": [
         1048.0,
-        285.5,
+        265.5,
         224.0,
         13.8
       ],
@@ -2256,7 +2229,7 @@
       "radius": 4.0,
       "rect": [
         1048.0,
-        311.3,
+        291.3,
         224.0,
         20.0
       ],
@@ -2279,7 +2252,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/follow-link/label",
       "rect": [
         1127.3,
-        315.3,
+        295.3,
         65.4,
         12.0
       ],

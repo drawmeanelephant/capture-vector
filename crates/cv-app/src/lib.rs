@@ -595,6 +595,15 @@ fn pages(wb: &mut Workbench) {
     wb.select_key("guides/publishing.md");
 }
 
+fn graph(wb: &mut Workbench) {
+    boot(wb);
+    show(wb, "pages");
+    wb.select_key("guides/publishing.md");
+    show(wb, "graph");
+    wb.set_nav("neighborhood");
+    wb.select_key("guides/publishing");
+}
+
 fn outputs(wb: &mut Workbench) {
     boot(wb);
     show(wb, "outputs");
@@ -707,6 +716,7 @@ pub const SCENES: &[Scene] = &[
         degraded("demo.degrade.store-corrupt", wb)
     }),
     ("pages", pages),
+    ("graph", graph),
     ("outputs", outputs),
     ("activity", activity),
     ("broken-duplicate-id", |wb| {
