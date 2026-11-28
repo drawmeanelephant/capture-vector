@@ -83,7 +83,36 @@ it everything else works, and the app discloses the absence.
   under `[migration_lab]`; needs git, zig 0.17.x, and network):
   `./scripts/fetch-migration-lab.sh`. It builds into
   `vendor/boris-migration-lab/zig-out/bin/` and prints the
-  `CV_MIGRATION_LAB_BIN` line to export.
+  `CV_MIGRATION_LAB_BIN` line to export. `zig_series` is the compiler
+  requirement; `zig_version` is the compiler version recorded in the
+  original tool pin. Capture metadata does not record the compiler, so
+  `zig_version` is pin provenance, not capture evidence or an exact-patch
+  requirement. The pinned lab's upstream minimum is Zig 0.17.0; Capture
+  Vector accepts release versions in the proven 0.17.x series and refuses
+  prerelease, build-metadata, malformed, or other-series versions.
+- On Windows, run the fetch from an MSYS2/Git Bash shell through explicit
+  Bash. This is the invocation with Windows runtime evidence:
+
+  ```sh
+  env ZIG=/c/tools/zig-x86_64-windows-0.17.0/zig.exe /usr/bin/bash ./scripts/fetch-migration-lab.sh
+  ```
+
+  Direct `ZIG=… ./scripts/fetch-migration-lab.sh` execution is not known
+  to be equivalent on MSYS: the original Windows evidence reported that
+  form still trying plain `zig`, and no newer MSYS runtime evidence is
+  available.
+  POSIX regression coverage exercises direct inline assignment only as
+  POSIX behavior. A separate `ZIG=…` line is shell-local unless it is
+  exported:
+
+  ```sh
+  export ZIG=/c/tools/zig-x86_64-windows-0.17.0/zig.exe
+  /usr/bin/bash ./scripts/fetch-migration-lab.sh
+  ```
+
+  Native-drive spellings (`C:\…` or `C:/…`) are converted through
+  `cygpath` when needed; quote backslash spellings and paths containing
+  spaces so the shell passes each path through as one argument.
 - Discovery order matches Boris: `CV_MIGRATION_LAB_BIN` → bundled
   `engines/` → `PATH` → `<workspace>/../boris-migration-lab/zig-out/bin`,
   the last only with `CV_MIGRATION_LAB_SIBLING=1`.

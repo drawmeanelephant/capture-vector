@@ -52,6 +52,7 @@ REQUIRED = [
     "docs/tech-debt.md",
     "scripts/agent-claim.py",
     "scripts/test-agent-claim.py",
+    "scripts/test-fetch-migration-lab.py",
     "scripts/fetch-rune.sh",
     "scripts/fetch-migration-lab.sh",
     "scripts/dev.sh",
@@ -73,6 +74,7 @@ REQUIRED = [
 EXECUTABLE = [
     "scripts/agent-claim.py",
     "scripts/test-agent-claim.py",
+    "scripts/test-fetch-migration-lab.py",
     "scripts/fetch-rune.sh",
     "scripts/fetch-migration-lab.sh",
     "scripts/dev.sh",

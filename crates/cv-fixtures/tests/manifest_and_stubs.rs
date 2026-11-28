@@ -49,7 +49,27 @@ fn manifest_pins_one_migration_lab_build_outside_the_file_list() {
     assert!(lab.commit.bytes().all(|b| b.is_ascii_hexdigit()));
     assert!(lab.tool_id.starts_with("boris-migration-lab/"));
     assert!(lab.repo.starts_with("https://"));
-    assert!(!lab.zig_version.is_empty());
+    let numeric = |part: &str| {
+        !part.is_empty()
+            && part.bytes().all(|b| b.is_ascii_digit())
+            && (part == "0" || !part.starts_with('0'))
+    };
+    let series: Vec<&str> = lab.zig_series.split('.').collect();
+    assert_eq!(series.len(), 2, "{}", lab.zig_series);
+    assert!(
+        series.iter().all(|part| numeric(part)),
+        "{}",
+        lab.zig_series
+    );
+    let version: Vec<&str> = lab.zig_version.split('.').collect();
+    assert_eq!(version.len(), 3, "{}", lab.zig_version);
+    assert!(
+        version.iter().all(|part| numeric(part)),
+        "{}",
+        lab.zig_version
+    );
+    assert_eq!(version[0], series[0]);
+    assert_eq!(version[1], series[1]);
     // A tool pin is not a capture: it must not join the hashed file list.
     assert!(
         manifest
