@@ -180,6 +180,7 @@ fn r8_stale_verb_after_replacement_stops_current_watch_without_restore() {
         VerbRun {
             verb: Verb::Build,
             cancel: cv_core::engine::CancelToken::new(),
+            operation: cv_model::status::StatusOperation::mint(),
         },
     );
 

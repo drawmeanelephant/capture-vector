@@ -374,6 +374,7 @@ fn adoption_gate_outcomes_survive_reopen_generation_retirement() {
                         },
                     },
                     cancel: CancelToken::new(),
+                    operation: cv_model::status::StatusOperation::mint(),
                 },
                 &env,
             )
@@ -471,6 +472,7 @@ fn adoption_outcomes_wait_for_their_owning_workspace_across_a_foreign_switch() {
                     },
                 },
                 cancel: CancelToken::new(),
+                operation: cv_model::status::StatusOperation::mint(),
             },
             &env_a,
         )
@@ -562,6 +564,7 @@ Home
         let started = port.start(VerbRun {
             verb: Verb::Build,
             cancel: CancelToken::new(),
+            operation: cv_model::status::StatusOperation::mint(),
         });
         join_with_timeout(boot, Duration::from_secs(5), "replacement boot");
         settle(&mut wb, Duration::from_millis(250));
@@ -707,6 +710,7 @@ B
                     },
                 },
                 cancel: CancelToken::new(),
+                operation: cv_model::status::StatusOperation::mint(),
             },
             &env_a,
         )
@@ -898,6 +902,7 @@ fn adoption_cannot_run_inside_a_stale_scheduler_after_workspace_reopen() {
             },
         },
         cancel: CancelToken::new(),
+        operation: cv_model::status::StatusOperation::mint(),
     };
     let worker = cv_app::migrate::adopt::adopt(&mut wb, job, &env).expect("adoption starts");
     let pending = ws.join(".cv/imports").join(run_id).join(store::PENDING);
@@ -1032,6 +1037,7 @@ fn a_failed_reopen_refresh_makes_adoption_and_palette_refuse_before_any_write() 
                 },
             },
             cancel: CancelToken::new(),
+            operation: cv_model::status::StatusOperation::mint(),
         },
         &env,
     )
