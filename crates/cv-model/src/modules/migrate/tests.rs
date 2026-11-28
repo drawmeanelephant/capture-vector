@@ -165,6 +165,24 @@ fn review_items_triage_persists_through_the_port_and_never_blocks() {
 }
 
 #[test]
+fn a_review_item_inspector_carries_the_complete_clipped_row_values() {
+    let m = module();
+    let row = m.row(Some("review"), 0);
+    assert_eq!(row.title, "content/en/guides/inner/_index.md");
+    assert_eq!(row.detail, "section · nested section flattened");
+
+    let fields: BTreeMap<_, _> = m.inspector(&row.key).fields.into_iter().collect();
+    assert_eq!(fields["source"], row.title);
+    assert_eq!(fields["construct"], "section");
+    assert_eq!(fields["reason"], "nested section flattened");
+    assert_eq!(
+        format!("{} · {}", fields["construct"], fields["reason"]),
+        row.detail,
+        "the inspector carries the same evidence the dense row clips"
+    );
+}
+
+#[test]
 fn transitions_without_a_review_item_selected_only_say_so() {
     let mut m = module();
     m.select(Some("run:20261125-hugo"));

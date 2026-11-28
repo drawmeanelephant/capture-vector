@@ -1014,6 +1014,23 @@ impl Module for MigrateModule {
                 fields: vec![
                     ("run".into(), r.id.clone()),
                     ("item".into(), i.id.clone()),
+                    ("source".into(), i.source.clone()),
+                    (
+                        "construct".into(),
+                        if i.construct.is_empty() {
+                            "—".into()
+                        } else {
+                            i.construct.clone()
+                        },
+                    ),
+                    (
+                        "reason".into(),
+                        if i.reason.is_empty() {
+                            "—".into()
+                        } else {
+                            i.reason.clone()
+                        },
+                    ),
                     ("triage".into(), i.state.label().into()),
                     ("sidecar".into(), self.imports.store.clone()),
                 ],
