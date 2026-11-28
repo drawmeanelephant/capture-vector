@@ -57,8 +57,9 @@ png = "0.18"
 flate2 = "1.1"
 
 # rune is vendored (git deps cannot resolve — see spec/architecture.md §0
-# and scripts/fetch-rune.sh). The ONLY crate allowed to depend on these is
-# cv-widgets; cargo-deny enforces the firewall.
+# and scripts/fetch-rune.sh). The ONLY crate allowed to depend on
+# rune/rune-kit is cv-widgets; the CI lint job's manifest scan enforces
+# that firewall.
 rune = { path = "vendor/rune/crates/rune", default-features = false, features = ["accessibility", "dbus", "metal-backend", "ogg-audio", "svg"] }
 rune-kit = { path = "vendor/rune/crates/rune-kit", default-features = false }
 # GPU effect layers for the opt-in signature moments (cv-widgets `effects`

@@ -54,4 +54,5 @@
 
 - Author fixture JSON by hand — capture or it doesn't exist.
 - Implement lane behavior — stubs only.
-- Let lanes dep on each other (cargo-deny enforces).
+- Let lanes dep on each other; shared vocabulary belongs in
+  `cv-core`/`cv-contracts`.

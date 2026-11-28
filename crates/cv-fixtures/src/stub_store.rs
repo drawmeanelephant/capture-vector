@@ -1,6 +1,6 @@
-//! `StubStore` — in-memory `Store` for lanes. The JSONL-truth /
-//! SQLite-index duality doesn't exist here; tests assert behavior, not
-//! persistence.
+//! `StubStore` — in-memory `Store` used by lane tests and currently wired
+//! into `cv-app` until an on-disk implementation lands. The JSONL-truth /
+//! SQLite-index duality doesn't exist here; the stub has no persistence.
 
 use cv_core::id::StableId;
 use cv_core::store::{Namespace, Predicate, Store, Value};
@@ -48,8 +48,8 @@ impl Store for StubStore {
 }
 
 /// JSON-document predicate evaluation — delegates to the shared
-/// `Predicate::matches_json` so the stub oracle and `Predicate::matches`
-/// (and the future SQLite index) can never diverge.
+/// `Predicate::matches_json` so the stub oracle, `Predicate::matches`,
+/// and any indexed implementation can never diverge.
 fn predicate_matches_json(pred: &Predicate, doc: &Value) -> bool {
     pred.matches_json(doc)
 }

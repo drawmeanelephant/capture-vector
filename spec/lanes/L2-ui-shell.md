@@ -44,7 +44,8 @@
 - Element-tree goldens green on 3 OSes; PNG green on canonical config.
 - Switcher, inspector toggle, palette command driven by scripted input.
 - DemoModule exercises every degraded state.
-- No crate but `cv-widgets` imports `rune` (cargo-deny proves it).
+- No crate but `cv-widgets` imports `rune` (the CI lint job's manifest
+  scan proves it).
 
 ## Must not
 
