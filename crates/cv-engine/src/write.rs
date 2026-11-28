@@ -84,6 +84,7 @@ fn sync_parent_dir(path: &Path) -> std::io::Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::File::open(parent)?.sync_all()?;
     }
+    let _ = path;
     Ok(())
 }
 

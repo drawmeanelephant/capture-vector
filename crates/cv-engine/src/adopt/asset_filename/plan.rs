@@ -36,6 +36,12 @@ pub(super) enum PageOutcome {
         post_sha256: String,
         post_bytes: u64,
     },
+    /// Rewrite rows exist but the candidate equals the inventoried
+    /// pre-image: nothing is written, so nothing may be claimed applied.
+    Unchanged {
+        post_sha256: String,
+        post_bytes: u64,
+    },
     /// Transitively blocked because a member asset is collision-bound.
     Collision(String),
 }
@@ -73,6 +79,32 @@ impl UnionFind {
             self.parent[b] = a;
         }
     }
+}
+
+/// The first strict ancestor of `rel` that is an inventoried non-directory
+/// entry, looked up case-insensitively like the destination-occupant
+/// checks. An inventoried file, link, or other entry in the way means the
+/// path can never be created — a statically knowable conflict, not
+/// something execution may discover mid-transaction. An inventoried
+/// directory or an absent ancestor is fine.
+fn non_directory_ancestor<'a>(
+    by_lower: &BTreeMap<String, &'a str>,
+    by_path: &BTreeMap<&'a str, &'a store::InputEntry>,
+    rel: &str,
+) -> Option<&'a str> {
+    let mut ancestors = String::new();
+    for segment in rel.split('/') {
+        if !ancestors.is_empty() {
+            if let Some(occupant) = by_lower.get(&ancestors.to_lowercase())
+                && !matches!(by_path[occupant], store::InputEntry::Directory { .. })
+            {
+                return Some(occupant);
+            }
+            ancestors.push('/');
+        }
+        ancestors.push_str(segment);
+    }
+    None
 }
 
 /// Build the deterministic plan. `inventory` is the captured run-time
@@ -193,6 +225,13 @@ pub(super) fn build(
                         asset.dest_path,
                         others.join(", ")
                     )
+                } else if let Some(ancestor) =
+                    non_directory_ancestor(&by_lower, &by_path, &asset.dest_path)
+                {
+                    format!(
+                        "destination {} is unreachable: {ancestor} is not a directory",
+                        asset.dest_path
+                    )
                 } else {
                     asset_outcomes.insert(asset.source_path.clone(), AssetOutcome::Moved);
                     continue;
@@ -274,6 +313,39 @@ pub(super) fn build(
         }
     }
 
+    // Staged-write temporaries are named deterministically, so an occupied
+    // temp path is statically knowable before anything is journaled. A page
+    // that cannot stage its post-image can never be rewritten; block its
+    // whole component rather than discover the occupied temp inside the
+    // executor, where it would refuse on every attempt forever. A page
+    // whose candidate equals its pre-image stages nothing and is exempt.
+    let temps: BTreeMap<String, String> = pages_with_rows
+        .keys()
+        .map(|page| (page.clone(), format!("{page}.cv-adopt-{run_id}.tmp")))
+        .collect();
+    let mut blocked_pages: BTreeMap<String, String> = BTreeMap::new();
+    for page in pages_with_rows.keys() {
+        let needs_write = match (
+            by_path.get(page.as_str()),
+            candidate.pages.get(page.as_str()),
+        ) {
+            (Some(store::InputEntry::File { sha256, bytes, .. }), Some(post)) => {
+                sha256 != &post.sha256 || bytes != &post.bytes
+            }
+            _ => true,
+        };
+        if !needs_write {
+            continue;
+        }
+        let temp = &temps[page];
+        if let Some(occupant) = by_lower.get(&temp.to_lowercase()) {
+            blocked_pages.insert(
+                page.clone(),
+                format!("staged-write temporary {temp} is already occupied by {occupant}"),
+            );
+        }
+    }
+
     // Dependency components: rewritten assets and rewrite pages, edges
     // through rewrite rows. Assets 0..n are manifest indices of rewritten
     // rows; pages n.. are page paths.
@@ -339,8 +411,30 @@ pub(super) fn build(
     let mut planned: Vec<store::PlannedComponent> = Vec::new();
     let mut move_index = 0usize;
     for (_key, assets, pages) in components {
-        let blocking = assets.iter().find_map(|i| blocked.get(i)).cloned();
+        let blocking = assets
+            .iter()
+            .find_map(|i| blocked.get(i))
+            .cloned()
+            .or_else(|| {
+                pages
+                    .iter()
+                    .find_map(|p| blocked_pages.get(p.as_str()).cloned())
+            });
         if let Some(reason) = blocking {
+            // Every member of a blocked component stayed untouched, so its
+            // provenance must say so: the collision-bound asset names its
+            // own reason, and every other member records that its
+            // component blocked it — never `applied` for work that did not
+            // run.
+            for &index in &assets {
+                if !blocked.contains_key(&index) {
+                    let asset = &evidence.manifest.assets[index];
+                    asset_outcomes.insert(
+                        asset.source_path.clone(),
+                        AssetOutcome::Collision(format!("component blocked: {reason}")),
+                    );
+                }
+            }
             for page in pages {
                 page_outcomes.insert(page, PageOutcome::Collision(reason.clone()));
             }
@@ -401,19 +495,18 @@ pub(super) fn build(
                 malformed(format!("candidate page evidence for {page} is missing"))
             })?;
             if pre_sha == &post.sha256 && pre_bytes == &post.bytes {
-                // A rewrite-page whose candidate equals its pre-image carries
-                // no effective write; skip it but keep it coherent inside the
-                // component (no operation needed).
+                // A rewrite page whose candidate equals its pre-image runs
+                // no write; record it unchanged rather than applied.
                 page_outcomes.insert(
                     page.clone(),
-                    PageOutcome::Written {
+                    PageOutcome::Unchanged {
                         post_sha256: post.sha256.clone(),
                         post_bytes: post.bytes,
                     },
                 );
                 continue;
             }
-            let temp = format!("{page}.cv-adopt-{run_id}.tmp");
+            let temp = temps[page.as_str()].clone();
             input_rel(&temp, "staged-write temporary")?;
             markdown.push(store::PlannedMarkdown {
                 page: page.clone(),
@@ -438,11 +531,73 @@ pub(super) fn build(
             markdown,
         });
     }
+    validate_disjoint(&planned)?;
     Ok(Plan {
         components: planned,
         asset_outcomes,
         page_outcomes,
     })
+}
+
+/// The journaled plan must be internally disjoint: no two operations may
+/// claim the same input-relative path, and none may claim a path another
+/// operation uses as a directory prefix. A plan violating either journals
+/// an unrecoverable state — a destination that occupies a staged-write
+/// temporary's path refuses the Markdown phase on every resume attempt
+/// forever — so the evidence is refused as inconsistent before anything
+/// is journaled.
+fn validate_disjoint(components: &[store::PlannedComponent]) -> Result<(), AdoptError> {
+    let mut claims: BTreeMap<String, (&'static str, &str)> = BTreeMap::new();
+    for component in components {
+        for mv in &component.asset_moves {
+            for (kind, path) in [("source", &mv.source), ("destination", &mv.dest)] {
+                if let Some((other_kind, other)) =
+                    claims.insert(path.to_lowercase(), (kind, path.as_str()))
+                {
+                    return Err(malformed(format!(
+                        "journaled {kind} {path} collides with journaled {other_kind} {other}"
+                    )));
+                }
+            }
+        }
+        for md in &component.markdown {
+            for (kind, path) in [("page", &md.page), ("temporary", &md.temp)] {
+                if let Some((other_kind, other)) =
+                    claims.insert(path.to_lowercase(), (kind, path.as_str()))
+                {
+                    return Err(malformed(format!(
+                        "journaled {kind} {path} collides with journaled {other_kind} {other}"
+                    )));
+                }
+            }
+        }
+    }
+    for (lower, (kind, path)) in &claims {
+        let mut ancestor = String::new();
+        for segment in lower.split('/') {
+            if !ancestor.is_empty() {
+                if let Some((other_kind, other)) = claims.get(&ancestor) {
+                    return Err(malformed(format!(
+                        "journaled {kind} {path} is unreachable: journaled {other_kind} {other} occupies its parent path"
+                    )));
+                }
+                ancestor.push('/');
+            }
+            ancestor.push_str(segment);
+        }
+    }
+    let mut backups: BTreeMap<String, &str> = BTreeMap::new();
+    for component in components {
+        for mv in &component.asset_moves {
+            if let Some(other) = backups.insert(mv.backup.to_lowercase(), mv.backup.as_str()) {
+                return Err(malformed(format!(
+                    "journaled backup {} collides with journaled backup {other}",
+                    mv.backup
+                )));
+            }
+        }
+    }
+    Ok(())
 }
 
 /// The journaled components stripped of in-phase `staged_identity` marks —

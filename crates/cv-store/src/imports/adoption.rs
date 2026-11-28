@@ -297,7 +297,10 @@ pub fn scan_adoptions(root: &Path) -> Result<Vec<AdoptionRecord>, Error> {
 pub const PENDING: &str = "adoption-pending.json";
 pub const PENDING_FORMAT: &str = "cv-import-adoption-pending";
 /// Version of `<run-id>/adoption-pending.json`, independent of the run-record schema.
-pub const PENDING_SCHEMA_VERSION: u32 = 3;
+/// Version 4 permits `directory` entries inside a transformation's
+/// embedded input inventory (input-inventory schema 2); earlier versions
+/// can carry none.
+pub const PENDING_SCHEMA_VERSION: u32 = 4;
 
 /// Furthest completed phase of an in-place asset-filename transformation.
 /// Progress only ever advances: a recovery attempt re-runs earlier phases
@@ -517,6 +520,18 @@ pub fn read_pending(root: &Path, run: &str) -> Result<Option<PendingAdoption>, S
     if h.schema_version < 3 && parsed.transformation.is_some() {
         return Err(format!(
             "{PENDING} schema_version {} cannot carry a transformation snapshot",
+            h.schema_version
+        ));
+    }
+    if h.schema_version < 4
+        && parsed.transformation.as_ref().is_some_and(|t| {
+            t.inventory
+                .iter()
+                .any(|e| matches!(e, InputEntry::Directory { .. }))
+        })
+    {
+        return Err(format!(
+            "{PENDING} schema_version {} cannot carry directory inventory entries",
             h.schema_version
         ));
     }

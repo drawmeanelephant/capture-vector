@@ -11,8 +11,14 @@ use std::io::Read;
 
 pub const INPUT_INVENTORY: &str = "input-inventory.json";
 pub const INPUT_INVENTORY_FORMAT: &str = "cv-import-input-inventory";
-/// Version of `<run-id>/input-inventory.json`.
-pub const INPUT_INVENTORY_SCHEMA_VERSION: u32 = 1;
+/// Version of `<run-id>/input-inventory.json`. Version 2 records
+/// directories so an adoption can tell a real directory from an absent
+/// path: an empty directory added after capture, a directory occupying a
+/// journaled destination, or a file standing where a destination's parent
+/// must be created are all evidence instead of invisible traversal
+/// structure. Version-1 inventories record none of that and are decoded
+/// without directory expectations.
+pub const INPUT_INVENTORY_SCHEMA_VERSION: u32 = 2;
 
 /// Physical file identity: device+inode on Unix, volume serial + file
 /// index on Windows. Serialized as numbers; cross-platform meaning is
@@ -41,8 +47,14 @@ pub enum InputEntry {
         path: String,
         target: String,
     },
-    /// Directories are traversal structure, not entries; anything that is
-    /// neither file nor link nor directory is recorded by type alone.
+    /// Recorded since schema version 2: an ordinary directory, including
+    /// an empty one. Without it an empty directory is invisible to every
+    /// freshness check.
+    Directory {
+        path: String,
+    },
+    /// Anything that is neither file nor link nor directory is recorded
+    /// by type alone.
     Other {
         path: String,
     },
@@ -51,7 +63,10 @@ pub enum InputEntry {
 impl InputEntry {
     pub fn path(&self) -> &str {
         match self {
-            Self::File { path, .. } | Self::Symlink { path, .. } | Self::Other { path } => path,
+            Self::File { path, .. }
+            | Self::Symlink { path, .. }
+            | Self::Directory { path }
+            | Self::Other { path } => path,
         }
     }
 }
@@ -100,6 +115,7 @@ fn scan_dir(dir: &Path, prefix: &str, out: &mut Vec<InputEntry>) -> Result<(), E
                 target: target.to_string(),
             });
         } else if meta.is_dir() {
+            out.push(InputEntry::Directory { path: rel.clone() });
             scan_dir(&path, &format!("{rel}/"), out)?;
         } else if meta.is_file() {
             let mut file = crate::open::open_existing_no_follow(&path, false)?;

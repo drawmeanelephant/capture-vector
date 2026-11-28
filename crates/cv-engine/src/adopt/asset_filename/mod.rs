@@ -184,7 +184,10 @@ fn prepare(
             "content input {input:?} is not confined to the workspace: {e}"
         ))
     })?;
-    let live = inventory::scan(&input_root)?;
+    // Directory entries exist only in input-inventory schema 2 and later;
+    // the live scan must record exactly what the bound inventory records
+    // or every directory reads as a foreign addition.
+    let live = inventory::scan(&input_root, inventory_read.inventory.schema_version >= 2)?;
     let run_volume = crate::file_identity::identity(lock.dir()).map(|v| v.0);
     let run_dir_rel = format!("{}/{}", store::DIR, tx.src.run_id);
     let plan = plan::build(
@@ -306,7 +309,7 @@ fn provenance(
     evidence: &evidence::Evidence,
     plan: &plan::Plan,
     statuses: &BTreeMap<String, store::AssetOperationStatus>,
-) -> Vec<store::AssetOperationProvenance> {
+) -> Result<Vec<store::AssetOperationProvenance>, AdoptError> {
     let mut out = Vec::new();
     for asset in &evidence.manifest.assets {
         let outcome = plan
@@ -331,10 +334,12 @@ fn provenance(
                 reason.clone(),
             ),
             plan::AssetOutcome::Moved => (
-                statuses
-                    .get(&asset.dest_path)
-                    .copied()
-                    .unwrap_or(store::AssetOperationStatus::Applied),
+                statuses.get(&asset.dest_path).copied().ok_or_else(|| {
+                    AdoptError::Run(format!(
+                        "the executor recorded no outcome for journaled destination {}",
+                        asset.dest_path
+                    ))
+                })?,
                 asset.dest_path.clone(),
                 "renamed in place".to_string(),
             ),
@@ -361,14 +366,24 @@ fn provenance(
                 None,
                 0,
             ),
+            plan::PageOutcome::Unchanged {
+                post_sha256,
+                post_bytes,
+            } => (
+                store::AssetOperationStatus::Unchanged,
+                "the candidate page already matches the inventoried page".to_string(),
+                Some(post_sha256.clone()),
+                *post_bytes,
+            ),
             plan::PageOutcome::Written {
                 post_sha256,
                 post_bytes,
             } => (
-                statuses
-                    .get(page.as_str())
-                    .copied()
-                    .unwrap_or(store::AssetOperationStatus::Applied),
+                statuses.get(page.as_str()).copied().ok_or_else(|| {
+                    AdoptError::Run(format!(
+                        "the executor recorded no outcome for journaled page {page}"
+                    ))
+                })?,
                 "image_or_link_dest".to_string(),
                 Some(post_sha256.clone()),
                 *post_bytes,
@@ -391,7 +406,7 @@ fn provenance(
             rewrites: row_count,
         });
     }
-    out
+    Ok(out)
 }
 
 /// Transform the workspace named by an asset-filename utility run in place.
@@ -418,7 +433,7 @@ pub fn transact_existing_with_identity(
     let done = (|| {
         let outcome = exec::execute(&ctx, &mut journal)?;
         let provenance_copied = copy_provenance(tx.src, tx.target_root, &prepared.lock)?;
-        let rows = provenance(&prepared.evidence, &prepared.plan, &outcome.statuses);
+        let rows = provenance(&prepared.evidence, &prepared.plan, &outcome.statuses)?;
         record_adoption(RecordAdoptionInput {
             src: tx.src,
             target_root: tx.target_root,

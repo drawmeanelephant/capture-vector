@@ -18,7 +18,10 @@ use std::io::Read;
 use std::path::Path;
 
 /// One live content-input entry, hashed and identified like the
-/// run-time inventory records it.
+/// run-time inventory records it. `Directory` is recorded only when the
+/// bound inventory schema records directories (input-inventory version
+/// 2+); older inventories treat directories as traversal structure, so
+/// the live scan must too or every directory would read as an addition.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum LiveEntry {
     File {
@@ -29,6 +32,7 @@ pub(super) enum LiveEntry {
     Symlink {
         target: String,
     },
+    Directory,
     Other,
 }
 
@@ -39,6 +43,7 @@ fn foreign(message: impl Into<String>) -> AdoptError {
 fn scan_dir(
     dir: &Path,
     prefix: &str,
+    include_dirs: bool,
     out: &mut BTreeMap<String, LiveEntry>,
 ) -> Result<(), AdoptError> {
     let entries = std::fs::read_dir(dir)
@@ -70,7 +75,10 @@ fn scan_dir(
                 },
             );
         } else if meta.is_dir() {
-            scan_dir(&path, &format!("{rel}/"), out)?;
+            if include_dirs {
+                out.insert(rel.clone(), LiveEntry::Directory);
+            }
+            scan_dir(&path, &format!("{rel}/"), include_dirs, out)?;
         } else if meta.is_file() {
             // Open first, then read and take identity off the same handle:
             // the hash and the identity describe one storage object even if
@@ -108,8 +116,13 @@ fn scan_dir(
 }
 
 /// Inventory the live content input without following links, in the same
-/// shape as the stored run-time inventory.
-pub(super) fn scan(input_root: &Path) -> Result<BTreeMap<String, LiveEntry>, AdoptError> {
+/// shape as the stored run-time inventory. `include_dirs` must match
+/// whether the bound inventory records directories — compare like with
+/// like or reconciliation reports every directory as an addition.
+pub(super) fn scan(
+    input_root: &Path,
+    include_dirs: bool,
+) -> Result<BTreeMap<String, LiveEntry>, AdoptError> {
     let meta = std::fs::symlink_metadata(input_root).map_err(|e| {
         AdoptError::Content(format!(
             "content input {} cannot be inventoried: {e}",
@@ -123,7 +136,7 @@ pub(super) fn scan(input_root: &Path) -> Result<BTreeMap<String, LiveEntry>, Ado
         )));
     }
     let mut out = BTreeMap::new();
-    scan_dir(input_root, "", &mut out)?;
+    scan_dir(input_root, "", include_dirs, &mut out)?;
     Ok(out)
 }
 
@@ -148,6 +161,7 @@ fn entry_matches(live: &LiveEntry, entry: &store::InputEntry) -> bool {
                 target: etarget, ..
             },
         ) => target == etarget,
+        (LiveEntry::Directory, store::InputEntry::Directory { .. }) => true,
         (LiveEntry::Other, store::InputEntry::Other { .. }) => true,
         _ => false,
     }
@@ -210,14 +224,35 @@ pub(super) fn reconcile_resume(
     let mut by_dest: BTreeMap<&str, &store::PlannedAssetMove> = BTreeMap::new();
     let mut by_page: BTreeMap<&str, &store::PlannedMarkdown> = BTreeMap::new();
     let mut by_temp: BTreeMap<&str, &store::PlannedMarkdown> = BTreeMap::new();
+    let mut journaled_paths: BTreeSet<&str> = BTreeSet::new();
     for component in &transformation.components {
         for mv in &component.asset_moves {
             by_source.insert(mv.source.as_str(), mv);
             by_dest.insert(mv.dest.as_str(), mv);
+            journaled_paths.insert(mv.source.as_str());
+            journaled_paths.insert(mv.dest.as_str());
         }
         for md in &component.markdown {
             by_page.insert(md.page.as_str(), md);
             by_temp.insert(md.temp.as_str(), md);
+            journaled_paths.insert(md.page.as_str());
+            journaled_paths.insert(md.temp.as_str());
+        }
+    }
+    // A crashed attempt creates destination ancestors on the way to a
+    // journaled dest; a directory at one of those paths is the plan's own
+    // in-flight state, not a foreign addition. A non-directory at the
+    // same path, or a directory anywhere else, still refuses.
+    let mut allowed_dirs: BTreeSet<&str> = BTreeSet::new();
+    for component in &transformation.components {
+        for mv in &component.asset_moves {
+            let mut ancestor = mv.dest.as_str();
+            while let Some((parent, _)) = ancestor.rsplit_once('/') {
+                if !journaled_paths.contains(parent) {
+                    allowed_dirs.insert(parent);
+                }
+                ancestor = parent;
+            }
         }
     }
     let mut consumed: BTreeSet<&str> = BTreeSet::new();
@@ -310,6 +345,11 @@ pub(super) fn reconcile_resume(
                 )));
             }
             None => {
+                if matches!(live_entry, LiveEntry::Directory)
+                    && allowed_dirs.contains(path.as_str())
+                {
+                    continue;
+                }
                 return Err(foreign(format!(
                     "{path} appeared after the transformation journal was written"
                 )));
