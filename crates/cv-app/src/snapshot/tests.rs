@@ -274,6 +274,76 @@ fn a_linked_newest_ir_graph_is_not_followed_and_an_older_valid_graph_wins() {
     assert_eq!(by_path(&snap, "index.md").fields, FieldSource::Boris);
 }
 
+/// The captured quoted-scalars graph as mutable JSON, for deliberate
+/// nonconformance mutations. The pinned capture bytes never change;
+/// only the in-memory copy is bent, and the bent bytes never become a
+/// fixture — they exist to prove the boundary refuses them.
+fn mutated_captured_graph(mutate: impl FnOnce(&mut serde_json::Value)) -> Vec<u8> {
+    let editor = fixtures_root().join("editor");
+    let key = "captures/quoted-scalars/graph.json";
+    let bytes = fs::read(editor.join(key)).unwrap();
+    Manifest::load(&editor.join("MANIFEST.toml"))
+        .verify(key, &bytes)
+        .unwrap();
+    let mut v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    mutate(&mut v);
+    serde_json::to_vec(&v).unwrap()
+}
+
+#[test]
+fn an_unsupported_ir_version_never_becomes_graph_authority() {
+    let ws = captured_workspace("quoted-scalars", ".boris/graph.json");
+    write(
+        ws.path(),
+        ".boris/graph.json",
+        mutated_captured_graph(|v| v["schemaVersion"] = "999.0".into()),
+    );
+    let snap = workspace_snapshot(ws.path(), "dist", None, 1);
+    assert!(
+        snap.ir_graph.is_none(),
+        "a future schema version must not decode into authority"
+    );
+    assert!(
+        snap.pages.iter().all(|p| p.fields == FieldSource::Source),
+        "pages degrade to source-guessed fields"
+    );
+}
+
+#[test]
+fn a_graph_missing_required_keys_never_becomes_graph_authority() {
+    // IR node keys are required even when nullable: Boris emits
+    // parentIndex as an explicit null on trunks, so its absence is
+    // nonconforming, not a missing-value convenience.
+    let ws = captured_workspace("quoted-scalars", ".boris/graph.json");
+    write(
+        ws.path(),
+        ".boris/graph.json",
+        mutated_captured_graph(|v| {
+            v["nodes"][0].as_object_mut().unwrap().remove("parentIndex");
+        }),
+    );
+    let snap = workspace_snapshot(ws.path(), "dist", None, 1);
+    assert!(snap.ir_graph.is_none());
+    assert!(snap.pages.iter().all(|p| p.fields == FieldSource::Source));
+}
+
+#[test]
+fn an_unsupported_newest_ir_graph_falls_back_to_an_older_valid_graph() {
+    let ws = captured_workspace("quoted-scalars", ".boris/graph.json");
+    write(
+        ws.path(),
+        ".cv/ir/graph.json",
+        mutated_captured_graph(|v| v["schemaVersion"] = "0.5.0".into()),
+    );
+    let older = SystemTime::now() - std::time::Duration::from_secs(60);
+    set_mtime(ws.path(), ".boris/graph.json", older);
+    set_mtime(ws.path(), ".cv/ir/graph.json", SystemTime::now());
+
+    let snap = workspace_snapshot(ws.path(), "dist", None, 1);
+    assert_eq!(by_path(&snap, "index.md").title, "Mini Site (English)");
+    assert_eq!(by_path(&snap, "index.md").fields, FieldSource::Boris);
+}
+
 #[test]
 fn source_fallback_reads_boris_double_quoted_scalars_without_quotes() {
     let temp = tempfile::tempdir().unwrap();

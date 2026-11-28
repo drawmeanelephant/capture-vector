@@ -122,6 +122,44 @@ fn relation_free_ir_02_decodes_with_nav_and_empty_semantic_relations() {
     assert_eq!(index.nodes().filter(|node| node.role == "trunk").count(), 7);
 }
 
+/// Boris accepts and preserves duplicate tags (`tags: [repeat, repeat,
+/// other]` and the non-adjacent form, both emitted verbatim by the pinned
+/// engine into `fixtures/editor/captures/duplicate-tags/graph.json`).
+/// Tag lookup identifies unique nodes in Boris node order; occurrence
+/// multiplicity stays visible only in the node's own verbatim tag list.
+#[test]
+fn duplicate_tags_index_each_node_once_per_distinct_tag() {
+    let editor = cv_fixtures::fixtures_root().join("editor");
+    let key = "captures/duplicate-tags/graph.json";
+    let bytes = std::fs::read(editor.join(key)).expect("duplicate-tags capture");
+    cv_fixtures::Manifest::load(&editor.join("MANIFEST.toml"))
+        .verify(key, &bytes)
+        .expect("duplicate-tags capture is the pinned one");
+    let graph: Graph = serde_json::from_slice(&bytes).expect("capture decodes");
+    let index = GraphNavIndex::build(Arc::new(graph));
+
+    assert_eq!(
+        ids(index.nodes_tagged("repeat")),
+        ["guides/non-adjacent", "index"],
+        "each node exactly once, in Boris node order"
+    );
+    assert_eq!(
+        ids(index.nodes_tagged("other")),
+        ["guides/non-adjacent", "index"]
+    );
+    assert_eq!(index.stats().distinct_tags, 2);
+    assert_eq!(index.stats().nodes, 2);
+
+    // The verbatim evidence keeps author order and multiplicity; the
+    // index neither rewrites it nor reinterprets it.
+    let trunk = index.node("index").expect("trunk indexed");
+    assert_eq!(trunk.tags, ["repeat", "repeat", "other"]);
+    let satellite = index
+        .node("guides/non-adjacent")
+        .expect("satellite indexed");
+    assert_eq!(satellite.tags, ["repeat", "other", "repeat"]);
+}
+
 #[test]
 fn synthetic_scale_index_covers_the_scale_floor_shape() {
     let index = GraphNavIndex::build(Arc::new(synthetic_scale_graph()));

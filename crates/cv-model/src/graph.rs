@@ -17,7 +17,7 @@
 
 use cv_contracts::graph::{Endpoint, Graph};
 use cv_core::id::{AccountId, NounId, NounKind, Selection, StableId, noun_kind};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
 /// Incident-direction filter for semantic relations. These are orientations
@@ -362,8 +362,17 @@ impl GraphNavIndex {
             if let Some(title) = node.title.as_deref().filter(|title| !title.is_empty()) {
                 push_position(&mut self.by_title, title, pos);
             }
+            // Boris accepts and preserves duplicate tags in author order,
+            // so one node can carry the same tag twice. Tag lookup
+            // identifies unique nodes: index each distinct tag once per
+            // node (positions stay in Boris node order either way). The
+            // node's `tags` evidence itself is kept verbatim, duplicates
+            // included — multiplicity is preserved there, not invented here.
+            let mut seen = HashSet::new();
             for tag in &node.tags {
-                push_position(&mut self.by_tag, tag, pos);
+                if seen.insert(tag.as_str()) {
+                    push_position(&mut self.by_tag, tag, pos);
+                }
             }
         }
     }
@@ -513,6 +522,7 @@ mod tests {
             status: None,
             tags: vec!["tag".into()],
             body_offset: 0,
+            recipe: None,
         }
     }
 

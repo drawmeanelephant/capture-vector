@@ -398,9 +398,11 @@ impl<'a> Scan<'a> {
 /// IR-mode builds write `graph.json` under `--out`: the live session's
 /// own projection (`IR_DIR`), Boris's default `.boris`, or the HTML dir
 /// of a workspace built with `--out <html_dir>`. The freshest *valid*
-/// file wins; a malformed or unreadable newer candidate never hides an
-/// older good one. On a tie the earlier candidate wins, so the projection
-/// the live session keeps fresh is read first.
+/// file wins; a malformed, unreadable, or undecodable newer candidate —
+/// including one claiming an unsupported IR `schemaVersion` — never
+/// hides an older good one and never becomes graph authority. On a tie
+/// the earlier candidate wins, so the projection the live session keeps
+/// fresh is read first.
 fn ir_graph(root: &Path, html_dir: &str) -> Option<Graph> {
     let mut candidates = Vec::new();
     for (priority, dir) in [IR_DIR, ".boris", html_dir].into_iter().enumerate() {
@@ -416,7 +418,8 @@ fn ir_graph(root: &Path, html_dir: &str) -> Option<Graph> {
     }
     candidates.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
     candidates.into_iter().find_map(|(_, _, rel)| {
-        workspace_json(root, &rel, MAX_INDEX_BYTES).and_then(|v| serde_json::from_value(v).ok())
+        workspace_json(root, &rel, MAX_INDEX_BYTES)
+            .and_then(|v| cv_contracts::graph::decode_graph_value(v).ok())
     })
 }
 

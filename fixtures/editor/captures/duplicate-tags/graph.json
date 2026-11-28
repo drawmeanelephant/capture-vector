@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "0.2.0",
+  "frozen": true,
+  "nodes": [
+    {
+      "index": 0,
+      "id": "guides/non-adjacent",
+      "sourcePath": "guides/non-adjacent.md",
+      "role": "satellite",
+      "parent": "index",
+      "parentIndex": 1,
+      "title": "Non-adjacent duplicates",
+      "status": null,
+      "tags": ["repeat", "other", "repeat"],
+      "bodyOffset": 83
+    },
+    {
+      "index": 1,
+      "id": "index",
+      "sourcePath": "index.md",
+      "role": "trunk",
+      "parent": null,
+      "parentIndex": null,
+      "title": "Tagged Home",
+      "status": null,
+      "tags": ["repeat", "repeat", "other"],
+      "bodyOffset": 57
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "type": "page",
+        "value": "guides/non-adjacent"
+      },
+      "to": {
+        "type": "page",
+        "value": "index"
+      },
+      "kind": "parent"
+    },
+    {
+      "from": {
+        "type": "page",
+        "value": "guides/non-adjacent"
+      },
+      "to": {
+        "type": "page",
+        "value": "index"
+      },
+      "kind": "reference"
+    }
+  ],
+  "reverseIndex": [
+    {
+      "target": {
+        "type": "page",
+        "value": "index"
+      },
+      "incomingEdges": [0, 1]
+    }
+  ],
+  "nav": [
+    {
+      "index": 0,
+      "id": "guides/non-adjacent",
+      "breadcrumb": [1, 0],
+      "children": [],
+      "siblings": []
+    },
+    {
+      "index": 1,
+      "id": "index",
+      "breadcrumb": [1],
+      "children": [0],
+      "siblings": []
+    }
+  ]
+}
