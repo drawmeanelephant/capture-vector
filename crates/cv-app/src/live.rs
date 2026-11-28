@@ -234,6 +234,7 @@ impl VerbRoute {
         let outcome = match &result {
             Ok(r) if r.exit == ExitClass::Ok => format!("{label} finished"),
             Ok(_) => format!("{label} failed · see Activity"),
+            Err(_) if run.cancel.is_cancelled() => format!("{label} cancelled"),
             Err(_) => format!("{label} did not finish · see Activity"),
         };
         if result.is_err() {

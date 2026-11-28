@@ -333,6 +333,7 @@ pub fn open_workspace(
         f.lab.state = lab.state;
         f.lab.candidates = lab.candidates;
     });
+    wb.begin_status_operation();
     wb.reset_project(workspace_registry());
     wb.workspace_key = Some(slots::workspace_key(&root));
     wb.workspace = Some(root.clone());
@@ -347,7 +348,7 @@ pub fn open_workspace(
         // the reopen that clears it.
         wb.evidence_status(w.clone());
     } else {
-        wb.bookkeeping_status(format!("Opening workspace {}…", root.display()));
+        wb.progress_status(format!("Opening workspace {}…", root.display()));
     }
     let mut recent = env.recent();
     recent.push(&root);

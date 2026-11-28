@@ -48,23 +48,58 @@ fn bookkeeping_never_overwrites_an_operation_outcome() {
 }
 
 #[test]
-fn outcomes_are_sticky_for_progress_bookkeeping_and_engine_evidence() {
+fn progress_for_a_new_operation_replaces_an_old_outcome_and_holds_against_ambient_notices() {
     let mut wb = Workbench::new(Registry::with_all());
     wb.outcome_status("Import finished; the run is in Runs");
 
-    assert!(!wb.progress_status("Building the site…"));
-    assert!(!wb.evidence_status("boris build finished (exit 0, 12 ms)"));
+    assert!(wb.progress_status("Building the site…"));
+    assert_eq!(wb.status, "Building the site…");
+    assert_eq!(wb.status_kind(), Some(crate::status::StatusKind::Progress));
+
     assert!(!wb.bookkeeping_status("3 import run(s) loaded"));
-    assert_eq!(wb.status, "Import finished; the run is in Runs");
-    assert_eq!(wb.status_kind(), Some(crate::status::StatusKind::Outcome));
+    assert!(!wb.evidence_status("boris build finished (exit 0, 12 ms)"));
+    assert_eq!(wb.status, "Building the site…");
 
     assert!(wb.outcome_status("Site build finished"));
     assert_eq!(wb.status, "Site build finished");
+    assert_eq!(wb.status_kind(), Some(crate::status::StatusKind::Outcome));
+}
 
-    wb.clear_status();
-    assert!(wb.progress_status("Building the site…"));
+#[test]
+fn engine_evidence_for_a_new_operation_can_replace_an_old_outcome() {
+    let mut wb = Workbench::new(Registry::with_all());
+    wb.outcome_status("Import finished; the run is in Runs");
+
+    wb.begin_status_operation();
+    assert!(wb.evidence_status("Boris watch stopped · running one build for diagnostics…"));
+    assert_eq!(
+        wb.status,
+        "Boris watch stopped · running one build for diagnostics…"
+    );
+    assert_eq!(
+        wb.status_kind(),
+        Some(crate::status::StatusKind::EngineEvidence)
+    );
+}
+
+#[test]
+fn ambient_engine_evidence_does_not_overwrite_a_fresh_outcome() {
+    let mut wb = Workbench::new(Registry::with_all());
+    wb.outcome_status("Import finished; the run is in Runs");
+
+    assert!(!wb.evidence_status("boris build finished (exit 0, 12 ms)"));
+    assert_eq!(wb.status, "Import finished; the run is in Runs");
+}
+
+#[test]
+fn ambient_notices_replace_one_another_when_no_foreground_status_is_live() {
+    let mut wb = Workbench::new(Registry::with_all());
+
+    assert!(wb.bookkeeping_status("3 import run(s) loaded"));
     assert!(wb.evidence_status("boris build finished (exit 0, 12 ms)"));
     assert_eq!(wb.status, "boris build finished (exit 0, 12 ms)");
+    assert!(wb.bookkeeping_status("4 import run(s) loaded"));
+    assert_eq!(wb.status, "4 import run(s) loaded");
 }
 
 #[test]

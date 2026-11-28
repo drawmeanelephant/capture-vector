@@ -21,14 +21,22 @@
 //!
 //! Completion text leads with the product result. Mechanical details stay in
 //! Activity (or the owning inspector) rather than becoming the primary shell
-//! outcome. Outcomes are sticky: progress, bookkeeping, and engine evidence
-//! may replace one another, but never an outcome. A later outcome replaces
-//! the earlier one because it is the newest user-requested result.
-
+//! outcome. Replacement is a small foreground-operation state machine rather
+//! than a fixed priority order:
+//!
+//! - live progress always starts or continues the newest foreground
+//!   operation, so it may replace an older operation's outcome;
+//! - an outcome completes that foreground operation and replaces anything;
+//! - while progress is live, bookkeeping and engine evidence stay out of the
+//!   toast (their detail remains in Activity);
+//! - a completed outcome holds against ambient bookkeeping and engine
+//!   evidence until another foreground operation starts; evidence belonging
+//!   to that new operation may supersede the older outcome;
+//! - bookkeeping and engine evidence replace one another when no foreground
+//!   operation is live.
+//!
 /// What kind of statement a shell status makes. The kind decides whether a
-/// later notice may replace the one on screen: an outcome is the newest
-/// user-requested result and is never overwritten by progress, bookkeeping,
-/// or engine evidence.
+/// later notice may replace the one on screen.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StatusKind {
     /// The result of an operation the user asked for.

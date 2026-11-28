@@ -3,7 +3,7 @@
 //! validation and writes happen behind cv-engine/cv-store.
 
 use crate::new_workspace::WorkspaceCreation;
-use cv_core::engine::CancelToken;
+use cv_core::engine::{CancelToken, ExitClass};
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -56,8 +56,8 @@ pub struct AdoptionReport {
     /// User-facing content destination, `/`-separated and relative to the
     /// workspace (`content/imported/site`, for example).
     pub destination: String,
-    pub validate: String,
-    pub build: String,
+    pub validate: ExitClass,
+    pub build: Option<ExitClass>,
     pub new_workspace: bool,
 }
 

@@ -317,12 +317,8 @@ fn finish_report(
         markdown_writes: tx.markdown_writes,
         skipped_collisions: tx.skipped_collisions,
         destination,
-        validate: gate_text(&gate.0),
-        build: gate
-            .1
-            .as_ref()
-            .map(gate_text)
-            .unwrap_or_else(|| "skipped".into()),
+        validate: gate.0,
+        build: gate.1,
         new_workspace,
     }
 }

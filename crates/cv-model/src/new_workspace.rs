@@ -8,7 +8,7 @@ use crate::adoption::{ADOPT_NEW_DIALOG, AdoptionRequest, AdoptionTarget};
 use crate::command::{ImportJob, Intent};
 use crate::dialog::{ActionTone, DialogAnswer, DialogKind, DialogSpec, Field, Pick, Progress};
 use crate::workbench::{ShellRequest, Waker, Workbench};
-use cv_core::engine::CancelToken;
+use cv_core::engine::{CancelToken, ExitClass};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
@@ -144,7 +144,24 @@ fn count_text(n: usize, one: &str, many: &str) -> String {
     }
 }
 
+fn adoption_gate_suffix(report: &crate::adoption::AdoptionReport) -> String {
+    let validation_failed = report.validate != ExitClass::Ok;
+    let build_skipped = report.build.is_none();
+    let build_failed = report.build.is_some_and(|build| build != ExitClass::Ok);
+    match (validation_failed, build_failed, build_skipped) {
+        (true, true, _) => " · validation and the build failed · see Activity".into(),
+        (true, false, true) => {
+            " · validation failed and the build did not run · see Activity".into()
+        }
+        (true, false, false) => " · validation failed · see Activity".into(),
+        (false, true, _) => " · the build failed · see Activity".into(),
+        (false, false, true) => " · the build did not run · see Activity".into(),
+        (false, false, false) => String::new(),
+    }
+}
+
 fn adoption_status(run_id: &str, report: &crate::adoption::AdoptionReport) -> String {
+    let gate = adoption_gate_suffix(report);
     // An in-place asset-filename transformation records no adopted pages;
     // it moved assets and rewrote Markdown references in place.
     if !report.new_workspace && report.pages == 0 && report.markdown_writes + report.assets > 0 {
@@ -159,7 +176,7 @@ fn adoption_status(run_id: &str, report: &crate::adoption::AdoptionReport) -> St
             String::new()
         };
         return format!(
-            "applied {} and {} from {run_id} in {}{}",
+            "applied {} and {} from {run_id} in {}{}{}",
             count_text(report.assets, "asset rename", "asset renames"),
             count_text(
                 report.markdown_writes,
@@ -167,14 +184,16 @@ fn adoption_status(run_id: &str, report: &crate::adoption::AdoptionReport) -> St
                 "Markdown rewrites"
             ),
             report.destination,
-            skipped
+            skipped,
+            gate
         );
     }
     format!(
-        "adopted {} and {} from {run_id} into {}",
+        "adopted {} and {} from {run_id} into {}{}",
         count_text(report.pages, "page", "pages"),
         count_text(report.assets, "asset", "assets"),
-        report.destination
+        report.destination,
+        gate
     )
 }
 
@@ -737,8 +756,8 @@ mod tests {
                 markdown_writes: 0,
                 skipped_collisions: 0,
                 destination: "content/imported/site".into(),
-                validate: "ok".into(),
-                build: "ok".into(),
+                validate: ExitClass::Ok,
+                build: Some(ExitClass::Ok),
                 new_workspace: false,
             }),
         });
@@ -761,13 +780,53 @@ mod tests {
             markdown_writes: 0,
             skipped_collisions: 0,
             destination: "content/imported/site".into(),
-            validate: "ok".into(),
-            build: "ok".into(),
+            validate: ExitClass::Ok,
+            build: Some(ExitClass::Ok),
             new_workspace: false,
         };
         assert_eq!(
             adoption_status("20261127-hugo", &report),
             "adopted 2 pages and 1 asset from 20261127-hugo into content/imported/site"
+        );
+    }
+
+    #[test]
+    fn adoption_completion_discloses_validation_failure_and_the_skipped_build() {
+        let report = crate::adoption::AdoptionReport {
+            workspace: PathBuf::from("/site"),
+            files_written: 3,
+            pages: 2,
+            assets: 1,
+            markdown_writes: 0,
+            skipped_collisions: 0,
+            destination: "content/imported/site".into(),
+            validate: ExitClass::ContentFailure,
+            build: None,
+            new_workspace: false,
+        };
+        assert_eq!(
+            adoption_status("20261127-hugo", &report),
+            "adopted 2 pages and 1 asset from 20261127-hugo into content/imported/site · validation failed and the build did not run · see Activity"
+        );
+    }
+
+    #[test]
+    fn adoption_completion_discloses_build_failure() {
+        let report = crate::adoption::AdoptionReport {
+            workspace: PathBuf::from("/site"),
+            files_written: 3,
+            pages: 2,
+            assets: 1,
+            markdown_writes: 0,
+            skipped_collisions: 0,
+            destination: "content/imported/site".into(),
+            validate: ExitClass::Ok,
+            build: Some(ExitClass::ContentFailure),
+            new_workspace: false,
+        };
+        assert_eq!(
+            adoption_status("20261127-hugo", &report),
+            "adopted 2 pages and 1 asset from 20261127-hugo into content/imported/site · the build failed · see Activity"
         );
     }
 
@@ -781,8 +840,8 @@ mod tests {
             markdown_writes: 4,
             skipped_collisions: 6,
             destination: "content".into(),
-            validate: "ok".into(),
-            build: "ok".into(),
+            validate: ExitClass::Ok,
+            build: Some(ExitClass::Ok),
             new_workspace: false,
         };
         assert_eq!(

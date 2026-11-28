@@ -249,6 +249,12 @@ pub struct Workbench {
     /// Classification of `status`, used to keep ambient refresh/engine
     /// notices from overwriting foreground operation outcomes and progress.
     status_kind: Option<StatusKind>,
+    /// Whether a foreground operation has started and not yet produced its
+    /// first terminal/evidence notice. This is the shell's smallest causal
+    /// operation boundary: it lets evidence for a newly started operation
+    /// supersede an older operation's outcome without letting ambient
+    /// evidence erase every fresh outcome.
+    status_operation_open: bool,
     /// Root of the open workspace, if any.
     pub workspace: Option<PathBuf>,
     /// Instance identity of `workspace`, shared with scheduler registration.
@@ -316,6 +322,7 @@ impl Workbench {
             debug_windows: false,
             status: String::new(),
             status_kind: None,
+            status_operation_open: false,
             workspace: None,
             workspace_key: None,
             identity_disclosures: BTreeSet::new(),
@@ -407,10 +414,20 @@ impl Workbench {
         self.status_kind
     }
 
-    /// Present a classified status notice. Outcomes replace anything and are
-    /// never replaced by progress, bookkeeping, or engine evidence; non-outcome
-    /// notices replace one another as they arrive. Returns whether the visible
-    /// status changed.
+    /// Mark that a foreground operation is starting even when its first
+    /// visible notice will be engine evidence rather than progress.
+    pub fn begin_status_operation(&mut self) {
+        self.status_operation_open = true;
+    }
+
+    /// Present a classified status notice. Progress and outcomes are the
+    /// foreground operation lifecycle: progress starts or continues an
+    /// operation and may supersede an older outcome; an outcome completes
+    /// whatever is visible. While progress is live, ambient bookkeeping and
+    /// engine evidence cannot displace it. A completed outcome holds against
+    /// both ambient classes until a new operation starts; evidence belonging
+    /// to that new operation may supersede the older outcome. Returns whether
+    /// the visible status changed.
     pub fn set_status_notice(&mut self, notice: StatusNotice) -> bool {
         self.set_status_kind(notice.kind, notice.text)
     }
@@ -418,9 +435,25 @@ impl Workbench {
     /// [`set_status_notice`] with the kind and text separate.
     pub fn set_status_kind(&mut self, kind: StatusKind, text: impl Into<String>) -> bool {
         let text = text.into();
-        let outcome_is_live = self.status_kind.is_some_and(StatusKind::is_outcome);
-        if outcome_is_live && !kind.is_outcome() {
+        let replace = match kind {
+            StatusKind::Outcome | StatusKind::Progress => true,
+            StatusKind::Bookkeeping => !matches!(
+                self.status_kind,
+                Some(StatusKind::Outcome | StatusKind::Progress)
+            ),
+            StatusKind::EngineEvidence => {
+                !matches!(self.status_kind, Some(StatusKind::Progress))
+                    && (self.status_operation_open
+                        || !matches!(self.status_kind, Some(StatusKind::Outcome)))
+            }
+        };
+        if !replace {
             return false;
+        }
+        match kind {
+            StatusKind::Progress => self.status_operation_open = true,
+            StatusKind::Outcome | StatusKind::EngineEvidence => self.status_operation_open = false,
+            StatusKind::Bookkeeping => {}
         }
         if self.status == text && self.status_kind == Some(kind) {
             return false;
@@ -455,6 +488,7 @@ impl Workbench {
         let changed = !self.status.is_empty();
         self.status.clear();
         self.status_kind = None;
+        self.status_operation_open = false;
         changed
     }
 
