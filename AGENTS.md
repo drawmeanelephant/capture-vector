@@ -66,9 +66,11 @@ Test layout and naming:
 Local quality hooks:
 - `./scripts/install-hooks.sh` sets `core.hooksPath=.githooks`.
 - The hook runs fmt, secret/large-file/TODO/doc-link scans, and the
-  version-drift check. `CV_HOOK_SLOW=1 git commit …` also runs clippy.
-- `./scripts/lint.sh` is the full local gate (fmt + clippy + cargo-deny
-  + unused-dependency scan).
+  version-drift check. `CV_HOOK_SLOW=1 git commit …` also runs
+  `./scripts/lint.sh`.
+- `./scripts/lint.sh` is the full local gate: fmt, clippy, hygiene, and
+  the unused-dependency scan, plus cargo-deny when installed. CI adds
+  platform- and pull-request-specific gates.
 
 Dependency policy:
 - All versions live in `[workspace.dependencies]`; members use

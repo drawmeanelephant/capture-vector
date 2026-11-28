@@ -26,7 +26,9 @@ survived eight adversarial reviews — the rationale trail is in
 ```
 cv-core       domain types + SYNC ports + event/state vocab. NO IO, NO async, NO UI.
 cv-contracts  serde mirrors of Boris + migration-lab JSON, version-keyed. Fixture-decode tests only.
-cv-fixtures   captured corpora + lab runs, StubEngine + StubStore + StubLab. Dev-dep of every lane.
+cv-fixtures   captured corpora + lab runs, StubEngine + StubStore + StubLab.
+              Test fixtures for lanes. cv-app is the production exception for
+              fixture-backed scenes; the Store port is cv_store::docs.
 cv-engine     the ONLY Command owner: RawSubprocess + EngineScheduler.
 cv-store      JSONL evidence trail + per-namespace migration tracks + app-data
               index paths. rusqlite indexes live in cv-ledger and cv-notes.

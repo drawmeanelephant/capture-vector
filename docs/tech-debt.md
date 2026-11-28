@@ -23,7 +23,7 @@ Ledger format: one row per item, reviewed when the linked issue closes.
 | Acceptance-gate close-out | Build | Every gate was verified green; the issue waits on the maintainer's close-out | issue #11 |
 | Standard-site implicit session root | Engine boundary | User-controlled custom session verbs could make Boris create or mutate its implicit `$HOME` sessions root. Pinned Boris requires an absolute `--session-root` while Capture Vector accepts only workspace-relative output paths, so the boundary does not compose. No production app wiring exposes those verbs today; this is not a decision on Boris-native v1 publish scope, but needs a hardening decision before `Engine::run` exposes user-controlled custom session verbs | issue #222, round-36 verifier candidate |
 
-Open questions for the maintainer:
+Open question for the maintainer:
 
 - Should #11 close now that its gates are verified, so its row can go?
 

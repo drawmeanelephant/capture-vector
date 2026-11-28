@@ -1,7 +1,8 @@
 # cargo-deny config — dependency discipline for the crate map.
 # The architectural firewall (only cv-widgets imports rune; only
-# cv-engine spawns processes) is enforced by review + a workspace-lint
-# scan in CI, since cargo-deny can't see intra-crate module boundaries.
+# cv-engine spawns processes) is enforced by the CI lint job's manifest
+# and source scans plus review, since cargo-deny can't see intra-crate
+# module boundaries.
 
 [advisories]
 version = 2
@@ -13,8 +14,9 @@ multiple-versions = "warn"
 # wildcards; warn instead of denying until manifests get versions.
 wildcards = "warn"
 # The no-async-runtime rule guards our own crates' manifests — enforced
-# by the lint job's grep over crates/*/Cargo.toml, not here: rune pulls
-# tokio through wasm-bindgen-futures/zbus for its a11y and web stacks.
+# by the lint job's cargo-metadata scan of workspace manifests, not here.
+# Rune pulls tokio through wasm-bindgen-futures/zbus for its a11y and web
+# stacks.
 deny = [
     # No webview / embedded web shell — Rune or nothing (v1 non-goal).
     { name = "tauri" },

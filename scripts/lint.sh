@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# lint.sh — full local quality gate. CI runs the same checks.
+# lint.sh — local Rust quality gate. CI is not identical: it adds effects
+# clippy, firewall scans, PNG goldens, and PR claims, and it makes
+# cargo-deny mandatory.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ./scripts/check-toolchain.sh

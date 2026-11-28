@@ -1,10 +1,13 @@
-//! Store port. JSONL in `.cv/` is the source of truth; SQLite in OS
-//! app-data (keyed by project id) is a rebuildable index — `store-corrupt`
+//! Store port. This crate defines only the synchronous contract and
+//! predicate semantics. `cv_store::docs::DiskStore` implements the port
+//! on disk; `cv_fixtures::stub_store::StubStore` is the in-memory test
+//! oracle. JSONL in `.cv/` is the source of truth. Any SQLite index lives
+//! in OS app-data keyed by project id and is rebuildable. `store-corrupt`
 //! recovery is delete + rebuild. Per-namespace migration tracks
 //! `(namespace, version)` so lanes migrate independently.
 //!
-//! Boris IR is **never** persisted — `Arc<GraphDocument>` lives in memory;
-//! smart-mailbox conjunctions scan `NounAttrRow`s.
+//! Boris IR is **never** persisted. `Arc<GraphDocument>` lives in memory,
+//! and smart-mailbox conjunctions scan `NounAttrRow`s.
 
 use crate::id::{AttrValue, StableId};
 use serde::{Deserialize, Serialize};
@@ -43,8 +46,8 @@ pub struct Predicate {
 }
 
 impl Predicate {
-    /// Evaluate against one attribute row (in-memory scan semantics —
-    /// the same conjunction the SQLite index implements).
+    /// Evaluate against one attribute row. An indexed implementation must
+    /// preserve these in-memory scan semantics.
     pub fn matches(&self, row: &crate::id::NounAttrRow) -> bool {
         self.conj.iter().all(|t| match row.fields.get(&t.field) {
             Some(v) => attr_cmp(v, &t.op, &t.value),
@@ -52,10 +55,9 @@ impl Predicate {
         })
     }
 
-    /// Evaluate against a JSON document field-view — the exact same
-    /// `attr_cmp` semantics as `matches`. Every store that projects
-    /// JSON documents (the stub oracle, the future SQLite index) must
-    /// agree with `matches`, so they delegate here instead of keeping
+    /// Evaluate against a JSON document field-view with the exact same
+    /// `attr_cmp` semantics as `matches`. Stores that project JSON documents
+    /// must agree with `matches`. They delegate here instead of keeping
     /// their own comparator.
     pub fn matches_json(&self, doc: &serde_json::Value) -> bool {
         self.conj

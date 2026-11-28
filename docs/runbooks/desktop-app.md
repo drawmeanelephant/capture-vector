@@ -118,9 +118,9 @@ it everything else works, and the app discloses the absence.
   locks, and the research index path.
 - JSONL under `<workspace>/.cv/research/` is the source of truth; the
   SQLite index is rebuildable.
-- Close the app, move the index aside (not the JSONL), and reopen:
-  `mv <workspace>/.cv/research/index.sqlite <workspace>/.cv/research/index.sqlite.bak`.
-  The app rebuilds it.
+- Close the app, move the index aside (not the JSONL), and reopen. Use the
+  exact research index path shown in Doctor. The index lives in OS app-data,
+  not under `<workspace>/.cv/`. The app rebuilds it.
 - If the JSONL itself is torn, restore from your backup or version
   control; do not hand-edit provenance records.
 

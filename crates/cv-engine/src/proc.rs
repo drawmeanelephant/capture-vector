@@ -234,6 +234,48 @@ pub(crate) struct Captured {
     pub stderr: Vec<u8>,
 }
 
+fn drain_captured(
+    child: &mut Spawned,
+    out: &mut Option<JoinHandle<Result<Vec<u8>>>>,
+    err: &mut Option<JoinHandle<Result<Vec<u8>>>>,
+    cancel: &CancelToken,
+    input_finished: impl Fn() -> bool,
+) -> Result<Captured> {
+    let mut stdout = None;
+    let mut stderr = None;
+    let mut exited_at = None;
+    loop {
+        stdout = take_capture(out)?.or(stdout);
+        stderr = take_capture(err)?.or(stderr);
+        // Terminal exit is latched before cancellation is consulted:
+        // a process observed dead must not have its outcome rewritten
+        // to cancellation by a token arriving in the same poll window.
+        let exited = child.try_wait()?.is_some();
+        if !exited && cancel.is_cancelled() {
+            return Err(EngineError::Cancelled);
+        }
+        if exited {
+            if out.is_none() && err.is_none() && input_finished() {
+                return Ok(Captured {
+                    outcome: child.outcome().expect("child exited"),
+                    stdout: stdout.expect("stdout captured"),
+                    stderr: stderr.expect("stderr captured"),
+                });
+            }
+            // A descendant may still be flushing the pipes, but
+            // must not hold them open indefinitely after exit.
+            if exited_at.get_or_insert_with(Instant::now).elapsed() >= PIPE_EXIT_GRACE {
+                return Err(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    "child pipes stayed open after exit",
+                )
+                .into());
+            }
+        }
+        std::thread::sleep(POLL);
+    }
+}
+
 /// Spawn, optionally feed stdin, capture both pipes, honour cancel.
 /// Return only complete captures; overflow fails the run even if the
 /// child exited successfully or already wrote its output artifacts.
@@ -281,44 +323,9 @@ fn run_captured_with_limit(
                 let _ = pipe.write_all(bytes).and_then(|_| pipe.flush());
             })
         });
-        let result = (|| {
-            let mut stdout = None;
-            let mut stderr = None;
-            let mut exited_at = None;
-            loop {
-                stdout = take_capture(&mut out)?.or(stdout);
-                stderr = take_capture(&mut err)?.or(stderr);
-                // Terminal exit is latched before cancellation is consulted:
-                // a process observed dead must not have its outcome rewritten
-                // to cancellation by a token arriving in the same poll window.
-                let exited = child.try_wait()?.is_some();
-                if !exited && cancel.is_cancelled() {
-                    return Err(EngineError::Cancelled);
-                }
-                if exited {
-                    if out.is_none()
-                        && err.is_none()
-                        && input.as_ref().is_none_or(|t| t.is_finished())
-                    {
-                        return Ok(Captured {
-                            outcome: child.outcome().expect("child exited"),
-                            stdout: stdout.expect("stdout captured"),
-                            stderr: stderr.expect("stderr captured"),
-                        });
-                    }
-                    // A descendant may still be flushing the pipes, but
-                    // must not hold them open indefinitely after exit.
-                    if exited_at.get_or_insert_with(Instant::now).elapsed() >= PIPE_EXIT_GRACE {
-                        return Err(io::Error::new(
-                            io::ErrorKind::TimedOut,
-                            "child pipes stayed open after exit",
-                        )
-                        .into());
-                    }
-                }
-                std::thread::sleep(POLL);
-            }
-        })();
+        let result = drain_captured(&mut child, &mut out, &mut err, cancel, || {
+            input.as_ref().is_none_or(|t| t.is_finished())
+        });
         if result.is_err() {
             // Includes a capture error, even if the leader already quit.
             // Kill remaining pipe holders before waiting for the workers.
@@ -660,11 +667,6 @@ mod tests {
     #[test]
     fn cancellation_does_not_rewrite_terminal_exit_while_draining() {
         let cancel = CancelToken::new();
-        let c2 = cancel.clone();
-        let t = std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(200));
-            c2.cancel();
-        });
         // The leader exits normally while a finite background task still
         // holds the pipes. Once terminal exit is observed it remains the
         // process outcome; cancellation cannot rewrite it retroactively.
@@ -673,8 +675,31 @@ mod tests {
         let script = "sleep 1 & exit 0";
         #[cfg(windows)]
         let script = "start /b ping -n 3 127.0.0.1 & exit 0";
-        let result = run_captured(shell_command(script), None, &cancel).unwrap();
-        t.join().unwrap();
+        let mut child = Spawned::spawn(shell_command(script), Stdio::null()).unwrap();
+        let mut out = Some(capture(
+            child.take_stdout().expect("stdout piped"),
+            "stdout",
+            CAPTURE_LIMIT,
+        ));
+        let mut err = Some(capture(
+            child.take_stderr().expect("stderr piped"),
+            "stderr",
+            CAPTURE_LIMIT,
+        ));
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while child.try_wait().unwrap().is_none() {
+            assert!(Instant::now() < deadline, "leader did not exit");
+            std::thread::sleep(POLL);
+        }
+        cancel.cancel();
+        let result = drain_captured(&mut child, &mut out, &mut err, &cancel, || true);
+        if result.is_err() {
+            child.kill_tree(Duration::ZERO);
+        }
+        for reader in [out, err].into_iter().flatten() {
+            let _ = reader.join();
+        }
+        let result = result.unwrap();
         assert!(matches!(result.outcome, ExitOutcome::Exited { code: 0 }));
     }
 
