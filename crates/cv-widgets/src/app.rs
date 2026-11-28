@@ -332,6 +332,10 @@ pub const SIZE: (f32, f32) = (1280.0, 800.0);
 /// focus returns to the shell rather than silently jumping to another
 /// record's disclosure.
 pub(crate) fn input_on_key(s: &mut Workbench, ev: &rune::KeyEvent, tx: &mut Tx) -> bool {
+    if matches!(ev.key, rune::Key::Modifier { .. }) {
+        input_modifiers(s, ev.mods);
+        return false;
+    }
     if crate::dialog::close_control_key(s, ev, tx) {
         return true;
     }
@@ -347,6 +351,18 @@ pub(crate) fn input_on_key(s: &mut Workbench, ev: &rune::KeyEvent, tx: &mut Tx) 
         tx.blur();
     }
     used
+}
+
+/// Modifier transitions are input state, not visible state. The real window
+/// hears physical modifier keys in queue order after opting into
+/// `App::modifier_keys`; `on_modifiers` is an aggregate-state backup, while
+/// the standalone harness uses the same ordered modifier-key events.
+pub(crate) fn input_modifiers(s: &mut Workbench, mods: rune::Mods) {
+    s.modifiers(crate::keys::modifiers(mods));
+}
+
+pub(crate) fn input_on_modifiers(s: &mut Workbench, mods: rune::Mods, _tx: &mut Tx) {
+    input_modifiers(s, mods);
 }
 
 /// rune `poll` plumbing: drain engine envelopes; true when visible
@@ -398,6 +414,8 @@ pub fn run(l: Launch) {
     let handle = app.handle();
     app.on_quit(shutdown)
         .on_close(shutdown)
+        .modifier_keys()
+        .on_modifiers(input_on_modifiers)
         .on_ready(move |_| {
             if !BOOTED.swap(true, Ordering::Relaxed) {
                 handle.update(boot);

@@ -1,9 +1,26 @@
 //! rune key events → toolkit-neutral `cv_model::workbench::KeyPress`, and
 //! display chords → keycaps.
 
-use cv_model::workbench::{KeyInput, KeyPress};
+use cv_model::workbench::{KeyInput, KeyPress, Modifiers};
 use rune::{Chord, Key, KeyEvent, KeyPlatform};
 use std::sync::OnceLock;
+
+/// Preserve the modifier detail Rune carries. `cmd` is the platform
+/// primary abstracted over its physical key; synthetic events may set only
+/// `cmd`, so normalize that bare form onto the platform's physical primary.
+pub fn modifiers(mods: rune::Mods) -> Modifiers {
+    let mut out = Modifiers {
+        shift: mods.shift,
+        alt: mods.alt,
+        ctrl: mods.ctrl,
+        logo: mods.logo,
+        ..Modifiers::default()
+    };
+    if mods.cmd && !out.primary_held() {
+        out.set_primary(true);
+    }
+    out
+}
 
 pub fn map(ev: &KeyEvent) -> Option<KeyPress> {
     let key = match &ev.key {
@@ -27,9 +44,13 @@ pub fn map(ev: &KeyEvent) -> Option<KeyPress> {
         Key::Tab => KeyInput::Tab,
         _ => return None,
     };
+    let mut mods = modifiers(ev.mods);
+    if matches!(key, KeyInput::Command(_)) {
+        mods.set_primary(true);
+    }
     Some(KeyPress {
         key,
-        shift: ev.mods.shift,
+        modifiers: mods,
     })
 }
 

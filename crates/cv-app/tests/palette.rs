@@ -56,12 +56,14 @@ fn an_empty_query_shows_the_placeholder_and_typing_replaces_it() {
 }
 
 #[test]
-fn typing_in_the_same_input_burst_as_ctrl_k_loses_no_leading_chars() {
+fn continuous_primary_hold_in_one_input_burst_types_leading_chars() {
     let mut h = scene("canary");
-    for ev in keys::parse("mod+k") {
-        h.rt.key(ev);
+    h.primary_modifier(true);
+    for c in ['k', 'b', 'u'] {
+        h.primary_command(c);
     }
-    for ev in keys::parse("text:build") {
+    h.primary_modifier(false);
+    for ev in keys::parse("text:ild") {
         h.rt.key(ev);
     }
     h.settle();
@@ -70,20 +72,40 @@ fn typing_in_the_same_input_burst_as_ctrl_k_loses_no_leading_chars() {
     assert_eq!(node(&h, "palette-query")["text"], "build");
 }
 
-#[test]
-fn ctrl_key_rollover_after_ctrl_k_still_types_leading_chars() {
-    let mut h = scene("canary");
-    for token in ["mod+k", "mod+b", "mod+u"] {
-        for ev in keys::parse(token) {
-            h.rt.key(ev);
-        }
-    }
-    for ev in keys::parse("text:ild") {
-        h.rt.key(ev);
-    }
+fn open_palette_with_physical_primary(name: &str) -> Harness {
+    let mut h = scene(name);
+    h.primary_modifier(true);
+    h.primary_command('k');
     h.settle();
     assert!(h.state().palette.open);
-    assert_eq!(h.state().palette.query, "build");
+    h
+}
+
+#[test]
+fn release_then_repress_mod_i_does_not_type_or_execute_in_the_palette() {
+    let mut h = open_palette_with_physical_primary("canary");
+    let inspector = h.state().inspector_open;
+    h.primary_modifier(false);
+    h.primary_modifier(true);
+    h.primary_command('i');
+    h.settle();
+    assert!(h.state().palette.open);
+    assert_eq!(h.state().palette.query, "");
+    assert_eq!(h.state().inspector_open, inspector);
+}
+
+#[test]
+fn alt_or_counterpart_command_modifier_does_not_type_in_the_palette() {
+    for alt in [true, false] {
+        let mut h = open_palette_with_physical_primary("canary");
+        if alt {
+            h.alt_primary_command('i');
+        } else {
+            h.counterpart_primary_command('i');
+        }
+        h.settle();
+        assert_eq!(h.state().palette.query, "", "alt case {alt}");
+    }
 }
 
 #[test]

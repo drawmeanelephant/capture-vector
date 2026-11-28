@@ -25,7 +25,8 @@ use cv_core::events::{AppEvent, Cursor, EventId, SessionId, SnapshotEpoch};
 use cv_core::id::{Selection, StableId, WorkspaceId};
 use cv_core::store::{Namespace, Store};
 pub use disclosure::ValueExpansionKey;
-pub use input::{KeyInput, KeyPress, ShellRequest};
+use input::PrimaryHold;
+pub use input::{KeyInput, KeyPress, Modifiers, PrimaryKey, ShellRequest};
 use outcome_retention::{
     MAX_PENDING_OUTCOME_BYTES, MAX_PENDING_OUTCOMES, dedupe_outcome_copies, digest,
     enforce_outcome_retention,
@@ -228,6 +229,7 @@ pub struct Workbench {
     pub nav: Vec<Option<String>>,
     pub windows: Windows,
     pub palette: Palette,
+    pub(crate) primary_hold: PrimaryHold,
     /// The open modal dialog and the ones queued behind it.
     pub dialogs: Dialogs,
     pub inspector_open: bool,
@@ -304,6 +306,7 @@ impl Workbench {
             nav,
             windows: Windows::new(),
             palette: Palette::default(),
+            primary_hold: PrimaryHold::default(),
             dialogs: Dialogs::default(),
             inspector_open: true,
             sections_flipped: BTreeSet::new(),

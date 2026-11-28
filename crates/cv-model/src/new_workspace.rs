@@ -556,10 +556,9 @@ mod tests {
 
     /// Open the form, pick garden, tab to the name and type it.
     fn fill(wb: &mut Workbench, name: &str) {
-        wb.key(&KeyPress {
-            key: KeyInput::Command('n'),
-            shift: true,
-        });
+        let mut press = KeyPress::new(KeyInput::Command('n'));
+        press.modifiers.shift = true;
+        wb.key(&press);
         wb.key(&KeyPress::new(KeyInput::Down));
         wb.key(&KeyPress::new(KeyInput::Tab));
         wb.key(&KeyPress::new(KeyInput::Tab));
@@ -569,10 +568,9 @@ mod tests {
     #[test]
     fn the_chord_opens_a_form_with_the_listed_archetypes_and_a_default_location() {
         let mut wb = wb();
-        wb.key(&KeyPress {
-            key: KeyInput::Command('n'),
-            shift: true,
-        });
+        let mut press = KeyPress::new(KeyInput::Command('n'));
+        press.modifiers.shift = true;
+        wb.key(&press);
         let d = wb.dialogs.open().expect("form open");
         assert_eq!(d.spec.id, NEW);
         let DialogKind::Form(fields) = &d.spec.kind else {

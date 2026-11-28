@@ -131,6 +131,18 @@ Keyboard basics:
 | `mod+I` | toggle inspector |
 | `Esc` | clear selection / close palette |
 
+Palette rollover typing: when `mod+K` opens the palette, keeping `mod`
+held and pressing printable keys in that same uninterrupted hold enters
+those keys as the start of the query. Lifting `mod` ends rollover. A
+chord pressed after `mod` is released and pressed again is a deliberate
+command chord, not query text; while the modal palette is open it is
+suppressed rather than executed, except `mod+K`, which still closes the
+palette. Chords carrying Shift, Alt, or the non-primary command key are
+never rollover text. There is one physical-input boundary: if `mod` has
+never lifted, a deliberate `mod+I` is indistinguishable from typing `i`
+during rollover, so the continuous typing interpretation wins. Release
+`mod` before using a deliberate command chord.
+
 Inspector chevrons are keyboard controls. Press `F6` to focus the first
 one, `Tab` / `shift+Tab` to move through the inspector's disclosures and
 other controls, and `Space` or `Enter` to open or close the focused one.
