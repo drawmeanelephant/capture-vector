@@ -197,8 +197,8 @@ fn a_corrupt_index_is_deleted_and_rebuilt() {
         Some(json!({"status": "open"}))
     );
     // Deleting it outright takes the same recovery path.
-    std::fs::remove_file(&index).unwrap();
     drop(store);
+    std::fs::remove_file(&index).unwrap();
     let (store, report) = DiskStore::open(root.path()).unwrap();
     assert!(report.index_rebuilt);
     assert_eq!(
