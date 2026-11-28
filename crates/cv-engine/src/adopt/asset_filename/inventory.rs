@@ -15,13 +15,13 @@ use cv_store::imports as store;
 use cv_store::paths::portable_relative;
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// One live content-input entry, hashed and identified like the
-/// run-time inventory records it. `Directory` is recorded only when the
-/// bound inventory schema records directories (input-inventory version
-/// 2+); older inventories treat directories as traversal structure, so
-/// the live scan must too or every directory would read as an addition.
+/// run-time inventory records it. Schema-1 inventories record no
+/// directories, but those are refused before this scan runs: the live
+/// scan always records directories, matching the bound schema-2+
+/// inventory entry for entry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum LiveEntry {
     File {
@@ -43,7 +43,6 @@ fn foreign(message: impl Into<String>) -> AdoptError {
 fn scan_dir(
     dir: &Path,
     prefix: &str,
-    include_dirs: bool,
     out: &mut BTreeMap<String, LiveEntry>,
 ) -> Result<(), AdoptError> {
     let entries = std::fs::read_dir(dir)
@@ -75,10 +74,8 @@ fn scan_dir(
                 },
             );
         } else if meta.is_dir() {
-            if include_dirs {
-                out.insert(rel.clone(), LiveEntry::Directory);
-            }
-            scan_dir(&path, &format!("{rel}/"), include_dirs, out)?;
+            out.insert(rel.clone(), LiveEntry::Directory);
+            scan_dir(&path, &format!("{rel}/"), out)?;
         } else if meta.is_file() {
             // Open first, then read and take identity off the same handle:
             // the hash and the identity describe one storage object even if
@@ -116,13 +113,8 @@ fn scan_dir(
 }
 
 /// Inventory the live content input without following links, in the same
-/// shape as the stored run-time inventory. `include_dirs` must match
-/// whether the bound inventory records directories — compare like with
-/// like or reconciliation reports every directory as an addition.
-pub(super) fn scan(
-    input_root: &Path,
-    include_dirs: bool,
-) -> Result<BTreeMap<String, LiveEntry>, AdoptError> {
+/// shape as the stored run-time inventory.
+pub(super) fn scan(input_root: &Path) -> Result<BTreeMap<String, LiveEntry>, AdoptError> {
     let meta = std::fs::symlink_metadata(input_root).map_err(|e| {
         AdoptError::Content(format!(
             "content input {} cannot be inventoried: {e}",
@@ -136,8 +128,89 @@ pub(super) fn scan(
         )));
     }
     let mut out = BTreeMap::new();
-    scan_dir(input_root, "", include_dirs, &mut out)?;
+    scan_dir(input_root, "", &mut out)?;
     Ok(out)
+}
+
+/// The deepest existing entry at or above `rel` inside the content input.
+/// Every ancestor the executor creates for `rel` inherits this entry's
+/// device, so it is the volume the journaled link or staged temp would
+/// land on. `rel` is already validated portable and confined.
+fn deepest_existing(input_root: &Path, rel: &str) -> Result<PathBuf, AdoptError> {
+    let mut candidate = input_root.join(rel);
+    loop {
+        match std::fs::symlink_metadata(&candidate) {
+            Ok(_) => return Ok(candidate),
+            Err(e)
+                if matches!(
+                    e.kind(),
+                    std::io::ErrorKind::NotFound | std::io::ErrorKind::NotADirectory
+                ) =>
+            {
+                if !candidate.pop() {
+                    return Err(AdoptError::Content(format!(
+                        "no existing ancestor for journaled path {rel}"
+                    )));
+                }
+            }
+            Err(e) => return Err(e.into()),
+        }
+    }
+}
+
+/// Every path the journaled plan creates inside the content input — asset
+/// destinations and staged Markdown temporaries — must land on the run
+/// directory's volume: the transformation's only move primitive is a hard
+/// link, and hard links cannot cross volumes. Checking only the move
+/// *source* misses a mount point covering part of the input: a dest whose
+/// not-yet-existing parents hang beneath a foreign mount fails EXDEV at
+/// execution on the first attempt and on every resume — a journaled
+/// deadlock. Walk each journaled path to its deepest existing ancestor —
+/// an inventoried directory in the schema-2 inventory, or a live stat for
+/// anything else — and require the run directory's own volume. `volume_of`
+/// is the platform identity lookup in production; tests inject a foreign
+/// volume at a mount boundary.
+pub(super) fn journaled_creation_volume(
+    input_root: &Path,
+    components: &[store::PlannedComponent],
+    run_volume: u64,
+    volume_of: &dyn Fn(&Path) -> Option<u64>,
+) -> Result<(), AdoptError> {
+    let mut violations = Vec::new();
+    for component in components {
+        let creations = component
+            .asset_moves
+            .iter()
+            .map(|m| ("destination", m.dest.as_str()))
+            .chain(
+                component
+                    .markdown
+                    .iter()
+                    .map(|m| ("staged temporary", m.temp.as_str())),
+            );
+        for (kind, rel) in creations {
+            let ancestor = deepest_existing(input_root, rel)?;
+            let volume = volume_of(&ancestor).ok_or_else(|| {
+                AdoptError::Run(format!(
+                    "this platform cannot report a file identity for {}; the asset transformation cannot run",
+                    ancestor.display()
+                ))
+            })?;
+            if volume != run_volume {
+                violations.push(format!(
+                    "journaled {kind} {rel} would be created beneath {} on a different volume than the run directory",
+                    ancestor.display()
+                ));
+            }
+        }
+    }
+    if !violations.is_empty() {
+        return Err(AdoptError::Run(format!(
+            "the asset transformation cannot run: hard links cannot cross volumes: {}. Unmount the foreign volume or move the content input onto the run volume and retry",
+            violations.join("; ")
+        )));
+    }
+    Ok(())
 }
 
 fn entry_matches(live: &LiveEntry, entry: &store::InputEntry) -> bool {

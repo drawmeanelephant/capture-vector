@@ -315,6 +315,7 @@ fn finish_report(
         pages,
         assets,
         markdown_writes: tx.markdown_writes,
+        skipped_collisions: tx.skipped_collisions,
         destination,
         validate: gate_text(&gate.0),
         build: gate
@@ -468,6 +469,7 @@ fn execute(
                         content_input: &input,
                         at_ms,
                         expected_instance: &expected_instance,
+                        volume_of: None,
                     },
                 )
             })

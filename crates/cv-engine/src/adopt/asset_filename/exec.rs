@@ -84,13 +84,26 @@ fn foreign(message: impl Into<String>) -> AdoptError {
 /// is present, which is never silently overwritten — the caller re-reads
 /// state to classify.
 fn link(from: &Path, to: &Path) -> Result<(), AdoptError> {
-    std::fs::hard_link(from, to).map_err(|e| {
-        if e.kind() == std::io::ErrorKind::AlreadyExists {
-            foreign(format!("{} appeared while linking", to.display()))
-        } else {
-            AdoptError::Io(e)
-        }
-    })
+    std::fs::hard_link(from, to).map_err(|e| link_error(e, from, to))
+}
+
+fn link_error(e: std::io::Error, from: &Path, to: &Path) -> AdoptError {
+    #[cfg(unix)]
+    let crosses_devices =
+        e.kind() == std::io::ErrorKind::CrossesDevices || e.raw_os_error() == Some(libc::EXDEV);
+    #[cfg(not(unix))]
+    let crosses_devices = e.kind() == std::io::ErrorKind::CrossesDevices;
+    if e.kind() == std::io::ErrorKind::AlreadyExists {
+        foreign(format!("{} appeared while linking", to.display()))
+    } else if crosses_devices {
+        AdoptError::Run(format!(
+            "cannot link {} from {}: the destination lives on a different volume than the run directory ({e}); the transformation has no copy fallback — unmount the foreign volume or move the content input onto the run volume, then retry",
+            to.display(),
+            from.display()
+        ))
+    } else {
+        AdoptError::Io(e)
+    }
 }
 
 pub(super) struct Outcome {
@@ -565,4 +578,37 @@ pub(super) fn execute(
     phase_verify(ctx, &t)?;
     set_phase(ctx, journal, store::TransformationPhase::Verified)?;
     Ok(outcome)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::ErrorKind;
+
+    #[cfg(unix)]
+    #[test]
+    fn exdev_classifies_as_cross_volume_run_failure() {
+        let e = std::io::Error::from_raw_os_error(libc::EXDEV);
+        let err = link_error(e, Path::new("backup/000"), Path::new("mounted/dest.png"));
+        let AdoptError::Run(message) = err else {
+            panic!("EXDEV must classify as a run failure, got {err:?}");
+        };
+        assert!(message.contains("mounted/dest.png"), "{message}");
+        assert!(message.contains("different volume"), "{message}");
+        assert!(message.contains("no copy fallback"), "{message}");
+    }
+
+    #[test]
+    fn already_exists_stays_foreign_not_cross_volume() {
+        let e = std::io::Error::new(ErrorKind::AlreadyExists, "occupied");
+        let err = link_error(e, Path::new("backup/000"), Path::new("dest.png"));
+        assert!(matches!(err, AdoptError::Foreign(_)), "{err:?}");
+    }
+
+    #[test]
+    fn unrelated_link_errors_stay_io() {
+        let e = std::io::Error::new(ErrorKind::PermissionDenied, "denied");
+        let err = link_error(e, Path::new("backup/000"), Path::new("dest.png"));
+        assert!(matches!(err, AdoptError::Io(_)), "{err:?}");
+    }
 }

@@ -2,6 +2,8 @@
 //! outputs it replays, and a temp workspace root.
 #![allow(dead_code)]
 
+pub mod asset_filename;
+
 use cv_engine::locate::{Locator, PINNED};
 use cv_engine::{EngineConfig, ProcessEngine};
 use std::path::{Path, PathBuf};

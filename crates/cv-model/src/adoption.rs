@@ -49,6 +49,10 @@ pub struct AdoptionReport {
     /// Zero for foreign-tree copy adoptions, which count written pages in
     /// `pages` instead.
     pub markdown_writes: usize,
+    /// In-place operations skipped because a destination collision bound
+    /// their dependency component. Zero for foreign-tree copy adoptions,
+    /// which refuse collisions instead of skipping them.
+    pub skipped_collisions: usize,
     /// User-facing content destination, `/`-separated and relative to the
     /// workspace (`content/imported/site`, for example).
     pub destination: String,

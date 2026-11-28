@@ -29,6 +29,10 @@ use cv_store::paths::confined;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+/// Per-path volume lookup the pre-journal mount check consults.
+#[doc(hidden)]
+pub type VolumeOf<'a> = dyn Fn(&Path) -> Option<u64> + 'a;
+
 /// Inputs for an existing-workspace in-place asset-filename transformation.
 pub struct AssetFilenameTransaction<'a> {
     pub target_root: &'a Path,
@@ -36,6 +40,12 @@ pub struct AssetFilenameTransaction<'a> {
     pub content_input: &'a str,
     pub at_ms: i64,
     pub expected_instance: &'a ExpectedWorkspaceInstance,
+    /// Test seam overriding the per-path volume lookup the pre-journal
+    /// mount check uses: production passes `None` and the platform's file
+    /// identity answers. Tests inject a foreign volume at a mount point
+    /// inside the content input.
+    #[doc(hidden)]
+    pub volume_of: Option<&'a VolumeOf<'a>>,
 }
 
 fn stale(message: impl Into<String>) -> AdoptError {
@@ -120,17 +130,31 @@ enum PrepareOutcome {
 }
 
 /// Read the captured input inventory, or refuse with the run-again error
-/// when the run predates the inventory contract.
+/// when the run predates the inventory contract. Schema-1 inventories are
+/// refused outright: they record no directory entries, so a directory
+/// appearing at a journaled destination or beneath a journaled parent is
+/// invisible to every freshness and collision check — the same class of
+/// post-journal deadlock the schema-2 directory entries exist to prevent.
+/// The honest answer is a fresh capture, not a partial guard.
 fn required_inventory(
     target_root: &Path,
     run_id: &str,
 ) -> Result<store::ReadInputInventory, AdoptError> {
-    match store::read_input_inventory(target_root, run_id).map_err(AdoptError::Report)? {
-        Some(read) => Ok(read),
-        None => Err(AdoptError::Run(format!(
-            "run {run_id} carries no captured input inventory; the transformation cannot prove the workspace is unchanged — run the asset-filename utility again"
-        ))),
+    let read = match store::read_input_inventory(target_root, run_id).map_err(AdoptError::Report)? {
+        Some(read) => read,
+        None => {
+            return Err(AdoptError::Run(format!(
+                "run {run_id} carries no captured input inventory; the transformation cannot prove the workspace is unchanged — run the asset-filename utility again"
+            )));
+        }
+    };
+    if read.inventory.schema_version < 2 {
+        return Err(AdoptError::Run(format!(
+            "run {run_id} carries a schema-{} input inventory that cannot see directory changes; the transformation cannot prove the workspace is unchanged — run the asset-filename utility again",
+            read.inventory.schema_version
+        )));
     }
+    Ok(read)
 }
 
 /// Everything up to and including the journal, before any content
@@ -184,10 +208,7 @@ fn prepare(
             "content input {input:?} is not confined to the workspace: {e}"
         ))
     })?;
-    // Directory entries exist only in input-inventory schema 2 and later;
-    // the live scan must record exactly what the bound inventory records
-    // or every directory reads as a foreign addition.
-    let live = inventory::scan(&input_root, inventory_read.inventory.schema_version >= 2)?;
+    let live = inventory::scan(&input_root)?;
     let run_volume = crate::file_identity::identity(lock.dir()).map(|v| v.0);
     let run_dir_rel = format!("{}/{}", store::DIR, tx.src.run_id);
     let plan = plan::build(
@@ -198,6 +219,21 @@ fn prepare(
         run_volume,
         &run_dir_rel,
     )?;
+    let run_volume = run_volume.ok_or_else(|| {
+        AdoptError::Run(
+            "this platform cannot report file identity for the run directory; the asset transformation cannot run".into(),
+        )
+    })?;
+    // A journaled destination or staged temp beneath a foreign-volume
+    // mount inside the input can never take the transformation's hard
+    // links — the run's first attempt would fail EXDEV and every resume
+    // would fail the same way forever. Refuse before the journal exists.
+    let platform_volume = |path: &Path| crate::file_identity::identity(path).map(|i| i.0);
+    let volume_of: &dyn Fn(&Path) -> Option<u64> = match tx.volume_of {
+        Some(f) => f,
+        None => &platform_volume,
+    };
+    inventory::journaled_creation_volume(&input_root, &plan.components, run_volume, volume_of)?;
 
     let journal = match pending {
         Some(journal) if journal.matches("existing", input, None) => {
@@ -302,6 +338,7 @@ fn zero_report() -> TxReport {
         provenance_copied: 0,
         asset_moves: 0,
         markdown_writes: 0,
+        skipped_collisions: 0,
     }
 }
 
@@ -434,6 +471,10 @@ pub fn transact_existing_with_identity(
         let outcome = exec::execute(&ctx, &mut journal)?;
         let provenance_copied = copy_provenance(tx.src, tx.target_root, &prepared.lock)?;
         let rows = provenance(&prepared.evidence, &prepared.plan, &outcome.statuses)?;
+        let skipped_collisions = rows
+            .iter()
+            .filter(|r| r.status == store::AssetOperationStatus::SkippedCollision)
+            .count();
         record_adoption(RecordAdoptionInput {
             src: tx.src,
             target_root: tx.target_root,
@@ -448,9 +489,9 @@ pub fn transact_existing_with_identity(
             t.phase = store::TransformationPhase::Recorded;
         }
         store::write_pending(&prepared.lock, &journal)?;
-        Ok::<_, AdoptError>((outcome, provenance_copied))
+        Ok::<_, AdoptError>((outcome, provenance_copied, skipped_collisions))
     })();
-    let (outcome, provenance_copied) = match done {
+    let (outcome, provenance_copied, skipped_collisions) = match done {
         Ok(done) => done,
         Err(e) => {
             revalidate_workspace_instance(
@@ -488,6 +529,7 @@ pub fn transact_existing_with_identity(
         provenance_copied,
         asset_moves: move_count,
         markdown_writes: md_count,
+        skipped_collisions,
     })
 }
 

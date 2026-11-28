@@ -2,308 +2,14 @@
 //! in-place asset-filename adoption: transitive component blocking,
 //! journaled-plan internal consistency, statically knowable destination
 //! conflicts, resume reconciliation, journal tampering, and provenance
-//! truthfulness. The harness mirrors adopt_asset_filename.rs exactly.
+//! truthfulness. The harness lives in `common::asset_filename` and
+//! mirrors adopt_asset_filename.rs exactly.
 
+mod common;
+
+use common::asset_filename::*;
 use cv_engine::adopt::{self, ExpectedWorkspaceInstance, asset_filename};
-use cv_fixtures::lab::StubLab;
-use cv_store::imports::{self as store, Finished, RecordedLab, RunRecord};
-use std::path::Path;
-
-fn write(path: &Path, bytes: impl AsRef<[u8]>) {
-    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-    std::fs::write(path, bytes).unwrap();
-}
-
-fn symlink_file(target: &Path, link: &Path) {
-    #[cfg(unix)]
-    std::os::unix::fs::symlink(target, link).unwrap();
-    #[cfg(windows)]
-    std::os::windows::fs::symlink_file(target, link).unwrap();
-}
-
-fn page(id: &str, title: &str, body: &str) -> String {
-    format!("---\nid: {id}\ntitle: {title}\nstatus: published\n---\n\n{body}")
-}
-
-fn stage_workspace(root: &Path) {
-    let c = root.join("content");
-    write(
-        &c.join("case-collision.md"),
-        page(
-            "case-collision",
-            "Case collision",
-            "# Case\n\n![a](case-collision.assets/Foo Bar.png)\n![b](case-collision.assets/foo-bar.png)\n",
-        ),
-    );
-    write(
-        &c.join("nested.md"),
-        page(
-            "nested",
-            "Nested",
-            "# Nested\n\n![shot](nested.assets/deep/sub dir/shot.png)\n",
-        ),
-    );
-    write(
-        &c.join("percent.md"),
-        page(
-            "percent",
-            "Percent names",
-            "# Percent\n\n![diagram](percent.assets/diagram%20copy.png)\n",
-        ),
-    );
-    write(
-        &c.join("safe.md"),
-        page(
-            "safe",
-            "Safe names",
-            "# Safe\n\n![ok](safe.assets/already-ok.png)\n",
-        ),
-    );
-    write(
-        &c.join("sanitize-collision.md"),
-        page(
-            "sanitize-collision",
-            "Sanitize collision",
-            "# Sanitize collision\n\n![a](sanitize-collision.assets/foo bar.png)\n![b](sanitize-collision.assets/foo-bar.png)\n",
-        ),
-    );
-    write(
-        &c.join("spaces.md"),
-        page(
-            "spaces",
-            "Spaces",
-            "# Spaces\n\n![hero](spaces.assets/hello world.png)\n![encoded](spaces.assets/hello%20world.png)\n",
-        ),
-    );
-    write(
-        &c.join("symlink.md"),
-        page(
-            "symlink",
-            "Symlink",
-            "# Symlink\n\n![real](symlink.assets/real.png)\n![alias](symlink.assets/alias.png)\n",
-        ),
-    );
-    write(
-        &c.join("traversal.md"),
-        page(
-            "traversal",
-            "Traversal",
-            "# Traversal\n\n![ok](traversal.assets/nested/ok.png)\n![escape](traversal.assets/../escape.png)\n![dotdot](traversal.assets/nested/../../escape.png)\n",
-        ),
-    );
-    write(
-        &c.join("unicode.md"),
-        page(
-            "unicode",
-            "Unicode",
-            "# Unicode\n\n![cafe](unicode.assets/café.png)\n",
-        ),
-    );
-
-    for (rel, bytes) in [
-        (
-            "case-collision.assets/Foo Bar.png",
-            &b"asset-stub-v1-case-a\n"[..],
-        ),
-        (
-            "case-collision.assets/foo-bar.png",
-            &b"asset-stub-v1-case-b\n"[..],
-        ),
-        (
-            "nested.assets/deep/sub dir/shot.png",
-            &b"asset-stub-v1-nested\n"[..],
-        ),
-        (
-            "percent.assets/diagram%20copy.png",
-            &b"asset-stub-v1-percent\n"[..],
-        ),
-        ("safe.assets/already-ok.png", &b"asset-stub-v1-safe\n"[..]),
-        (
-            "sanitize-collision.assets/foo bar.png",
-            &b"asset-stub-v1-sc-a\n"[..],
-        ),
-        (
-            "sanitize-collision.assets/foo-bar.png",
-            &b"asset-stub-v1-sc-b\n"[..],
-        ),
-        (
-            "spaces.assets/hello world.png",
-            &b"asset-stub-v1-spaces\n"[..],
-        ),
-        (
-            "symlink.assets/real.png",
-            &b"asset-stub-v1-symlink-real\n"[..],
-        ),
-        (
-            "traversal.assets/nested/ok.png",
-            &b"asset-stub-v1-trav-ok\n"[..],
-        ),
-        ("unicode.assets/café.png", &b"asset-stub-v1-unicode\n"[..]),
-    ] {
-        write(&c.join(rel), bytes);
-    }
-    std::fs::create_dir_all(c.join("symlink.assets")).unwrap();
-    symlink_file(
-        &c.join("symlink.assets/real.png"),
-        &c.join("symlink.assets/alias.png"),
-    );
-}
-
-fn seed_run(root: &Path, run_id: &str) {
-    let dir = store::run_dir(root, run_id).unwrap();
-    let transcript = StubLab::new()
-        .run("asset-filename", &dir.join(store::OUT))
-        .unwrap();
-    let lock = store::lock_run(root, run_id).unwrap();
-    let mut rec = RunRecord::started(
-        run_id,
-        "asset-filename",
-        RecordedLab {
-            tool_id: StubLab::new().tool_id(),
-            source: "fixture".into(),
-            path: "fixtures/captures/lab".into(),
-        },
-        1,
-    );
-    let input = root.join("content").canonicalize().unwrap();
-    rec.inputs = vec![store::input("--root", &input.display().to_string())];
-    rec.argv = vec![
-        "--mode=asset-filename".into(),
-        format!("--root={}", input.display()),
-        format!("--out={}", dir.join(store::OUT).display()),
-    ];
-    assert!(transcript.argv.iter().any(|a| a == "--mode=asset-filename"));
-    rec.finished = Some(Finished {
-        exit_code: Some(0),
-        exit: store::FinishedExit::Ok,
-        outcome: "exited 0".into(),
-        duration_ms: 0,
-    });
-    store::write(&lock, &rec).unwrap();
-    store::capture_input_inventory(&lock, &input).unwrap();
-}
-
-fn fixture(root: &Path) -> (String, adopt::AdoptionSource, ExpectedWorkspaceInstance) {
-    stage_workspace(root);
-    let run_id = "asset-run";
-    seed_run(root, run_id);
-    let token = cv_store::workspace_instance::ensure(root).unwrap();
-    let expected = ExpectedWorkspaceInstance::new(
-        token,
-        cv_engine::file_identity::identity(root),
-        cv_store::workspace_mutation::current_identity(root).unwrap(),
-    );
-    let src = adopt::source(root, run_id).unwrap();
-    (run_id.into(), src, expected)
-}
-
-fn tx<'a>(
-    root: &'a Path,
-    src: &'a adopt::AdoptionSource,
-    expected: &'a ExpectedWorkspaceInstance,
-) -> asset_filename::AssetFilenameTransaction<'a> {
-    asset_filename::AssetFilenameTransaction {
-        target_root: root,
-        src,
-        content_input: "content",
-        at_ms: 2,
-        expected_instance: expected,
-    }
-}
-
-fn transact(
-    root: &Path,
-    src: &adopt::AdoptionSource,
-    expected: &ExpectedWorkspaceInstance,
-) -> Result<adopt::TxReport, adopt::AdoptError> {
-    asset_filename::transact_existing_with_identity(tx(root, src, expected))
-}
-
-fn journal_only(root: &Path, src: &adopt::AdoptionSource, expected: &ExpectedWorkspaceInstance) {
-    asset_filename::journal_only_for_tests(tx(root, src, expected)).unwrap();
-}
-
-fn journal_result(
-    root: &Path,
-    src: &adopt::AdoptionSource,
-    expected: &ExpectedWorkspaceInstance,
-) -> Result<store::PendingAdoption, adopt::AdoptError> {
-    asset_filename::journal_only_for_tests(tx(root, src, expected))
-}
-
-fn read(root: &Path, rel: &str) -> String {
-    std::fs::read_to_string(root.join(rel)).unwrap()
-}
-
-fn run_dir(root: &Path) -> std::path::PathBuf {
-    root.join(".cv/imports/asset-run")
-}
-
-fn pending_path(root: &Path) -> std::path::PathBuf {
-    run_dir(root).join(store::PENDING)
-}
-
-fn journal(root: &Path) -> store::PendingAdoption {
-    store::read_pending(root, "asset-run").unwrap().unwrap()
-}
-
-fn all_moves(root: &Path) -> Vec<store::PlannedAssetMove> {
-    journal(root)
-        .transformation
-        .as_ref()
-        .unwrap()
-        .components
-        .iter()
-        .flat_map(|c| c.asset_moves.clone())
-        .collect()
-}
-
-fn patch_journal(root: &Path, patch: impl FnOnce(&mut serde_json::Value)) {
-    let mut v: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(pending_path(root)).unwrap()).unwrap();
-    patch(&mut v);
-    std::fs::write(pending_path(root), serde_json::to_vec(&v).unwrap()).unwrap();
-}
-
-fn patch_out(root: &Path, rel: &str, patch: impl FnOnce(&mut serde_json::Value)) {
-    let path = run_dir(root).join(store::OUT).join(rel);
-    let mut v: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
-    patch(&mut v);
-    std::fs::write(&path, serde_json::to_vec(&v).unwrap()).unwrap();
-}
-
-fn backup_dir(root: &Path) -> std::path::PathBuf {
-    run_dir(root).join("asset-backup")
-}
-
-fn assert_no_content_effect(root: &Path) {
-    assert!(!backup_dir(root).exists(), "backup links must not exist");
-    for rel in [
-        "nested.assets/deep/sub-dir/shot.png",
-        "percent.assets/diagram-copy.png",
-        "spaces.assets/hello-world.png",
-        "unicode.assets/caf.png",
-    ] {
-        assert!(
-            !root.join("content").join(rel).exists(),
-            "{rel} must not have been linked"
-        );
-    }
-}
-
-fn ops_for(
-    root: &Path,
-    kind: store::AssetOperationKind,
-    source: &str,
-) -> Vec<store::AssetOperationProvenance> {
-    store::read_adoption_record(root, "asset-run")
-        .unwrap()
-        .unwrap()
-        .asset_operations
-        .into_iter()
-        .filter(|o| o.kind == kind && o.source == source)
-        .collect()
-}
+use cv_store::imports as store;
 
 // ---------------------------------------------------------------------------
 // A page referencing both a collision-bound and a safe asset merges the
@@ -1105,4 +811,147 @@ fn journaled_dest_under_a_journaled_temp_is_refused_before_journaling() {
     assert!(matches!(err, adopt::AdoptError::Report(_)), "{err:?}");
     assert!(err.to_string().contains("unreachable"), "{err}");
     assert!(!pending_path(root).exists(), "no journal may be written");
+}
+
+// ---------------------------------------------------------------------------
+// A journaled destination beneath a foreign-volume mount inside the input
+// can never take the transformation's hard link — the first attempt fails
+// EXDEV and every resume fails identically, a journaled deadlock. The
+// pre-journal mount check walks each journaled destination/temp to its
+// deepest existing ancestor and refuses while nothing is on disk.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn destination_beneath_a_foreign_volume_refuses_before_journaling() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path();
+    let (_id, src, expected) = fixture(root);
+    // `nested.assets/deep/sub-dir` does not exist yet: the mount at `deep`
+    // is the deepest existing ancestor of the journaled destination.
+    let mount = root.join("content/nested.assets/deep");
+    let volume_of = foreign_volume_at(&mount);
+
+    let err = asset_filename::transact_existing_with_identity(tx_with_volume(
+        root, &src, &expected, &volume_of,
+    ))
+    .unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Run(_)), "{err:?}");
+    assert!(err.to_string().contains("different volume"), "{err}");
+    assert!(
+        err.to_string()
+            .contains("nested.assets/deep/sub-dir/shot.png"),
+        "{err}"
+    );
+    assert!(!pending_path(root).exists(), "no journal may be written");
+    assert_no_content_effect(root);
+}
+
+// A mount that appears between journaling and the resume attempt blocks
+// recovery the same way — the journal stays for a retry after the mount is
+// removed, and no phase ran.
+#[test]
+fn foreign_volume_appearing_after_journaling_blocks_the_resume() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path();
+    let (_id, src, expected) = fixture(root);
+    journal_only(root, &src, &expected);
+    let mount = root.join("content/nested.assets/deep");
+    let volume_of = foreign_volume_at(&mount);
+
+    let err = asset_filename::transact_existing_with_identity(tx_with_volume(
+        root, &src, &expected, &volume_of,
+    ))
+    .unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Run(_)), "{err:?}");
+    assert_no_content_effect(root);
+    assert!(pending_path(root).exists(), "journal stays for the retry");
+}
+
+// A staged-write temporary beneath the mount is refused identically —
+// temp and dest share the pre-journal check and every violation is named.
+#[test]
+fn staged_temp_beneath_a_foreign_volume_refuses_before_journaling() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path();
+    let (_id, src, expected) = fixture(root);
+    // The whole content input sits on the mount: every journaled path's
+    // deepest existing ancestor reports the foreign volume.
+    let mount = root.join("content");
+    let volume_of = foreign_volume_at(&mount);
+
+    let err = asset_filename::transact_existing_with_identity(tx_with_volume(
+        root, &src, &expected, &volume_of,
+    ))
+    .unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Run(_)), "{err:?}");
+    assert!(err.to_string().contains("different volume"), "{err}");
+    assert!(
+        err.to_string().contains(".cv-adopt-asset-run.tmp"),
+        "the staged-temp violation must be named: {err}"
+    );
+    assert!(!pending_path(root).exists(), "no journal may be written");
+    assert_no_content_effect(root);
+}
+
+// ---------------------------------------------------------------------------
+// A schema-1 input inventory records no directories: directories at
+// journaled destinations or parents are invisible to it, resurrecting the
+// post-journal deadlock the schema-2 entries were written to prevent. The
+// transformation refuses and asks for a fresh capture instead of trusting
+// a partial guard.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn schema_1_input_inventory_refuses_the_transformation() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path();
+    let (_id, src, expected) = fixture(root);
+    // Downgrade the captured inventory the way a schema-1 writer left it:
+    // version stamp 1 and no directory entries.
+    let inv = run_dir(root).join(store::INPUT_INVENTORY);
+    let mut v: serde_json::Value = serde_json::from_slice(&std::fs::read(&inv).unwrap()).unwrap();
+    v["schema_version"] = serde_json::json!(1);
+    v["entries"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|e| e["type"] != "directory");
+    std::fs::write(&inv, serde_json::to_vec_pretty(&v).unwrap()).unwrap();
+
+    let err = transact(root, &src, &expected).unwrap_err();
+    assert!(matches!(err, adopt::AdoptError::Run(_)), "{err:?}");
+    assert!(err.to_string().contains("schema-1"), "{err}");
+    assert!(
+        err.to_string()
+            .contains("run the asset-filename utility again"),
+        "{err}"
+    );
+    assert!(!pending_path(root).exists(), "no journal may be written");
+    assert_no_content_effect(root);
+}
+
+// ---------------------------------------------------------------------------
+// Collision-bound components are disclosed as a count, not silently folded
+// into the applied totals: the report's skipped_collisions equals exactly
+// the skipped_collision rows the durable provenance recorded.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn skipped_collisions_are_counted_for_disclosure() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path();
+    let (_id, src, expected) = fixture(root);
+    let report = transact(root, &src, &expected).unwrap();
+    let adoption = store::read_adoption_record(root, "asset-run")
+        .unwrap()
+        .unwrap();
+    let recorded = adoption
+        .asset_operations
+        .iter()
+        .filter(|o| o.status == store::AssetOperationStatus::SkippedCollision)
+        .count();
+    assert_eq!(recorded, 4, "both collision-bound components");
+    assert_eq!(
+        report.skipped_collisions, recorded,
+        "the disclosed count must equal the recorded rows"
+    );
 }

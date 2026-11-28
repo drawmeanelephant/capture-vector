@@ -718,6 +718,11 @@ pub struct TxReport {
     /// In-place Markdown reference writes inside `planned`, kept distinct
     /// so completion reporting never labels them as assets.
     pub markdown_writes: usize,
+    /// In-place operations skipped because a destination collision bound
+    /// their dependency component — recorded in provenance but neither
+    /// planned nor written. Foreign-tree adoptions refuse collisions and
+    /// report zero here.
+    pub skipped_collisions: usize,
 }
 
 /// Acquire the target workspace's per-run capability for the whole adoption
@@ -1141,5 +1146,6 @@ fn transact_impl(params: TxParams<'_>) -> Result<TxReport, AdoptError> {
         provenance_copied: provenance,
         asset_moves: 0,
         markdown_writes: 0,
+        skipped_collisions: 0,
     })
 }

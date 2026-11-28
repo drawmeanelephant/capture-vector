@@ -210,6 +210,7 @@ fn tx<'a>(
         content_input: "content",
         at_ms: 2,
         expected_instance: expected,
+        volume_of: None,
     }
 }
 
