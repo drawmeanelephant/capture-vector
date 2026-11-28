@@ -1,7 +1,7 @@
 //! Store port. This crate defines only the synchronous contract and
-//! predicate semantics. No on-disk implementation of this port exists yet;
-//! the app wires `cv_fixtures::stub_store::StubStore`. An implementation
-//! must keep JSONL in `.cv/` as the source of truth. Any SQLite index lives
+//! predicate semantics. `cv_store::docs::DiskStore` implements the port
+//! on disk; `cv_fixtures::stub_store::StubStore` is the in-memory test
+//! oracle. JSONL in `.cv/` is the source of truth. Any SQLite index lives
 //! in OS app-data keyed by project id and is rebuildable. `store-corrupt`
 //! recovery is delete + rebuild. Per-namespace migration tracks
 //! `(namespace, version)` so lanes migrate independently.

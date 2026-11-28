@@ -16,6 +16,7 @@ use crate::windows::{CloseOutcome, PRIMARY, WindowId, Windows};
 use crate::workspace_key::WorkspaceKey;
 mod disclosure;
 mod input;
+mod local_events;
 mod outcome_retention;
 mod viewport;
 use cv_core::engine::{CancelToken, EventSink, WatchHandle};
@@ -340,8 +341,25 @@ impl Workbench {
     }
 
     pub fn with_store(mut self, store: Box<dyn Store>) -> Self {
-        self.store = Some(store);
+        self.install_store(store);
         self
+    }
+
+    /// Swap the `Store` port: the composition root binds the on-disk
+    /// store when a workspace opens and drops it back to an ephemeral
+    /// one for fixture sessions, so journaled evidence is never
+    /// attributed to the wrong project.
+    pub fn set_store(&mut self, store: Box<dyn Store>) {
+        self.install_store(store);
+    }
+
+    /// Resume this store's durable per-workspace `shell` event sequence.
+    /// A query failure keeps the collision-safe process-monotonic sequence.
+    fn install_store(&mut self, store: Box<dyn Store>) {
+        if let Some(high_water) = local_events::shell_high_water(store.as_ref()) {
+            self.local_seq = high_water;
+        }
+        self.store = Some(store);
     }
 
     /// Where `Secret` dialogs store what was typed.

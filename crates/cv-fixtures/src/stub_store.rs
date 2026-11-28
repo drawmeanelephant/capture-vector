@@ -1,6 +1,6 @@
-//! `StubStore` — in-memory `Store` used by lane tests and currently wired
-//! into `cv-app` until an on-disk implementation lands. The JSONL-truth /
-//! SQLite-index duality doesn't exist here; the stub has no persistence.
+//! `StubStore` — in-memory `Store` oracle for lane tests and conformance.
+//! The JSONL-truth / SQLite-index duality doesn't exist here; the stub has
+//! no persistence and production workspace journals use `cv_store::docs`.
 
 use cv_core::id::StableId;
 use cv_core::store::{Namespace, Predicate, Store, Value};

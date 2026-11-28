@@ -31,8 +31,9 @@ pub(crate) fn open_existing_no_follow(path: &Path, write: bool) -> std::io::Resu
 
 /// Open a file for read/write, creating it atomically when absent. Existing
 /// files are opened with final-component no-follow flags rather than
-/// `create(true)`, which would follow a swapped symlink.
-pub(crate) fn open_create_no_follow(path: &Path) -> std::io::Result<File> {
+/// `create(true)`, which would follow a swapped symlink. The boolean is
+/// true when this call created the file.
+pub(crate) fn open_create_no_follow_status(path: &Path) -> std::io::Result<(File, bool)> {
     for _ in 0..2 {
         match OpenOptions::new()
             .read(true)
@@ -40,10 +41,10 @@ pub(crate) fn open_create_no_follow(path: &Path) -> std::io::Result<File> {
             .create_new(true)
             .open(path)
         {
-            Ok(f) => return Ok(f),
+            Ok(f) => return Ok((f, true)),
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
                 match open_existing_no_follow(path, true) {
-                    Ok(f) => return Ok(f),
+                    Ok(f) => return Ok((f, false)),
                     // This implementation never removes lock files; a foreign
                     // removal raced us, so retry as the creator once.
                     Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
@@ -57,4 +58,33 @@ pub(crate) fn open_create_no_follow(path: &Path) -> std::io::Result<File> {
         std::io::ErrorKind::NotFound,
         format!("lock file {} disappeared while opening", path.display()),
     ))
+}
+
+/// Open a file for read/write, creating it atomically when absent. Existing
+/// files are opened with final-component no-follow flags rather than
+/// `create(true)`, which would follow a swapped symlink.
+pub(crate) fn open_create_no_follow(path: &Path) -> std::io::Result<File> {
+    open_create_no_follow_status(path).map(|(file, _)| file)
+}
+
+#[cfg(test)]
+mod tests {
+    #[cfg(unix)]
+    #[test]
+    fn a_final_component_symlink_present_at_open_is_not_followed() {
+        let root = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let victim = outside.path().join("victim");
+        let path = root.path().join("lock");
+        std::os::unix::fs::symlink(&victim, &path).unwrap();
+
+        assert!(super::open_create_no_follow(&path).is_err());
+        assert!(!victim.exists(), "the symlink target was never created");
+        assert!(
+            std::fs::symlink_metadata(&path)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+    }
 }

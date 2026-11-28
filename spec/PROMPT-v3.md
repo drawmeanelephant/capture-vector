@@ -66,7 +66,7 @@ cv-core       domain types + SYNC ports + event/state vocab. NO IO, NO async, NO
 cv-contracts  serde mirrors of Boris JSON, version-keyed. Fixture-decode tests only.
 cv-fixtures   captured corpora + lab runs, StubEngine + StubStore + StubLab.
               Test fixtures for lanes. cv-app is the production exception
-              for fixture-backed scenes and the Store stub.
+              for fixture-backed scenes; the Store port is cv_store::docs.
 cv-engine     the ONLY Command owner: RawSubprocess adapter + EngineScheduler.
 cv-store      JSONL evidence trail + `.cv/` sidecar migrations + app-data index paths.
               The rusqlite(bundled) indexes live in cv-ledger and cv-notes.

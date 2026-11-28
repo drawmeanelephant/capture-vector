@@ -20,8 +20,8 @@ cv-store.workspace = true
 # default-features=false keeps the QA harness out of the shipped binary.
 cv-widgets = { workspace = true, default-features = false }
 cv-ui-editor.workspace = true
-# Fixture-backed demo/headless scenes and the in-memory Store stub are
-# production uses until the on-disk Store lands.
+# Fixture-backed demo/headless scenes remain production uses; the Store
+# port itself is on-disk now — cv_store::docs.
 cv-fixtures.workspace = true
 serde_json.workspace = true
 
