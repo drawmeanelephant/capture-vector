@@ -74,6 +74,14 @@ fn publish_warning(port: &publish::DiskPort) -> Option<String> {
         .map(|e| format!("publish ledger unreadable: {e}"))
 }
 
+/// Valid journal records still load when neighbors are undecodable or
+/// unsupported; the skipped evidence is a degraded-open warning, not a
+/// reason to hide the whole store.
+fn journal_scan_warning(report: &cv_store::docs::Report) -> Option<String> {
+    let bad = report.scan.undecodable + report.scan.unsupported;
+    (bad > 0).then(|| format!("shell journal skipped {bad} undecodable or unsupported line(s)"))
+}
+
 /// Locate the engine, start its watch session into the shell's sink.
 /// Engine-absent is disclosed, never fatal.
 pub fn attach_engine(wb: &mut Workbench, engine: &dyn Engine) {
@@ -331,10 +339,11 @@ pub fn open_workspace(
     } else {
         DiskStore::open(&root)
     } {
-        Ok((store, _report)) => {
+        Ok((store, report)) => {
             opened.journal.lock = Some(LockHolder::ThisWindow);
+            let warning = journal_scan_warning(&report);
             wb.set_store(Box::new(store));
-            None
+            warning
         }
         Err(e) => {
             if matches!(e, cv_store::docs::Error::Locked(_)) {
@@ -359,10 +368,16 @@ pub fn open_workspace(
     wb.workspace_key = Some(slots::workspace_key(&root));
     wb.workspace = Some(root.clone());
     show(wb, "pages");
-    let warning = research_err
-        .or_else(|| audit_err.map(|e| format!("finding snoozes not persisted: {e}")))
-        .or(publish_err)
-        .or(journal_err);
+    let warnings: Vec<String> = [
+        research_err,
+        audit_err.map(|e| format!("finding snoozes not persisted: {e}")),
+        publish_err,
+        journal_err,
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+    let warning = (!warnings.is_empty()).then(|| warnings.join(" · "));
     if let Some(w) = &warning {
         wb.disclose(DegradedReason::StoreCorrupt);
         wb.status = w.clone();

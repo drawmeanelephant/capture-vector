@@ -150,6 +150,29 @@ fn last_write_wins_and_persists_across_instances() {
 }
 
 #[test]
+fn a_same_size_journal_replacement_is_not_trusted_as_fresh() {
+    let root = tempfile::tempdir().unwrap();
+    let ns = ns("shell.journal");
+    {
+        let (store, _) = DiskStore::open(root.path()).unwrap();
+        store.put(&ns, &key("e1"), &json!({"n": 1})).unwrap();
+    }
+    let journal = root.path().join(DIR).join(DOCS);
+    let before = std::fs::read_to_string(&journal).unwrap();
+    let after = before.replace("\"n\":1", "\"n\":2");
+    assert_eq!(before.len(), after.len(), "same-size replacement");
+    assert_eq!(before.lines().count(), after.lines().count());
+    std::fs::write(&journal, after).unwrap();
+
+    let (store, report) = DiskStore::open(root.path()).unwrap();
+    assert!(
+        report.index_rebuilt,
+        "content freshness must reject equal-length foreign truth"
+    );
+    assert_eq!(store.get(&ns, &key("e1")).unwrap(), Some(json!({"n": 2})));
+}
+
+#[test]
 fn a_stale_index_is_rebuilt_from_jsonl() {
     let root = tempfile::tempdir().unwrap();
     let ns = ns("shell.journal");
@@ -347,6 +370,13 @@ fn planted_symlinks_are_refused() {
     std::os::unix::fs::symlink(&target, d.path().join(DIR).join(DOCS)).unwrap();
     assert!(matches!(DiskStore::open(d.path()), Err(Error::Symlink(_))));
     assert!(!target.exists());
+
+    let d = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(d.path().join(DIR)).unwrap();
+    let target = elsewhere.path().join("lock-victim");
+    std::os::unix::fs::symlink(&target, d.path().join(DIR).join(WRITER_LOCK)).unwrap();
+    assert!(matches!(DiskStore::open(d.path()), Err(Error::Symlink(_))));
+    assert!(!target.exists());
 }
 
 #[test]
@@ -355,22 +385,42 @@ fn ephemeral_store_passes_the_stub_conformance() {
 }
 
 #[test]
-fn put_after_index_write_failure_reports_store_error() {
+fn put_after_index_write_failure_is_committed_and_the_index_is_rebuilt() {
     let root = tempfile::tempdir().unwrap();
     let (store, _) = DiskStore::open(root.path()).unwrap();
-    // Break the index behind the open connection's back: the next put's
-    // index write fails while the journal stays durable — surfaced, not
-    // swallowed.
+    // Break the index behind the open connection's back. The journal append
+    // is still the commit point, so the index failure must not masquerade
+    // as an uncommitted write.
     let index = index_path(root.path()).unwrap();
     rusqlite::Connection::open(&index)
         .unwrap()
         .execute_batch("DROP TABLE docs")
         .unwrap();
-    assert!(store.put(&ns("a"), &key("k"), &json!({})).is_err());
-    // The journal still recorded the write; a clean reopen rebuilds and
-    // serves it.
+    store.put(&ns("a"), &key("k"), &json!({})).unwrap();
+    assert_eq!(
+        store.get(&ns("a"), &key("k")).unwrap(),
+        Some(json!({})),
+        "the live index is rebuilt rather than left stale"
+    );
+    let journal = std::fs::read_to_string(root.path().join(DIR).join(DOCS)).unwrap();
+    assert_eq!(journal.lines().count(), 1, "no retry duplicate was needed");
     drop(store);
+
     let (store, report) = DiskStore::open(root.path()).unwrap();
-    assert!(report.index_rebuilt);
+    assert!(
+        !report.index_rebuilt,
+        "the in-session rebuild stamped the exact journal it projected"
+    );
     assert_eq!(store.get(&ns("a"), &key("k")).unwrap(), Some(json!({})));
+}
+
+#[test]
+fn fresh_journal_creation_reports_directory_durability_evidence() {
+    let root = tempfile::tempdir().unwrap();
+    let (_store, report) = DiskStore::open(root.path()).unwrap();
+    assert!(report.journal_created);
+    #[cfg(unix)]
+    assert!(report.journal_dir_synced);
+    #[cfg(not(unix))]
+    assert!(!report.journal_dir_synced);
 }
