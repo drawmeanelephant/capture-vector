@@ -56,6 +56,7 @@ fn boot(root: &Path, bin: &Path, slot: EngineSlot, inbox: Inbox) -> EngineBoot {
         warning: None,
         notice: None,
         doctor: Feed::default(),
+        status_operation: None,
     }
 }
 
@@ -179,6 +180,7 @@ fn r8_stale_verb_after_replacement_stops_current_watch_without_restore() {
         VerbRun {
             verb: Verb::Build,
             cancel: cv_core::engine::CancelToken::new(),
+            operation: cv_model::status::StatusOperation::mint(),
         },
     );
 

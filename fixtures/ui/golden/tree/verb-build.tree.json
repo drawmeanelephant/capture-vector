@@ -2279,7 +2279,7 @@
     {
       "fill": "#1a1e26ff",
       "key": "status-msg",
-      "label": "boris build finished (exit 0, 0 ms)",
+      "label": "Site build finished",
       "opacity": 1.0,
       "path": "shell/toast-region/status-msg",
       "radius": 8.0,
@@ -2345,7 +2345,7 @@
         20.0
       ],
       "role": "text",
-      "text": "boris build finished (exit 0, 0 ms)"
+      "text": "Site build finished"
     },
     {
       "key": "close",

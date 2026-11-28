@@ -14,6 +14,8 @@ use std::path::Path;
 use std::sync::mpsc;
 
 mod adoption;
+#[cfg(unix)]
+mod cancellation;
 mod generation;
 #[cfg(unix)]
 mod generation_attack;
@@ -803,6 +805,7 @@ fn boot_thread_failure_is_disclosed_as_engine_absent() {
         &Some("indexes rebuilt".into()),
         Path::new("/ws"),
         &refused,
+        None,
     );
     wb.drain();
     assert_eq!(wb.app.degraded, Some(DegradedReason::EngineAbsent));

@@ -8,21 +8,23 @@ use crate::app_state::AppState;
 use crate::cascade;
 use crate::command::{CommandSpec, Intent, Palette};
 use crate::dialog::{Dialogs, PickPurpose, SecretPort};
-use crate::module::{Link, ProjectSnapshot, Registry, RowModel};
+use crate::module::{Link, ProjectSnapshot, Registry};
 use crate::modules::activity;
 use crate::new_workspace::{self, Archetypes, Notices, ShellNotice};
+use crate::status::{StatusKind, StatusNotice, StatusOperation, StatusOperationScope};
 use crate::theme::{Mode, Theme};
 use crate::windows::{CloseOutcome, PRIMARY, WindowId, Windows};
 use crate::workspace_key::WorkspaceKey;
 mod disclosure;
 mod input;
+mod navigation;
 mod outcome_retention;
 mod viewport;
 use cv_core::engine::{CancelToken, EventSink, WatchHandle};
 use cv_core::events::Envelope;
 use cv_core::events::shell::{DegradedReason, ShellEvent};
 use cv_core::events::{AppEvent, Cursor, EventId, SessionId, SnapshotEpoch};
-use cv_core::id::{Selection, StableId, WorkspaceId};
+use cv_core::id::{StableId, WorkspaceId};
 use cv_core::store::{Namespace, Store};
 pub use disclosure::ValueExpansionKey;
 use input::PrimaryHold;
@@ -31,7 +33,7 @@ use outcome_retention::{
     MAX_PENDING_OUTCOME_BYTES, MAX_PENDING_OUTCOMES, dedupe_outcome_copies, digest,
     enforce_outcome_retention,
 };
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{Receiver, Sender, channel};
@@ -53,7 +55,7 @@ pub enum Inbound {
     /// The engine worker stopped this watch and released its writer seat.
     WatchStopped(SessionId),
     Degraded(DegradedReason),
-    Status(String),
+    Status(StatusNotice),
 }
 
 /// What the queue carries. A snapshot waits in the `SnapshotSlot`; the
@@ -220,6 +222,22 @@ impl OutcomeSink {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StatusOperationIdentity {
+    /// A causally tagged operation minted by product code.
+    Explicit,
+    /// Compatibility operation for untagged progress. Only an untagged
+    /// outcome may close it; it can never claim an explicit operation.
+    Legacy,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct StatusOperationState {
+    scope: StatusOperationScope,
+    identity: StatusOperationIdentity,
+    live: bool,
+}
+
 pub struct Workbench {
     pub app: AppState,
     pub theme: Theme,
@@ -246,6 +264,15 @@ pub struct Workbench {
     /// inspector; a debugging aid, off by default.
     pub debug_windows: bool,
     pub status: String,
+    /// Classification of `status`, used to keep ambient refresh/engine
+    /// notices from overwriting foreground operation outcomes and progress.
+    status_kind: Option<StatusKind>,
+    /// Live and closed causal operations known to this shell. Closing never
+    /// revives a token; workspace-generation operations are retired on reset.
+    status_operations: BTreeMap<StatusOperation, StatusOperationState>,
+    /// The operation whose notice is currently presented, even if that notice
+    /// has since completed the operation. `None` is an immediate or ambient notice.
+    visible_status_operation: Option<StatusOperation>,
     /// Root of the open workspace, if any.
     pub workspace: Option<PathBuf>,
     /// Instance identity of `workspace`, shared with scheduler registration.
@@ -262,6 +289,8 @@ pub struct Workbench {
     pub new_parent: Option<PathBuf>,
     /// Cancellation for the one workspace creation progress dialog.
     pub(crate) create_cancel: Option<CancelToken>,
+    /// Causal status identity paired with `create_cancel`.
+    pub(crate) create_status_operation: Option<StatusOperation>,
     notice_tx: Sender<ShellNotice>,
     notice_rx: Receiver<ShellNotice>,
     outcome_tx: Sender<(u64, WorkspaceKey, Envelope)>,
@@ -313,6 +342,9 @@ impl Workbench {
             values_expanded: BTreeSet::new(),
             debug_windows: false,
             status: String::new(),
+            status_kind: None,
+            status_operations: BTreeMap::new(),
+            visible_status_operation: None,
             workspace: None,
             workspace_key: None,
             identity_disclosures: BTreeSet::new(),
@@ -321,6 +353,7 @@ impl Workbench {
             archetypes: Err(new_workspace::LOCATING.into()),
             new_parent: None,
             create_cancel: None,
+            create_status_operation: None,
             notice_tx,
             notice_rx,
             outcome_tx,
@@ -399,11 +432,271 @@ impl Workbench {
         }
     }
 
+    /// Classification of the current status line.
+    pub fn status_kind(&self) -> Option<StatusKind> {
+        self.status_kind
+    }
+
+    /// Register an explicit operation before its worker can report. Re-registering
+    /// a live operation is idempotent; a closed or retired operation never revives.
+    pub fn register_status_operation(
+        &mut self,
+        operation: StatusOperation,
+        scope: StatusOperationScope,
+    ) -> bool {
+        if let Some(state) = self.status_operations.get(&operation) {
+            return state.live;
+        }
+        self.status_operations.insert(
+            operation,
+            StatusOperationState {
+                scope,
+                identity: StatusOperationIdentity::Explicit,
+                live: true,
+            },
+        );
+        true
+    }
+
+    fn register_legacy_status_operation(&mut self) -> StatusOperation {
+        let operation = StatusOperation::mint();
+        self.status_operations.insert(
+            operation,
+            StatusOperationState {
+                scope: StatusOperationScope::Workspace,
+                identity: StatusOperationIdentity::Legacy,
+                live: true,
+            },
+        );
+        operation
+    }
+
+    /// Mark that a workspace-generation foreground operation is starting even
+    /// when its first visible notice will be engine evidence rather than progress.
+    pub fn begin_status_operation(&mut self) -> StatusOperation {
+        let operation = StatusOperation::mint();
+        assert!(self.register_status_operation(operation, StatusOperationScope::Workspace));
+        operation
+    }
+
+    /// Mark a shell-scoped operation whose worker intentionally survives a
+    /// workspace switch.
+    pub fn begin_shell_status_operation(&mut self) -> StatusOperation {
+        let operation = StatusOperation::mint();
+        assert!(self.register_status_operation(operation, StatusOperationScope::Shell));
+        operation
+    }
+
+    fn operation_state(&self, operation: StatusOperation) -> Option<StatusOperationState> {
+        self.status_operations.get(&operation).copied()
+    }
+
+    fn live_operation(&self, operation: StatusOperation) -> bool {
+        self.operation_state(operation)
+            .is_some_and(|state| state.live)
+    }
+
+    fn newest_live_operation(&self) -> Option<StatusOperation> {
+        self.status_operations
+            .iter()
+            .filter(|(_, state)| state.live)
+            .map(|(operation, _)| *operation)
+            .next_back()
+    }
+
+    fn close_status_operation(&mut self, operation: StatusOperation) -> bool {
+        let Some(state) = self.status_operations.get_mut(&operation) else {
+            return false;
+        };
+        if !state.live {
+            return false;
+        }
+        state.live = false;
+        true
+    }
+
+    fn present_status(
+        &mut self,
+        kind: StatusKind,
+        text: String,
+        operation: Option<StatusOperation>,
+    ) -> bool {
+        if self.status == text
+            && self.status_kind == Some(kind)
+            && self.visible_status_operation == operation
+        {
+            return false;
+        }
+        self.status = text;
+        self.status_kind = Some(kind);
+        self.visible_status_operation = operation;
+        true
+    }
+
+    fn visible_live_operation(&self) -> Option<StatusOperation> {
+        self.visible_status_operation
+            .filter(|operation| self.live_operation(*operation))
+    }
+
+    fn legacy_progress(&mut self, text: String) -> bool {
+        let operation = self
+            .visible_status_operation
+            .filter(|operation| {
+                self.operation_state(*operation).is_some_and(|state| {
+                    state.live && state.identity == StatusOperationIdentity::Legacy
+                })
+            })
+            .unwrap_or_else(|| self.register_legacy_status_operation());
+        self.present_status(StatusKind::Progress, text, Some(operation))
+    }
+
+    fn untagged_outcome(&mut self, text: String) -> bool {
+        // Compatibility for the pre-token API: an untagged outcome may complete
+        // only the legacy operation created by untagged progress. It can never
+        // consume an explicit operation such as workspace opening.
+        let legacy = self
+            .visible_status_operation
+            .filter(|operation| {
+                self.operation_state(*operation).is_some_and(|state| {
+                    state.live && state.identity == StatusOperationIdentity::Legacy
+                })
+            })
+            .or_else(|| {
+                self.status_operations
+                    .iter()
+                    .filter(|(_, state)| {
+                        state.live && state.identity == StatusOperationIdentity::Legacy
+                    })
+                    .map(|(operation, _)| *operation)
+                    .next_back()
+            });
+        if let Some(operation) = legacy {
+            self.close_status_operation(operation);
+        }
+        self.present_status(StatusKind::Outcome, text, None)
+    }
+
+    fn tagged_status_notice(&mut self, notice: StatusNotice, operation: StatusOperation) -> bool {
+        if !self.live_operation(operation) {
+            return false;
+        }
+        let kind = notice.kind;
+        let terminal = kind == StatusKind::Outcome
+            || (kind == StatusKind::EngineEvidence && notice.terminal_evidence);
+        if !terminal {
+            // The newest live operation owns foreground progress. An operation
+            // already on screen may refine its own notice; an older concurrent
+            // operation cannot pull focus back from a newer one.
+            let foreground = self.newest_live_operation() == Some(operation);
+            let visible_same = self.visible_status_operation == Some(operation);
+            return (foreground || visible_same)
+                && self.present_status(kind, notice.text, Some(operation));
+        }
+
+        let newer_live = self
+            .status_operations
+            .iter()
+            .any(|(other, state)| *other > operation && state.live);
+        let was_visible = self.visible_status_operation == Some(operation);
+        self.close_status_operation(operation);
+        let present = match kind {
+            // Product outcomes are terminal facts the user asked for. They may
+            // overlay another operation's progress, but closing is causal: the
+            // other operation remains live and its next notice can return.
+            StatusKind::Outcome => true,
+            // Machinery evidence is subordinate to a newer live operation unless
+            // it completes the operation already on screen.
+            StatusKind::EngineEvidence => !newer_live || was_visible,
+            StatusKind::Progress | StatusKind::Bookkeeping => false,
+        };
+        present && self.present_status(kind, notice.text, Some(operation))
+    }
+
+    /// Present a classified status notice under the operation state machine
+    /// documented in [`crate::status`]. Returns whether the visible status changed.
+    pub fn set_status_notice(&mut self, notice: StatusNotice) -> bool {
+        if let Some(operation) = notice.operation {
+            return self.tagged_status_notice(notice, operation);
+        }
+        match notice.kind {
+            StatusKind::Progress => self.legacy_progress(notice.text),
+            StatusKind::Outcome => self.untagged_outcome(notice.text),
+            StatusKind::Bookkeeping | StatusKind::EngineEvidence => {
+                if self.visible_live_operation().is_some()
+                    || self.status_kind == Some(StatusKind::Outcome)
+                {
+                    return false;
+                }
+                self.present_status(notice.kind, notice.text, None)
+            }
+        }
+    }
+
+    /// [`set_status_notice`] with the kind and text separate.
+    pub fn set_status_kind(&mut self, kind: StatusKind, text: impl Into<String>) -> bool {
+        self.set_status_notice(StatusNotice::new(kind, text))
+    }
+
+    /// Apply a product/machinery status intent emitted while handling one
+    /// causal operation. Immediate command statuses stay untagged; statuses
+    /// belonging to the operation carry its token.
+    pub(crate) fn apply_operation_intent(&mut self, intent: Intent, operation: StatusOperation) {
+        match intent {
+            Intent::Outcome(text) => {
+                self.set_status_notice(StatusNotice::operation_outcome(operation, text));
+            }
+            Intent::Progress(text) => {
+                self.set_status_notice(StatusNotice::operation_progress(operation, text));
+            }
+            Intent::EngineEvidence(text) => {
+                self.set_status_notice(StatusNotice::operation_evidence(operation, text));
+            }
+            other => self.apply(other),
+        }
+    }
+
+    /// Convenience for a completed user-requested operation.
+    pub fn outcome_status(&mut self, text: impl Into<String>) -> bool {
+        self.set_status_kind(StatusKind::Outcome, text)
+    }
+
+    /// Convenience for foreground operation progress.
+    pub fn progress_status(&mut self, text: impl Into<String>) -> bool {
+        self.set_status_kind(StatusKind::Progress, text)
+    }
+
+    /// Convenience for ambient refresh/presentation bookkeeping.
+    pub fn bookkeeping_status(&mut self, text: impl Into<String>) -> bool {
+        self.set_status_kind(StatusKind::Bookkeeping, text)
+    }
+
+    /// Convenience for machinery evidence that Activity also carries.
+    pub fn evidence_status(&mut self, text: impl Into<String>) -> bool {
+        self.set_status_kind(StatusKind::EngineEvidence, text)
+    }
+
+    /// Dismiss the visible toast. This is presentation only: it neither
+    /// cancels nor closes the operation that produced the notice.
+    pub fn clear_status(&mut self) -> bool {
+        let changed = !self.status.is_empty();
+        self.status.clear();
+        self.status_kind = None;
+        self.visible_status_operation = None;
+        changed
+    }
+
     /// Swap in a fresh project: stop the watch, drop the old queue (late
     /// sends from the previous workspace's threads go nowhere) and
     /// rebuild module state. Theme, windows, waker and store survive.
     pub fn reset_project(&mut self, registry: Registry) {
         self.stop_watch();
+        // Workspace-generation operations cannot complete into the replacement
+        // generation. Shell-scoped operations (creation/adoption) remain causal.
+        for state in self.status_operations.values_mut() {
+            if state.scope == StatusOperationScope::Workspace {
+                state.live = false;
+            }
+        }
         let (tx, rx) = channel();
         self.tx = tx;
         self.rx = rx;
@@ -529,10 +822,7 @@ impl Workbench {
                             let env = self.degraded_envelope(reason);
                             self.commit(&env, seq)
                         }
-                        Inbound::Status(s) => {
-                            self.status = s;
-                            true
-                        }
+                        Inbound::Status(s) => self.set_status_notice(s),
                     };
                 }
             }
@@ -541,8 +831,7 @@ impl Workbench {
             changed |= self.commit(&env, seq);
         }
         if !disclosures.is_empty() {
-            self.status = disclosures.join(" · ");
-            changed = true;
+            changed |= self.outcome_status(disclosures.join(" · "));
         }
         changed
     }
@@ -613,7 +902,9 @@ impl Workbench {
                 key: l.key,
                 nav: None,
             }),
-            None => self.status = "nothing to open".into(),
+            None => {
+                self.outcome_status("nothing to open");
+            }
         }
     }
 
@@ -667,202 +958,6 @@ impl Workbench {
         let effects = self.theme.effects;
         self.theme = Theme::for_mode(mode, reduced);
         self.theme.effects = effects;
-    }
-
-    // ---- navigation & selection ----
-
-    pub fn active_nav(&self) -> Option<&str> {
-        self.nav.get(self.active).and_then(|n| n.as_deref())
-    }
-
-    pub fn list_len(&self) -> usize {
-        self.registry
-            .get(self.active)
-            .map_or(0, |m| m.list_len(self.active_nav()))
-    }
-
-    pub fn row(&self, i: usize) -> RowModel {
-        self.registry
-            .get(self.active)
-            .map(|m| m.row(self.active_nav(), i))
-            .unwrap_or_default()
-    }
-
-    pub fn selected_key(&self) -> Option<&str> {
-        self.windows.primary.row.as_ref().map(|(_, k)| k.as_str())
-    }
-
-    pub fn activate(&mut self, index: usize) {
-        if index >= self.registry.len() {
-            return;
-        }
-        if index != self.active {
-            // `Selection` is shell-wide identity, not row position. When the
-            // newly active module can represent the same noun, reveal it
-            // there instead of dropping the round-trip at the module boundary.
-            let noun = self.app.selection.noun.clone();
-            self.clear_selection();
-            self.active = index;
-            if let Some(m) = self.registry.get_mut(index) {
-                m.activated();
-            }
-            if let Some(noun) = noun {
-                let key = self.registry.get(index).and_then(|m| m.key_for(&noun));
-                if let Some(key) = key {
-                    let in_current_nav = self
-                        .registry
-                        .get(index)
-                        .and_then(|m| m.index_of_key(self.active_nav(), &key))
-                        .is_some();
-                    if !in_current_nav {
-                        let nav = self
-                            .registry
-                            .get(index)
-                            .map(|m| m.nav().items)
-                            .unwrap_or_default()
-                            .into_iter()
-                            .find(|item| {
-                                self.registry
-                                    .get(index)
-                                    .and_then(|m| m.index_of_key(Some(&item.key), &key))
-                                    .is_some()
-                            })
-                            .map(|item| item.key);
-                        if let Some(nav) = nav {
-                            self.set_nav(&nav);
-                        }
-                    }
-                    self.select_key(&key);
-                }
-            }
-        } else if let Some(m) = self.registry.get_mut(index) {
-            m.activated();
-        }
-    }
-
-    pub fn set_nav(&mut self, key: &str) {
-        if let Some(slot) = self.nav.get_mut(self.active) {
-            *slot = Some(key.to_string());
-        }
-        self.clear_selection();
-    }
-
-    fn cycle_nav(&mut self, delta: isize) {
-        let Some(m) = self.registry.get(self.active) else {
-            return;
-        };
-        let items = m.nav().items;
-        if items.is_empty() {
-            return;
-        }
-        let cur = items
-            .iter()
-            .position(|i| Some(i.key.as_str()) == self.active_nav())
-            .unwrap_or(0) as isize;
-        let next = (cur + delta).rem_euclid(items.len() as isize) as usize;
-        let key = items[next].key.clone();
-        self.set_nav(&key);
-    }
-
-    fn sync_module_selection(&mut self, key: Option<&str>) {
-        if let Some(m) = self.registry.get_mut(self.active) {
-            m.select(key);
-        }
-    }
-
-    pub fn clear_selection(&mut self) {
-        self.windows.primary.row = None;
-        self.windows.primary.selection = Selection::default();
-        self.app.selection = Selection::default();
-        self.sync_module_selection(None);
-    }
-
-    pub fn select_row(&mut self, i: usize) {
-        if i >= self.list_len() {
-            return;
-        }
-        let key = self.row(i).key;
-        let noun = self.registry.get(self.active).and_then(|m| m.noun(&key));
-        let sel = Selection {
-            account: noun.as_ref().map(|n| n.account.clone()),
-            mailbox: self.active_nav().map(str::to_string),
-            noun,
-        };
-        let module_key = key.clone();
-        self.windows.primary.row = Some((i, key));
-        self.windows.primary.selection = sel.clone();
-        self.app.selection = sel;
-        self.sync_module_selection(Some(&module_key));
-    }
-
-    /// After a module mutates its list, keep the selected key selected at
-    /// its new index, or clear the selection when the key left the list.
-    pub(crate) fn revalidate_selection(&mut self) {
-        let Some((i, key)) = self.windows.primary.row.clone() else {
-            return;
-        };
-        if i < self.list_len() && self.row(i).key == key {
-            return;
-        }
-        match self.row_index(&key) {
-            Some(j) => self.select_row(j),
-            None => self.clear_selection(),
-        }
-    }
-
-    pub fn select_key(&mut self, key: &str) {
-        if let Some(i) = self.row_index(key) {
-            self.select_row(i);
-        }
-    }
-
-    /// The first row of the active mailbox whose key is `key`.
-    fn row_index(&self, key: &str) -> Option<usize> {
-        self.registry
-            .get(self.active)?
-            .index_of_key(self.active_nav(), key)
-    }
-
-    fn move_row(&mut self, delta: isize) {
-        let len = self.list_len();
-        if len == 0 {
-            return;
-        }
-        let next = match &self.windows.primary.row {
-            None if delta >= 0 => 0,
-            None => len - 1,
-            Some((i, _)) => (*i as isize + delta).clamp(0, len as isize - 1) as usize,
-        };
-        self.select_row(next);
-    }
-
-    fn reclamp_rows(&mut self) {
-        let Some((_, key)) = self.windows.primary.row.clone() else {
-            return;
-        };
-        let key = match self.row_index(&key) {
-            Some(i) => {
-                if let Some(row) = &mut self.windows.primary.row {
-                    row.0 = i;
-                }
-                return;
-            }
-            None => self
-                .windows
-                .primary
-                .selection
-                .noun
-                .clone()
-                .and_then(|noun| {
-                    self.registry
-                        .get(self.active)
-                        .and_then(|m| m.key_for(&noun))
-                }),
-        };
-        match key.and_then(|k| self.row_index(&k).map(|i| (i, k))) {
-            Some((i, _)) => self.select_row(i),
-            None => self.clear_selection(),
-        }
     }
 
     // ---- commands ----
@@ -964,7 +1059,9 @@ impl Workbench {
             // and the next `WatchSessionStarted` clears `WatchDead`.
             "watch.restart" => match &self.workspace {
                 Some(p) => self.requests.push(ShellRequest::OpenWorkspace(p.clone())),
-                None => self.status = "no workspace open".into(),
+                None => {
+                    self.outcome_status("no workspace open");
+                }
             },
             "shell.workspace.open" => self.requests.push(ShellRequest::PickWorkspace),
             new_workspace::NEW => self.new_workspace(),
@@ -972,13 +1069,17 @@ impl Workbench {
             // Reopening the open workspace starts a new watch and rearms recovery.
             "shell.watch.restart" => match self.workspace.clone() {
                 Some(root) => self.requests.push(ShellRequest::OpenWorkspace(root)),
-                None => self.status = "no workspace is open; open one to start a watch".into(),
+                None => {
+                    self.outcome_status("no workspace is open; open one to start a watch");
+                }
             },
             _ => {
                 if let Some(i) = id.strip_prefix("shell.workspace.recent.") {
                     match i.parse::<usize>().ok().and_then(|i| self.recent.get(i)) {
                         Some(p) => self.requests.push(ShellRequest::OpenWorkspace(p.clone())),
-                        None => self.status = format!("unknown command {id}"),
+                        None => {
+                            self.outcome_status(format!("unknown command {id}"));
+                        }
                     }
                     return;
                 }
@@ -990,7 +1091,7 @@ impl Workbench {
                 }
                 let module = id.split('.').next().unwrap_or_default();
                 let Some(i) = self.registry.index_of(module) else {
-                    self.status = format!("unknown command {id}");
+                    self.outcome_status(format!("unknown command {id}"));
                     return;
                 };
                 // Re-resolve the selection so the module acts on what is
@@ -1024,7 +1125,7 @@ impl Workbench {
     /// Select, in Activity, the diagnostic a failed initial build names.
     fn reveal_degraded_cause(&mut self) {
         let Some(DegradedReason::InitialBuildFailed { code, message }) = &self.app.degraded else {
-            self.status = "no failed build to show".into();
+            self.outcome_status("no failed build to show");
             return;
         };
         let title = activity::diagnostic_title(code, message);
@@ -1044,7 +1145,9 @@ impl Workbench {
                 key,
                 nav: None,
             }),
-            None => self.status = format!("{code} is not in Activity"),
+            None => {
+                self.outcome_status(format!("{code} is not in Activity"));
+            }
         }
     }
 
@@ -1063,13 +1166,32 @@ impl Workbench {
                 self.commit(&env, causal);
             }
             Intent::Recover => self.app.degraded = None,
-            Intent::Status(s) => self.status = s,
+            Intent::Outcome(s) => {
+                self.outcome_status(s);
+            }
+            Intent::Progress(s) => {
+                self.progress_status(s);
+            }
+            Intent::Bookkeeping(s) => {
+                self.bookkeeping_status(s);
+            }
+            Intent::EngineEvidence(s) => {
+                self.evidence_status(s);
+            }
+            Intent::BeginStatusOperation { operation, scope } => {
+                self.register_status_operation(operation, scope);
+            }
+            Intent::Status(notice) => {
+                self.set_status_notice(notice);
+            }
             Intent::RebuildIndexes => match self.workspace.clone() {
                 Some(root) => {
                     self.index_rebuild_requested = true;
                     self.requests.push(ShellRequest::OpenWorkspace(root));
                 }
-                None => self.status = "no workspace open; nothing to rebuild".into(),
+                None => {
+                    self.outcome_status("no workspace open; nothing to rebuild");
+                }
             },
             Intent::MarkDirty => self.windows.set_dirty(PRIMARY, true),
             Intent::Copy(text) => self.requests.push(ShellRequest::Copy(text)),
@@ -1086,11 +1208,11 @@ impl Workbench {
                 let title = m.reading(&key).title;
                 let module = m.spec().id;
                 self.windows.open_companion(module, &key, &title);
-                self.status = format!("companion: {title}");
+                self.bookkeeping_status(format!("companion: {title}"));
             }
             Intent::Reveal { module, key, nav } => {
                 let Some(i) = self.registry.index_of(&module) else {
-                    self.status = format!("no module {module}");
+                    self.outcome_status(format!("no module {module}"));
                     return;
                 };
                 self.activate(i);
@@ -1107,7 +1229,7 @@ impl Workbench {
                 }
                 self.select_key(&key);
                 if self.selected_key() != Some(key.as_str()) {
-                    self.status = format!("{key} is not in {module}");
+                    self.outcome_status(format!("{key} is not in {module}"));
                 }
             }
             Intent::Dialog(spec) => self.dialogs.push(*spec),
@@ -1121,31 +1243,36 @@ impl Workbench {
             } => self.adopt_new_workspace(&run_id, suggested_archetype.as_deref()),
             Intent::AdoptRun(request) => match self.workspace.clone() {
                 Some(source_root) => {
-                    let cancel = match &request.target {
+                    let (cancel, operation) = match &request.target {
                         crate::adoption::AdoptionTarget::NewWorkspace(creation) => {
-                            creation.cancel.clone()
+                            (creation.cancel.clone(), creation.operation)
                         }
                         crate::adoption::AdoptionTarget::ExistingWorkspace { .. }
                         | crate::adoption::AdoptionTarget::ExistingWorkspaceInPlace => {
-                            CancelToken::new()
+                            (CancelToken::new(), StatusOperation::mint())
                         }
                     };
+                    self.register_status_operation(operation, StatusOperationScope::Shell);
                     self.requests.push(ShellRequest::AdoptRun(AdoptionJob {
                         source_root,
                         request,
                         cancel,
+                        operation,
                     }));
                 }
-                None => self.status = "open the workspace that owns this import run first".into(),
+                None => {
+                    self.outcome_status("open the workspace that owns this import run first");
+                }
             },
             Intent::RunImport(mut job) => {
                 if job.workspace.as_os_str().is_empty() {
                     let Some(root) = self.workspace.clone() else {
-                        self.status = "no workspace open; the import cannot start".into();
+                        self.outcome_status("no workspace open; the import cannot start");
                         return;
                     };
                     job.workspace = root;
                 }
+                self.register_status_operation(job.operation, StatusOperationScope::Workspace);
                 self.requests.push(ShellRequest::RunImport(job));
             }
         }
@@ -1161,14 +1288,16 @@ impl Workbench {
                     self.select_row(0);
                 }
             }
-            None => self.status = "Doctor is not registered in this build".into(),
+            None => {
+                self.outcome_status("Doctor is not registered in this build");
+            }
         }
     }
 
     pub fn close_window(&mut self, id: WindowId, force: bool) -> CloseOutcome {
         let out = self.windows.close(id, force);
         if let CloseOutcome::NeedsConfirm(ws) = &out {
-            self.status = format!("{} window(s) have unsaved changes", ws.len());
+            self.outcome_status(format!("{} window(s) have unsaved changes", ws.len()));
         }
         out
     }

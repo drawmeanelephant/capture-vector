@@ -8,6 +8,7 @@ use crate::dialog::{
     ActionTone, CHOICE, Choice, DialogAnswer, DialogKind, DialogSpec, Field, FileFilter, Pick,
     Progress,
 };
+use crate::status::{StatusNotice, StatusOperation};
 use cv_core::engine::CancelToken;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -29,6 +30,7 @@ pub(crate) enum WizardStage {
         phase: ImportPhase,
         run_id: String,
         cancel: CancelToken,
+        operation: StatusOperation,
     },
     AwaitingEmit {
         inventory_run: String,
@@ -92,7 +94,7 @@ impl MigrateModule {
 
     pub(crate) fn begin_import(&mut self) -> Vec<Intent> {
         if let Some(why) = self.new_unavailable() {
-            return vec![Intent::Status(format!("New import is unavailable: {why}"))];
+            return vec![Intent::Outcome(format!("New import is unavailable: {why}"))];
         }
         self.wizard.reset();
         self.wizard.stage = WizardStage::ChoosingFamily;
@@ -322,7 +324,7 @@ impl MigrateModule {
     fn start_job(&mut self, phase: ImportPhase, mode_name: &str) -> Vec<Intent> {
         let Some(mode) = mode_ref(&self.imports, mode_name).cloned() else {
             self.wizard.reset();
-            return vec![Intent::Status(format!(
+            return vec![Intent::Outcome(format!(
                 "migration mode {mode_name} is not registered"
             ))];
         };
@@ -344,6 +346,7 @@ impl MigrateModule {
             })
             .collect::<Vec<_>>();
         let cancel = CancelToken::new();
+        let operation = StatusOperation::mint();
         let job = ImportJob {
             workspace: PathBuf::new(),
             run_id: run_id.clone(),
@@ -352,11 +355,13 @@ impl MigrateModule {
             inputs,
             extras,
             cancel: cancel.clone(),
+            operation,
         };
         self.wizard.stage = WizardStage::Running {
             phase,
             run_id,
             cancel,
+            operation,
         };
         vec![
             Intent::dialog(Self::progress_dialog(&job)),
@@ -370,6 +375,7 @@ impl MigrateModule {
     pub(crate) fn start_workspace_utility(&mut self, mode_name: &str) -> Vec<Intent> {
         let run_id = self.next_run_id(mode_name);
         let cancel = CancelToken::new();
+        let operation = StatusOperation::mint();
         let job = ImportJob {
             workspace: PathBuf::new(),
             run_id: run_id.clone(),
@@ -378,11 +384,13 @@ impl MigrateModule {
             inputs: Vec::new(),
             extras: Vec::new(),
             cancel: cancel.clone(),
+            operation,
         };
         self.wizard.stage = WizardStage::Running {
             phase: ImportPhase::Utility,
             run_id,
             cancel,
+            operation,
         };
         vec![
             Intent::dialog(Self::progress_dialog(&job)),
@@ -451,7 +459,7 @@ impl MigrateModule {
                 }
                 if answer.action.is_none() {
                     self.wizard.reset();
-                    return vec![Intent::Status("New import cancelled".into())];
+                    return vec![Intent::Outcome("New import cancelled".into())];
                 }
                 let family = action_value(answer, CHOICE);
                 if self.imports.families.iter().all(|f| f.key != family) {
@@ -469,7 +477,7 @@ impl MigrateModule {
                 }
                 if answer.action.is_none() {
                     self.wizard.reset();
-                    return vec![Intent::Status("New import cancelled".into())];
+                    return vec![Intent::Outcome("New import cancelled".into())];
                 }
                 if answer.action.as_deref() == Some("back") {
                     self.wizard.stage = WizardStage::ChoosingFamily;
@@ -509,17 +517,17 @@ impl MigrateModule {
                 }
                 if answer.action.is_none() {
                     self.wizard.reset();
-                    return vec![Intent::Status("New import cancelled".into())];
+                    return vec![Intent::Outcome("New import cancelled".into())];
                 }
                 let Some(mode_name) = self.wizard.mode.clone() else {
                     self.wizard.reset();
-                    return vec![Intent::Status(
+                    return vec![Intent::Outcome(
                         "The import wizard lost its selected mode; start again".into(),
                     )];
                 };
                 let Some(mode) = mode_ref(&self.imports, &mode_name).cloned() else {
                     self.wizard.reset();
-                    return vec![Intent::Status(format!(
+                    return vec![Intent::Outcome(format!(
                         "migration mode {mode_name} is not registered"
                     ))];
                 };
@@ -572,24 +580,33 @@ impl MigrateModule {
                 if answer.action.as_deref() == Some("emit") {
                     let Some(mode) = self.wizard.mode.clone() else {
                         self.wizard.reset();
-                        return vec![Intent::Status(
+                        return vec![Intent::Outcome(
                             "The import wizard lost its selected mode; start again".into(),
                         )];
                     };
                     self.start_job(ImportPhase::Emit, &mode)
                 } else {
                     self.wizard.reset();
-                    vec![Intent::Status(
+                    vec![Intent::Outcome(
                         "Inventory kept in Runs; emit cancelled before anything was emitted".into(),
                     )]
                 }
             }
             PROGRESS => {
-                if let WizardStage::Running { cancel, phase, .. } = &self.wizard.stage {
+                if let WizardStage::Running {
+                    cancel,
+                    phase,
+                    operation,
+                    ..
+                } = &self.wizard.stage
+                {
                     cancel.cancel();
-                    vec![Intent::Status(format!(
-                        "Cancelling the {}; the run record will show what happened",
-                        phase.label()
+                    vec![Intent::Status(StatusNotice::operation_progress(
+                        *operation,
+                        format!(
+                            "Cancelling the {}; the run record will show what happened",
+                            phase.label()
+                        ),
                     ))]
                 } else {
                     Vec::new()
@@ -633,7 +650,7 @@ impl MigrateModule {
             WizardStage::Running { cancel, .. } if *cancel == job.cancel
         );
         if !correlated {
-            return vec![Intent::Status(format!(
+            return vec![Intent::bookkeeping(format!(
                 "{} import run(s) loaded",
                 self.imports.runs.len()
             ))];
@@ -654,13 +671,14 @@ impl MigrateModule {
             phase,
             run_id,
             cancel,
+            ..
         } = stage
         else {
             return Vec::new();
         };
         let Some(run) = self.imports.runs.iter().find(|r| r.id == run_id).cloned() else {
             self.wizard.reset();
-            return vec![Intent::Status(format!(
+            return vec![Intent::Outcome(format!(
                 "The {} ended before its run record could be written",
                 phase.label()
             ))];
@@ -668,7 +686,7 @@ impl MigrateModule {
         if run.status == RunStatus::Running {
             self.wizard.reset();
             return vec![
-                Intent::Status(format!(
+                Intent::Outcome(format!(
                     "The {} worker ended before the lab reported an outcome, but the run lock still appears held; another holder may still be writing. Inspect the run before retrying",
                     phase.label()
                 )),
@@ -682,7 +700,7 @@ impl MigrateModule {
         if run.status == RunStatus::Unfinished {
             self.wizard.reset();
             return vec![
-                Intent::Status(format!(
+                Intent::Outcome(format!(
                     "The {} stopped before the lab reported an outcome; the unfinished run's output may be partial, it cannot be adopted, and a new import is the retry",
                     phase.label()
                 )),
@@ -701,7 +719,7 @@ impl MigrateModule {
         {
             self.wizard.reset();
             return vec![
-                Intent::Status(format!(
+                Intent::Outcome(format!(
                     "{} cancelled; partial output was left in the staged run",
                     phase.label()
                 )),
@@ -731,7 +749,7 @@ impl MigrateModule {
                         None => "no count data could be decoded from its output".to_string(),
                     };
                     return vec![
-                        Intent::Status(format!(
+                        Intent::Outcome(format!(
                             "The inventory finished but {why}, so there are no counts to base an emit on; emit is blocked. Inspect the run in Runs."
                         )),
                         Intent::Reveal {
@@ -745,7 +763,7 @@ impl MigrateModule {
                     inventory_run: run_id.clone(),
                 };
                 vec![
-                    Intent::Status("Inventory finished; review it or continue to emit".into()),
+                    Intent::Outcome("Inventory finished; review it or continue to emit".into()),
                     Intent::dialog(self.inventory_dialog(&run_id)),
                 ]
             }
@@ -761,7 +779,7 @@ impl MigrateModule {
                 // here means the authoritative document decoded cleanly.
                 if let Some(problem) = &run.problem {
                     return vec![
-                        Intent::Status(format!(
+                        Intent::Outcome(format!(
                             "The import exited zero but its output could not be verified — {problem}. Inspect the run in Runs."
                         )),
                         Intent::Reveal {
@@ -772,7 +790,7 @@ impl MigrateModule {
                     ];
                 }
                 vec![
-                    Intent::Status("Import finished; the run is in Runs".into()),
+                    Intent::Outcome("Import finished; the run is in Runs".into()),
                     Intent::Reveal {
                         module: super::ID.into(),
                         key: format!("run:{run_id}"),
@@ -787,7 +805,7 @@ impl MigrateModule {
                     .or(run.outcome)
                     .unwrap_or_else(|| format!("the lab ended as {}", status.label()));
                 vec![
-                    Intent::Status(format!("{} did not complete: {detail}", phase.label())),
+                    Intent::Outcome(format!("{} did not complete: {detail}", phase.label())),
                     Intent::Reveal {
                         module: super::ID.into(),
                         key: format!("run:{run_id}"),

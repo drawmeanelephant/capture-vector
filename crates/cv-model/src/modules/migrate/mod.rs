@@ -802,14 +802,14 @@ impl MigrateModule {
 
     fn transition(&mut self, to: ReviewState) -> Vec<Intent> {
         let Some(key) = self.selected.clone() else {
-            return vec![Intent::Status("select a review item first".into())];
+            return vec![Intent::Outcome("select a review item first".into())];
         };
         let Some(Target::Item(r, i)) = self.target(&key) else {
-            return vec![Intent::Status("select a review item first".into())];
+            return vec![Intent::Outcome("select a review item first".into())];
         };
         let (run, item) = (r.id.clone(), i.id.clone());
         if let Err(e) = self.port.record(&run, &item, to) {
-            return vec![Intent::Status(format!("review state not saved: {e}"))];
+            return vec![Intent::Outcome(format!("review state not saved: {e}"))];
         }
         if let Some(it) = self
             .imports
@@ -821,7 +821,7 @@ impl MigrateModule {
         {
             it.state = to;
         }
-        vec![Intent::Status(format!("review item {}", to.label()))]
+        vec![Intent::Outcome(format!("review item {}", to.label()))]
     }
 
     fn noun_of(&self, key: &str) -> Option<NounId> {
@@ -1079,7 +1079,7 @@ impl Module for MigrateModule {
             REOPEN => self.transition(ReviewState::Open),
             REFRESH => {
                 self.imports = self.port.load();
-                vec![Intent::Status(format!(
+                vec![Intent::bookkeeping(format!(
                     "{} import run(s) loaded",
                     self.imports.runs.len()
                 ))]

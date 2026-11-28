@@ -30,6 +30,144 @@ fn palette_enablement_tracks_row_selection_before_any_command_runs() {
 }
 
 #[test]
+fn bookkeeping_never_overwrites_an_operation_outcome() {
+    migrate::install(Box::new(MemoryPort {
+        imports: Imports::default(),
+        records: Vec::new(),
+    }));
+    let mut wb = Workbench::new(Registry::with_all());
+    wb.outcome_status("adopted 2 pages and 1 asset from run-1 into content/imported/site");
+
+    wb.run_command(migrate::REFRESH);
+
+    assert_eq!(
+        wb.status,
+        "adopted 2 pages and 1 asset from run-1 into content/imported/site"
+    );
+    assert_eq!(wb.status_kind(), Some(crate::status::StatusKind::Outcome));
+}
+
+#[test]
+fn progress_for_a_new_operation_replaces_an_old_outcome_and_holds_against_ambient_notices() {
+    let mut wb = Workbench::new(Registry::with_all());
+    wb.outcome_status("Import finished; the run is in Runs");
+
+    assert!(wb.progress_status("Building the site…"));
+    assert_eq!(wb.status, "Building the site…");
+    assert_eq!(wb.status_kind(), Some(crate::status::StatusKind::Progress));
+
+    assert!(!wb.bookkeeping_status("3 import run(s) loaded"));
+    assert!(!wb.evidence_status("boris build finished (exit 0, 12 ms)"));
+    assert_eq!(wb.status, "Building the site…");
+
+    assert!(wb.outcome_status("Site build finished"));
+    assert_eq!(wb.status, "Site build finished");
+    assert_eq!(wb.status_kind(), Some(crate::status::StatusKind::Outcome));
+}
+
+#[test]
+fn engine_evidence_for_a_new_operation_can_replace_an_old_outcome() {
+    let mut wb = Workbench::new(Registry::with_all());
+    wb.outcome_status("Import finished; the run is in Runs");
+
+    let operation = wb.begin_status_operation();
+    assert!(wb.set_status_notice(StatusNotice::operation_evidence(
+        operation,
+        "Boris watch stopped · running one build for diagnostics…"
+    )));
+    assert_eq!(
+        wb.status,
+        "Boris watch stopped · running one build for diagnostics…"
+    );
+    assert_eq!(
+        wb.status_kind(),
+        Some(crate::status::StatusKind::EngineEvidence)
+    );
+}
+
+#[test]
+fn terminal_operation_evidence_completes_opening_progress_while_ambient_evidence_stays_out() {
+    let mut wb = Workbench::new(Registry::with_all());
+    wb.outcome_status("Import finished; the run is in Runs");
+    let operation = wb.begin_status_operation();
+
+    assert!(wb.set_status_notice(StatusNotice::operation_progress(
+        operation,
+        "Opening workspace /site…"
+    )));
+    assert!(!wb.evidence_status("boris build finished (exit 0, 12 ms)"));
+    assert_eq!(wb.status, "Opening workspace /site…");
+
+    assert!(
+        wb.set_status_notice(StatusNotice::terminal_operation_evidence(
+            operation,
+            "/site · boris/0.9.0 (Path) · watch"
+        ))
+    );
+    assert_eq!(wb.status, "/site · boris/0.9.0 (Path) · watch");
+    assert_eq!(
+        wb.status_kind(),
+        Some(crate::status::StatusKind::EngineEvidence)
+    );
+
+    assert!(
+        !wb.set_status_notice(StatusNotice::terminal_operation_evidence(
+            operation,
+            "stale boot evidence"
+        ))
+    );
+    assert!(wb.evidence_status("Boris one-shot build succeeded · reopen workspace"));
+    assert_eq!(
+        wb.status, "Boris one-shot build succeeded · reopen workspace",
+        "terminal evidence must close the opening operation so later engine truth can land"
+    );
+}
+
+#[test]
+fn intermediate_operation_evidence_does_not_close_the_operation_boundary() {
+    let mut wb = Workbench::new(Registry::with_all());
+    wb.outcome_status("Import finished; the run is in Runs");
+    let operation = wb.begin_status_operation();
+
+    assert!(wb.set_status_notice(StatusNotice::operation_evidence(
+        operation,
+        "research notes not persisted: locked"
+    )));
+    assert_eq!(wb.status, "research notes not persisted: locked");
+
+    assert!(
+        wb.set_status_notice(StatusNotice::terminal_operation_evidence(
+            operation,
+            "research notes not persisted: locked · /site: boris not found"
+        ))
+    );
+    assert_eq!(
+        wb.status,
+        "research notes not persisted: locked · /site: boris not found"
+    );
+}
+
+#[test]
+fn ambient_engine_evidence_does_not_overwrite_a_fresh_outcome() {
+    let mut wb = Workbench::new(Registry::with_all());
+    wb.outcome_status("Import finished; the run is in Runs");
+
+    assert!(!wb.evidence_status("boris build finished (exit 0, 12 ms)"));
+    assert_eq!(wb.status, "Import finished; the run is in Runs");
+}
+
+#[test]
+fn ambient_notices_replace_one_another_when_no_foreground_status_is_live() {
+    let mut wb = Workbench::new(Registry::with_all());
+
+    assert!(wb.bookkeeping_status("3 import run(s) loaded"));
+    assert!(wb.evidence_status("boris build finished (exit 0, 12 ms)"));
+    assert_eq!(wb.status, "boris build finished (exit 0, 12 ms)");
+    assert!(wb.bookkeeping_status("4 import run(s) loaded"));
+    assert_eq!(wb.status, "4 import run(s) loaded");
+}
+
+#[test]
 fn watch_restart_is_offered_only_while_the_watch_is_dead() {
     let mut wb = Workbench::new(Registry::with_all());
     assert!(wb.commands().iter().all(|c| c.id != "watch.restart"));
@@ -95,6 +233,147 @@ fn failed_try_send_returns_the_watch_message_instead_of_dropping_it() {
     );
     drop(message);
     assert!(dropped.load(std::sync::atomic::Ordering::SeqCst));
+}
+
+#[test]
+fn terminal_boot_evidence_cannot_close_an_unrelated_newer_operation() {
+    let mut wb = Workbench::new(Registry::with_all());
+    let boot = wb.begin_status_operation();
+    assert!(wb.set_status_notice(StatusNotice::operation_progress(
+        boot,
+        "Opening workspace /site…"
+    )));
+    let newer = wb.begin_status_operation();
+    assert!(wb.set_status_notice(StatusNotice::operation_progress(
+        newer,
+        "Site build running…"
+    )));
+
+    assert!(
+        !wb.set_status_notice(StatusNotice::terminal_operation_evidence(
+            boot,
+            "stale boot evidence"
+        ))
+    );
+    assert_eq!(wb.status, "Site build running…");
+
+    assert!(
+        wb.set_status_notice(StatusNotice::terminal_operation_evidence(
+            newer,
+            "build evidence terminal"
+        ))
+    );
+    assert_eq!(wb.status, "build evidence terminal");
+}
+
+#[test]
+fn foreign_completion_cannot_close_opening_operation() {
+    let mut wb = Workbench::new(Registry::with_all());
+    let opening = wb.begin_status_operation();
+    assert!(wb.set_status_notice(StatusNotice::operation_progress(
+        opening,
+        "Opening workspace /site…"
+    )));
+
+    // Immediate foreign/uncorrelated completion text may be shown as a fact,
+    // but it has no causal right to consume opening's token.
+    assert!(wb.outcome_status("inventory finished for a workspace that is no longer open"));
+    assert!(
+        wb.set_status_notice(StatusNotice::terminal_operation_evidence(
+            opening,
+            "/site · boris/0.9.0 (Path) · watch"
+        ))
+    );
+    assert_eq!(wb.status, "/site · boris/0.9.0 (Path) · watch");
+}
+
+#[test]
+fn ambient_bookkeeping_cannot_overwrite_a_live_operation_evidence_notice() {
+    let mut wb = Workbench::new(Registry::with_all());
+    let opening = wb.begin_status_operation();
+    assert!(wb.set_status_notice(StatusNotice::operation_evidence(
+        opening,
+        "finding snoozes not persisted: sqlite is read-only"
+    )));
+    assert!(!wb.bookkeeping_status("workspace presentation reloaded"));
+    assert_eq!(
+        wb.status,
+        "finding snoozes not persisted: sqlite is read-only"
+    );
+}
+
+#[test]
+fn reopening_retires_the_prior_workspace_generation_operation() {
+    let mut wb = Workbench::new(Registry::with_all());
+    let first = wb.begin_status_operation();
+    assert!(wb.set_status_notice(StatusNotice::operation_progress(
+        first,
+        "Opening workspace /site…"
+    )));
+    wb.reset_project(Registry::with_all());
+    let second = wb.begin_status_operation();
+    assert!(wb.set_status_notice(StatusNotice::operation_progress(
+        second,
+        "Opening workspace /site again…"
+    )));
+
+    assert!(
+        !wb.set_status_notice(StatusNotice::terminal_operation_evidence(
+            first,
+            "first boot evidence"
+        ))
+    );
+    assert_eq!(wb.status, "Opening workspace /site again…");
+    assert!(
+        wb.set_status_notice(StatusNotice::terminal_operation_evidence(
+            second,
+            "second boot evidence"
+        ))
+    );
+    assert_eq!(wb.status, "second boot evidence");
+}
+
+#[test]
+fn an_operation_outcome_does_not_close_an_unrelated_live_operation() {
+    let mut wb = Workbench::new(Registry::with_all());
+    let build = wb.begin_status_operation();
+    assert!(wb.set_status_notice(StatusNotice::operation_progress(
+        build,
+        "Site build running…"
+    )));
+    let creation = wb.begin_shell_status_operation();
+    assert!(wb.set_status_notice(StatusNotice::operation_outcome(
+        creation,
+        "Workspace created; opening it now."
+    )));
+    assert_eq!(wb.status, "Workspace created; opening it now.");
+
+    // Creation closed only itself. The still-live build can return to the
+    // foreground with its own causal progress rather than being consumed.
+    assert!(wb.set_status_notice(StatusNotice::operation_progress(
+        build,
+        "Site build finishing…"
+    )));
+    assert_eq!(wb.status, "Site build finishing…");
+    assert!(!wb.bookkeeping_status("workspace presentation reloaded"));
+}
+
+#[test]
+fn dismissing_the_toast_does_not_close_the_live_operation() {
+    let mut wb = Workbench::new(Registry::with_all());
+    let opening = wb.begin_status_operation();
+    assert!(wb.set_status_notice(StatusNotice::operation_progress(
+        opening,
+        "Opening workspace /site…"
+    )));
+    assert!(wb.clear_status());
+    assert!(
+        wb.set_status_notice(StatusNotice::terminal_operation_evidence(
+            opening,
+            "/site · boris/0.9.0 (Path) · watch"
+        ))
+    );
+    assert_eq!(wb.status, "/site · boris/0.9.0 (Path) · watch");
 }
 
 fn primary_modifiers() -> Modifiers {

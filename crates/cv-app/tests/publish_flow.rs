@@ -68,7 +68,7 @@ fn preflight_approve_dispatch_copies_the_sealed_files_to_the_folder() {
     wb.run_command(PREFLIGHT);
     assert_eq!(
         wb.status,
-        "preflight sealed run-000000-0: approve it to publish"
+        "Publish preflight sealed run-000000-0; approve it to publish"
     );
     assert!(reading(&wb).contains("state: granted"));
 

@@ -727,7 +727,7 @@ impl Workbench {
             return;
         }
         let Some(i) = self.registry.index_of(module) else {
-            self.status = format!("no module answers {id}");
+            self.outcome_status(format!("no module answers {id}"));
             return;
         };
         let intents = self
@@ -767,7 +767,7 @@ impl Workbench {
     /// `shell.workspace.recent`: choose among recent workspaces.
     pub(crate) fn choose_recent(&mut self) {
         if self.recent.is_empty() {
-            self.status = "no recent workspaces".into();
+            self.outcome_status("no recent workspaces");
             return;
         }
         let rows = self

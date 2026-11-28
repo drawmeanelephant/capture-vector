@@ -85,6 +85,7 @@ esac
             },
         },
         cancel: cv_core::engine::CancelToken::new(),
+        operation: cv_model::status::StatusOperation::mint(),
     };
     let (batch_tx, batch_rx) = mpsc::channel();
     crate::migrate::adopt::arm_batch_entry_probe(root.clone(), batch_tx);
@@ -196,6 +197,7 @@ esac
             },
         },
         cancel: cv_core::engine::CancelToken::new(),
+        operation: cv_model::status::StatusOperation::mint(),
     };
     // Hold the scheduler write lock until the worker has captured identity
     // and reached the batch boundary. The replacement then happens in the
@@ -454,6 +456,7 @@ esac
             },
         },
         cancel: cv_core::engine::CancelToken::new(),
+        operation: cv_model::status::StatusOperation::mint(),
     };
     let worker = crate::migrate::adopt::adopt(&mut wb, job, &crate::WorkspaceEnv::native())
         .expect("adoption worker starts");

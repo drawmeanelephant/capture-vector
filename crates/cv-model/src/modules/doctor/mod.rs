@@ -1065,7 +1065,7 @@ impl Module for DoctorModule {
     fn run(&mut self, command: &str) -> Vec<Intent> {
         if command == REBUILD_INDEX {
             return vec![
-                Intent::Status("Rebuilding local indexes from .cv JSONL…".into()),
+                Intent::progress("Rebuilding local indexes from .cv JSONL…"),
                 Intent::RebuildIndexes,
             ];
         }
@@ -1075,7 +1075,7 @@ impl Module for DoctorModule {
         self.feed.refresh_store();
         let text = bundle::render(&self.feed.get(), &self.watch);
         vec![
-            Intent::Status(format!(
+            Intent::Outcome(format!(
                 "Support bundle copied ({} bytes). Page bodies, engine/lab paths and environment values are left out.",
                 text.len()
             )),

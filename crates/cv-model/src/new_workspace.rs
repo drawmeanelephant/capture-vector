@@ -7,8 +7,9 @@
 use crate::adoption::{ADOPT_NEW_DIALOG, AdoptionRequest, AdoptionTarget};
 use crate::command::{ImportJob, Intent};
 use crate::dialog::{ActionTone, DialogAnswer, DialogKind, DialogSpec, Field, Pick, Progress};
+use crate::status::{StatusNotice, StatusOperation};
 use crate::workbench::{ShellRequest, Waker, Workbench};
-use cv_core::engine::CancelToken;
+use cv_core::engine::{CancelToken, ExitClass};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
@@ -63,6 +64,8 @@ impl NewWorkspace {
 pub struct WorkspaceCreation {
     pub draft: NewWorkspace,
     pub cancel: CancelToken,
+    /// Causal shell-status identity for the init/adoption operation.
+    pub operation: StatusOperation,
 }
 
 impl WorkspaceCreation {
@@ -70,6 +73,7 @@ impl WorkspaceCreation {
         Self {
             draft,
             cancel: CancelToken::new(),
+            operation: StatusOperation::mint(),
         }
     }
 }
@@ -89,8 +93,10 @@ pub enum ShellNotice {
     /// path; errors are disclosed in place.
     Adopted {
         run_id: String,
-        /// Stable identity of the adoption operation this notice belongs to.
+        /// Stable cancellation identity of the adoption operation this notice belongs to.
         cancel: CancelToken,
+        /// Causal shell-status identity of that same operation.
+        operation: StatusOperation,
         result: Result<crate::adoption::AdoptionReport, String>,
     },
     ImportStarted {
@@ -144,7 +150,24 @@ fn count_text(n: usize, one: &str, many: &str) -> String {
     }
 }
 
+fn adoption_gate_suffix(report: &crate::adoption::AdoptionReport) -> String {
+    let validation_failed = report.validate != ExitClass::Ok;
+    let build_skipped = report.build.is_none();
+    let build_failed = report.build.is_some_and(|build| build != ExitClass::Ok);
+    match (validation_failed, build_failed, build_skipped) {
+        (true, true, _) => " · validation and the build failed · see Activity".into(),
+        (true, false, true) => {
+            " · validation failed and the build did not run · see Activity".into()
+        }
+        (true, false, false) => " · validation failed · see Activity".into(),
+        (false, true, _) => " · the build failed · see Activity".into(),
+        (false, false, true) => " · the build did not run · see Activity".into(),
+        (false, false, false) => String::new(),
+    }
+}
+
 fn adoption_status(run_id: &str, report: &crate::adoption::AdoptionReport) -> String {
+    let gate = adoption_gate_suffix(report);
     // An in-place asset-filename transformation records no adopted pages;
     // it moved assets and rewrote Markdown references in place.
     if !report.new_workspace && report.pages == 0 && report.markdown_writes + report.assets > 0 {
@@ -159,7 +182,7 @@ fn adoption_status(run_id: &str, report: &crate::adoption::AdoptionReport) -> St
             String::new()
         };
         return format!(
-            "applied {} and {} from {run_id} in {}{} · validate {}, build {}",
+            "applied {} and {} from {run_id} in {}{}{}",
             count_text(report.assets, "asset rename", "asset renames"),
             count_text(
                 report.markdown_writes,
@@ -168,17 +191,15 @@ fn adoption_status(run_id: &str, report: &crate::adoption::AdoptionReport) -> St
             ),
             report.destination,
             skipped,
-            report.validate,
-            report.build
+            gate
         );
     }
     format!(
-        "adopted {} and {} from {run_id} into {} · validate {}, build {}",
+        "adopted {} and {} from {run_id} into {}{}",
         count_text(report.pages, "page", "pages"),
         count_text(report.assets, "asset", "assets"),
         report.destination,
-        report.validate,
-        report.build
+        gate
     )
 }
 
@@ -186,7 +207,7 @@ impl Workbench {
     /// `shell.workspace.new`: ask with the form, or say why it can't.
     pub(crate) fn new_workspace(&mut self) {
         if self.create_cancel.is_some() {
-            self.status = "A workspace is already being created.".into();
+            self.outcome_status("A workspace is already being created.");
             return;
         }
         match self.archetypes.clone() {
@@ -194,7 +215,9 @@ impl Workbench {
                 let spec = self.new_workspace_form(&a, None, None);
                 self.apply(Intent::dialog(spec));
             }
-            Err(why) => self.status = format!("New workspace is unavailable: {why}"),
+            Err(why) => {
+                self.outcome_status(format!("New workspace is unavailable: {why}"));
+            }
         }
     }
 
@@ -246,7 +269,7 @@ impl Workbench {
     /// job rather than a bare starter workspace.
     pub(crate) fn adopt_new_workspace(&mut self, run_id: &str, suggested: Option<&str>) {
         if self.create_cancel.is_some() {
-            self.status = "A workspace is already being created.".into();
+            self.outcome_status("A workspace is already being created.");
             return;
         }
         match self.archetypes.clone() {
@@ -274,7 +297,9 @@ impl Workbench {
                 spec.context = Some(run_id.to_string());
                 self.apply(Intent::dialog(spec));
             }
-            Err(why) => self.status = format!("New workspace is unavailable: {why}"),
+            Err(why) => {
+                self.outcome_status(format!("New workspace is unavailable: {why}"));
+            }
         }
     }
 
@@ -308,7 +333,12 @@ impl Workbench {
         }
         self.new_parent = Some(draft.parent.clone());
         let creation = WorkspaceCreation::new(draft);
+        self.register_status_operation(
+            creation.operation,
+            crate::status::StatusOperationScope::Shell,
+        );
         self.create_cancel = Some(creation.cancel.clone());
+        self.create_status_operation = Some(creation.operation);
         self.dialogs.push(
             DialogSpec::new(
                 CREATING,
@@ -334,7 +364,7 @@ impl Workbench {
             return;
         }
         if self.create_cancel.is_some() {
-            self.status = "A workspace is already being created.".into();
+            self.outcome_status("A workspace is already being created.");
             return;
         }
         let Ok(a) = self.archetypes.clone() else {
@@ -355,7 +385,12 @@ impl Workbench {
         }
         self.new_parent = Some(draft.parent.clone());
         let creation = WorkspaceCreation::new(draft);
+        self.register_status_operation(
+            creation.operation,
+            crate::status::StatusOperationScope::Shell,
+        );
         self.create_cancel = Some(creation.cancel.clone());
+        self.create_status_operation = Some(creation.operation);
         self.dialogs.push(
             DialogSpec::new(
                 CREATING,
@@ -379,7 +414,12 @@ impl Workbench {
     pub(crate) fn cancel_workspace_creation(&mut self) {
         if let Some(cancel) = &self.create_cancel {
             cancel.cancel();
-            self.status = "Cancelling workspace creation…".into();
+            if let Some(operation) = self.create_status_operation {
+                self.set_status_notice(StatusNotice::operation_progress(
+                    operation,
+                    "Cancelling workspace creation…",
+                ));
+            }
         }
     }
 
@@ -389,6 +429,7 @@ impl Workbench {
             ShellNotice::Adopted {
                 run_id,
                 cancel,
+                operation,
                 result,
             } => {
                 // Adoption and ordinary creation can overlap. Only the
@@ -401,24 +442,38 @@ impl Workbench {
                     .is_some_and(|live| *live == cancel);
                 if owns_creation {
                     self.create_cancel = None;
+                    self.create_status_operation = None;
                     self.dialogs.close(CREATING);
                 }
                 match result {
                     Ok(report) if report.new_workspace => {
-                        self.status = adoption_status(&run_id, &report);
+                        self.set_status_notice(StatusNotice::operation_outcome(
+                            operation,
+                            adoption_status(&run_id, &report),
+                        ));
                         self.requests
                             .push(ShellRequest::OpenWorkspace(report.workspace));
                     }
                     Ok(report) => {
-                        let status = adoption_status(&run_id, &report);
-                        self.run_command(crate::modules::migrate::REFRESH);
-                        // Reloading the mailbox is bookkeeping; the adoption
-                        // outcome is the user-facing completion and must not
-                        // be replaced by the refresh count.
-                        self.status = status;
+                        // The operation outcome lands first; reloading the
+                        // mailbox is bookkeeping and cannot replace it.
+                        self.set_status_notice(StatusNotice::operation_outcome(
+                            operation,
+                            adoption_status(&run_id, &report),
+                        ));
+                        if self
+                            .registry
+                            .index_of(crate::modules::migrate::ID)
+                            .is_some()
+                        {
+                            self.run_command(crate::modules::migrate::REFRESH);
+                        }
                     }
                     Err(e) => {
-                        self.status = format!("adoption of {run_id} refused: {e}");
+                        self.set_status_notice(StatusNotice::operation_outcome(
+                            operation,
+                            format!("adoption of {run_id} refused: {e}"),
+                        ));
                     }
                 }
             }
@@ -430,20 +485,37 @@ impl Workbench {
                     .is_some_and(|c| *c == creation.cancel)
                 {
                     self.create_cancel = None;
+                    self.create_status_operation = None;
                 }
                 self.dialogs.close(CREATING);
+                let operation = creation.operation;
                 if cancelled {
-                    self.status = "Workspace creation cancelled.".into();
+                    self.set_status_notice(StatusNotice::operation_outcome(
+                        operation,
+                        "Workspace creation cancelled.",
+                    ));
                     return;
                 }
                 let draft = creation.draft;
                 match (result, self.archetypes.clone()) {
-                    (Ok(root), _) => self.requests.push(ShellRequest::OpenWorkspace(root)),
+                    (Ok(root), _) => {
+                        self.set_status_notice(StatusNotice::operation_outcome(
+                            operation,
+                            "Workspace created; opening it now.",
+                        ));
+                        self.requests.push(ShellRequest::OpenWorkspace(root));
+                    }
                     (Err(e), Ok(a)) => {
+                        self.set_status_notice(StatusNotice::operation_outcome(
+                            operation,
+                            format!("Workspace creation failed: {e}"),
+                        ));
                         let spec = self.new_workspace_form(&a, Some(&draft), Some(e));
                         self.dialogs.push(spec);
                     }
-                    (Err(e), Err(_)) => self.status = e,
+                    (Err(e), Err(_)) => {
+                        self.set_status_notice(StatusNotice::operation_outcome(operation, e));
+                    }
                 }
             }
             ShellNotice::ImportStarted { requested, job } => {
@@ -482,10 +554,13 @@ impl Workbench {
                 // one workspace, and a foreign or stale completion must not
                 // close the active cancellation control.
                 if self.workspace.as_ref() != Some(&job.workspace) {
-                    self.status = format!(
+                    // A foreign completion is ambient evidence for a workspace the
+                    // user is not looking at. It must not consume the foreground
+                    // operation of the workspace that is open now.
+                    self.bookkeeping_status(format!(
                         "{} finished for a workspace that is no longer open",
                         job.phase.label()
-                    );
+                    ));
                     return;
                 }
                 let Some(i) = self.registry.index_of(crate::modules::migrate::ID) else {
@@ -497,13 +572,16 @@ impl Workbench {
                     .map(|m| m.import_finished(&job))
                     .unwrap_or_default();
                 for it in intents {
-                    self.apply(it);
+                    self.apply_operation_intent(it, job.operation);
                 }
                 if i == self.active {
                     self.revalidate_selection();
                 }
                 if let Err(e) = result {
-                    self.status = format!("{} could not be recorded: {e}", job.phase.label());
+                    self.set_status_notice(StatusNotice::operation_outcome(
+                        job.operation,
+                        format!("{} could not be recorded: {e}", job.phase.label()),
+                    ));
                 }
             }
         }
@@ -692,9 +770,12 @@ mod tests {
 
         // Existing-workspace adoption can overlap an ordinary creation;
         // its failure is a different operation and must not complete it.
+        let operation = crate::status::StatusOperation::mint();
+        wb.register_status_operation(operation, crate::status::StatusOperationScope::Shell);
         wb.notice(ShellNotice::Adopted {
             run_id: "unrelated-existing-adoption".into(),
             cancel: CancelToken::new(),
+            operation,
             result: Err("adoption collision".into()),
         });
 
@@ -715,9 +796,12 @@ mod tests {
         wb.key(&KeyPress::new(KeyInput::Enter));
         let creation = take_creation(&mut wb);
         let token = creation.cancel.clone();
+        let operation = crate::status::StatusOperation::mint();
+        wb.register_status_operation(operation, crate::status::StatusOperationScope::Shell);
         wb.notice(ShellNotice::Adopted {
             run_id: "unrelated-existing-adoption".into(),
             cancel: CancelToken::new(),
+            operation,
             result: Ok(crate::adoption::AdoptionReport {
                 workspace: PathBuf::from("/elsewhere"),
                 files_written: 3,
@@ -726,8 +810,8 @@ mod tests {
                 markdown_writes: 0,
                 skipped_collisions: 0,
                 destination: "content/imported/site".into(),
-                validate: "ok".into(),
-                build: "ok".into(),
+                validate: ExitClass::Ok,
+                build: Some(ExitClass::Ok),
                 new_workspace: false,
             }),
         });
@@ -736,7 +820,7 @@ mod tests {
         assert!(wb.dialogs.open().is_some_and(|d| d.spec.id == CREATING));
         assert_eq!(
             wb.status,
-            "adopted 2 pages and 1 asset from unrelated-existing-adoption into content/imported/site · validate ok, build ok"
+            "adopted 2 pages and 1 asset from unrelated-existing-adoption into content/imported/site"
         );
     }
 
@@ -750,13 +834,53 @@ mod tests {
             markdown_writes: 0,
             skipped_collisions: 0,
             destination: "content/imported/site".into(),
-            validate: "ok".into(),
-            build: "ok".into(),
+            validate: ExitClass::Ok,
+            build: Some(ExitClass::Ok),
             new_workspace: false,
         };
         assert_eq!(
             adoption_status("20261127-hugo", &report),
-            "adopted 2 pages and 1 asset from 20261127-hugo into content/imported/site · validate ok, build ok"
+            "adopted 2 pages and 1 asset from 20261127-hugo into content/imported/site"
+        );
+    }
+
+    #[test]
+    fn adoption_completion_discloses_validation_failure_and_the_skipped_build() {
+        let report = crate::adoption::AdoptionReport {
+            workspace: PathBuf::from("/site"),
+            files_written: 3,
+            pages: 2,
+            assets: 1,
+            markdown_writes: 0,
+            skipped_collisions: 0,
+            destination: "content/imported/site".into(),
+            validate: ExitClass::ContentFailure,
+            build: None,
+            new_workspace: false,
+        };
+        assert_eq!(
+            adoption_status("20261127-hugo", &report),
+            "adopted 2 pages and 1 asset from 20261127-hugo into content/imported/site · validation failed and the build did not run · see Activity"
+        );
+    }
+
+    #[test]
+    fn adoption_completion_discloses_build_failure() {
+        let report = crate::adoption::AdoptionReport {
+            workspace: PathBuf::from("/site"),
+            files_written: 3,
+            pages: 2,
+            assets: 1,
+            markdown_writes: 0,
+            skipped_collisions: 0,
+            destination: "content/imported/site".into(),
+            validate: ExitClass::Ok,
+            build: Some(ExitClass::ContentFailure),
+            new_workspace: false,
+        };
+        assert_eq!(
+            adoption_status("20261127-hugo", &report),
+            "adopted 2 pages and 1 asset from 20261127-hugo into content/imported/site · the build failed · see Activity"
         );
     }
 
@@ -770,13 +894,13 @@ mod tests {
             markdown_writes: 4,
             skipped_collisions: 6,
             destination: "content".into(),
-            validate: "ok".into(),
-            build: "ok".into(),
+            validate: ExitClass::Ok,
+            build: Some(ExitClass::Ok),
             new_workspace: false,
         };
         assert_eq!(
             adoption_status("asset-run", &report),
-            "applied 4 asset renames and 4 Markdown rewrites from asset-run in content · skipped 6 operations on collisions · validate ok, build ok"
+            "applied 4 asset renames and 4 Markdown rewrites from asset-run in content · skipped 6 operations on collisions"
         );
     }
 
@@ -790,6 +914,7 @@ mod tests {
         wb.notice(ShellNotice::Adopted {
             run_id: "matching-adoption".into(),
             cancel: token,
+            operation: creation.operation,
             result: Err("adoption collision".into()),
         });
 
@@ -799,6 +924,41 @@ mod tests {
             wb.status,
             "adoption of matching-adoption refused: adoption collision"
         );
+    }
+
+    #[test]
+    fn a_foreign_import_completion_never_consumes_the_opening_operation() {
+        let mut wb = wb();
+        wb.workspace = Some(PathBuf::from("/current"));
+        let opening = wb.begin_status_operation();
+        assert!(wb.set_status_notice(StatusNotice::operation_progress(
+            opening,
+            "Opening workspace /current…"
+        )));
+        let operation = crate::status::StatusOperation::mint();
+        wb.register_status_operation(operation, crate::status::StatusOperationScope::Workspace);
+        wb.notice(ShellNotice::ImportFinished {
+            job: crate::command::ImportJob {
+                workspace: PathBuf::from("/foreign"),
+                run_id: "foreign-run".into(),
+                mode: "hugo-inventory".into(),
+                phase: crate::command::ImportPhase::Inventory,
+                inputs: Vec::new(),
+                extras: Vec::new(),
+                cancel: CancelToken::new(),
+                operation,
+            },
+            result: Ok(()),
+        });
+
+        assert_eq!(wb.status, "Opening workspace /current…");
+        assert!(
+            wb.set_status_notice(StatusNotice::terminal_operation_evidence(
+                opening,
+                "/current · boris/0.9.0 (Path) · watch"
+            ))
+        );
+        assert_eq!(wb.status, "/current · boris/0.9.0 (Path) · watch");
     }
 
     #[test]

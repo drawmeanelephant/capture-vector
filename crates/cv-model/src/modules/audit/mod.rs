@@ -599,14 +599,14 @@ impl AuditModule {
 
     fn transition(&mut self, to: FindingLifecycle) -> Vec<Intent> {
         let Some(key) = self.selected.clone() else {
-            return vec![Intent::Status("Select a finding first".into())];
+            return vec![Intent::Outcome("Select a finding first".into())];
         };
         let Some(i) = self.entries.iter().position(|e| e.id == key) else {
-            return vec![Intent::Status("Select a finding first".into())];
+            return vec![Intent::Outcome("Select a finding first".into())];
         };
         let e = &self.entries[i];
         if !e.failed() || e.state == FindingLifecycle::Fixed {
-            return vec![Intent::Status(format!(
+            return vec![Intent::Outcome(format!(
                 "{} is {} — nothing to change",
                 e.af.finding.code,
                 if e.failed() { "fixed" } else { "not checked" }
@@ -628,12 +628,12 @@ impl AuditModule {
         match self.port.record(&dk, to) {
             Ok(()) => {
                 self.store_error = None;
-                vec![Intent::Status(msg)]
+                vec![Intent::Outcome(msg)]
             }
             Err(err) => {
                 let s = format!("{msg} (not saved: {err})");
                 self.store_error = Some(err);
-                vec![Intent::Status(s)]
+                vec![Intent::Outcome(s)]
             }
         }
     }

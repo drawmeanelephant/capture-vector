@@ -145,7 +145,7 @@ pub(super) fn next_step(m: &PublishModule, r: &RunRecord) -> Result<String, Stri
 }
 
 fn status(s: impl Into<String>) -> Vec<Intent> {
-    vec![Intent::Status(s.into())]
+    vec![Intent::Outcome(s.into())]
 }
 
 fn run_at<'a>(m: &'a PublishModule, key: Option<&str>) -> Option<&'a RunRecord> {
@@ -169,10 +169,10 @@ fn after(
         nav: None,
     };
     match done {
-        Ok(d) => vec![reveal(&d.run), Intent::Status(d.status)],
+        Ok(d) => vec![reveal(&d.run), Intent::Outcome(d.status)],
         Err(e) => {
             let mut out: Vec<Intent> = run.map(reveal).into_iter().collect();
-            out.push(Intent::Status(format!("{verb} refused: {e}")));
+            out.push(Intent::Outcome(format!("{verb} refused: {e}")));
             out
         }
     }

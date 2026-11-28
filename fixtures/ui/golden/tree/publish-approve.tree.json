@@ -3676,7 +3676,7 @@
         40.0
       ],
       "role": "text",
-      "text": "preflight sealed run-000000-0: approve it to publish"
+      "text": "Publish preflight sealed run-000000-0; approve it to publish"
     },
     {
       "key": "close",

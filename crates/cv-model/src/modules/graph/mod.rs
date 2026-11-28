@@ -275,7 +275,7 @@ impl GraphModule {
     fn move_to(&mut self, target: Option<String>, missing: &str) -> Vec<Intent> {
         match target {
             Some(id) => self.reveal(&id, NEIGHBORHOOD),
-            None => vec![Intent::Status(format!("graph: {missing}"))],
+            None => vec![Intent::outcome(format!("graph: {missing}"))],
         }
     }
 
@@ -954,7 +954,7 @@ impl Module for GraphModule {
             SEARCH_COMMAND => vec![Intent::dialog(self.search_form(None))],
             CLEAR_SEARCH_COMMAND => {
                 self.apply_filter(GraphFilter::default());
-                vec![Intent::Status("graph filter cleared".into())]
+                vec![Intent::outcome("graph filter cleared")]
             }
             PARENT_COMMAND => {
                 let target = self.parent_target();
@@ -980,7 +980,7 @@ impl Module for GraphModule {
                 let target = self.first_relation_neighbor(SemanticDirection::Outgoing);
                 self.move_to(target, "the focused page has no outgoing page relations")
             }
-            _ => vec![Intent::Status(format!("unknown command {command}"))],
+            _ => vec![Intent::outcome(format!("unknown command {command}"))],
         }
     }
 
@@ -991,11 +991,11 @@ impl Module for GraphModule {
         let filter = Self::filter_from_answer(answer);
         self.apply_filter(filter);
         if !self.filter.active() {
-            return vec![Intent::Status("graph filter cleared".into())];
+            return vec![Intent::outcome("graph filter cleared")];
         }
         match self.search_results.first().cloned() {
             Some(first) => self.reveal(&first, SEARCH),
-            None => vec![Intent::Status("graph filter matches no pages".into())],
+            None => vec![Intent::outcome("graph filter matches no pages")],
         }
     }
 

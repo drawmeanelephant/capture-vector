@@ -264,6 +264,7 @@ fn adoption_job(ws: &Path, run_id: &str, subfolder: &str) -> AdoptionJob {
             },
         },
         cancel: CancelToken::new(),
+        operation: cv_model::status::StatusOperation::mint(),
     }
 }
 

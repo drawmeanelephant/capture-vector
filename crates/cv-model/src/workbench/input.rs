@@ -206,7 +206,7 @@ impl Workbench {
         }
         if let Some(command) = self.active_module_command_for_key(k) {
             if let Some(why) = command.disabled {
-                self.status = format!("{} is unavailable: {why}", command.title);
+                self.outcome_status(format!("{} is unavailable: {why}", command.title));
             } else {
                 self.run_command(&command.id);
             }
@@ -271,7 +271,7 @@ impl Workbench {
                 self.palette.close();
                 if let Some(c) = selected {
                     if let Some(why) = c.disabled {
-                        self.status = format!("{} is unavailable: {why}", c.title);
+                        self.outcome_status(format!("{} is unavailable: {why}", c.title));
                     } else {
                         self.run_command(&c.id);
                     }

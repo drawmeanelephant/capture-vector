@@ -376,7 +376,7 @@ impl PagesModule {
 
     fn outcome(&self, ev: PagesEvent) -> Vec<Intent> {
         let status = ev.summary();
-        vec![Intent::Pages(ev), Intent::Status(status)]
+        vec![Intent::Pages(ev), Intent::Outcome(status)]
     }
 
     fn failed(&self, verb: &str, path: &str, message: String) -> Vec<Intent> {

@@ -107,7 +107,7 @@ fn query(s: &Workbench) -> El {
 fn activate(s: &mut Workbench, c: &CommandSpec) {
     s.palette.close();
     if let Some(why) = &c.disabled {
-        s.status = format!("{} is unavailable: {why}", c.title);
+        s.outcome_status(format!("{} is unavailable: {why}", c.title));
     } else {
         s.run_command(&c.id);
     }

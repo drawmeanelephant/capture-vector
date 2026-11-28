@@ -5,6 +5,7 @@ use super::{IR_WINDOW, LiveDelivery, Scheduler};
 use cv_core::engine::{EventSink, ExitClass};
 use cv_engine::cursor::{CursorTracker, Observation};
 use cv_engine::debounce::Debounced;
+use cv_model::status::StatusNotice;
 use cv_model::workbench::Inbound;
 use std::sync::{Arc, Mutex, Weak};
 
@@ -65,10 +66,10 @@ impl LiveDelivery {
         };
         crate::logging::warn("ir_projection_failed", &[("why", serde_json::json!(why))]);
         if let Err(e) = result {
-            self.inbox.send(Inbound::Status(format!(
+            self.inbox.send(Inbound::Status(StatusNotice::engine_evidence(format!(
                 "Boris IR projection failed: {e} · Pages keeps the last published Boris IR or marked source fields · {}",
                 self.workspace_identity()
-            )));
+            ))));
         }
     }
 

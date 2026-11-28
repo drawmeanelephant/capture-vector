@@ -13,6 +13,7 @@ pub mod module;
 pub mod modules;
 pub mod new_workspace;
 pub mod noun_views;
+pub mod status;
 pub mod theme;
 pub mod viewport;
 pub mod windows;

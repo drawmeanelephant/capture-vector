@@ -5,6 +5,7 @@ use cv_core::events::engine::{EngineEvent, VerbReport};
 use cv_core::events::{AppEvent, Cursor, Envelope, EventId, SessionId, SnapshotEpoch};
 use cv_core::id::WorkspaceId;
 use cv_model::module::Registry;
+use cv_model::status::StatusNotice;
 use cv_model::workbench::{Inbound, Workbench};
 use cv_model::workspace_key::WorkspaceKey;
 
@@ -234,7 +235,10 @@ fn r12_retention_disclosure_survives_a_batched_boot_status() {
             verb_outcome(&format!("held-{i:02}"), "validate", i + 1, 0),
         );
     }
-    wb.inbox().send(Inbound::Status("engine ready".into()));
+    wb.inbox()
+        .send(Inbound::Status(StatusNotice::engine_evidence(
+            "engine ready",
+        )));
     wb.drain();
     println!("R12-RETENTION-DISCLOSURE final_status={:?}", wb.status);
     assert!(

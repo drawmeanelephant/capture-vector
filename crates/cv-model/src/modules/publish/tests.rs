@@ -446,7 +446,7 @@ fn status_of(intents: &[Intent]) -> String {
     intents
         .iter()
         .find_map(|i| match i {
-            Intent::Status(s) => Some(s.clone()),
+            Intent::Outcome(s) => Some(s.clone()),
             _ => None,
         })
         .unwrap_or_default()
@@ -488,7 +488,7 @@ fn preflight_asks_the_port_and_selects_the_run_it_recorded() {
     assert!(m.contains("run-new"), "the ledger is read again");
     assert!(
         m.run("publish.preflight.github-pages")[0]
-            == Intent::Status(
+            == Intent::Outcome(
                 "GitHub Pages delivery is not wired yet; copy-to-folder is the only wired delivery"
                     .into()
             )

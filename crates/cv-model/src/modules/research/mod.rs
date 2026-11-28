@@ -123,10 +123,10 @@ impl ResearchModule {
         f: impl FnOnce(&mut Self, StableId) -> Result<String, String>,
     ) -> Vec<Intent> {
         let Some(id) = self.target() else {
-            return vec![Intent::Status("research: no note selected".into())];
+            return vec![Intent::Outcome("research: no note selected".into())];
         };
         let msg = f(self, id).unwrap_or_else(|e| format!("research: {e}"));
-        vec![Intent::Status(msg)]
+        vec![Intent::Outcome(msg)]
     }
 
     fn promote(&mut self, id: StableId) -> Result<String, String> {
@@ -439,7 +439,7 @@ impl Module for ResearchModule {
             },
             _ => format!("unknown answer {command}"),
         };
-        vec![Intent::Status(msg)]
+        vec![Intent::Outcome(msg)]
     }
 }
 
@@ -468,7 +468,7 @@ impl ResearchModule {
         }
         if let Some(f) = verb.strip_prefix("filter.") {
             let msg = self.filter.run(f, &mut self.session);
-            return vec![Intent::Status(msg)];
+            return vec![Intent::Outcome(msg)];
         }
         match verb {
             "capture.idea" => vec![Intent::dialog(capture_prompt(""))],
@@ -480,7 +480,7 @@ impl ResearchModule {
             }),
             "triage.archive" => {
                 let Some(id) = self.target() else {
-                    return vec![Intent::Status("research: no note selected".into())];
+                    return vec![Intent::Outcome("research: no note selected".into())];
                 };
                 let title = self.title_of(&id);
                 vec![Intent::dialog(
@@ -508,7 +508,7 @@ impl ResearchModule {
                 Ok(format!("linked {} → {} ({})", id.0, other.0, l.0))
             }),
             "promote" => self.with_target(Self::promote),
-            _ => vec![Intent::Status(format!("unknown command {command}"))],
+            _ => vec![Intent::Outcome(format!("unknown command {command}"))],
         }
     }
 }

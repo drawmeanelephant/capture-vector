@@ -248,12 +248,12 @@ impl Writer {
             .map_err(why)?;
         Ok(match out {
             PreflightOutcome::Granted { run, .. } => Done {
-                status: format!("preflight sealed {}: approve it to publish", run.0),
+                status: format!("Publish preflight sealed {}; approve it to publish", run.0),
                 run: run.0,
             },
             PreflightOutcome::Blocked { run, blocks } => Done {
                 status: format!(
-                    "preflight blocked {}: {} blocking finding(s)",
+                    "Publish preflight blocked {}: {} blocking finding(s); inspect the run",
                     run.0,
                     blocks.len()
                 ),

@@ -103,16 +103,38 @@ fn build_holds_a_progress_dialog_until_its_run_lands_in_activity() {
     wb.run_command("engine.build");
     assert_eq!(held.0.borrow()[0].verb, Verb::Build);
     assert_eq!(wb.dialogs.open().map(|d| d.spec.id.as_str()), Some(RUNNING));
-    assert_eq!(wb.status, "Running boris build…");
+    assert_eq!(wb.status, "Building the site…");
 
     answer(&mut wb, &held, "happy");
     assert!(!wb.dialogs.is_open());
+    assert_eq!(wb.status, "Site build finished");
     assert!(
-        wb.status.starts_with("boris build finished (exit 0"),
-        "{}",
-        wb.status
+        !wb.status.contains("exit 0"),
+        "machinery stays out of the outcome"
     );
     assert!(activity_titles(&wb).contains(&"build finished".to_string()));
+
+    let activity = wb
+        .registry
+        .get(wb.registry.index_of(crate::modules::activity::ID).unwrap())
+        .unwrap();
+    let row = (0..activity.list_len(None))
+        .map(|i| activity.row(None, i))
+        .find(|r| r.title == "build finished")
+        .expect("the verb run is an Activity entry");
+    let reading = activity.reading(&row.key);
+    let line = |label: &str| {
+        reading
+            .lines
+            .iter()
+            .find(|l| l.label.as_deref() == Some(label))
+            .unwrap_or_else(|| panic!("no {label} line in {reading:?}"))
+            .text
+            .as_str()
+    };
+    assert_eq!(line("command"), "boris build");
+    assert!(line("exit").starts_with("exit 0"), "{}", line("exit"));
+    assert!(line("duration").ends_with(" ms"), "{}", line("duration"));
 }
 
 #[test]
@@ -131,7 +153,7 @@ fn cancelling_progress_cancels_the_run_token() {
     wb.dialog_cancel();
     let run = held.0.borrow()[0].clone();
     assert!(run.cancel.is_cancelled());
-    assert_eq!(wb.status, "Cancelling boris export:llms…");
+    assert_eq!(wb.status, "Cancelling llms.txt export…");
 }
 
 #[test]
@@ -140,11 +162,7 @@ fn short_verbs_report_on_the_status_line_without_a_dialog() {
     wb.run_command("engine.validate");
     assert!(!wb.dialogs.is_open());
     answer(&mut wb, &held, "happy");
-    assert!(
-        wb.status.starts_with("boris validate finished (exit 0"),
-        "{}",
-        wb.status
-    );
+    assert_eq!(wb.status, "Validation passed");
 }
 
 #[test]
@@ -153,10 +171,7 @@ fn a_usage_error_points_at_activity_errors() {
     wb.run_command("engine.export.rss");
     answer(&mut wb, &held, "happy");
     assert!(!wb.dialogs.is_open());
-    assert_eq!(
-        wb.status,
-        "boris build --rss failed (exit 2) · see Activity › Errors"
-    );
+    assert_eq!(wb.status, "RSS feed export failed · see Activity");
 }
 
 #[test]
@@ -231,10 +246,7 @@ fn an_unknown_impact_target_is_an_error_run_not_a_reading() {
     select_page(&mut wb, "missing.md");
     wb.run_command("engine.impact");
     answer(&mut wb, &held, "happy");
-    assert_eq!(
-        wb.status,
-        "boris impact missing --format json failed (exit 2) · see Activity › Errors"
-    );
+    assert_eq!(wb.status, "Impact review failed · see Activity");
     let engine = wb.registry.index_of(ID).unwrap();
     assert_eq!(wb.registry.get(engine).unwrap().list_len(None), 0);
 }

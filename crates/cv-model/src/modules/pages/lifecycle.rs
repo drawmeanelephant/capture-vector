@@ -35,7 +35,7 @@ pub fn run(m: &mut PagesModule, command: &str) -> Vec<Intent> {
                 ))],
                 Err(e) => m.failed("rename", &path, e),
             },
-            None => vec![Intent::Status(
+            None => vec![Intent::Outcome(
                 "pages: select a page to rename or move".into(),
             )],
         },
@@ -46,7 +46,7 @@ pub fn run(m: &mut PagesModule, command: &str) -> Vec<Intent> {
                 ))],
                 Err(e) => m.failed("reparent", &path, e),
             },
-            None => vec![Intent::Status("pages: select a page to reparent".into())],
+            None => vec![Intent::Outcome("pages: select a page to reparent".into())],
         },
         DELETE => match selected(m) {
             Some((path, _, title)) => match source_base(m, &path) {
@@ -55,9 +55,9 @@ pub fn run(m: &mut PagesModule, command: &str) -> Vec<Intent> {
                 ))],
                 Err(e) => m.failed("delete", &path, e),
             },
-            None => vec![Intent::Status("pages: select a page to delete".into())],
+            None => vec![Intent::Outcome("pages: select a page to delete".into())],
         },
-        _ => vec![Intent::Status(format!("unknown command {command}"))],
+        _ => vec![Intent::Outcome(format!("unknown command {command}"))],
     }
 }
 
@@ -70,7 +70,7 @@ pub fn answer(m: &mut PagesModule, command: &str, a: &DialogAnswer) -> Vec<Inten
         RENAME => rename(m, a),
         REPARENT => reparent(m, a),
         DELETE => delete(m, a),
-        _ => vec![Intent::Status(format!("unknown answer {command}"))],
+        _ => vec![Intent::Outcome(format!("unknown answer {command}"))],
     }
 }
 
@@ -240,7 +240,7 @@ fn rename(m: &mut PagesModule, a: &DialogAnswer) -> Vec<Intent> {
         return retry(rename_prompt(&old, &title, Some(a), &base, None), e);
     }
     if new == old {
-        return vec![Intent::Status(format!("{old} unchanged"))];
+        return vec![Intent::Outcome(format!("{old} unchanged"))];
     }
     let source = match m.port.read(&m.workspace_path(&old)) {
         Ok(s) => s,
@@ -325,7 +325,7 @@ fn reparent(m: &mut PagesModule, a: &DialogAnswer) -> Vec<Intent> {
         );
     };
     if parent == current.as_deref() {
-        return vec![Intent::Status(format!("{id} already has that parent"))];
+        return vec![Intent::Outcome(format!("{id} already has that parent"))];
     }
     if let Some(p) = parent
         && !m.reparent_targets(&path).iter().any(|(id, _)| id == p)

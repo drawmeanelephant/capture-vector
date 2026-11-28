@@ -7,6 +7,7 @@ use super::{claim_import_run, now_ms, run_lab_with_lock};
 use cv_engine::lab::{self as engine_lab, LabIdentity};
 use cv_model::command::{ImportJob, ImportPhase};
 use cv_model::new_workspace::{Notices, ShellNotice};
+use cv_model::status::StatusOperationScope;
 use cv_model::workbench::Workbench;
 use cv_store::imports::{self as store, RunRecord};
 use std::thread::JoinHandle;
@@ -107,6 +108,7 @@ pub fn spawn_import_with(
     job: ImportJob,
     lab_override: Option<LabIdentity>,
 ) -> Option<JoinHandle<()>> {
+    wb.register_status_operation(job.operation, StatusOperationScope::Workspace);
     let notices = wb.notices();
     let doctor = cv_model::modules::doctor::installed();
     let notice_job = job.clone();

@@ -3,6 +3,7 @@
 
 use crate::adoption::AdoptionRequest;
 use crate::dialog::{DialogSpec, Pick};
+use crate::status::{StatusOperation, StatusOperationScope};
 use cv_core::engine::CancelToken;
 use cv_core::events::pages::PagesEvent;
 use cv_core::events::shell::DegradedReason;
@@ -44,6 +45,22 @@ impl Intent {
     pub fn dialog(spec: DialogSpec) -> Self {
         Self::Dialog(Box::new(spec))
     }
+
+    pub fn outcome(text: impl Into<String>) -> Self {
+        Self::Outcome(text.into())
+    }
+
+    pub fn progress(text: impl Into<String>) -> Self {
+        Self::Progress(text.into())
+    }
+
+    pub fn bookkeeping(text: impl Into<String>) -> Self {
+        Self::Bookkeeping(text.into())
+    }
+
+    pub fn engine_evidence(text: impl Into<String>) -> Self {
+        Self::EngineEvidence(text.into())
+    }
 }
 
 /// One migration-lab execution the shell is asked to run for Migrate.
@@ -82,6 +99,8 @@ pub struct ImportJob {
     /// `(flag, value)` scalar pass-through options; empty means lab defaults.
     pub extras: Vec<(String, String)>,
     pub cancel: CancelToken,
+    /// Causal shell-status identity for the worker's progress/completion.
+    pub operation: StatusOperation,
 }
 
 /// What a module asks the shell to do. Modules emit intents; the shell
@@ -93,7 +112,21 @@ pub enum Intent {
     /// A page lifecycle fact the model just performed; committed as a
     /// local envelope so Activity and the journal see it like any event.
     Pages(PagesEvent),
-    Status(String),
+    /// The result of an operation the user asked for.
+    Outcome(String),
+    /// Live progress of a foreground operation.
+    Progress(String),
+    /// Refresh or presentation bookkeeping.
+    Bookkeeping(String),
+    /// Machinery evidence Activity also carries.
+    EngineEvidence(String),
+    /// Register a long-running operation before any tagged notice can arrive.
+    BeginStatusOperation {
+        operation: StatusOperation,
+        scope: StatusOperationScope,
+    },
+    /// A classified status notice, used when it carries causal operation identity.
+    Status(crate::status::StatusNotice),
     /// Close the open stores, rebuild every SQLite index from `.cv/` JSONL,
     /// and reopen the same workspace.
     RebuildIndexes,
