@@ -23,6 +23,7 @@ use cv_core::events::shell::{DegradedReason, ShellEvent};
 use cv_core::events::{AppEvent, Cursor, EventId, SessionId, SnapshotEpoch};
 use cv_core::id::{Selection, StableId, WorkspaceId};
 use cv_core::store::{Namespace, Store};
+pub use disclosure::ValueExpansionKey;
 pub use input::{KeyInput, KeyPress, ShellRequest};
 use outcome_retention::{
     MAX_PENDING_OUTCOME_BYTES, MAX_PENDING_OUTCOMES, dedupe_outcome_copies, digest,
@@ -232,11 +233,12 @@ pub struct Workbench {
     /// Inspector sections whose open state the user flipped from the
     /// default (open when it has items), by title.
     pub sections_flipped: BTreeSet<String>,
-    /// Inspector values the user expanded inline, by noun + value key, so
-    /// one record's expansion never leaks into another's. Long values
-    /// (paths, argv, hashes) truncate in the pane's width; expansion is
-    /// how their full text shows without leaving the app.
-    pub values_expanded: BTreeSet<String>,
+    /// Inspector values the user expanded inline, scoped by workspace,
+    /// module, mailbox, row and stable noun evidence so one record's
+    /// expansion never leaks into another's. Long values (paths, argv,
+    /// hashes) truncate in the pane's width; expansion is how their full
+    /// text shows without leaving the app.
+    values_expanded: BTreeSet<ValueExpansionKey>,
     /// Shows the window bookkeeping (dirty state per window) in the
     /// inspector; a debugging aid, off by default.
     pub debug_windows: bool,
@@ -412,6 +414,8 @@ impl Workbench {
         self.app = AppState::default();
         self.seen.clear();
         self.unjournaled.clear();
+        self.sections_flipped.clear();
+        self.values_expanded.clear();
         self.palette = Palette::default();
         // Degraded identity evidence belongs to the workspace, not one
         // module generation; disclose it afresh after each rebuild so the

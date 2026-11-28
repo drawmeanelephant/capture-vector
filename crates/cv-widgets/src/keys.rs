@@ -54,7 +54,8 @@ fn platform() -> KeyPlatform {
     KEYCAPS.get().copied().unwrap_or_else(KeyPlatform::current)
 }
 /// Parse a script token: `"mod+k"`, `"down"`, `"enter"`, `"esc"`, `"tab"`,
-/// `"shift+tab"`, `"bksp"`, or literal text (`"text:replay"`).
+/// `"shift+tab"`, `"space"`, `"f6"` (through `"f24"`), `"bksp"`, or literal
+/// text (`"text:replay"`).
 pub fn parse(token: &str) -> Vec<KeyEvent> {
     use rune::Mods;
     let ev = |key, mods| KeyEvent { key, mods };
@@ -82,9 +83,16 @@ pub fn parse(token: &str) -> Vec<KeyEvent> {
         "enter" => Key::Enter,
         "esc" => Key::Escape,
         "tab" => Key::Tab,
+        "space" => Key::Text(" ".into()),
         "bksp" => Key::Backspace,
+        n if function_key(n).is_some() => Key::Function(function_key(n).unwrap_or(1)),
         n if mods.cmd && n.chars().count() == 1 => Key::Command(n.chars().next().unwrap_or(' ')),
         n => Key::Text(n.into()),
     };
     vec![ev(key, mods)]
+}
+
+fn function_key(name: &str) -> Option<u8> {
+    let n: u8 = name.strip_prefix('f')?.parse().ok()?;
+    (1..=24).contains(&n).then_some(n)
 }
