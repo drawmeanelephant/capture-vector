@@ -375,10 +375,13 @@ captured = "2026-11-25T22:54:42Z"
 [migration_lab]
 # The second pinned tool. scripts/fetch-migration-lab.sh builds this commit
 # and cv_engine::lab::PINNED mirrors it; capture-fixtures.sh carries this
-# table forward unchanged when it rewrites the manifest.
+# table forward unchanged when it rewrites the manifest. zig_series is the
+# build requirement; zig_version only records the compiler that produced
+# these canonical captures.
 repo = "https://github.com/drawmeanelephant/boris-migration-lab"
 commit = "ce40d78a0cd20f3e36550c7a85391903672bcb5a"
 tool_id = "boris-migration-lab/0.8.1"
+zig_series = "0.17"
 zig_version = "0.17.1"
 
 [lab_captures]

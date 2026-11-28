@@ -83,7 +83,23 @@ it everything else works, and the app discloses the absence.
   under `[migration_lab]`; needs git, zig 0.17.x, and network):
   `./scripts/fetch-migration-lab.sh`. It builds into
   `vendor/boris-migration-lab/zig-out/bin/` and prints the
-  `CV_MIGRATION_LAB_BIN` line to export.
+  `CV_MIGRATION_LAB_BIN` line to export. `zig_series` is the compiler
+  requirement; the exact `zig_version` records the compiler used for the
+  canonical captures and is not an exact-patch requirement. The pinned
+  lab's upstream minimum is Zig 0.17.0; Capture Vector accepts the proven
+  0.17.x series and refuses other series.
+- On Windows, run the fetch from an MSYS2/Git Bash shell. These two forms
+  are equivalent when the assignment and command are on the same line:
+
+  ```sh
+  ZIG=/c/tools/zig-x86_64-windows-0.17.0/zig.exe ./scripts/fetch-migration-lab.sh
+  env ZIG=/c/tools/zig-x86_64-windows-0.17.0/zig.exe /usr/bin/bash ./scripts/fetch-migration-lab.sh
+  ```
+
+  A separate `ZIG=…` line is shell-local unless it is exported. Use
+  `export ZIG=…` before the fetch in that form. Native-drive spellings
+  (`C:\…` or `C:/…`) are converted through `cygpath` when needed; quote
+  backslash spellings so the shell passes them through unchanged.
 - Discovery order matches Boris: `CV_MIGRATION_LAB_BIN` → bundled
   `engines/` → `PATH` → `<workspace>/../boris-migration-lab/zig-out/bin`,
   the last only with `CV_MIGRATION_LAB_SIBLING=1`.
