@@ -4,7 +4,7 @@ version = "0.0.0"
 publish = false
 edition.workspace = true
 rust-version.workspace = true
-description = "The ONLY crate importing rune/rune-kit (version firewall; cargo-deny enforces)."
+description = "The ONLY crate importing rune/rune-kit (version firewall enforced by a CI scan)."
 
 [dependencies]
 # Native Open-folder dialog for the workspace picker (rfd on macOS and

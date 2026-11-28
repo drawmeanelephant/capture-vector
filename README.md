@@ -27,10 +27,12 @@ in [`spec/`](spec/README.md). Packaging and release:
   `obsidian`, `wordpress`) into a new or existing workspace, with
   provenance under `.cv/imports/` and a validate/build gate after the
   copy.
+- Run `static-dist` copy-to-folder publishes through preflight, approval,
+  dispatch, and reconciliation, with ledger evidence under `.cv/ledger/`.
 - Verify the shell headlessly through element-tree/layout JSON goldens.
 
-Still ahead: signed installers, Windows proof, and the fully wired publish
-module. The user-facing guide is [`docs/user-guide.md`](docs/user-guide.md).
+Still ahead: signed installers and Windows proof. The user-facing guide is
+[`docs/user-guide.md`](docs/user-guide.md).
 
 ## Prerequisites
 

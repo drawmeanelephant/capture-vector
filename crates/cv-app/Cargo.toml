@@ -20,8 +20,8 @@ cv-store.workspace = true
 # default-features=false keeps the QA harness out of the shipped binary.
 cv-widgets = { workspace = true, default-features = false }
 cv-ui-editor.workspace = true
-# Wave-0 canary: StubEngine replays captured Boris watch sessions until
-# cv-engine's real adapter is wired by the integrator.
+# Fixture-backed demo/headless scenes and the in-memory Store stub are
+# production uses until the on-disk Store lands.
 cv-fixtures.workspace = true
 serde_json.workspace = true
 
