@@ -80,7 +80,8 @@ fn head(t: &Theme, m: &ReadingModel) -> El {
             .key("reading-title")
             .font(font(t.type_.display))
             .color(color(t.colors.text))
-            .wrap(),
+            .wrap()
+            .selectable(true),
     )
 }
 
@@ -101,6 +102,7 @@ fn content(t: &Theme, m: ReadingModel) -> El {
             .font(font(style))
             .color(tone(t, l.tone))
             .wrap()
+            .selectable(true)
             .grow(1.0)
             .min_w(0.0);
         if crate::value::is_url(&l.text) {

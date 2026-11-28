@@ -558,3 +558,58 @@ fn expansion_is_scoped_per_module_even_when_row_and_element_keys_collide() {
         "returning to the first module preserves that record's expansion"
     );
 }
+
+fn drag_selection(h: &mut Harness, key: &str) -> Option<String> {
+    let (_, [x, y, w, height], _) = element(h, key);
+    h.rt.pointer_down(x + 2.0, y + height / 2.0);
+    h.rt.pointer_move(x + (w * 0.4).max(24.0), y + height / 2.0);
+    h.rt.pointer_up(x + (w * 0.4).max(24.0), y + height / 2.0);
+    h.settle();
+    h.rt.elements()
+        .into_iter()
+        .find(|e| e.key.as_deref() == Some(key) && !e.exiting)
+        .and_then(|e| e.selected)
+}
+
+#[test]
+fn a_clipped_output_path_is_selectable_in_the_reading_pane() {
+    const PATH: &str = "_boris/search/search-index.json";
+    let mut h = scene("outputs");
+    assert!(h.click(&format!("row-{PATH}")));
+    let (title, _, _) = element(&h, "reading-title");
+    assert_eq!(title.as_deref(), Some(PATH));
+    let selected = drag_selection(&mut h, "reading-title");
+    assert!(
+        selected.as_deref().is_some_and(|s| !s.is_empty()),
+        "the complete path can be selected for copying: {selected:?}"
+    );
+}
+
+#[test]
+fn a_clipped_migration_review_rows_evidence_expands_in_the_inspector() {
+    let mut h = scene("migrate-review");
+    assert_eq!(expanded(&h, "field-reason-expand"), Some(false));
+    assert!(h.click("field-reason-expand"));
+    let (text, rect, _) = element(&h, "field-reason-full");
+    assert_eq!(
+        text.as_deref(),
+        Some("image cover.png → guides.assets/cover.png")
+    );
+    assert!(
+        rect[2] > 144.0,
+        "the evidence uses the inspector width instead of the clipped field column: {rect:?}"
+    );
+}
+
+#[test]
+fn audit_evidence_rows_keep_their_complete_values_in_the_inspector() {
+    let h = scene("audit-detail");
+    for (key, text) in [
+        ("list-0-1", "expected: \"exists\""),
+        ("list-0-2", "observed: 0"),
+        ("list-0-4", "selector: \"$.title\""),
+    ] {
+        let (got, _, _) = element(&h, key);
+        assert_eq!(got.as_deref(), Some(text), "{key}");
+    }
+}
