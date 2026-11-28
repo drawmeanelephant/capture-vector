@@ -349,8 +349,11 @@ pub(crate) fn shell_command(script: &str) -> Command {
         // `Command::arg` quoting is for argv-aware programs and is not the
         // raw command text `cmd` expects. `/S` plus one verbatim outer pair
         // makes the stripping deterministic and preserves quotes inside the
-        // script (notably the quoted helper executable path).
-        c.arg("/S").arg("/C");
+        // script (notably the quoted helper executable path). `/D` keeps an
+        // AutoRun registry command out of the test, and `/V:OFF` makes `!`
+        // in helper paths deterministic even on machines that enable delayed
+        // expansion globally.
+        c.arg("/D").arg("/V:OFF").arg("/S").arg("/C");
         c.raw_arg(format!("\"{script}\""));
         c
     }
@@ -424,6 +427,20 @@ mod tests {
         assert!(pulled.load(Ordering::SeqCst) <= 1024 + 8192);
     }
 
+    #[cfg(windows)]
+    #[test]
+    fn windows_shell_disables_autorun_and_delayed_expansion() {
+        let cmd = shell_command("exit 0");
+        let args: Vec<String> = cmd
+            .get_args()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(
+            args.iter().take(4).map(String::as_str).collect::<Vec<_>>(),
+            vec!["/D", "/V:OFF", "/S", "/C"]
+        );
+    }
+
     const ENDLESS_HELPER_ENV: &str = "CV_ENGINE_ENDLESS_OUTPUT";
     const ENDLESS_STREAMS: [&str; 2] = ["stdout", "stderr"];
     // Longer than the public test bound: if tree killing breaks, the helper's
@@ -460,19 +477,67 @@ mod tests {
         }
     }
 
-    fn endless_command(stream: &str) -> Command {
+    struct EndlessOutputHelper {
+        path: std::path::PathBuf,
+        #[cfg(windows)]
+        _scratch: tempfile::TempDir,
+    }
+
+    #[cfg(unix)]
+    fn endless_output_helper() -> EndlessOutputHelper {
+        EndlessOutputHelper {
+            path: std::env::current_exe().expect("test executable path"),
+        }
+    }
+
+    #[cfg(windows)]
+    fn endless_output_helper() -> EndlessOutputHelper {
+        let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .expect("crate has a workspace root");
+        let scratch_root = workspace.join("target/cv-tmp");
+        std::fs::create_dir_all(&scratch_root).expect("create process-test scratch root");
+        let scratch = tempfile::Builder::new()
+            .prefix("endless-helper-")
+            .tempdir_in(&scratch_root)
+            .expect("create process-test scratch dir");
+        let shape_dir = scratch.path().join("helper path with spaces 100% & bang!");
+        std::fs::create_dir_all(&shape_dir).expect("create shell-hostile helper dir");
+        let path = shape_dir.join("endless-output helper 100% & bang!.exe");
+        let source = std::env::current_exe().expect("test executable path");
+        if let Err(link_error) = std::fs::hard_link(&source, &path) {
+            std::fs::copy(&source, &path).unwrap_or_else(|copy_error| {
+                panic!(
+                    "failed to hard-link ({link_error}) or copy ({copy_error}) the endless-output helper"
+                )
+            });
+        }
+        EndlessOutputHelper {
+            path,
+            _scratch: scratch,
+        }
+    }
+
+    fn endless_command_with_helper(stream: &str, helper: &Path) -> Command {
         // Re-execute this native test binary through the platform shell. The
         // shell spawns the writer as a descendant, so the test still proves
         // that output-overflow cleanup kills the process tree rather than only
         // the leader. Unlike the old PowerShell writer, the measured cost is
         // Capture Vector's process boundary, not CLR startup or interpreter
         // teardown. An environment variable carries the executable path so
-        // spaces and percent signs in checkout paths don't become shell syntax.
+        // the test does not have to splice arbitrary path text into shell
+        // source. On Windows the helper path deliberately contains spaces and
+        // shell punctuation to prove that expansion and quoting keep the
+        // invoked executable intact. On Unix the background+wait shape
+        // matters: a one-command `sh -c` script may exec the writer in-place,
+        // which collapses the process tree the regression is meant to exercise.
         #[cfg(unix)]
         let script = concat!(
             "\"$CV_PROC_HELPER_EXE\" ",
             "proc::tests::endless_output_process_mode_writes_until_killed ",
-            "--exact --nocapture --ignored"
+            "--exact --nocapture --ignored & ",
+            "child=$!; wait \"$child\""
         );
         #[cfg(windows)]
         let script = concat!(
@@ -481,20 +546,62 @@ mod tests {
             "--exact --nocapture --ignored"
         );
         let mut cmd = shell_command(script);
-        cmd.env(
-            "CV_PROC_HELPER_EXE",
-            std::env::current_exe().expect("test executable path"),
-        )
-        .env(ENDLESS_HELPER_ENV, stream);
+        cmd.env("CV_PROC_HELPER_EXE", helper)
+            .env(ENDLESS_HELPER_ENV, stream);
         cmd
+    }
+
+    #[cfg(unix)]
+    fn direct_child_pids(pid: u32) -> Vec<u32> {
+        let mut cmd = Command::new("ps");
+        // Use repeated `-o` options rather than `pid=,ppid=`: procps
+        // documents comma-separated empty headers as personality-dependent.
+        cmd.args(["-e", "-o", "pid=", "-o", "ppid="]);
+        let captured = run_captured(cmd, None, &CancelToken::new()).expect("ps runs");
+        String::from_utf8_lossy(&captured.stdout)
+            .lines()
+            .filter_map(|line| {
+                let mut fields = line.split_whitespace();
+                let child = fields.next()?.parse::<u32>().ok()?;
+                let parent = fields.next()?.parse::<u32>().ok()?;
+                (parent == pid).then_some(child)
+            })
+            .collect()
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn unix_endless_output_command_keeps_writer_below_shell_leader() {
+        let helper = endless_output_helper();
+        let mut child = Spawned::spawn(
+            endless_command_with_helper("stdout", &helper.path),
+            Stdio::null(),
+        )
+        .unwrap();
+        let leader = child.child.id();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut children = Vec::new();
+        while Instant::now() < deadline {
+            children = direct_child_pids(leader);
+            if !children.is_empty() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        child.kill_tree(Duration::ZERO);
+        assert!(
+            !children.is_empty(),
+            "shell leader {leader} execed the writer in-place; the regression no longer exercises descendant cleanup"
+        );
     }
 
     #[test]
     fn endless_child_output_fails_at_the_limit_instead_of_hanging() {
+        let helper = endless_output_helper();
         for expected_stream in ENDLESS_STREAMS {
             let start = Instant::now();
             let result = run_captured_with_limit(
-                endless_command(expected_stream),
+                endless_command_with_helper(expected_stream, &helper.path),
                 None,
                 &CancelToken::new(),
                 1024,
