@@ -210,6 +210,9 @@ fn close_dialog(s: &EditorWindow, layer: &mut Vec<El>) {
 }
 
 impl DialogHost for EditorWindow {
+    fn open(&self) -> bool {
+        !matches!(self.closing, Closing::Open)
+    }
     fn act(&mut self, action: &str, tx: &mut Tx) {
         match action {
             "discard" => self.discard_and_close(tx),
