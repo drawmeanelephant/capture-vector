@@ -457,7 +457,7 @@ impl OpenDialog {
                 let down = match &k.key {
                     KeyInput::Down => true,
                     KeyInput::Up => false,
-                    KeyInput::Tab => !k.shift,
+                    KeyInput::Tab => !k.modifiers.shift,
                     KeyInput::Char(c) => {
                         self.choose.type_char(*c);
                         return Step::Edited;
@@ -483,7 +483,7 @@ impl OpenDialog {
             return false;
         }
         if k.key == KeyInput::Tab {
-            let d = if k.shift { -1 } else { 1 };
+            let d = if k.modifiers.shift { -1 } else { 1 };
             self.focus = (self.focus as isize + d).rem_euclid(n as isize) as usize;
             return true;
         }

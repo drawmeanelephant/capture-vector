@@ -133,7 +133,9 @@ fn key(wb: &mut Workbench, input: KeyInput) -> bool {
 }
 
 fn key_shift(wb: &mut Workbench, input: KeyInput, shift: bool) -> bool {
-    wb.key(&KeyPress { key: input, shift })
+    let mut press = KeyPress::new(input);
+    press.modifiers.shift = shift;
+    wb.key(&press)
 }
 
 fn reset_to_a(wb: &mut Workbench) {

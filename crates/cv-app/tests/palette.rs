@@ -56,6 +56,59 @@ fn an_empty_query_shows_the_placeholder_and_typing_replaces_it() {
 }
 
 #[test]
+fn continuous_primary_hold_in_one_input_burst_types_leading_chars() {
+    let mut h = scene("canary");
+    h.primary_modifier(true);
+    for c in ['k', 'b', 'u'] {
+        h.primary_command(c);
+    }
+    h.primary_modifier(false);
+    for ev in keys::parse("text:ild") {
+        h.rt.key(ev);
+    }
+    h.settle();
+    assert!(h.state().palette.open);
+    assert_eq!(h.state().palette.query, "build");
+    assert_eq!(node(&h, "palette-query")["text"], "build");
+}
+
+fn open_palette_with_physical_primary(name: &str) -> Harness {
+    let mut h = scene(name);
+    h.primary_modifier(true);
+    h.primary_command('k');
+    h.settle();
+    assert!(h.state().palette.open);
+    h
+}
+
+#[test]
+fn release_then_repress_mod_i_does_not_type_or_execute_in_the_palette() {
+    let mut h = open_palette_with_physical_primary("canary");
+    let inspector = h.state().inspector_open;
+    h.primary_modifier(false);
+    h.primary_modifier(true);
+    h.primary_command('i');
+    h.settle();
+    assert!(h.state().palette.open);
+    assert_eq!(h.state().palette.query, "");
+    assert_eq!(h.state().inspector_open, inspector);
+}
+
+#[test]
+fn alt_or_counterpart_command_modifier_does_not_type_in_the_palette() {
+    for alt in [true, false] {
+        let mut h = open_palette_with_physical_primary("canary");
+        if alt {
+            h.alt_primary_command('i');
+        } else {
+            h.counterpart_primary_command('i');
+        }
+        h.settle();
+        assert_eq!(h.state().palette.query, "", "alt case {alt}");
+    }
+}
+
+#[test]
 fn a_click_outside_the_panel_closes_the_palette() {
     let mut h = open("canary");
     h.rt.pointer_down(20.0, 760.0);

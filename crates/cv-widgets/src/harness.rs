@@ -6,7 +6,7 @@ use crate::app::{input_on_key, input_poll};
 use crate::{keys, shell, tree};
 use cv_model::theme::Mode;
 use cv_model::workbench::Workbench;
-use rune::{Env, Runtime};
+use rune::{Env, Key, KeyEvent, Mods, PhysicalInput, PhysicalKeyCode, Runtime};
 use serde_json::Value;
 use std::path::Path;
 
@@ -31,6 +31,7 @@ impl Harness {
         let mut rt = Runtime::with_text(wb, shell::view, size, env, crate::fonts::text_system());
         rt.poll = Some(input_poll);
         rt.on_key = Some(input_on_key);
+        rt.set_modifier_keys(true);
         rt.set_system_reduced_motion(reduced);
         // What the CLI's headless runs (and so the PNG gate) report, so trees
         // and renders lay out the same macOS titlebar.
@@ -63,6 +64,67 @@ impl Harness {
             self.rt.key(ev);
             self.settle();
         }
+    }
+
+    fn primary_mods() -> Mods {
+        let mut mods = Mods {
+            cmd: true,
+            ..Mods::default()
+        };
+        if cfg!(target_os = "macos") {
+            mods.logo = true;
+        } else {
+            mods.ctrl = true;
+        }
+        mods
+    }
+
+    /// Press or release the platform primary modifier as a physical key.
+    /// Runtime cannot install the real app's `on_modifiers` hook, so the
+    /// harness opts into Rune's ordered modifier-key events; both paths end
+    /// in `input_modifiers`.
+    pub fn primary_modifier(&mut self, pressed: bool) {
+        let key = if cfg!(target_os = "macos") {
+            PhysicalKeyCode::SuperLeft
+        } else {
+            PhysicalKeyCode::ControlLeft
+        };
+        self.rt.physical_input(PhysicalInput::Key {
+            key,
+            mods: if pressed {
+                Self::primary_mods()
+            } else {
+                Mods::default()
+            },
+            pressed,
+            repeat: false,
+        });
+    }
+
+    fn command(&mut self, c: char, mods: Mods) {
+        self.rt.key(KeyEvent {
+            key: Key::Command(c),
+            mods,
+        });
+    }
+
+    pub fn primary_command(&mut self, c: char) {
+        self.command(c, Self::primary_mods());
+    }
+
+    pub fn alt_primary_command(&mut self, c: char) {
+        let mut mods = Self::primary_mods();
+        mods.alt = true;
+        self.command(c, mods);
+    }
+
+    /// Primary plus its counterpart command key (Ctrl+Command on every
+    /// platform), which is never plain primary-modifier text.
+    pub fn counterpart_primary_command(&mut self, c: char) {
+        let mut mods = Self::primary_mods();
+        mods.ctrl = true;
+        mods.logo = true;
+        self.command(c, mods);
     }
 
     pub fn click(&mut self, key: &str) -> bool {
