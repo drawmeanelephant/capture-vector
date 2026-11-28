@@ -28,23 +28,25 @@ fn content_width(t: &Theme) -> f32 {
     (t.spacing.inspector_w - t.spacing.unit * 4.0 - CHROME_SLACK).max(0.0)
 }
 
-/// Width a field value gets once its disclosure control is mounted. Using
-/// the collapsed width is deliberately conservative: a value that fits
-/// even without the control may keep the affordance, but a value that
-/// would clip never goes without it.
+/// Width a field value gets without its disclosure control: eligibility
+/// is measured against the room the value would actually have, so a value
+/// that fits keeps the whole width instead of truncating solely because
+/// the control appears. A value that would clip never goes without the
+/// control, and once it is mounted the preview truncates inside the
+/// smaller share beside it.
 fn field_disclosure_width(t: &Theme) -> f32 {
-    (content_width(t) - LABEL_W - t.spacing.unit * 4.0 - value::EXPANDER_W).max(0.0)
+    (content_width(t) - LABEL_W - t.spacing.unit * 2.0).max(0.0)
 }
 
-/// Width a list value gets once its disclosure control is mounted.
+/// Width a list value gets without its disclosure control.
 fn item_disclosure_width(t: &Theme) -> f32 {
-    (content_width(t) - t.spacing.unit - value::EXPANDER_W).max(0.0)
+    content_width(t).max(0.0)
 }
 
-/// Width a diagnostic card's location gets inside the rail, border, card
-/// padding and disclosure control.
+/// Width a diagnostic card's location gets inside the rail, border and
+/// card padding, without its disclosure control.
 fn diagnostic_disclosure_width(t: &Theme) -> f32 {
-    (content_width(t) - 3.0 - t.spacing.unit * 5.0 - value::EXPANDER_W - CHROME_SLACK).max(0.0)
+    (content_width(t) - 3.0 - t.spacing.unit * 4.0 - CHROME_SLACK).max(0.0)
 }
 
 pub(crate) fn pane(s: &Workbench) -> El {
@@ -312,12 +314,15 @@ fn header(t: &Theme, key: &str, title: &str, count: usize, open: bool) -> El {
         .gap(t.spacing.unit)
         .items_center()
         .on_key(move |s: &mut Workbench, ev, tx| {
-            value::activate_on_key(s, ev, tx, |s: &mut Workbench| s.toggle_section(&key_toggle))
+            value::activate_on_key(s, ev, tx, |s: &mut Workbench, _| {
+                s.toggle_section(&key_toggle)
+            })
         })
         .on_press(move |s: &mut Workbench| s.toggle_section(&press))
         .child(
             icon(&icons::CHEVRON_RIGHT, 12.0)
                 .color(color(t.colors.text_dim))
+                .a11y_hidden()
                 .icon_rotation(if open {
                     std::f32::consts::FRAC_PI_2
                 } else {

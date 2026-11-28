@@ -403,6 +403,57 @@ fn disclosure_controls_are_keyboard_discoverable_and_operable() {
     assert_eq!(focused_key(&h), None);
 }
 
+/// Keyboard focus walks from the F6 landmark entry to the control keyed
+/// `key`. Panics if traversal never reaches it — the control is the test.
+fn focus_key(h: &mut Harness, key: &str) {
+    h.key("f6");
+    for _ in 0..60 {
+        if focused_key(h).as_deref() == Some(key) {
+            return;
+        }
+        h.key("tab");
+    }
+    panic!("Tab traversal never reached {key}");
+}
+
+#[test]
+fn enter_on_a_focused_button_activates_it_instead_of_opening_a_companion() {
+    let mut h = scene("activity-broken");
+    assert!(h.has("follow-link"));
+    assert_eq!(focused_key(&h), None);
+
+    focus_key(&mut h, "follow-link");
+    assert_eq!(
+        focused_key(&h).as_deref(),
+        Some("follow-link"),
+        "the button is a keyboard focus stop"
+    );
+
+    h.key("enter");
+    let s = h.state();
+    assert!(
+        s.windows.companions.is_empty(),
+        "Enter activated the focused control instead of reaching the shell's companion keymap"
+    );
+    assert_eq!(s.registry.get(s.active).unwrap().spec().id, "pages");
+    assert_eq!(s.selected_key(), Some("orphan.md"));
+}
+
+#[test]
+fn space_on_a_focused_button_still_activates_it() {
+    let mut h = scene("activity-broken");
+    focus_key(&mut h, "follow-link");
+
+    h.key("space");
+    let s = h.state();
+    assert!(
+        s.windows.companions.is_empty(),
+        "Space activated the focused control instead of the shell keymap"
+    );
+    assert_eq!(s.registry.get(s.active).unwrap().spec().id, "pages");
+    assert_eq!(s.selected_key(), Some("orphan.md"));
+}
+
 #[test]
 fn wide_cjk_and_emoji_values_earn_disclosure_by_rendered_width() {
     let mut h = evidence_scene();
