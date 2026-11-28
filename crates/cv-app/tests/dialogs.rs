@@ -2,7 +2,8 @@
 //! for its title, one at a time, keys and buttons answering the asker.
 
 use cv_app::{SCENES, init};
-use cv_model::dialog::{DialogKind, DialogSpec};
+use cv_model::dialog::{DialogKind, DialogSpec, Value as DialogValue};
+use cv_model::new_workspace::{Archetypes, NEW};
 use cv_model::workbench::{KeyInput, KeyPress, ShellRequest};
 use cv_widgets::harness::Harness;
 use serde_json::Value;
@@ -208,6 +209,34 @@ fn typing_in_the_window_fills_the_prompt_and_enter_captures_it() {
     h.script(&["key:text:!", "key:enter"]);
     assert_eq!(open_id(&h), None);
     assert_eq!(h.state().list_len(), before + 1, "{}", h.state().status);
+}
+
+fn new_workspace_form() -> Harness {
+    let mut wb = init();
+    wb.archetypes = Ok(Archetypes {
+        names: vec!["docs".into(), "garden".into()],
+        default: 0,
+    });
+    wb.new_parent = Some(std::env::temp_dir());
+    wb.run_command(NEW);
+    Harness::new(wb)
+}
+
+#[test]
+fn clicking_new_workspace_folder_name_focuses_it_for_typing() {
+    let mut h = new_workspace_form();
+    assert_eq!(h.state().dialogs.open().unwrap().focus, 0);
+    assert!(h.click("dialog-field-name-box"));
+    assert_eq!(
+        h.state().dialogs.open().unwrap().focus,
+        2,
+        "the click must move the form's editing focus to Folder name"
+    );
+    h.script(&["key:text:notes"]);
+    assert_eq!(
+        h.state().dialogs.open().unwrap().fields()[2].value(),
+        DialogValue::Text("notes".into())
+    );
 }
 
 #[test]

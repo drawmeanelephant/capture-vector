@@ -142,15 +142,40 @@ pub struct Palette {
     pub cursor: usize,
 }
 
-/// Subsequence fuzzy score over `title` and `id`; lower is better.
-fn score(query: &str, c: &CommandSpec) -> Option<usize> {
+/// Subsequence fuzzy score over `title` and `id`; lower is better, with an
+/// exact word match first.
+fn score(query: &str, c: &CommandSpec) -> Option<(u8, usize)> {
     if query.is_empty() {
-        return Some(0);
+        return Some((0, 0));
     }
     let q = query.to_lowercase();
     [c.title.to_lowercase(), c.id.to_lowercase()]
         .iter()
         .filter_map(|hay| {
+            let mut at = 0usize;
+            let mut exact_word = None;
+            while let Some(found) = hay[at..].find(q.as_str()) {
+                let first = at + found;
+                let end = first + q.len();
+                let before = first == 0
+                    || hay[..first]
+                        .chars()
+                        .next_back()
+                        .is_some_and(|c| !c.is_alphanumeric());
+                let after = end == hay.len()
+                    || hay[end..]
+                        .chars()
+                        .next()
+                        .is_some_and(|c| !c.is_alphanumeric());
+                if before && after {
+                    exact_word.get_or_insert(first);
+                }
+                at = end;
+            }
+            if let Some(first) = exact_word {
+                return Some((0, first));
+            }
+
             let mut pos = 0usize;
             let mut gaps = 0usize;
             let mut first = None;
@@ -160,7 +185,7 @@ fn score(query: &str, c: &CommandSpec) -> Option<usize> {
                 gaps += found;
                 pos += found + qc.len_utf8();
             }
-            Some(first.unwrap_or(0) + gaps * 2)
+            Some((1, first.unwrap_or(0) + gaps * 2))
         })
         .min()
 }
@@ -235,6 +260,21 @@ mod tests {
         assert_eq!(m[0].id, "demo.replay");
         p.query = "zzz".into();
         assert!(p.matches(&c).is_empty());
+    }
+
+    #[test]
+    fn exact_word_matches_rank_before_embedded_matches() {
+        let cmds = vec![
+            CommandSpec::new(
+                "doctor.rebuild-index",
+                "Rebuild local indexes from .cv JSONL",
+            ),
+            CommandSpec::new("engine.build", "Boris: Build site"),
+        ];
+        let mut p = Palette::default();
+        "build".chars().for_each(|ch| p.type_char(ch));
+        let m = p.matches(&cmds);
+        assert_eq!(m[0].id, "engine.build");
     }
 
     #[test]

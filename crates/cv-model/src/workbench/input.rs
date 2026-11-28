@@ -114,6 +114,7 @@ impl Workbench {
         match &k.key {
             KeyInput::Escape | KeyInput::Command('k') => self.palette.close(),
             KeyInput::Char(c) => self.palette.type_char(*c),
+            KeyInput::Command(c) => self.palette.type_char(*c),
             KeyInput::Backspace => self.palette.backspace(),
             KeyInput::Down | KeyInput::Tab => self
                 .palette

@@ -56,6 +56,37 @@ fn an_empty_query_shows_the_placeholder_and_typing_replaces_it() {
 }
 
 #[test]
+fn typing_in_the_same_input_burst_as_ctrl_k_loses_no_leading_chars() {
+    let mut h = scene("canary");
+    for ev in keys::parse("mod+k") {
+        h.rt.key(ev);
+    }
+    for ev in keys::parse("text:build") {
+        h.rt.key(ev);
+    }
+    h.settle();
+    assert!(h.state().palette.open);
+    assert_eq!(h.state().palette.query, "build");
+    assert_eq!(node(&h, "palette-query")["text"], "build");
+}
+
+#[test]
+fn ctrl_key_rollover_after_ctrl_k_still_types_leading_chars() {
+    let mut h = scene("canary");
+    for token in ["mod+k", "mod+b", "mod+u"] {
+        for ev in keys::parse(token) {
+            h.rt.key(ev);
+        }
+    }
+    for ev in keys::parse("text:ild") {
+        h.rt.key(ev);
+    }
+    h.settle();
+    assert!(h.state().palette.open);
+    assert_eq!(h.state().palette.query, "build");
+}
+
+#[test]
 fn a_click_outside_the_panel_closes_the_palette() {
     let mut h = open("canary");
     h.rt.pointer_down(20.0, 760.0);
