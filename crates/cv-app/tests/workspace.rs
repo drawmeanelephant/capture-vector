@@ -53,10 +53,9 @@ fn new_workspace_from_an_archetype_creates_and_opens_the_workspace() {
     assert_eq!(archetypes.names.len(), 15);
     assert_eq!(archetypes.names[archetypes.default], "docs");
 
-    wb.key(&KeyPress {
-        key: KeyInput::Command('n'),
-        shift: true,
-    });
+    let mut press = KeyPress::new(KeyInput::Command('n'));
+    press.modifiers.shift = true;
+    wb.key(&press);
     assert_eq!(
         wb.dialogs.open().map(|d| d.spec.id.as_str()),
         Some(new_workspace::NEW)

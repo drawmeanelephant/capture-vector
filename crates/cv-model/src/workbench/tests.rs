@@ -96,3 +96,78 @@ fn failed_try_send_returns_the_watch_message_instead_of_dropping_it() {
     drop(message);
     assert!(dropped.load(std::sync::atomic::Ordering::SeqCst));
 }
+
+fn primary_modifiers() -> Modifiers {
+    Modifiers::default().with_primary(true)
+}
+
+fn command(c: char, modifiers: Modifiers) -> KeyPress {
+    KeyPress::with_modifiers(KeyInput::Command(c), modifiers)
+}
+
+fn open_palette_in_primary_hold(wb: &mut Workbench) -> Modifiers {
+    let primary = primary_modifiers();
+    wb.modifiers(primary);
+    wb.key(&command('k', primary));
+    assert!(wb.palette.open);
+    primary
+}
+
+#[test]
+fn continuous_primary_hold_rollover_types_leading_palette_chars() {
+    let mut wb = Workbench::new(Registry::with_all());
+    let primary = open_palette_in_primary_hold(&mut wb);
+    wb.key(&command('b', primary));
+    wb.key(&command('u', primary));
+    wb.modifiers(Modifiers::default());
+    for c in "ild".chars() {
+        wb.key(&KeyPress::new(KeyInput::Char(c)));
+    }
+    assert_eq!(wb.palette.query, "build");
+}
+
+#[test]
+fn release_then_repress_makes_a_later_command_chord_inert_in_the_palette() {
+    let mut wb = Workbench::new(Registry::with_all());
+    let primary = open_palette_in_primary_hold(&mut wb);
+    wb.modifiers(Modifiers::default());
+    wb.modifiers(primary);
+    let inspector = wb.inspector_open;
+    assert!(!wb.key(&command('i', primary)));
+    assert_eq!(wb.palette.query, "");
+    assert_eq!(wb.inspector_open, inspector);
+    assert!(wb.palette.open);
+}
+
+#[test]
+fn alt_or_counterpart_command_modifier_never_turns_a_chord_into_palette_text() {
+    for extra in [true, false] {
+        let mut wb = Workbench::new(Registry::with_all());
+        let mut modified = open_palette_in_primary_hold(&mut wb);
+        if extra {
+            modified.alt = true;
+        } else {
+            modified.ctrl = true;
+            modified.logo = true;
+        }
+        assert!(!wb.key(&command('i', modified)));
+        assert_eq!(wb.palette.query, "", "extra modifier case {extra}");
+    }
+}
+
+#[test]
+fn shifted_command_chords_do_not_type_lowercase_during_rollover() {
+    let mut wb = Workbench::new(Registry::with_all());
+    let mut shifted = open_palette_in_primary_hold(&mut wb);
+    shifted.shift = true;
+    assert!(!wb.key(&command('i', shifted)));
+    assert_eq!(wb.palette.query, "");
+}
+
+#[test]
+fn command_k_still_closes_the_palette_during_a_rollover_hold() {
+    let mut wb = Workbench::new(Registry::with_all());
+    let primary = open_palette_in_primary_hold(&mut wb);
+    assert!(wb.key(&command('k', primary)));
+    assert!(!wb.palette.open);
+}

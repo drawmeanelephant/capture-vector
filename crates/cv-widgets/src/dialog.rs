@@ -170,19 +170,16 @@ fn field_el<S: DialogHost>(t: &Theme, key: &str, i: usize, f: &Field, active: bo
             value,
             placeholder,
             active,
-        ),
+        )
+        .on_press(move |s: &mut S| s.field(i, None)),
         Input::Path { value, .. } => row()
             .w_full()
             .gap(t.spacing.unit * 2.0)
             .items_center()
-            .child(text_box(
-                t,
-                &format!("{fkey}-box"),
-                &f.label,
-                value,
-                "",
-                active,
-            ))
+            .child(
+                text_box(t, &format!("{fkey}-box"), &f.label, value, "", active)
+                    .on_press(move |s: &mut S| s.field(i, None)),
+            )
             .child(controls::button(
                 t,
                 &format!("{fkey}-browse"),
