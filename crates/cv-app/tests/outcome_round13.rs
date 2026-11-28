@@ -67,6 +67,7 @@ fn env_for(boris: &Path, recent_file: &Path) -> WorkspaceEnv {
             path_var: None,
             sibling_dirs: Vec::new(),
         }),
+        lab_locator: Some(Locator::default()),
         recent_file: Some(recent_file.to_path_buf()),
     }
 }

@@ -84,11 +84,9 @@ refuse the write instead of being overwritten. Both forms are watch-safe and end
 in the pinned engine's validate/build gate under the normal engine-seat
 contract.
 
-Current rough edges are visible in the UI rather than hidden: selecting a
-run may require **Reload import runs** before **Adopt run…** enables
-(issue #216), the subfolder placeholder is not a typed default (#217),
-long inspector values can clip (#218), and the completion toast emphasizes
-the engine gate more than the adopted content summary (#219).
+One current rough edge is visible in the UI rather than hidden: long
+inspector values can clip without a discoverable full-value view (issue
+#218).
 
 ## The shell
 
@@ -114,13 +112,24 @@ Keyboard basics:
 |---|---|
 | `mod+K` | command palette |
 | `mod+1` … `mod+9` | switch module |
-| `Tab` / `shift+Tab` | cycle mailboxes |
+| `Tab` / `shift+Tab` | cycle mailboxes while no control is focused |
+| `F6` | move keyboard focus into the inspector |
 | `Up`/`Down` or `k`/`j` | move in the list |
 | `Enter` | open the selected noun in a companion window |
 | `mod+O` | follow the selected linked noun |
 | `mod+shift+O` | open workspace |
 | `mod+I` | toggle inspector |
 | `Esc` | clear selection / close palette |
+
+Inspector chevrons are keyboard controls. Press `F6` to focus the first
+one, `Tab` / `shift+Tab` to move through the inspector's disclosures and
+other controls, and `Space` or `Enter` to open or close the focused one.
+Expanding a long value or diagnostic location shows its complete text in
+place, including every line of a multi-line value; collapsing it returns
+to the first-line preview. While such a control is focused, `Tab` belongs
+to control navigation rather than mailbox cycling. Moving the list
+selection with `Up`/`Down` or `k`/`j` returns focus to the shell, where
+`Tab` cycles mailboxes again.
 
 While a dialog is open (a confirmation, the capture prompt, the filter
 form, the recent-workspace chooser), it takes every key; the list behind
@@ -176,8 +185,10 @@ degraded state as a crash:
 The Doctor shows the facts behind each one. Click the engine chip in the
 status bar, or run **Open Doctor** from the palette. Its sections cover
 the engine (binary, how it was found, version and build info against the
-pin, the search order), the capability probe, the watch session, the
-`.cv/` store's schema stamps and locks, and this app build.
+pin, the search order), the migration lab (the same locate, version/pin
+and search-order facts), the capability probe, the watch session, the
+`.cv/` store's schema stamps, locks and `.cv/imports/` evidence health,
+and this app build.
 
 The runbook has the diagnostic flow for each: `docs/runbooks/desktop-app.md`.
 
@@ -194,9 +205,10 @@ are dropped by the logger, but page bodies and local paths can still be
 sensitive. Read logs before attaching them to an issue.
 
 **Copy Doctor support bundle** (palette) copies a JSON report of the
-Doctor's sections. It leaves out page bodies, the engine's absolute
-paths, environment values, and secret-looking fields, and replaces the
-workspace root and home directory with `<workspace>` and `~`. Read it
+Doctor's sections. It leaves out page bodies, the engine and migration
+lab's absolute paths, environment values, and secret-looking fields, and
+replaces the workspace root and home directory with `<workspace>` and
+`~`. Read it
 before attaching it to an issue.
 
 For UI problems, include the headless element tree:

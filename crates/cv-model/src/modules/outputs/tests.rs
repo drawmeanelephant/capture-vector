@@ -34,6 +34,7 @@ fn snap() -> ProjectSnapshot {
             output: Some("index.html".into()),
             ..Default::default()
         }],
+        ir_graph: None,
         last_publish: None,
         artifact_root: None,
     }

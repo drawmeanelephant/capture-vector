@@ -50,6 +50,12 @@ pub fn locator_from_env(root: &Path) -> Locator {
     Locator::from_env_vars(ENV_OVERRIDE, sibling_dirs(root, env_opt_in(ENV_SIBLING)))
 }
 
+/// Every lab path the locator probes, in order, with the source it
+/// represents. Exposed for diagnostics; locating still happens only here.
+pub fn candidates(locator: &Locator) -> Vec<(EngineSource, PathBuf)> {
+    locator.candidates_named(&exe_name())
+}
+
 /// `<root>/../boris-migration-lab/zig-out/bin`, only when opted in.
 pub fn sibling_dirs(root: &Path, opt_in: bool) -> Vec<PathBuf> {
     sibling_checkout_dirs(root, CHECKOUT, opt_in)

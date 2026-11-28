@@ -2029,6 +2029,7 @@
     {
       "fill": "#0e1014ff",
       "key": "inspector",
+      "label": "Inspector",
       "opacity": 1.0,
       "path": "shell/body/inspector",
       "rect": [
@@ -2037,7 +2038,7 @@
         240.0,
         778.0
       ],
-      "role": "group"
+      "role": "complementary"
     },
     {
       "key": "inspector-scroll",
@@ -2085,7 +2086,7 @@
         1040.0,
         28.3,
         240.0,
-        293.8
+        296.0
       ],
       "role": "group"
     },
@@ -2287,17 +2288,29 @@
         1048.0,
         117.0,
         224.0,
-        13.8
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "field-sha256-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-sha256/field-sha256-head",
+      "rect": [
+        1048.0,
+        117.0,
+        224.0,
+        16.0
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-sha256/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-sha256/field-sha256-head/#0",
       "rect": [
         1048.0,
-        117.0,
+        118.1,
         72.0,
         13.8
       ],
@@ -2308,15 +2321,42 @@
       "color": "#e6e9efff",
       "help": "df35843613ebf220d714fbec1f7da975941de84ea4f9b236fc7cca22dee65e3e",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-sha256/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-sha256/field-sha256-head/#1",
       "rect": [
         1128.0,
-        117.0,
-        144.0,
+        118.1,
+        118.0,
         13.8
       ],
       "role": "text",
       "text": "df35843613ebf220d714fbec1f7da975941de84ea4f9b236fc7cca22dee65e3e"
+    },
+    {
+      "help": "Show the full sha256 value",
+      "key": "field-sha256-expand",
+      "label": "Show the full sha256 value",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-sha256/field-sha256-head/field-sha256-expand",
+      "radius": 4.0,
+      "rect": [
+        1254.0,
+        117.0,
+        18.0,
+        16.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-sha256/field-sha256-head/field-sha256-expand/#0",
+      "rect": [
+        1258.0,
+        120.0,
+        10.0,
+        10.0
+      ],
+      "role": "icon"
     },
     {
       "key": "field-format",
@@ -2324,7 +2364,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-format",
       "rect": [
         1048.0,
-        134.8,
+        137.0,
         224.0,
         13.8
       ],
@@ -2336,7 +2376,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-format/#0",
       "rect": [
         1048.0,
-        134.8,
+        137.0,
         72.0,
         13.8
       ],
@@ -2349,7 +2389,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-format/#1",
       "rect": [
         1128.0,
-        134.8,
+        137.0,
         144.0,
         13.8
       ],
@@ -2362,7 +2402,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-compiler",
       "rect": [
         1048.0,
-        152.5,
+        154.8,
         224.0,
         13.8
       ],
@@ -2374,7 +2414,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-compiler/#0",
       "rect": [
         1048.0,
-        152.5,
+        154.8,
         72.0,
         13.8
       ],
@@ -2387,7 +2427,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-compiler/#1",
       "rect": [
         1128.0,
-        152.5,
+        154.8,
         144.0,
         13.8
       ],
@@ -2400,7 +2440,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-profile",
       "rect": [
         1048.0,
-        170.3,
+        172.5,
         224.0,
         13.8
       ],
@@ -2412,7 +2452,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-profile/#0",
       "rect": [
         1048.0,
-        170.3,
+        172.5,
         72.0,
         13.8
       ],
@@ -2425,7 +2465,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-profile/#1",
       "rect": [
         1128.0,
-        170.3,
+        172.5,
         144.0,
         13.8
       ],
@@ -2438,7 +2478,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-snapshot",
       "rect": [
         1048.0,
-        188.0,
+        190.3,
         224.0,
         13.8
       ],
@@ -2450,7 +2490,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-snapshot/#0",
       "rect": [
         1048.0,
-        188.0,
+        190.3,
         72.0,
         13.8
       ],
@@ -2463,7 +2503,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-snapshot/#1",
       "rect": [
         1128.0,
-        188.0,
+        190.3,
         144.0,
         13.8
       ],
@@ -2476,7 +2516,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-fresh",
       "rect": [
         1048.0,
-        205.8,
+        208.0,
         224.0,
         13.8
       ],
@@ -2488,7 +2528,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-fresh/#0",
       "rect": [
         1048.0,
-        205.8,
+        208.0,
         72.0,
         13.8
       ],
@@ -2501,7 +2541,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-fresh/#1",
       "rect": [
         1128.0,
-        205.8,
+        208.0,
         144.0,
         13.8
       ],
@@ -2514,7 +2554,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-publish",
       "rect": [
         1048.0,
-        223.5,
+        225.8,
         224.0,
         13.8
       ],
@@ -2526,7 +2566,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-publish/#0",
       "rect": [
         1048.0,
-        223.5,
+        225.8,
         72.0,
         13.8
       ],
@@ -2539,7 +2579,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-publish/#1",
       "rect": [
         1128.0,
-        223.5,
+        225.8,
         144.0,
         13.8
       ],
@@ -2553,7 +2593,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0",
       "rect": [
         1048.0,
-        249.3,
+        251.5,
         224.0,
         15.0
       ],
@@ -2565,7 +2605,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/#0",
       "rect": [
         1048.0,
-        250.8,
+        253.0,
         12.0,
         12.0
       ],
@@ -2577,7 +2617,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/#1",
       "rect": [
         1064.0,
-        249.3,
+        251.5,
         47.6,
         15.0
       ],
@@ -2592,7 +2632,7 @@
       "radius": 999.0,
       "rect": [
         1115.6,
-        249.9,
+        252.1,
         16.6,
         13.8
       ],
@@ -2604,7 +2644,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/list-0-count/#0",
       "rect": [
         1121.6,
-        249.9,
+        252.1,
         4.6,
         13.8
       ],
@@ -2618,7 +2658,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0-0",
       "rect": [
         1048.0,
-        268.3,
+        270.5,
         224.0,
         13.8
       ],
@@ -2634,7 +2674,7 @@
       "radius": 4.0,
       "rect": [
         1048.0,
-        294.0,
+        296.3,
         224.0,
         20.0
       ],
@@ -2657,7 +2697,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/follow-link/label",
       "rect": [
         1111.7,
-        298.0,
+        300.3,
         96.7,
         12.0
       ],

@@ -14,7 +14,7 @@
 //!   error and nothing on disk is touched. Never a silent downgrade.
 
 use serde_json::{Value, json};
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 pub const FORMAT: &str = "cv-sidecar";
@@ -75,7 +75,9 @@ pub enum SidecarError {
         path: PathBuf,
         msg: String,
     },
-    #[error("{namespace}: {path:?} is a symlink; refusing to write outside the workspace")]
+    #[error(
+        "{namespace}: {path:?} is a symlink; refusing to trust sidecar evidence outside the workspace"
+    )]
     Escapes {
         namespace: &'static str,
         path: PathBuf,
@@ -91,6 +93,7 @@ pub fn stamp_path(root: &Path, ns: &Namespace) -> PathBuf {
 /// Version on disk: `None` for a fresh namespace, `Some(0)` for files
 /// without a stamp.
 pub fn read_version(root: &Path, ns: &Namespace) -> Result<Option<u32>, SidecarError> {
+    check_read_contained(root, ns)?;
     let dir = root.join(ns.dir);
     let path = dir.join(STAMP);
     let bad = |msg: String| SidecarError::Malformed {
@@ -98,7 +101,7 @@ pub fn read_version(root: &Path, ns: &Namespace) -> Result<Option<u32>, SidecarE
         path: path.clone(),
         msg,
     };
-    match std::fs::read(&path) {
+    match read_stamp_no_follow(&path) {
         Ok(raw) => {
             let v: Value = serde_json::from_slice(&raw).map_err(|e| bad(e.to_string()))?;
             if v["format"] != FORMAT {
@@ -126,6 +129,13 @@ pub fn read_version(root: &Path, ns: &Namespace) -> Result<Option<u32>, SidecarE
         }
         Err(e) => Err(e.into()),
     }
+}
+
+fn read_stamp_no_follow(path: &Path) -> std::io::Result<Vec<u8>> {
+    let mut file = crate::open::open_existing_no_follow(path, false)?;
+    let mut raw = Vec::new();
+    file.read_to_end(&mut raw)?;
+    Ok(raw)
 }
 
 fn write_stamp(root: &Path, ns: &Namespace, version: u32) -> std::io::Result<()> {
@@ -157,22 +167,20 @@ pub fn lock_path(root: &Path, ns: &Namespace) -> PathBuf {
     root.join(format!("{}.schema.lock", ns.dir))
 }
 
-/// `.cv/` comes with the project: every path component we would write
-/// through (the namespace dirs, its stamp and lock) must be a real
-/// entry inside `root`, not a symlink to somewhere else.
-fn check_contained(root: &Path, ns: &Namespace) -> Result<(), SidecarError> {
+fn namespace_paths(root: &Path, ns: &Namespace) -> Vec<PathBuf> {
     let mut paths = Vec::new();
     let mut p = root.to_path_buf();
     for c in Path::new(ns.dir).components() {
         p.push(c);
         paths.push(p.clone());
     }
-    paths.push(stamp_path(root, ns));
-    paths.push(root.join(ns.dir).join(format!("{STAMP}.tmp")));
-    paths.push(lock_path(root, ns));
+    paths
+}
+
+fn refuse_symlinks(ns: &Namespace, paths: Vec<PathBuf>) -> Result<(), SidecarError> {
     for path in paths {
         match std::fs::symlink_metadata(&path) {
-            Ok(m) if m.file_type().is_symlink() => {
+            Ok(m) if crate::paths::is_link(&m) => {
                 return Err(SidecarError::Escapes {
                     namespace: ns.name,
                     path,
@@ -184,6 +192,26 @@ fn check_contained(root: &Path, ns: &Namespace) -> Result<(), SidecarError> {
         }
     }
     Ok(())
+}
+
+/// Reading a stamp is evidence collection, not a write, but it follows the
+/// same containment rule: a planted symlink must not turn bytes outside the
+/// workspace into a trusted schema version.
+fn check_read_contained(root: &Path, ns: &Namespace) -> Result<(), SidecarError> {
+    let mut paths = namespace_paths(root, ns);
+    paths.push(stamp_path(root, ns));
+    refuse_symlinks(ns, paths)
+}
+
+/// `.cv/` comes with the project: every path component we would write
+/// through (the namespace dirs, its stamp and lock) must be a real
+/// entry inside `root`, not a symlink to somewhere else.
+fn check_contained(root: &Path, ns: &Namespace) -> Result<(), SidecarError> {
+    let mut paths = namespace_paths(root, ns);
+    paths.push(stamp_path(root, ns));
+    paths.push(root.join(ns.dir).join(format!("{STAMP}.tmp")));
+    paths.push(lock_path(root, ns));
+    refuse_symlinks(ns, paths)
 }
 
 /// Bring `root/<ns.dir>` to `ns.current`, or fail without writing.
@@ -430,6 +458,33 @@ mod tests {
             Outcome::Migrated { from: 1, to: 3 }
         );
         assert_eq!(read_version(t.path(), &BETA).unwrap(), Some(7));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_symlinked_stamp_is_not_read_or_trusted() {
+        let root = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let planted = outside.path().join("schema.json");
+        std::fs::write(
+            &planted,
+            json!({"format": FORMAT, "namespace": "alpha", "schema_version": 1}).to_string(),
+        )
+        .unwrap();
+        let dir = root.path().join(V1.dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::os::unix::fs::symlink(&planted, dir.join(STAMP)).unwrap();
+
+        let err = read_version(root.path(), &V1).unwrap_err();
+        assert!(matches!(err, SidecarError::Escapes { .. }), "{err}");
+        let err = ensure(root.path(), &V1).unwrap_err();
+        assert!(matches!(err, SidecarError::Escapes { .. }), "{err}");
+        assert!(
+            std::fs::symlink_metadata(dir.join(STAMP))
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
     }
 
     #[cfg(unix)]

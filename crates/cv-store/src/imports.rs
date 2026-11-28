@@ -252,17 +252,22 @@ impl From<std::io::Error> for Error {
     }
 }
 
-fn is_symlink(p: &Path) -> Result<bool, Error> {
+fn is_link(p: &Path) -> Result<bool, Error> {
     match std::fs::symlink_metadata(p) {
-        Ok(m) => Ok(m.file_type().is_symlink()),
+        Ok(m) => Ok(crate::paths::is_link(&m)),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
         Err(e) => Err(e.into()),
     }
 }
 
-fn refuse_symlinks(paths: &[&Path]) -> Result<(), Error> {
+fn entry_is_real_dir(entry: &std::fs::DirEntry) -> Result<bool, Error> {
+    let meta = std::fs::symlink_metadata(entry.path())?;
+    Ok(!crate::paths::is_link(&meta) && meta.is_dir())
+}
+
+fn refuse_links(paths: &[&Path]) -> Result<(), Error> {
     for p in paths {
-        if is_symlink(p)? {
+        if is_link(p)? {
             return Err(Error::Symlink(p.to_path_buf()));
         }
     }
@@ -341,11 +346,11 @@ fn lock_exclusive(file: &File, path: &Path) -> Result<(), Error> {
 fn ensure_imports_schema(root: &Path) -> Result<(), Error> {
     let cv = root.join(".cv");
     let base = root.join(DIR);
-    refuse_symlinks(&[&cv, &base])?;
+    refuse_links(&[&cv, &base])?;
     sidecar::ensure(root, &SCHEMA).map_err(Error::Schema)?;
     // The namespace directory is created by `ensure`; re-check after that
     // write window rather than following a swapped symlink onwards.
-    refuse_symlinks(&[&cv, &base])?;
+    refuse_links(&[&cv, &base])?;
     Ok(())
 }
 
@@ -361,14 +366,14 @@ pub fn claim_run(root: &Path, run_id: &str) -> Result<RunLock, Error> {
     let dir = run_dir(root, run_id)?;
     let cv = root.join(".cv");
     let base = root.join(DIR);
-    refuse_symlinks(&[&cv, &base, &dir])?;
+    refuse_links(&[&cv, &base, &dir])?;
     ensure_imports_schema(root)?;
-    if is_symlink(&dir)? {
+    if is_link(&dir)? {
         return Err(Error::Symlink(dir));
     }
     if let Err(e) = std::fs::create_dir(&dir) {
         if e.kind() == std::io::ErrorKind::AlreadyExists {
-            if is_symlink(&dir)? {
+            if is_link(&dir)? {
                 return Err(Error::Symlink(dir));
             }
             return Err(Error::RunExists(dir));
@@ -376,7 +381,7 @@ pub fn claim_run(root: &Path, run_id: &str) -> Result<RunLock, Error> {
         return Err(e.into());
     }
     let lock_path = dir.join(RUN_LOCK);
-    refuse_symlinks(&[&lock_path])?;
+    refuse_links(&[&lock_path])?;
     let file = OpenOptions::new()
         .read(true)
         .write(true)
@@ -400,7 +405,7 @@ pub fn claim_run(root: &Path, run_id: &str) -> Result<RunLock, Error> {
 pub fn lock_run(root: &Path, run_id: &str) -> Result<RunLock, Error> {
     let dir = run_dir(root, run_id)?;
     let lock_path = dir.join(RUN_LOCK);
-    refuse_symlinks(&[&root.join(".cv"), &root.join(DIR), &dir, &lock_path])?;
+    refuse_links(&[&root.join(".cv"), &root.join(DIR), &dir, &lock_path])?;
     let meta = match std::fs::symlink_metadata(&dir) {
         Ok(m) => m,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
@@ -412,7 +417,7 @@ pub fn lock_run(root: &Path, run_id: &str) -> Result<RunLock, Error> {
         return Err(Error::NotDirectory(dir));
     }
     let file = crate::open::open_create_no_follow(&lock_path)?;
-    refuse_symlinks(&[&lock_path])?;
+    refuse_links(&[&lock_path])?;
     lock_exclusive(&file, &lock_path)?;
     Ok(RunLock {
         root: root.to_path_buf(),
@@ -430,15 +435,15 @@ pub fn lock_run(root: &Path, run_id: &str) -> Result<RunLock, Error> {
 pub fn probe_run(root: &Path, run_id: &str) -> Result<RunProbe, Error> {
     let dir = run_dir(root, run_id)?;
     let lock_path = dir.join(RUN_LOCK);
-    refuse_symlinks(&[&root.join(".cv"), &root.join(DIR), &dir, &lock_path])?;
+    refuse_links(&[&root.join(".cv"), &root.join(DIR), &dir, &lock_path])?;
     match std::fs::symlink_metadata(&dir) {
-        Ok(m) if m.file_type().is_symlink() => return Err(Error::Symlink(dir)),
+        Ok(m) if crate::paths::is_link(&m) => return Err(Error::Symlink(dir)),
         Ok(_) => {}
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(RunProbe::Missing),
         Err(e) => return Err(e.into()),
     }
     match std::fs::symlink_metadata(&lock_path) {
-        Ok(m) if m.file_type().is_symlink() => return Err(Error::Symlink(lock_path)),
+        Ok(m) if crate::paths::is_link(&m) => return Err(Error::Symlink(lock_path)),
         Ok(_) => {}
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(RunProbe::Missing),
         Err(e) => return Err(e.into()),
@@ -487,7 +492,7 @@ fn sync_dir(_dir: &Path) -> Result<(), Error> {
 /// foreign `*.tmp` entries are never deletion or truncation vectors.
 fn write_atomic_in_run(dir: &Path, target: &str, bytes: &[u8]) -> Result<(), Error> {
     let path = dir.join(target);
-    refuse_symlinks(&[&path])?;
+    refuse_links(&[&path])?;
     for _ in 0..100 {
         let tmp = unique_tmp(dir, target);
         let mut f = match OpenOptions::new().write(true).create_new(true).open(&tmp) {
@@ -518,7 +523,7 @@ fn write_atomic_in_run(dir: &Path, target: &str, bytes: &[u8]) -> Result<(), Err
 /// Write raw process stderr bytes inside the locked run and return
 /// `(byte_len, sha256)` metadata for `run.json`.
 pub fn write_stderr(lock: &RunLock, bytes: &[u8]) -> Result<(u64, String), Error> {
-    refuse_symlinks(&[
+    refuse_links(&[
         &lock.root.join(".cv"),
         &lock.root.join(DIR),
         &lock.dir,
@@ -544,7 +549,7 @@ pub fn write(lock: &RunLock, record: &RunRecord) -> Result<PathBuf, Error> {
     let root = &lock.root;
     let dir = &lock.dir;
     let path = dir.join(RECORD);
-    refuse_symlinks(&[&root.join(".cv"), &root.join(DIR), dir, &path])?;
+    refuse_links(&[&root.join(".cv"), &root.join(DIR), dir, &path])?;
     sidecar::ensure(root, &SCHEMA).map_err(Error::Schema)?;
     let mut bytes = serde_json::to_vec_pretty(record).map_err(Error::Json)?;
     bytes.push(b'\n');
@@ -568,7 +573,7 @@ impl RunDir {
 }
 
 fn read_record(path: &Path) -> Result<RunRecord, String> {
-    if is_symlink(path).map_err(|e| e.to_string())? {
+    if is_link(path).map_err(|e| e.to_string())? {
         return Err(format!("{RECORD} is a symlink"));
     }
     let bytes = std::fs::read(path).map_err(|e| format!("{RECORD}: {e}"))?;
@@ -598,7 +603,7 @@ fn read_record(path: &Path) -> Result<RunRecord, String> {
 /// stamp is written. Symlinked entries are skipped.
 pub fn scan(root: &Path) -> Result<Vec<RunDir>, Error> {
     let base = root.join(DIR);
-    refuse_symlinks(&[&root.join(".cv"), &base])?;
+    refuse_links(&[&root.join(".cv"), &base])?;
     let entries = match std::fs::read_dir(&base) {
         Ok(e) => e,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
@@ -607,7 +612,7 @@ pub fn scan(root: &Path) -> Result<Vec<RunDir>, Error> {
     let mut out = Vec::new();
     for e in entries {
         let e = e?;
-        if !e.file_type()?.is_dir() {
+        if !entry_is_real_dir(&e)? {
             continue;
         }
         let Ok(id) = e.file_name().into_string() else {
@@ -662,9 +667,9 @@ pub struct ReviewLog {
 }
 
 fn open_review_lock_for_append(lock_path: &Path) -> Result<File, Error> {
-    refuse_symlinks(&[lock_path])?;
+    refuse_links(&[lock_path])?;
     let file = crate::open::open_create_no_follow(lock_path)?;
-    refuse_symlinks(&[lock_path])?;
+    refuse_links(&[lock_path])?;
     Ok(file)
 }
 
@@ -707,7 +712,7 @@ impl ReviewLog {
         let base = root.join(DIR);
         let path = base.join(REVIEW);
         let lock_path = base.join(REVIEW_LOCK);
-        refuse_symlinks(&[&root.join(".cv"), &base, &path, &lock_path])?;
+        refuse_links(&[&root.join(".cv"), &base, &path, &lock_path])?;
         let buf = match std::fs::read(&path) {
             Ok(bytes) => bytes,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Vec::new(),
@@ -737,15 +742,15 @@ impl ReviewLog {
     pub fn append(&mut self, run: &str, item: &str, to: ReviewState) -> Result<(), Error> {
         let base = self.root.join(DIR);
         let lock_path = base.join(REVIEW_LOCK);
-        refuse_symlinks(&[&self.root.join(".cv"), &base, &self.path, &lock_path])?;
+        refuse_links(&[&self.root.join(".cv"), &base, &self.path, &lock_path])?;
         // Schema/imports creation is part of this explicit mutation, never
         // part of opening or scanning. The schema lock serializes its own
         // stamp independently of this review operation lock.
         ensure_imports_schema(&self.root)?;
-        refuse_symlinks(&[&self.root.join(".cv"), &base, &self.path, &lock_path])?;
+        refuse_links(&[&self.root.join(".cv"), &base, &self.path, &lock_path])?;
         let lock_file = open_review_lock_for_append(&lock_path)?;
         lock_exclusive(&lock_file, &lock_path)?;
-        refuse_symlinks(&[&self.root.join(".cv"), &base, &self.path, &lock_path])?;
+        refuse_links(&[&self.root.join(".cv"), &base, &self.path, &lock_path])?;
         let mut file = crate::open::open_create_no_follow(&self.path)?;
         let len = file.metadata()?.len();
         if len > 0 {
@@ -779,6 +784,12 @@ impl ReviewLog {
         &self.path
     }
 }
+
+#[cfg(all(test, windows))]
+mod windows_tests;
+
+#[cfg(all(test, unix))]
+mod adoption_tests;
 
 mod adoption;
 mod evidence;

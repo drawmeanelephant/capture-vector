@@ -6,6 +6,8 @@
 use cv_core::engine::{EngineCaps, EngineSource};
 use std::sync::{Arc, Mutex};
 
+use crate::modules::migrate::LabState;
+
 #[derive(Debug, Clone, Default)]
 pub struct Facts {
     pub engine: EngineState,
@@ -14,12 +16,25 @@ pub struct Facts {
     /// Every path the locator tries, in order, with the source it stands
     /// for. Empty until a workspace boot searches.
     pub candidates: Vec<(EngineSource, String)>,
+    pub lab: Lab,
     pub probe: Option<Probe>,
     pub store: Store,
     pub app: AppBuild,
     /// `(prefix, replacement)` pairs applied to every string in the
     /// support bundle (the workspace root, the home directory).
     pub redact: Vec<(String, String)>,
+}
+
+/// Migration-lab locate facts, mirroring the engine rows with the
+/// lab-specific contract (`version.txt` plus the pinned tool id).
+#[derive(Debug, Clone, Default)]
+pub struct Lab {
+    pub state: LabState,
+    /// The migration-lab pin every gate checks against.
+    pub pin: Pin,
+    /// Every path the lab locator tries, in order, with the source it
+    /// stands for. Empty until a workspace boot searches.
+    pub candidates: Vec<(EngineSource, String)>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -115,6 +130,31 @@ pub struct Store {
     /// The open workspace; `None` shows the fixture demo or nothing.
     pub root: Option<String>,
     pub namespaces: Vec<Namespace>,
+    /// Read-only health scan of `.cv/imports/`; `None` before a workspace
+    /// boot has inspected the store.
+    pub imports: Option<ImportsHealth>,
+}
+
+/// Sidecar evidence collected without opening run records for writing.
+/// Counts distinguish ordinary empty state (a fresh workspace) from
+/// degraded state (unreadable evidence), which the namespace stamp alone
+/// cannot express.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ImportsHealth {
+    /// Number of run directories found; `None` when the scan failed.
+    pub runs: Option<u64>,
+    /// Run directories whose `run.json` is absent or does not decode.
+    pub unreadable_runs: u64,
+    /// Non-blank lines in `review.jsonl`, including malformed ones.
+    pub review_lines: u64,
+    pub undecodable_review_lines: u64,
+    pub unsupported_review_lines: u64,
+    /// Bytes in a torn final line, kept for the next append.
+    pub torn_review_bytes: u64,
+    /// Why the run scan failed, verbatim (for example a symlinked `.cv`).
+    pub scan_error: Option<String>,
+    /// Why the review log could not be opened or read, verbatim.
+    pub review_error: Option<String>,
 }
 
 /// One `.cv/<ns>/` sidecar namespace.
@@ -173,19 +213,55 @@ pub struct AppBuild {
     pub logging: String,
 }
 
+/// Read-only store evidence assembled at the composition root. The feed
+/// owns this probe so disclosure moments (opening Doctor, copying its
+/// bundle) can refresh filesystem facts without teaching the pure Doctor
+/// module how to touch disk.
+type StoreProbe = Arc<dyn Fn() -> Store + Send + Sync>;
+
 /// Shared between the composition root, which updates it from the
 /// engine boot thread, and the Doctor module, which reads it while
 /// rendering. A writer follows an update with an `Inbox` send, so the
 /// UI wakes and redraws with the new facts.
-#[derive(Debug, Clone, Default)]
-pub struct Feed(Arc<Mutex<Facts>>);
+#[derive(Clone, Default)]
+pub struct Feed {
+    facts: Arc<Mutex<Facts>>,
+    store_probe: Option<StoreProbe>,
+}
+
+impl std::fmt::Debug for Feed {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Feed")
+            .field("facts", &self.facts)
+            .field("store_probe", &self.store_probe.as_ref().map(|_| "<probe>"))
+            .finish()
+    }
+}
 
 impl Feed {
+    pub fn with_store_probe(probe: impl Fn() -> Store + Send + Sync + 'static) -> Self {
+        Self {
+            facts: Arc::new(Mutex::new(Facts::default())),
+            store_probe: Some(Arc::new(probe)),
+        }
+    }
+
     pub fn get(&self) -> Facts {
-        self.0.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.facts.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     pub fn update(&self, f: impl FnOnce(&mut Facts)) {
-        f(&mut self.0.lock().unwrap_or_else(|e| e.into_inner()));
+        f(&mut self.facts.lock().unwrap_or_else(|e| e.into_inner()));
+    }
+
+    /// Re-read the composition root's store evidence and replace that
+    /// slice atomically. Returns false for a feed with no workspace probe.
+    pub fn refresh_store(&self) -> bool {
+        let Some(probe) = &self.store_probe else {
+            return false;
+        };
+        let store = probe();
+        self.update(|f| f.store = store);
+        true
     }
 }

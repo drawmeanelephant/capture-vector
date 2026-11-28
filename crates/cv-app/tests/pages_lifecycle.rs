@@ -104,6 +104,7 @@ fn boot_workspace(
             env_override: Some(bin),
             ..Locator::default()
         }),
+        lab_locator: Some(Locator::default()),
         recent_file: Some(recent.path().join("recent.json")),
     };
     let mut wb = init();
@@ -300,6 +301,7 @@ fn rename_preserves_a_snooze_through_the_pinned_stable_id() {
             env_override: Some(bin),
             ..Locator::default()
         }),
+        lab_locator: Some(Locator::default()),
         recent_file: Some(recent.path().join("recent.json")),
     };
     open_workspace(&mut wb, ws.path().into(), &env)

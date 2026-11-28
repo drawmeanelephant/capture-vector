@@ -14,6 +14,7 @@ use crate::new_workspace::{self, Archetypes, Notices, ShellNotice};
 use crate::theme::{Mode, Theme};
 use crate::windows::{CloseOutcome, PRIMARY, WindowId, Windows};
 use crate::workspace_key::WorkspaceKey;
+mod disclosure;
 mod input;
 mod outcome_retention;
 use cv_core::engine::{CancelToken, EventSink, WatchHandle};
@@ -22,6 +23,7 @@ use cv_core::events::shell::{DegradedReason, ShellEvent};
 use cv_core::events::{AppEvent, Cursor, EventId, SessionId, SnapshotEpoch};
 use cv_core::id::{Selection, StableId, WorkspaceId};
 use cv_core::store::{Namespace, Store};
+pub use disclosure::ValueExpansionKey;
 pub use input::{KeyInput, KeyPress, ShellRequest};
 use outcome_retention::{
     MAX_PENDING_OUTCOME_BYTES, MAX_PENDING_OUTCOMES, dedupe_outcome_copies, digest,
@@ -231,6 +233,12 @@ pub struct Workbench {
     /// Inspector sections whose open state the user flipped from the
     /// default (open when it has items), by title.
     pub sections_flipped: BTreeSet<String>,
+    /// Inspector values the user expanded inline, scoped by workspace,
+    /// module, mailbox, row and stable noun evidence so one record's
+    /// expansion never leaks into another's. Long values (paths, argv,
+    /// hashes) truncate in the pane's width; expansion is how their full
+    /// text shows without leaving the app.
+    values_expanded: BTreeSet<ValueExpansionKey>,
     /// Shows the window bookkeeping (dirty state per window) in the
     /// inspector; a debugging aid, off by default.
     pub debug_windows: bool,
@@ -298,6 +306,7 @@ impl Workbench {
             dialogs: Dialogs::default(),
             inspector_open: true,
             sections_flipped: BTreeSet::new(),
+            values_expanded: BTreeSet::new(),
             debug_windows: false,
             status: String::new(),
             workspace: None,
@@ -405,6 +414,8 @@ impl Workbench {
         self.app = AppState::default();
         self.seen.clear();
         self.unjournaled.clear();
+        self.sections_flipped.clear();
+        self.values_expanded.clear();
         self.palette = Palette::default();
         // Degraded identity evidence belongs to the workspace, not one
         // module generation; disclose it afresh after each rebuild so the
@@ -574,7 +585,7 @@ impl Workbench {
     /// Fan a project snapshot out to every module (snapshot resync).
     pub fn load_snapshot(&mut self, snap: &ProjectSnapshot) -> bool {
         self.app.snapshot_epoch = snap.epoch;
-        let mut changed = false;
+        let mut changed = self.app.graph.update(snap.ir_graph.clone()).changed;
         for m in self.registry.iter_mut() {
             changed |= m.load(snap);
         }
@@ -677,9 +688,15 @@ impl Workbench {
     }
 
     pub fn activate(&mut self, index: usize) {
-        if index < self.registry.len() && index != self.active {
+        if index >= self.registry.len() {
+            return;
+        }
+        if index != self.active {
             self.clear_selection();
             self.active = index;
+        }
+        if let Some(m) = self.registry.get_mut(index) {
+            m.activated();
         }
     }
 
@@ -875,18 +892,6 @@ impl Workbench {
             out.extend(m.commands());
         }
         out
-    }
-
-    /// Whether the inspector section `title` shows its items: open when
-    /// it has any, unless the user flipped it.
-    pub fn section_open(&self, title: &str, empty: bool) -> bool {
-        empty == self.sections_flipped.contains(title)
-    }
-
-    pub fn toggle_section(&mut self, title: &str) {
-        if !self.sections_flipped.remove(title) {
-            self.sections_flipped.insert(title.to_string());
-        }
     }
 
     pub fn run_command(&mut self, id: &str) {

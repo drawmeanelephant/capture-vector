@@ -1,0 +1,29 @@
+{
+  "format": "boris-completion-index",
+  "schema_version": 1,
+  "compiler_id": "boris/0.9.0",
+  "frozen": true,
+  "entities": [
+    {
+      "id": "guides/non-adjacent",
+      "title": "Non-adjacent duplicates",
+      "parent": "index",
+      "role": "satellite",
+      "status": null,
+      "tags": ["repeat", "other", "repeat"],
+      "relations": []
+    },
+    {
+      "id": "index",
+      "title": "Tagged Home",
+      "parent": null,
+      "role": "trunk",
+      "status": null,
+      "tags": ["repeat", "repeat", "other"],
+      "relations": []
+    }
+  ],
+  "relation_kinds": ["depends_on", "implements", "relates_to", "supersedes"],
+  "parent_targets": ["index"],
+  "layout_slots": ["backlinks", "breadcrumb", "children", "content", "footer", "metadata", "nav", "relations", "title", "toc"]
+}

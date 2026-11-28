@@ -13,19 +13,23 @@ bar, or run **Open Doctor** (`shell.doctor`) from the command palette
 - **Engine**: which Boris binary this window runs, how it was found
   (`CV_BORIS_BIN`, bundled, `PATH`, sibling checkout), its `--version`
   and `--build-info` against the pin, and every path the search tried.
+- **Migration lab**: the same locate, version/pin and search-order facts
+  for `boris-migration-lab`.
 - **Capabilities**: what the probe saw on this OS (watch, serve,
   validate, content writes) and whether the watch is native or one-shot.
 - **Watch session**: live or dead, the last cursor and exit, and the last
   non-recoverable failure with its diagnostics.
 - **.cv/ store**: each namespace's schema stamp against what this build
-  reads, who holds the writer locks, and where the rebuildable research
-  index lives.
+  reads, who holds the writer locks, where the rebuildable research
+  index lives, and whether `.cv/imports/` run records and review log are
+  healthy or degraded.
 - **App build**: version, commit, target, toolchain, and logging state.
 
 **Copy Doctor support bundle** (palette) puts a JSON report of every
 section on the clipboard for an issue. It leaves out page bodies, the
-engine's absolute paths, environment values, and secret-looking fields;
-the workspace root and home directory become `<workspace>` and `~`.
+engine and migration lab's absolute paths, environment values, and
+secret-looking fields; the workspace root and home directory become
+`<workspace>` and `~`.
 
 If the app does not start at all, or you need a clean baseline:
 
@@ -73,6 +77,8 @@ the folder picker; the recent list lives under the platform config dir
 `boris-migration-lab` powers the Migrate utility. It is optional: without
 it everything else works, and the app discloses the absence.
 
+- Doctor → Migration lab names the refused binary (or lists every
+  searched path when none was found) and what the pin wants.
 - Build the pinned lab (commit and tool id are in `fixtures/MANIFEST.toml`
   under `[migration_lab]`; needs git, zig 0.17.x, and network):
   `./scripts/fetch-migration-lab.sh`. It builds into
@@ -84,11 +90,11 @@ it everything else works, and the app discloses the absence.
 - The gate is `boris-migration-lab --version` printing the pinned tool id
   (`boris-migration-lab/0.8.1`). The binary cannot report its commit, so
   build from the pinned commit rather than trusting a renamed binary.
-- `error: migration-lab (<mode>) failed: OutputSymlink` (exit 2) means a
-  path reached the lab through a symlink, for example `/tmp` on macOS.
-  `cv-engine` canonicalizes inputs and `--out` before it spawns the lab,
-  so this error from the app is a bug; from a shell, pass
-  `/private/tmp/...`.
+- `InputSymlink`/`OutputSymlink` means a chosen input or output spelling
+  contains a symlink. `cv-engine` deliberately does not canonicalize that
+  spelling away: it refuses the symlink before spawning, except for
+  root-level OS aliases such as macOS `/tmp`, `/var` and `/etc`. Choose
+  the real path instead; from a shell, pass `/private/tmp/...`.
 - Live checks, including the pin-skew check of emitted pages against the
   pinned Boris:
   `CV_MIGRATION_LAB_BIN=… CV_BORIS_BIN=… cargo test -p cv-engine --test lab_live -- --ignored --nocapture`.

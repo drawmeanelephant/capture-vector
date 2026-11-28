@@ -5394,6 +5394,7 @@
     {
       "fill": "#0e1014ff",
       "key": "inspector",
+      "label": "Inspector",
       "opacity": 1.0,
       "path": "shell/body/inspector",
       "rect": [
@@ -5402,7 +5403,7 @@
         240.0,
         778.0
       ],
-      "role": "group"
+      "role": "complementary"
     },
     {
       "key": "inspector-scroll",
@@ -5450,7 +5451,7 @@
         1040.0,
         28.3,
         240.0,
-        395.3
+        413.3
       ],
       "role": "group"
     },
@@ -5501,17 +5502,29 @@
         1048.0,
         46.0,
         224.0,
-        13.8
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "field-run-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/field-run-head",
+      "rect": [
+        1048.0,
+        46.0,
+        224.0,
+        16.0
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/field-run-head/#0",
       "rect": [
         1048.0,
-        46.0,
+        47.1,
         72.0,
         13.8
       ],
@@ -5521,15 +5534,42 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/field-run-head/#1",
       "rect": [
         1128.0,
-        46.0,
-        144.0,
+        47.1,
+        118.0,
         13.8
       ],
       "role": "text",
       "text": "1764000240000-hugo"
+    },
+    {
+      "help": "Show the full run value",
+      "key": "field-run-expand",
+      "label": "Show the full run value",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/field-run-head/field-run-expand",
+      "radius": 4.0,
+      "rect": [
+        1254.0,
+        46.0,
+        18.0,
+        16.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/field-run-head/field-run-expand/#0",
+      "rect": [
+        1258.0,
+        49.0,
+        10.0,
+        10.0
+      ],
+      "role": "icon"
     },
     {
       "key": "field-mode",
@@ -5537,7 +5577,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-mode",
       "rect": [
         1048.0,
-        63.8,
+        66.0,
         224.0,
         13.8
       ],
@@ -5549,7 +5589,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-mode/#0",
       "rect": [
         1048.0,
-        63.8,
+        66.0,
         72.0,
         13.8
       ],
@@ -5562,7 +5602,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-mode/#1",
       "rect": [
         1128.0,
-        63.8,
+        66.0,
         144.0,
         13.8
       ],
@@ -5575,19 +5615,31 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-format",
       "rect": [
         1048.0,
-        81.5,
+        83.8,
         224.0,
-        13.8
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "field-format-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-format/field-format-head",
+      "rect": [
+        1048.0,
+        83.8,
+        224.0,
+        16.0
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-format/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-format/field-format-head/#0",
       "rect": [
         1048.0,
-        81.5,
+        84.9,
         72.0,
         13.8
       ],
@@ -5596,16 +5648,44 @@
     },
     {
       "color": "#e6e9efff",
+      "help": "boris-hugo-migration-lab",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-format/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-format/field-format-head/#1",
       "rect": [
         1128.0,
-        81.5,
-        144.0,
+        84.9,
+        118.0,
         13.8
       ],
       "role": "text",
       "text": "boris-hugo-migration-lab"
+    },
+    {
+      "help": "Show the full format value",
+      "key": "field-format-expand",
+      "label": "Show the full format value",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-format/field-format-head/field-format-expand",
+      "radius": 4.0,
+      "rect": [
+        1254.0,
+        83.8,
+        18.0,
+        16.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-format/field-format-head/field-format-expand/#0",
+      "rect": [
+        1258.0,
+        86.8,
+        10.0,
+        10.0
+      ],
+      "role": "icon"
     },
     {
       "key": "field-schema",
@@ -5613,7 +5693,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-schema",
       "rect": [
         1048.0,
-        99.3,
+        103.8,
         224.0,
         13.8
       ],
@@ -5625,7 +5705,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-schema/#0",
       "rect": [
         1048.0,
-        99.3,
+        103.8,
         72.0,
         13.8
       ],
@@ -5638,7 +5718,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-schema/#1",
       "rect": [
         1128.0,
-        99.3,
+        103.8,
         144.0,
         13.8
       ],
@@ -5651,7 +5731,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-lab version",
       "rect": [
         1048.0,
-        117.0,
+        121.5,
         224.0,
         13.8
       ],
@@ -5663,7 +5743,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-lab version/#0",
       "rect": [
         1048.0,
-        117.0,
+        121.5,
         72.0,
         13.8
       ],
@@ -5676,7 +5756,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-lab version/#1",
       "rect": [
         1128.0,
-        117.0,
+        121.5,
         144.0,
         13.8
       ],
@@ -5689,19 +5769,31 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-lab binary",
       "rect": [
         1048.0,
-        134.8,
+        139.3,
         224.0,
-        13.8
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "field-lab binary-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-lab binary/field-lab binary-head",
+      "rect": [
+        1048.0,
+        139.3,
+        224.0,
+        16.0
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-lab binary/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-lab binary/field-lab binary-head/#0",
       "rect": [
         1048.0,
-        134.8,
+        140.4,
         72.0,
         13.8
       ],
@@ -5710,16 +5802,44 @@
     },
     {
       "color": "#e6e9efff",
+      "help": "boris-migration-lab/0.8.1",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-lab binary/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-lab binary/field-lab binary-head/#1",
       "rect": [
         1128.0,
-        134.8,
-        144.0,
+        140.4,
+        118.0,
         13.8
       ],
       "role": "text",
       "text": "boris-migration-lab/0.8.1"
+    },
+    {
+      "help": "Show the full lab binary value",
+      "key": "field-lab binary-expand",
+      "label": "Show the full lab binary value",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-lab binary/field-lab binary-head/field-lab binary-expand",
+      "radius": 4.0,
+      "rect": [
+        1254.0,
+        139.3,
+        18.0,
+        16.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-lab binary/field-lab binary-head/field-lab binary-expand/#0",
+      "rect": [
+        1258.0,
+        142.3,
+        10.0,
+        10.0
+      ],
+      "role": "icon"
     },
     {
       "key": "field-Boris pin",
@@ -5727,19 +5847,31 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-Boris pin",
       "rect": [
         1048.0,
-        152.5,
+        159.3,
         224.0,
-        13.8
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "field-Boris pin-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-Boris pin/field-Boris pin-head",
+      "rect": [
+        1048.0,
+        159.3,
+        224.0,
+        16.0
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-Boris pin/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-Boris pin/field-Boris pin-head/#0",
       "rect": [
         1048.0,
-        152.5,
+        160.4,
         72.0,
         13.8
       ],
@@ -5749,15 +5881,42 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-Boris pin/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-Boris pin/field-Boris pin-head/#1",
       "rect": [
         1128.0,
-        152.5,
-        144.0,
+        160.4,
+        118.0,
         13.8
       ],
       "role": "text",
       "text": "boris/0.9.0 @ 66efcfb"
+    },
+    {
+      "help": "Show the full Boris pin value",
+      "key": "field-Boris pin-expand",
+      "label": "Show the full Boris pin value",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-Boris pin/field-Boris pin-head/field-Boris pin-expand",
+      "radius": 4.0,
+      "rect": [
+        1254.0,
+        159.3,
+        18.0,
+        16.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-Boris pin/field-Boris pin-head/field-Boris pin-expand/#0",
+      "rect": [
+        1258.0,
+        162.3,
+        10.0,
+        10.0
+      ],
+      "role": "icon"
     },
     {
       "key": "field-argv",
@@ -5765,19 +5924,31 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-argv",
       "rect": [
         1048.0,
-        170.3,
+        179.3,
         224.0,
-        13.8
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "field-argv-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-argv/field-argv-head",
+      "rect": [
+        1048.0,
+        179.3,
+        224.0,
+        16.0
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-argv/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-argv/field-argv-head/#0",
       "rect": [
         1048.0,
-        170.3,
+        180.4,
         72.0,
         13.8
       ],
@@ -5788,15 +5959,42 @@
       "color": "#e6e9efff",
       "help": "--mode=hugo --root=/CAPTURE_ROOT/src/mini-hugo --out=/CAPTURE_ROOT/out/hugo",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-argv/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-argv/field-argv-head/#1",
       "rect": [
         1128.0,
-        170.3,
-        144.0,
+        180.4,
+        118.0,
         13.8
       ],
       "role": "text",
       "text": "--mode=hugo --root=/CAPTURE_ROOT/src/mini-hugo --out=/CAPTURE_ROOT/out/hugo"
+    },
+    {
+      "help": "Show the full argv value",
+      "key": "field-argv-expand",
+      "label": "Show the full argv value",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-argv/field-argv-head/field-argv-expand",
+      "radius": 4.0,
+      "rect": [
+        1254.0,
+        179.3,
+        18.0,
+        16.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-argv/field-argv-head/field-argv-expand/#0",
+      "rect": [
+        1258.0,
+        182.3,
+        10.0,
+        10.0
+      ],
+      "role": "icon"
     },
     {
       "key": "field-exit code",
@@ -5804,7 +6002,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-exit code",
       "rect": [
         1048.0,
-        188.0,
+        199.3,
         224.0,
         13.8
       ],
@@ -5816,7 +6014,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-exit code/#0",
       "rect": [
         1048.0,
-        188.0,
+        199.3,
         72.0,
         13.8
       ],
@@ -5829,7 +6027,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-exit code/#1",
       "rect": [
         1128.0,
-        188.0,
+        199.3,
         144.0,
         13.8
       ],
@@ -5842,7 +6040,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ended",
       "rect": [
         1048.0,
-        205.8,
+        217.0,
         224.0,
         13.8
       ],
@@ -5854,7 +6052,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ended/#0",
       "rect": [
         1048.0,
-        205.8,
+        217.0,
         72.0,
         13.8
       ],
@@ -5867,7 +6065,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-ended/#1",
       "rect": [
         1128.0,
-        205.8,
+        217.0,
         144.0,
         13.8
       ],
@@ -5880,7 +6078,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-duration",
       "rect": [
         1048.0,
-        223.5,
+        234.8,
         224.0,
         13.8
       ],
@@ -5892,7 +6090,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-duration/#0",
       "rect": [
         1048.0,
-        223.5,
+        234.8,
         72.0,
         13.8
       ],
@@ -5905,7 +6103,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-duration/#1",
       "rect": [
         1128.0,
-        223.5,
+        234.8,
         144.0,
         13.8
       ],
@@ -5918,19 +6116,31 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-output",
       "rect": [
         1048.0,
-        241.3,
+        252.5,
         224.0,
-        13.8
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "field-output-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-output/field-output-head",
+      "rect": [
+        1048.0,
+        252.5,
+        224.0,
+        16.0
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-output/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-output/field-output-head/#0",
       "rect": [
         1048.0,
-        241.3,
+        253.6,
         72.0,
         13.8
       ],
@@ -5941,15 +6151,42 @@
       "color": "#e6e9efff",
       "help": ".cv/imports/1764000240000-hugo/out",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-output/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-output/field-output-head/#1",
       "rect": [
         1128.0,
-        241.3,
-        144.0,
+        253.6,
+        118.0,
         13.8
       ],
       "role": "text",
       "text": ".cv/imports/1764000240000-hugo/out"
+    },
+    {
+      "help": "Show the full output value",
+      "key": "field-output-expand",
+      "label": "Show the full output value",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-output/field-output-head/field-output-expand",
+      "radius": 4.0,
+      "rect": [
+        1254.0,
+        252.5,
+        18.0,
+        16.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-output/field-output-head/field-output-expand/#0",
+      "rect": [
+        1258.0,
+        255.5,
+        10.0,
+        10.0
+      ],
+      "role": "icon"
     },
     {
       "key": "field-provenance",
@@ -5957,19 +6194,31 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-provenance",
       "rect": [
         1048.0,
-        259.0,
+        272.5,
         224.0,
-        13.8
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "field-provenance-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-provenance/field-provenance-head",
+      "rect": [
+        1048.0,
+        272.5,
+        224.0,
+        16.0
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-provenance/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-provenance/field-provenance-head/#0",
       "rect": [
         1048.0,
-        259.0,
+        273.6,
         72.0,
         13.8
       ],
@@ -5980,15 +6229,42 @@
       "color": "#e6e9efff",
       "help": ".cv/imports/1764000240000-hugo/out/provenance/",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-provenance/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-provenance/field-provenance-head/#1",
       "rect": [
         1128.0,
-        259.0,
-        144.0,
+        273.6,
+        118.0,
         13.8
       ],
       "role": "text",
       "text": ".cv/imports/1764000240000-hugo/out/provenance/"
+    },
+    {
+      "help": "Show the full provenance value",
+      "key": "field-provenance-expand",
+      "label": "Show the full provenance value",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-provenance/field-provenance-head/field-provenance-expand",
+      "radius": 4.0,
+      "rect": [
+        1254.0,
+        272.5,
+        18.0,
+        16.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-provenance/field-provenance-head/field-provenance-expand/#0",
+      "rect": [
+        1258.0,
+        275.5,
+        10.0,
+        10.0
+      ],
+      "role": "icon"
     },
     {
       "key": "list-0",
@@ -5997,7 +6273,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0",
       "rect": [
         1048.0,
-        284.8,
+        300.5,
         224.0,
         15.0
       ],
@@ -6009,7 +6285,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/#0",
       "rect": [
         1048.0,
-        286.3,
+        302.0,
         12.0,
         12.0
       ],
@@ -6021,7 +6297,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/#1",
       "rect": [
         1064.0,
-        284.8,
+        300.5,
         36.2,
         15.0
       ],
@@ -6036,7 +6312,7 @@
       "radius": 999.0,
       "rect": [
         1104.2,
-        285.4,
+        301.1,
         16.6,
         13.8
       ],
@@ -6048,7 +6324,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0/list-0-count/#0",
       "rect": [
         1110.2,
-        285.4,
+        301.1,
         4.6,
         13.8
       ],
@@ -6056,19 +6332,57 @@
       "text": "1"
     },
     {
-      "color": "#e6e9efff",
-      "help": "--root /CAPTURE_ROOT/src/mini-hugo (1c83602a8b968c414a61247329328933f19f7ea257f33a7bc0aef483b32bbd28)",
       "key": "list-0-0",
       "opacity": 1.0,
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0-0",
       "rect": [
         1048.0,
-        303.8,
+        319.5,
         224.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "--root /CAPTURE_ROOT/src/mini-hugo (1c83602a8b968c414a61247329328933f19f7ea257f33a7bc0aef483b32bbd28)",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0-0/#0",
+      "rect": [
+        1048.0,
+        319.5,
+        202.0,
         13.8
       ],
       "role": "text",
       "text": "--root /CAPTURE_ROOT/src/mini-hugo (1c83602a8b968c414a61247329328933f19f7ea257f33a7bc0aef483b32bbd28)"
+    },
+    {
+      "help": "Show the full value",
+      "key": "list-0-0-expand",
+      "label": "Show the full value",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0-0/list-0-0-expand",
+      "radius": 4.0,
+      "rect": [
+        1254.0,
+        319.5,
+        18.0,
+        16.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/list-0-0/list-0-0-expand/#0",
+      "rect": [
+        1258.0,
+        322.5,
+        10.0,
+        10.0
+      ],
+      "role": "icon"
     },
     {
       "key": "list-1",
@@ -6077,7 +6391,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1",
       "rect": [
         1048.0,
-        329.5,
+        347.5,
         224.0,
         15.0
       ],
@@ -6089,7 +6403,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1/#0",
       "rect": [
         1048.0,
-        331.0,
+        349.0,
         12.0,
         12.0
       ],
@@ -6101,7 +6415,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1/#1",
       "rect": [
         1064.0,
-        329.5,
+        347.5,
         41.6,
         15.0
       ],
@@ -6116,7 +6430,7 @@
       "radius": 999.0,
       "rect": [
         1109.6,
-        330.1,
+        348.1,
         19.2,
         13.8
       ],
@@ -6128,7 +6442,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1/list-1-count/#0",
       "rect": [
         1115.6,
-        330.1,
+        348.1,
         7.2,
         13.8
       ],
@@ -6142,7 +6456,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1-0",
       "rect": [
         1048.0,
-        348.5,
+        366.5,
         224.0,
         13.8
       ],
@@ -6156,7 +6470,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1-1",
       "rect": [
         1048.0,
-        366.3,
+        384.3,
         224.0,
         13.8
       ],
@@ -6170,7 +6484,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1-2",
       "rect": [
         1048.0,
-        384.0,
+        402.0,
         224.0,
         13.8
       ],
@@ -6184,7 +6498,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/list-1-3",
       "rect": [
         1048.0,
-        401.8,
+        419.8,
         224.0,
         13.8
       ],
@@ -6262,9 +6576,9 @@
     },
     {
       "color": "#8a93a3ff",
-      "key": "status-1.24",
+      "key": "status-1.25",
       "opacity": 1.0,
-      "path": "shell/status/status-1/status-1.24",
+      "path": "shell/status/status-1/status-1.25",
       "rect": [
         105.4,
         782.1,

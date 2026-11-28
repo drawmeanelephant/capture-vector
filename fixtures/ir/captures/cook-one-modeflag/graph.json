@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "0.4.0",
+  "frozen": true,
+  "nodes": [
+    {
+      "index": 0,
+      "id": "soup",
+      "sourcePath": "soup.cook",
+      "role": "trunk",
+      "parent": null,
+      "parentIndex": null,
+      "title": "Soup",
+      "status": null,
+      "tags": [],
+      "bodyOffset": 32,
+      "recipe": {
+        "ingredients": [
+          { "name": "water", "quantity": { "amount": "2", "unit": "cups" }, "preparation": "", "recipeRef": null },
+          { "name": "salt", "quantity": { "amount": "1", "unit": "pinch" }, "preparation": "", "recipeRef": null }
+        ],
+        "cookware": [
+        ],
+        "timers": [
+        ]
+      }
+    }
+  ],
+  "edges": [
+  ],
+  "reverseIndex": [
+  ],
+  "nav": [
+    {
+      "index": 0,
+      "id": "soup",
+      "breadcrumb": [0],
+      "children": [],
+      "siblings": []
+    }
+  ]
+}

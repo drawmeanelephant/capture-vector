@@ -5,12 +5,16 @@ use crate::{mid_watch, open_broken_recovered, snapshot};
 use cv_core::engine::{EngineCaps, EngineSource};
 use cv_core::events::shell::DegradedReason;
 use cv_model::modules::doctor::{
-    self, AppBuild, EngineState, Facts, Located, Lock, LockHolder, Namespace, Probe, Stamp, Store,
+    self, AppBuild, EngineState, Facts, ImportsHealth, Lab, Located, Lock, LockHolder, Namespace,
+    Probe, Stamp, Store,
 };
+use cv_model::modules::migrate::LabState;
 use cv_model::workbench::Workbench;
 
 const ROOT: &str = "/Users/ana/sites/happy";
 const BUNDLED: &str = "/Applications/Capture Vector.app/Contents/Resources/engines/boris";
+const LAB_BUNDLED: &str =
+    "/Applications/Capture Vector.app/Contents/Resources/engines/boris-migration-lab";
 const BUILD_INFO: &str = r#"{"format":"boris-build-info","schemaVersion":"1","version":"boris/0.9.0","vcsRevision":"66efcfb"}"#;
 
 fn candidates() -> Vec<(EngineSource, String)> {
@@ -28,6 +32,44 @@ fn candidates() -> Vec<(EngineSource, String)> {
         (EngineSource::Path, "/usr/local/bin/boris".into()),
         (EngineSource::Path, "/usr/bin/boris".into()),
     ]
+}
+
+fn lab_candidates() -> Vec<(EngineSource, String)> {
+    vec![
+        (
+            EngineSource::Bundled,
+            "/Applications/Capture Vector.app/Contents/MacOS/engines/boris-migration-lab".into(),
+        ),
+        (EngineSource::Bundled, LAB_BUNDLED.into()),
+        (
+            EngineSource::Bundled,
+            "/Applications/Capture Vector.app/Contents/MacOS/boris-migration-lab".into(),
+        ),
+        (
+            EngineSource::Path,
+            "/opt/homebrew/bin/boris-migration-lab".into(),
+        ),
+        (
+            EngineSource::Path,
+            "/usr/local/bin/boris-migration-lab".into(),
+        ),
+    ]
+}
+
+fn lab(state: LabState) -> Lab {
+    Lab {
+        state,
+        pin: super::lab_pin(),
+        candidates: lab_candidates(),
+    }
+}
+
+fn healthy_lab() -> Lab {
+    lab(LabState::Located {
+        tool_id: super::lab_pin().version,
+        source: "bundled".into(),
+        path: LAB_BUNDLED.into(),
+    })
 }
 
 fn store() -> Store {
@@ -58,7 +100,13 @@ fn store() -> Store {
                 stamp: Stamp::Absent,
                 ..ns("ledger", None, None)
             },
+            ns("imports", None, None),
         ],
+        imports: Some(ImportsHealth {
+            runs: Some(2),
+            review_lines: 1,
+            ..ImportsHealth::default()
+        }),
     }
 }
 
@@ -67,6 +115,7 @@ fn facts(engine: EngineState, probe: Option<Probe>) -> Facts {
         engine,
         pin: super::pin(),
         candidates: candidates(),
+        lab: healthy_lab(),
         probe,
         store: store(),
         app: AppBuild {
@@ -145,6 +194,71 @@ pub fn version_mismatch(wb: &mut Workbench) {
         found: "0.8.2".into(),
         want: "0.9.0".into(),
     });
+}
+
+/// The engine is healthy, but no migration lab is on the search path.
+pub fn lab_absent(wb: &mut Workbench) {
+    wb.load_snapshot(&snapshot::corpus_snapshot("happy"));
+    let mut f = facts(bundled(), Some(native_probe()));
+    f.lab.state = LabState::Absent {
+        searched: lab_candidates().into_iter().map(|(_, path)| path).collect(),
+    };
+    show(wb, f);
+    wb.set_nav("lab");
+    wb.select_key("lab.status");
+}
+
+/// An older migration lab on PATH is refused by the pin gate.
+pub fn lab_mismatch(wb: &mut Workbench) {
+    wb.load_snapshot(&snapshot::corpus_snapshot("happy"));
+    let mut f = facts(bundled(), Some(native_probe()));
+    f.lab.state = LabState::Mismatch {
+        found: "boris-migration-lab/0.8.0".into(),
+        want: super::lab_pin().version,
+        path: "/usr/local/bin/boris-migration-lab".into(),
+        source: "PATH".into(),
+    };
+    show(wb, f);
+    wb.set_nav("lab");
+    wb.select_key("lab.status");
+}
+
+/// `.cv/imports` is a healthy fresh namespace: no migration runs yet.
+pub fn imports_missing(wb: &mut Workbench) {
+    wb.load_snapshot(&snapshot::corpus_snapshot("happy"));
+    let mut f = facts(bundled(), Some(native_probe()));
+    for ns in &mut f.store.namespaces {
+        if ns.name == "imports" {
+            ns.stamp = Stamp::Absent;
+        }
+    }
+    f.store.imports = Some(ImportsHealth {
+        runs: Some(0),
+        ..ImportsHealth::default()
+    });
+    show(wb, f);
+    wb.set_nav("store");
+    wb.select_key("store.imports.runs");
+}
+
+/// `.cv/imports` exists but its evidence is degraded: the scan refuses a
+/// symlinked sidecar and the namespace stamp is newer than this build.
+pub fn imports_degraded(wb: &mut Workbench) {
+    wb.load_snapshot(&snapshot::corpus_snapshot("happy"));
+    let mut f = facts(bundled(), Some(native_probe()));
+    for ns in &mut f.store.namespaces {
+        if ns.name == "imports" {
+            ns.stamp = Stamp::Version(9);
+        }
+    }
+    f.store.imports = Some(ImportsHealth {
+        scan_error: Some(".cv is a symlink; refusing to follow it".into()),
+        review_error: Some(".cv is a symlink; refusing to follow it".into()),
+        ..ImportsHealth::default()
+    });
+    show(wb, f);
+    wb.set_nav("store");
+    wb.select_key("store.ns.imports");
 }
 
 /// The watch failed fatally on a broken page; the one-shot build named

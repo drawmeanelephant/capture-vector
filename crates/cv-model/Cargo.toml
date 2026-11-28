@@ -6,6 +6,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+cv-contracts.workspace = true
 cv-core.workspace = true
 cv-notes.workspace = true
 cv-rules.workspace = true

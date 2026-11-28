@@ -103,7 +103,7 @@ fn content(t: &Theme, m: ReadingModel) -> El {
             .wrap()
             .grow(1.0)
             .min_w(0.0);
-        if crate::inspector::is_url(&l.text) {
+        if crate::value::is_url(&l.text) {
             let url = l.text;
             line = line.role("link").color(color(t.colors.accent)).on_press_tx(
                 move |_: &mut Workbench, tx| {

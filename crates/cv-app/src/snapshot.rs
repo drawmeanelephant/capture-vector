@@ -18,6 +18,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs::{self, File, Metadata, OpenOptions};
 use std::io::{self, Read};
 use std::path::{Component, Path, PathBuf};
+use std::sync::Arc;
 
 const ARTIFACTS: &str = "dist/dist/_boris/proof/artifacts.json";
 const SOURCE_EXT: &[&str] = &[".md", ".mdx", ".textile", ".cook"];
@@ -85,6 +86,7 @@ pub fn corpus_snapshot(name: &str) -> ProjectSnapshot {
             .map(String::from),
         pages,
         outputs,
+        ir_graph: None,
         last_publish: None,
         artifact_root: Some(fixtures_root().join(format!("captures/{name}/dist/dist")))
             .filter(|d| d.is_dir())
@@ -396,9 +398,11 @@ impl<'a> Scan<'a> {
 /// IR-mode builds write `graph.json` under `--out`: the live session's
 /// own projection (`IR_DIR`), Boris's default `.boris`, or the HTML dir
 /// of a workspace built with `--out <html_dir>`. The freshest *valid*
-/// file wins; a malformed or unreadable newer candidate never hides an
-/// older good one. On a tie the earlier candidate wins, so the projection
-/// the live session keeps fresh is read first.
+/// file wins; a malformed, unreadable, or undecodable newer candidate —
+/// including one claiming an unsupported IR `schemaVersion` — never
+/// hides an older good one and never becomes graph authority. On a tie
+/// the earlier candidate wins, so the projection the live session keeps
+/// fresh is read first.
 fn ir_graph(root: &Path, html_dir: &str) -> Option<Graph> {
     let mut candidates = Vec::new();
     for (priority, dir) in [IR_DIR, ".boris", html_dir].into_iter().enumerate() {
@@ -414,7 +418,8 @@ fn ir_graph(root: &Path, html_dir: &str) -> Option<Graph> {
     }
     candidates.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
     candidates.into_iter().find_map(|(_, _, rel)| {
-        workspace_json(root, &rel, MAX_INDEX_BYTES).and_then(|v| serde_json::from_value(v).ok())
+        workspace_json(root, &rel, MAX_INDEX_BYTES)
+            .and_then(|v| cv_contracts::graph::decode_graph_value(v).ok())
     })
 }
 
@@ -427,6 +432,27 @@ fn apply_ir(pages: &mut [PageRecord], graph: &Graph) {
         .iter()
         .map(|n| (n.source_path.as_str(), n))
         .collect();
+    // Index Boris's emitted rows once instead of scanning the whole
+    // relation/dependency arrays once per page (quadratic at the graph scale
+    // floor). The filter predicates and ordering are unchanged.
+    let mut relations_by_source: HashMap<&str, Vec<(&str, &str)>> = HashMap::new();
+    for r in &graph.relations {
+        if r.from.kind == "page" {
+            relations_by_source
+                .entry(r.from.value.as_str())
+                .or_default()
+                .push((r.kind.as_str(), r.to.value.as_str()));
+        }
+    }
+    let mut wikilinks_by_source: HashMap<&str, Vec<&str>> = HashMap::new();
+    for e in &graph.edges {
+        if e.kind == "reference" && e.from.kind == "page" && e.to.kind == "page" {
+            wikilinks_by_source
+                .entry(e.from.value.as_str())
+                .or_default()
+                .push(e.to.value.as_str());
+        }
+    }
     for p in pages {
         let Some(n) = by_path.get(p.path.as_str()) else {
             continue;
@@ -439,22 +465,17 @@ fn apply_ir(pages: &mut [PageRecord], graph: &Graph) {
             .unwrap_or_else(|| n.id.clone());
         p.parent = n.parent.clone();
         p.tags = n.tags.clone();
-        p.relations = graph
-            .relations
-            .iter()
-            .filter(|r| r.from.kind == "page" && r.from.value == n.id)
-            .map(|r| (r.kind.clone(), r.to.value.clone()))
+        p.relations = relations_by_source
+            .get(n.id.as_str())
+            .into_iter()
+            .flatten()
+            .map(|(kind, target)| ((*kind).to_string(), (*target).to_string()))
             .collect();
-        p.wikilinks = graph
-            .edges
-            .iter()
-            .filter(|e| {
-                e.kind == "reference"
-                    && e.from.kind == "page"
-                    && e.from.value == n.id
-                    && e.to.kind == "page"
-            })
-            .map(|e| e.to.value.clone())
+        p.wikilinks = wikilinks_by_source
+            .get(n.id.as_str())
+            .into_iter()
+            .flatten()
+            .map(|target| (*target).to_string())
             .collect();
         p.fields = FieldSource::Boris;
     }
@@ -517,12 +538,14 @@ pub fn workspace_snapshot(
     epoch: u64,
 ) -> ProjectSnapshot {
     let mut scan = Scan::new(html_dir);
+    let mut frozen_graph = None;
     let index = workspace_root(root).and_then(|base| {
         if let Some(dir) = source_root(&base, Path::new(&input_at(&base))) {
             scan.walk(&dir, "", 0);
         }
         if let Some(graph) = ir_graph(&base, html_dir) {
             apply_ir(&mut scan.pages, &graph);
+            frozen_graph = Some(Arc::new(graph));
         }
         apply_imports(&base, &mut scan.pages);
         workspace_json(
@@ -555,6 +578,7 @@ pub fn workspace_snapshot(
             .map(String::from),
         pages,
         outputs,
+        ir_graph: frozen_graph,
         last_publish: None,
         artifact_root: Some(root.join(html_dir).to_string_lossy().into_owned()),
     }

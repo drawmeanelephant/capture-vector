@@ -3,8 +3,21 @@
 
 use crate::exit::ExitOutcome;
 use cv_core::engine::EngineSource;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use thiserror::Error;
+
+/// Spawn failures are free-form text in status lines and support bundles.
+/// The typed error keeps the program path for structured handling, but the
+/// text names only the binary: the full path is environment evidence, not a
+/// safe default for a string that travels.
+fn program_label(program: &Path) -> String {
+    let raw = program.as_os_str().to_string_lossy();
+    raw.rsplit(['/', '\\'])
+        .next()
+        .filter(|name| !name.is_empty())
+        .unwrap_or("engine")
+        .to_string()
+}
 
 #[derive(Debug, Error)]
 pub enum EngineError {
@@ -27,7 +40,7 @@ pub enum EngineError {
     },
     #[error("boris --build-info at {path:?} is not a boris build-info record: {raw:?}")]
     BuildInfoInvalid { path: PathBuf, raw: String },
-    #[error("spawn {program:?}: {source}")]
+    #[error("spawn {}: {source}", program_label(.program))]
     Spawn {
         program: PathBuf,
         #[source]
@@ -66,6 +79,22 @@ pub type Result<T> = std::result::Result<T, EngineError>;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn spawn_error_text_names_only_the_binary_file_name() {
+        for (program, label) in [
+            ("/home/redacted-user/tools/boris", "boris"),
+            (r"C:\Users\redacted-user\tools\boris.exe", "boris.exe"),
+        ] {
+            let err = EngineError::Spawn {
+                program: PathBuf::from(program),
+                source: std::io::Error::new(std::io::ErrorKind::NotFound, "missing"),
+            };
+            let msg = err.to_string();
+            assert!(msg.starts_with(&format!("spawn {label}:")), "{msg}");
+            assert!(!msg.contains("redacted-user"), "{msg}");
+        }
+    }
 
     #[test]
     fn not_found_counts_searched_paths_without_listing_them() {

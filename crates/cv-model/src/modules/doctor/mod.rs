@@ -10,12 +10,14 @@
 
 pub mod bundle;
 pub mod facts;
+mod sections;
+use sections::store_items;
 #[cfg(test)]
 mod tests;
 
 pub use facts::{
-    AppBuild, EngineState, Facts, Feed, Located, Lock, LockHolder, Namespace, Pin, Probe, Stamp,
-    Store,
+    AppBuild, EngineState, Facts, Feed, ImportsHealth, Lab, Located, Lock, LockHolder, Namespace,
+    Pin, Probe, Stamp, Store,
 };
 
 use crate::command::{CommandSpec, Intent};
@@ -23,6 +25,7 @@ use crate::module::{
     Chip, InspectorModel, Module, ModuleSpec, NavItem, NavModel, ReadingLine, ReadingModel,
     Registry, RowModel, Slot, Tone,
 };
+use crate::modules::migrate::LabState;
 use cv_core::diagnostic::{Diagnostic, Severity};
 use cv_core::engine::{EngineSource, ExitClass};
 use cv_core::events::engine::{BuildPhase, EngineEvent, WatchEndReason, WatchExit};
@@ -229,14 +232,16 @@ impl WatchLog {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Section {
     Engine,
+    Lab,
     Probe,
     Watch,
     Store,
     App,
 }
 
-const SECTIONS: [(Section, &str, &str); 5] = [
+const SECTIONS: [(Section, &str, &str); 6] = [
     (Section::Engine, "engine", "Engine"),
+    (Section::Lab, "lab", "Migration lab"),
     (Section::Probe, "probe", "Capabilities"),
     (Section::Watch, "watch", "Watch session"),
     (Section::Store, "store", ".cv/ store"),
@@ -345,6 +350,35 @@ pub fn pin_matches(f: &Facts) -> Option<bool> {
         EngineState::Located(_) => Some(true),
         EngineState::Fixture { version, .. } => Some(*version == f.pin.version),
         EngineState::VersionMismatch { .. } | EngineState::BuildInfoInvalid { .. } => Some(false),
+        _ => None,
+    }
+}
+
+/// Same meaning as [`source_label`], for the migration lab's override.
+pub fn lab_source_label(s: &EngineSource) -> &'static str {
+    match s {
+        EngineSource::EnvOverride => "CV_MIGRATION_LAB_BIN",
+        EngineSource::Bundled => "bundled",
+        EngineSource::Path => "PATH",
+        EngineSource::SiblingCheckout => "sibling checkout",
+    }
+}
+
+pub(crate) fn lab_path(state: &LabState) -> Option<&str> {
+    match state {
+        LabState::Located { path, .. }
+        | LabState::OverrideMissing { path }
+        | LabState::Mismatch { path, .. } => Some(path),
+        _ => None,
+    }
+}
+
+/// Whether the migration lab this window runs is the pinned one: `None`
+/// when no gate has run yet.
+pub fn lab_pin_matches(f: &Facts) -> Option<bool> {
+    match &f.lab.state {
+        LabState::Located { tool_id, .. } => Some(*tool_id == f.lab.pin.version),
+        LabState::Mismatch { .. } => Some(false),
         _ => None,
     }
 }
@@ -497,6 +531,137 @@ fn engine_items(f: &Facts) -> Vec<Item> {
         let hit = used == Some(p.as_str());
         search.lines.push(ReadingLine {
             label: Some(if hit { "used" } else { source_label(src) }.into()),
+            text: p.clone(),
+            tone: if hit { Tone::Ok } else { Tone::Dim },
+            mono: true,
+        });
+    }
+    out.push(search);
+    out
+}
+
+const FIX_LAB: &str = "Build the pinned boris-migration-lab (scripts/fetch-migration-lab.sh) and put it on PATH or point CV_MIGRATION_LAB_BIN at it, then reopen the workspace. Runs already under .cv/imports/ stay readable without it.";
+
+fn lab_items(f: &Facts) -> Vec<Item> {
+    let pin = format!("{} @ {}", f.lab.pin.version, f.lab.pin.vcs_revision);
+    let state = &f.lab.state;
+    let status = match state {
+        LabState::NoWorkspace => Item::new("lab.status", "Not located yet", "no workspace")
+            .tone(Tone::Dim)
+            .badge("idle", Tone::Dim)
+            .say("No workspace is open, so nothing has looked for boris-migration-lab. Open one with Open workspace… (mod+shift+O) or launch with --project <dir>."),
+        LabState::Fixture { tool_id } => Item::new("lab.status", tool_id.clone(), "fixture replay")
+            .badge("fixture", Tone::Dim)
+            .say("The fixture demo replays checked-in migration captures; no lab binary runs. Open a workspace to run a real lab."),
+        LabState::Located {
+            tool_id,
+            source,
+            path,
+        } => Item::new("lab.status", tool_id.clone(), source.clone())
+            .tone(Tone::Ok)
+            .badge("OK", Tone::Ok)
+            .line("binary", path.clone())
+            .line("pin", pin.clone())
+            .say("The binary passed the --version gate against the migration-lab pin."),
+        LabState::Absent { searched } => Item::new(
+            "lab.status",
+            "boris-migration-lab not found",
+            format!("{} searched", searched.len()),
+        )
+        .tone(Tone::Error)
+        .badge("absent", Tone::Error)
+        .say(FIX_LAB),
+        LabState::OverrideMissing { path } => {
+            Item::new("lab.status", "CV_MIGRATION_LAB_BIN is not an executable", path.clone())
+                .tone(Tone::Error)
+                .badge("absent", Tone::Error)
+                .say("An explicit override never falls through to another lab binary: fix or unset CV_MIGRATION_LAB_BIN, then reopen the workspace.")
+        }
+        LabState::Mismatch {
+            found,
+            want,
+            path,
+            source,
+        } => Item::new("lab.status", found.clone(), format!("pinned {want}"))
+            .tone(Tone::Warn)
+            .badge("mismatch", Tone::Warn)
+            .line("found", found.clone())
+            .line("want", pin.clone())
+            .line("located via", source.clone())
+            .line("binary", path.clone())
+            .say(FIX_LAB),
+        LabState::Failed { error } => Item::new("lab.status", "Lab gate failed", error.clone())
+            .tone(Tone::Error)
+            .badge("failed", Tone::Error)
+            .line("error", error.clone())
+            .say(FIX_LAB),
+    };
+    let mut out = vec![status];
+    if let Some(p) = lab_path(state) {
+        out.push(Item::new("lab.path", "Binary", p).path());
+    }
+    match state {
+        LabState::Located { source, .. } | LabState::Mismatch { source, .. } => {
+            out.push(
+                Item::new("lab.source", "Located via", source.clone())
+                    .say(format!("Found through {source}."))
+                    .say("Search order: CV_MIGRATION_LAB_BIN, then the app's bundled engines/, then PATH, then a sibling checkout (only with CV_MIGRATION_LAB_SIBLING=1). The first that exists is gated; a mismatch never falls through to the next."),
+            );
+        }
+        LabState::OverrideMissing { .. } => {
+            out.push(
+                Item::new("lab.source", "Located via", "CV_MIGRATION_LAB_BIN").say(
+                    "An explicit override is the only candidate tried; it never falls through.",
+                ),
+            );
+        }
+        _ => {}
+    }
+    match state {
+        LabState::Located { tool_id, .. } => {
+            out.push(Item::new("lab.version", "--version", tool_id.clone()));
+        }
+        LabState::Mismatch { found, .. } => {
+            out.push(Item::new("lab.version", "--version", found.clone()).tone(Tone::Warn));
+        }
+        LabState::Fixture { tool_id } => {
+            out.push(Item::new("lab.version", "Captured tool", tool_id.clone()));
+        }
+        _ => {}
+    }
+    let mut pin_item = Item::new("lab.pin", "Pin", f.lab.pin.version.clone())
+        .line("revision", f.lab.pin.vcs_revision.clone())
+        .say("The one migration lab this build accepts. The lab reports only a tool id, not the source commit; the pin's commit is release evidence.");
+    pin_item = match lab_pin_matches(f) {
+        Some(true) => pin_item.badge("match", Tone::Ok),
+        Some(false) => pin_item.badge("differs", Tone::Warn),
+        None => pin_item.badge("unchecked", Tone::Dim),
+    };
+    out.push(pin_item);
+
+    let mut candidates = f.lab.candidates.clone();
+    if candidates.is_empty()
+        && let LabState::Absent { searched } = state
+    {
+        candidates = searched
+            .iter()
+            .map(|p| (EngineSource::Path, p.clone()))
+            .collect();
+    }
+    let mut search = Item::new(
+        "lab.search",
+        "Search order",
+        match candidates.len() {
+            0 => "not searched".to_string(),
+            1 => "1 candidate".to_string(),
+            n => format!("{n} candidates"),
+        },
+    );
+    let used = lab_path(state);
+    for (src, p) in &candidates {
+        let hit = used == Some(p.as_str());
+        search.lines.push(ReadingLine {
+            label: Some(if hit { "used" } else { lab_source_label(src) }.into()),
             text: p.clone(),
             tone: if hit { Tone::Ok } else { Tone::Dim },
             mono: true,
@@ -728,102 +893,6 @@ fn watch_items(f: &Facts, w: &WatchLog) -> Vec<Item> {
     out
 }
 
-fn stamp_badge(ns: &Namespace) -> (String, Chip, Tone) {
-    let s = ns.supported;
-    match &ns.stamp {
-        Stamp::Absent => (
-            "not stamped".into(),
-            Chip::new("fresh", Tone::Dim),
-            Tone::Normal,
-        ),
-        Stamp::Unstamped => (
-            "v0".into(),
-            Chip::new("unstamped", Tone::Warn),
-            Tone::Normal,
-        ),
-        Stamp::Version(v) if *v > s => (
-            format!("v{v} > v{s}"),
-            Chip::new("too new", Tone::Error),
-            Tone::Error,
-        ),
-        Stamp::Version(v) if *v < s => (
-            format!("v{v} → v{s}"),
-            Chip::new("older", Tone::Warn),
-            Tone::Normal,
-        ),
-        Stamp::Version(v) => (
-            format!("schema v{v}"),
-            Chip::new("current", Tone::Ok),
-            Tone::Normal,
-        ),
-        Stamp::Unreadable(e) => (e.clone(), Chip::new("unreadable", Tone::Error), Tone::Error),
-    }
-}
-
-fn store_items(f: &Facts) -> Vec<Item> {
-    let Some(root) = &f.store.root else {
-        return vec![
-            Item::new("store.none", "No workspace open", "nothing kept in .cv/")
-                .tone(Tone::Dim)
-                .say("The fixture demo reads the checkout's captures and keeps no sidecar state."),
-        ];
-    };
-    let mut out = vec![Item::new("store.root", "Workspace", root.clone()).path()];
-    for ns in &f.store.namespaces {
-        let (value, chip, tone) = stamp_badge(ns);
-        let mut i = Item::new(format!("store.ns.{}", ns.name), ns.dir.clone(), value)
-            .tone(tone)
-            .line("stamp", format!("{}/schema.json", ns.dir))
-            .line("reads", format!("up to v{}", ns.supported));
-        i.badge = Some(chip);
-        if let Some(e) = &ns.error {
-            i = i
-                .tone(Tone::Error)
-                .badge("error", Tone::Error)
-                .line("open error", e.clone());
-        }
-        out.push(i);
-        if let Some(l) = &ns.lock {
-            let lock = Item::new(format!("store.lock.{}", ns.name), l.path.clone(), "");
-            out.push(match l.holder {
-                LockHolder::ThisWindow => Item {
-                    value: "this window".into(),
-                    ..lock
-                },
-                LockHolder::OtherProcess => Item {
-                    value: "another process".into(),
-                    ..lock
-                }
-                .tone(Tone::Error)
-                .badge("locked", Tone::Error)
-                .say("Another Capture Vector has this workspace open. Close it (or end a stuck one), then reopen the workspace."),
-                LockHolder::NotHeld => Item {
-                    value: "not held".into(),
-                    ..lock
-                }
-                .tone(Tone::Dim),
-                LockHolder::Unknown => Item {
-                    value: "unknown".into(),
-                    ..lock
-                }
-                .tone(Tone::Warn)
-                .say("The lock exists, but Doctor could not determine its holder."),
-            });
-        }
-        if let Some(ix) = &ns.index {
-            out.push(
-                Item::new(format!("store.index.{}", ns.name), format!("{} index", ns.name), ix.clone())
-                    .path()
-                    .say(format!(
-                        "Rebuildable: the JSONL under {} is the truth. The index rebuilds on open whenever it is missing, corrupt or stale; to force a rebuild, run Rebuild local indexes from .cv JSONL from the command palette (mod+K). Only if that action reports failure: quit, delete this file, and reopen the workspace.",
-                        ns.dir
-                    )),
-            );
-        }
-    }
-    out
-}
-
 fn app_items(f: &Facts) -> Vec<Item> {
     let a = &f.app;
     vec![
@@ -842,7 +911,7 @@ fn app_items(f: &Facts) -> Vec<Item> {
         Item::new("app.bundle", "Support bundle", "palette")
             .say("Run Copy Doctor support bundle from the command palette (mod+K).")
             .say("Copies a JSON report of every section here to the clipboard, for an issue or a support thread.")
-            .say("Left out: page bodies, absolute paths of the engine and its search order (they come from PATH and CV_BORIS_BIN), environment values, and any field whose name looks like a secret. The workspace root and home directory are replaced by placeholders."),
+            .say("Left out: page bodies, absolute paths of the engine, migration lab and their search order (they come from PATH, CV_BORIS_BIN and CV_MIGRATION_LAB_BIN), environment values, and any field whose name looks like a secret. The workspace root and home directory are replaced by placeholders."),
     ]
 }
 
@@ -867,6 +936,7 @@ impl DoctorModule {
         let f = self.feed.get();
         match s {
             Section::Engine => engine_items(&f),
+            Section::Lab => lab_items(&f),
             Section::Probe => probe_items(&f),
             Section::Watch => watch_items(&f, &self.watch),
             Section::Store => store_items(&f),
@@ -888,6 +958,10 @@ impl Module for DoctorModule {
             title: "Doctor",
             slot: Slot::Utility,
         }
+    }
+
+    fn activated(&mut self) {
+        self.feed.refresh_store();
     }
 
     fn ingest(&mut self, env: &Envelope) -> bool {
@@ -998,10 +1072,11 @@ impl Module for DoctorModule {
         if command != COPY_BUNDLE {
             return Vec::new();
         }
+        self.feed.refresh_store();
         let text = bundle::render(&self.feed.get(), &self.watch);
         vec![
             Intent::Status(format!(
-                "Support bundle copied ({} bytes). Page bodies, engine paths and environment values are left out.",
+                "Support bundle copied ({} bytes). Page bodies, engine/lab paths and environment values are left out.",
                 text.len()
             )),
             Intent::Copy(text),

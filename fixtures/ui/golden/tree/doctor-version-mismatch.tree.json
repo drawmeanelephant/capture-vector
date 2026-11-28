@@ -645,7 +645,7 @@
         88.0,
         60.3,
         180.0,
-        139.0
+        166.0
       ],
       "role": "group"
     },
@@ -716,9 +716,9 @@
     },
     {
       "fill": "#0e1014ff",
-      "key": "nav-probe",
+      "key": "nav-lab",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-scroll/#1/nav-probe",
+      "path": "shell/body/nav/nav-scroll/#1/nav-lab",
       "radius": 4.0,
       "rect": [
         96.0,
@@ -731,10 +731,48 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/nav/nav-scroll/#1/nav-probe/#0",
+      "path": "shell/body/nav/nav-scroll/#1/nav-lab/#0",
       "rect": [
         104.0,
         91.3,
+        73.9,
+        15.0
+      ],
+      "role": "text",
+      "text": "Migration lab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-lab/#1",
+      "rect": [
+        181.9,
+        98.8,
+        70.1,
+        0.0
+      ],
+      "role": "group"
+    },
+    {
+      "fill": "#0e1014ff",
+      "key": "nav-probe",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-probe",
+      "radius": 4.0,
+      "rect": [
+        96.0,
+        114.3,
+        164.0,
+        23.0
+      ],
+      "role": "treeitem"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/nav/nav-scroll/#1/nav-probe/#0",
+      "rect": [
+        104.0,
+        118.3,
         65.9,
         15.0
       ],
@@ -746,7 +784,7 @@
       "path": "shell/body/nav/nav-scroll/#1/nav-probe/#1",
       "rect": [
         173.9,
-        98.8,
+        125.8,
         78.1,
         0.0
       ],
@@ -760,7 +798,7 @@
       "radius": 4.0,
       "rect": [
         96.0,
-        114.3,
+        141.3,
         164.0,
         23.0
       ],
@@ -772,7 +810,7 @@
       "path": "shell/body/nav/nav-scroll/#1/nav-watch/#0",
       "rect": [
         104.0,
-        118.3,
+        145.3,
         82.3,
         15.0
       ],
@@ -784,7 +822,7 @@
       "path": "shell/body/nav/nav-scroll/#1/nav-watch/#1",
       "rect": [
         190.3,
-        125.8,
+        152.8,
         61.7,
         0.0
       ],
@@ -798,7 +836,7 @@
       "radius": 4.0,
       "rect": [
         96.0,
-        141.3,
+        168.3,
         164.0,
         23.0
       ],
@@ -810,7 +848,7 @@
       "path": "shell/body/nav/nav-scroll/#1/nav-store/#0",
       "rect": [
         104.0,
-        145.3,
+        172.3,
         52.5,
         15.0
       ],
@@ -822,7 +860,7 @@
       "path": "shell/body/nav/nav-scroll/#1/nav-store/#1",
       "rect": [
         160.5,
-        152.8,
+        179.8,
         91.5,
         0.0
       ],
@@ -836,7 +874,7 @@
       "radius": 4.0,
       "rect": [
         96.0,
-        168.3,
+        195.3,
         164.0,
         23.0
       ],
@@ -848,7 +886,7 @@
       "path": "shell/body/nav/nav-scroll/#1/nav-app/#0",
       "rect": [
         104.0,
-        172.3,
+        199.3,
         54.0,
         15.0
       ],
@@ -860,7 +898,7 @@
       "path": "shell/body/nav/nav-scroll/#1/nav-app/#1",
       "rect": [
         162.0,
-        179.8,
+        206.8,
         90.0,
         0.0
       ],
@@ -1534,6 +1572,7 @@
     {
       "fill": "#0e1014ff",
       "key": "inspector",
+      "label": "Inspector",
       "opacity": 1.0,
       "path": "shell/body/inspector",
       "rect": [
@@ -1542,7 +1581,7 @@
         240.0,
         746.0
       ],
-      "role": "group"
+      "role": "complementary"
     },
     {
       "key": "inspector-scroll",

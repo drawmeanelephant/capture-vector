@@ -59,7 +59,7 @@ fn init_ports(
     cv_model::modules::publish::install(publish);
     cv_model::modules::engine::detach();
     cv_model::modules::migrate::install(migrate);
-    doctor::install(None);
+    doctor::install(None, None);
     Workbench::new(Registry::with_all()).with_store(Box::new(StubStore::new()))
 }
 
@@ -122,6 +122,9 @@ pub struct WorkspaceEnv {
     /// `None`: the production chain (`CV_BORIS_BIN` → bundled → PATH →
     /// sibling) rooted at the workspace.
     pub locator: Option<cv_engine::locate::Locator>,
+    /// Same meaning for `boris-migration-lab`; tests inject a fake lab here
+    /// rather than mutating process-wide environment variables.
+    pub lab_locator: Option<cv_engine::locate::Locator>,
     pub recent_file: Option<PathBuf>,
 }
 
@@ -129,6 +132,7 @@ impl WorkspaceEnv {
     pub fn native() -> Self {
         Self {
             locator: None,
+            lab_locator: None,
             recent_file: workspace::config_dir().map(|d| d.join(workspace::RECENT_FILE)),
         }
     }
@@ -313,12 +317,17 @@ pub fn open_workspace(
     let publish_err = publish_warning(&publish);
     opened.ledger.error = publish.error().map(str::to_string);
     cv_model::modules::publish::install(Box::new(publish));
+    let lab = migrate::locate_detailed(&root, env.lab_locator.as_ref());
     cv_model::modules::migrate::install(Box::new(migrate::DiskPort::open(
         &root,
-        migrate::locate(&root),
+        lab.state.clone(),
     )));
-    let feed = doctor::install(Some(&root));
-    feed.update(|f| f.store = doctor::store(&root, &opened));
+    let feed = doctor::install(Some(&root), Some(&opened));
+    feed.update(|f| {
+        f.store = doctor::store(&root, &opened);
+        f.lab.state = lab.state;
+        f.lab.candidates = lab.candidates;
+    });
     wb.reset_project(workspace_registry());
     wb.workspace_key = Some(slots::workspace_key(&root));
     wb.workspace = Some(root.clone());
@@ -753,6 +762,10 @@ pub const SCENES: &[Scene] = &[
     ("doctor", doctor::scene::healthy),
     ("doctor-engine-absent", doctor::scene::engine_absent),
     ("doctor-version-mismatch", doctor::scene::version_mismatch),
+    ("doctor-lab-absent", doctor::scene::lab_absent),
+    ("doctor-lab-mismatch", doctor::scene::lab_mismatch),
+    ("doctor-imports-missing", doctor::scene::imports_missing),
+    ("doctor-imports-degraded", doctor::scene::imports_degraded),
     ("doctor-watch-dead", doctor::scene::watch_dead),
     ("publish-approve", publish::scene::approve),
     ("publish-delivered", publish::scene::delivered),

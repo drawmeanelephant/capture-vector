@@ -39,5 +39,6 @@ pub mod reference;
 pub mod shell;
 pub mod theme;
 pub mod tree;
+mod value;
 
 pub const FIREWALL: &str = "all rune contact lives here";

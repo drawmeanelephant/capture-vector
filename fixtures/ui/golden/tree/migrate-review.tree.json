@@ -4166,6 +4166,7 @@
     {
       "fill": "#0e1014ff",
       "key": "inspector",
+      "label": "Inspector",
       "opacity": 1.0,
       "path": "shell/body/inspector",
       "rect": [
@@ -4174,7 +4175,7 @@
         240.0,
         778.0
       ],
-      "role": "group"
+      "role": "complementary"
     },
     {
       "key": "inspector-scroll",
@@ -4222,7 +4223,7 @@
         1040.0,
         28.3,
         240.0,
-        92.8
+        95.0
       ],
       "role": "group"
     },
@@ -4300,17 +4301,29 @@
         1048.0,
         46.0,
         224.0,
-        13.8
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "key": "field-run-head",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/field-run-head",
+      "rect": [
+        1048.0,
+        46.0,
+        224.0,
+        16.0
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/field-run-head/#0",
       "rect": [
         1048.0,
-        46.0,
+        47.1,
         72.0,
         13.8
       ],
@@ -4320,15 +4333,42 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/field-run-head/#1",
       "rect": [
         1128.0,
-        46.0,
-        144.0,
+        47.1,
+        118.0,
         13.8
       ],
       "role": "text",
       "text": "1764000240000-hugo"
+    },
+    {
+      "help": "Show the full run value",
+      "key": "field-run-expand",
+      "label": "Show the full run value",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/field-run-head/field-run-expand",
+      "radius": 4.0,
+      "rect": [
+        1254.0,
+        46.0,
+        18.0,
+        16.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#8a93a3ff",
+      "opacity": 1.0,
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/field-run-head/field-run-expand/#0",
+      "rect": [
+        1258.0,
+        49.0,
+        10.0,
+        10.0
+      ],
+      "role": "icon"
     },
     {
       "key": "field-item",
@@ -4336,7 +4376,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-item",
       "rect": [
         1048.0,
-        63.8,
+        66.0,
         224.0,
         13.8
       ],
@@ -4348,7 +4388,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-item/#0",
       "rect": [
         1048.0,
-        63.8,
+        66.0,
         72.0,
         13.8
       ],
@@ -4361,7 +4401,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-item/#1",
       "rect": [
         1128.0,
-        63.8,
+        66.0,
         144.0,
         13.8
       ],
@@ -4374,7 +4414,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-triage",
       "rect": [
         1048.0,
-        81.5,
+        83.8,
         224.0,
         13.8
       ],
@@ -4386,7 +4426,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-triage/#0",
       "rect": [
         1048.0,
-        81.5,
+        83.8,
         72.0,
         13.8
       ],
@@ -4399,7 +4439,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-triage/#1",
       "rect": [
         1128.0,
-        81.5,
+        83.8,
         144.0,
         13.8
       ],
@@ -4412,7 +4452,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-sidecar",
       "rect": [
         1048.0,
-        99.3,
+        101.5,
         224.0,
         13.8
       ],
@@ -4424,7 +4464,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-sidecar/#0",
       "rect": [
         1048.0,
-        99.3,
+        101.5,
         72.0,
         13.8
       ],
@@ -4437,7 +4477,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-sidecar/#1",
       "rect": [
         1128.0,
-        99.3,
+        101.5,
         144.0,
         13.8
       ],
@@ -4515,9 +4555,9 @@
     },
     {
       "color": "#8a93a3ff",
-      "key": "status-1.24",
+      "key": "status-1.25",
       "opacity": 1.0,
-      "path": "shell/status/status-1/status-1.24",
+      "path": "shell/status/status-1/status-1.25",
       "rect": [
         105.4,
         782.1,
