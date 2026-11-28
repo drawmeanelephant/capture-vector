@@ -10,12 +10,23 @@
 //! lookup the IR contract leaves to consumers. `relations` remain distinct
 //! from dependency `edges` here, exactly as they are in Boris.
 //!
+//! Typed vocabulary drift is preserved rather than interpreted: node role and
+//! status views expose the contract enums (navigation itself uses only
+//! `parentIndex` and Boris `nav`, never role/status); semantic-relation kinds
+//! are indexed by their verbatim token because that vocabulary is
+//! constrained-open and carries no closed meaning, while an endpoint whose
+//! typed endpoint vocabulary is not `page` is never coerced into page
+//! adjacency. Unknown/drifted relation evidence therefore remains queryable
+//! without becoming structural or semantic authority it does not have.
+//!
 //! Schema policy for pinned Boris 0.9 IR: node/nav/dependency shape is shared
 //! by IR 0.2+; semantic `relations` default to empty for relation-free 0.2
 //! artifacts; the additive 0.4 recipe facet is tolerated and ignored. A future
 //! breaking schema needs a `cv-contracts` review rather than inference here.
 
-use cv_contracts::graph::{Endpoint, Graph};
+use cv_contracts::graph::{
+    Endpoint, EndpointType, Graph, NodeRole, NodeStatus, SemanticRelationKind,
+};
 use cv_core::id::{AccountId, NounId, NounKind, Selection, StableId, noun_kind};
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
@@ -50,9 +61,9 @@ pub struct GraphNode<'a> {
     pub index: usize,
     pub id: &'a str,
     pub source_path: &'a str,
-    pub role: &'a str,
+    pub role: &'a NodeRole,
     pub title: Option<&'a str>,
-    pub status: Option<&'a str>,
+    pub status: Option<&'a NodeStatus>,
     pub tags: &'a [String],
     pub parent: Option<&'a str>,
     pub body_offset: usize,
@@ -66,7 +77,7 @@ pub struct GraphNode<'a> {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct GraphRelation<'a> {
     pub ordinal: usize,
-    pub kind: &'a str,
+    pub kind: &'a SemanticRelationKind,
     pub from: &'a Endpoint,
     pub to: &'a Endpoint,
 }
@@ -264,8 +275,8 @@ impl GraphNavIndex {
         positions_of(positions).filter_map(move |&ord| self.relation_at(ord))
     }
 
-    /// Semantic relations incident to one page, filtered by Boris's opaque
-    /// relation-kind token and endpoint orientation.
+    /// Semantic relations incident to one page, filtered by the verbatim
+    /// constrained-open relation-kind token and endpoint orientation.
     pub fn relations_of_kind<'a>(
         &'a self,
         id: &str,
@@ -273,7 +284,7 @@ impl GraphNavIndex {
         direction: RelationDirection,
     ) -> impl Iterator<Item = GraphRelation<'a>> + 'a {
         self.relations_of(id, direction)
-            .filter(move |relation| relation.kind == kind)
+            .filter(move |relation| relation.kind.as_str() == kind)
     }
 
     /// Every relation carrying `kind`, whether or not its endpoints resolve
@@ -406,20 +417,20 @@ impl GraphNavIndex {
         }
     }
 
-    fn index_relations(&mut self, relations: &[cv_contracts::graph::Relation]) {
+    fn index_relations(&mut self, relations: &[cv_contracts::graph::SemanticRelation]) {
         let len = self.graph.as_ref().map_or(0, |g| g.nodes.len());
         self.outgoing = vec![Vec::new(); len];
         self.incoming = vec![Vec::new(); len];
         self.incident = vec![Vec::new(); len];
         self.degree = vec![RelationDegree::default(); len];
         for (ordinal, relation) in relations.iter().enumerate() {
-            push_position(&mut self.relations_by_kind, &relation.kind, ordinal);
-            if relation.from.kind == "page"
+            push_position(&mut self.relations_by_kind, relation.kind.as_str(), ordinal);
+            if relation.from.kind == EndpointType::Page
                 && let Some(&from) = self.by_id.get(&relation.from.value)
             {
                 self.outgoing[from].push(ordinal);
             }
-            if relation.to.kind == "page"
+            if relation.to.kind == EndpointType::Page
                 && let Some(&to) = self.by_id.get(&relation.to.value)
             {
                 self.incoming[to].push(ordinal);
@@ -458,7 +469,7 @@ impl GraphNavIndex {
             source_path: &node.source_path,
             role: &node.role,
             title: node.title.as_deref(),
-            status: node.status.as_deref(),
+            status: node.status.as_ref(),
             tags: &node.tags,
             parent: node.parent.as_deref(),
             body_offset: node.body_offset,
@@ -496,11 +507,13 @@ fn push_position(map: &mut BTreeMap<String, Vec<usize>>, key: &str, pos: usize) 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cv_contracts::graph::{Endpoint, NavEntry, Node, Relation};
+    use cv_contracts::graph::{
+        Endpoint, EndpointType, NavEntry, Node, SemanticRelation, SemanticRelationKind,
+    };
 
     fn endpoint(value: &str) -> Endpoint {
         Endpoint {
-            kind: "page".into(),
+            kind: EndpointType::Page,
             value: value.into(),
         }
     }
@@ -511,11 +524,10 @@ mod tests {
             id: id.into(),
             source_path: format!("{id}.md"),
             role: if parent.is_some() {
-                "satellite"
+                NodeRole::Satellite
             } else {
-                "trunk"
-            }
-            .into(),
+                NodeRole::Trunk
+            },
             parent: parent.map(|(id, _)| id.to_string()),
             parent_index: parent.map(|(_, index)| index),
             title: Some(format!("Title {id}")),
@@ -558,10 +570,10 @@ mod tests {
                 nav(1, "a", &[0, 1], &[], &[2]),
                 nav(2, "b", &[0, 2], &[], &[1]),
             ],
-            relations: vec![Relation {
+            relations: vec![SemanticRelation {
                 from: endpoint("a"),
                 to: endpoint("b"),
-                kind: "relates_to".into(),
+                kind: SemanticRelationKind::Token("relates_to".into()),
             }],
         }
     }

@@ -27,9 +27,14 @@
 //!   own version claim, and decoding it anyway would silently drop author
 //!   semantic data. Genuinely unknown additive keys inside a known
 //!   version remain tolerated, per the mirror contract.
-//! - Vocabulary is not structure. `role`, `status`, edge `kind`, endpoint
-//!   `type` and relation `kind` stay opaque strings; validating them is
-//!   Boris's job, and additive upstream drift must not crash a lane.
+//! - Closed vocabularies are typed wire facts. Endpoint `type`, node
+//!   `role`/`status`, and dependency-edge `kind` decode to their known
+//!   variants; a value outside the closed set decodes to a typed
+//!   `Unknown` carrying the exact wire token. Semantic-relation kinds are
+//!   deliberately different: that vocabulary is constrained-open, so any
+//!   token matching Boris's bounded ASCII grammar is a `Token`, while a
+//!   token outside the grammar is typed `Unknown` drift. Neither case
+//!   crashes a lane, and neither is reinterpreted as a known value.
 //!
 //! The mirror is **decode-only**: no type here implements `Serialize`.
 //! Boris is the sole writer of conforming IR; a re-emitting mirror could
@@ -60,9 +65,9 @@ pub struct Graph {
     pub schema_version: String,
     pub frozen: bool,
     pub nodes: Vec<Node>,
-    /// Build-dependency edges (`parent`, `include`, `reference`). These are
-    /// not semantic relations.
-    pub edges: Vec<Relation>,
+    /// Build-dependency edges (`parent`, `include`, `reference`, or typed
+    /// drift outside that closed set). These are not semantic relations.
+    pub edges: Vec<DependencyEdge>,
     /// Boris's build-invalidation reverse index for dependency `edges`.
     /// Semantic relations deliberately have no upstream reverse index.
     pub reverse_index: Vec<ReverseIndexEntry>,
@@ -72,7 +77,7 @@ pub struct Graph {
     /// the facet (`0.2.0`, which cannot carry them) and when a
     /// relation-aware artifact's set is empty; `schema_version` carries
     /// the facet distinction.
-    pub relations: Vec<Relation>,
+    pub relations: Vec<SemanticRelation>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -82,12 +87,15 @@ pub struct Node {
     pub id: String,
     /// Relative to the content input.
     pub source_path: String,
-    /// Boris's validated role token (`trunk` or `satellite` in IR 0.2+).
-    pub role: String,
+    /// Boris's closed role vocabulary. Drift outside `trunk`/`satellite`
+    /// remains typed instead of masquerading as either one.
+    pub role: NodeRole,
     pub parent: Option<String>,
     pub parent_index: Option<usize>,
     pub title: Option<String>,
-    pub status: Option<String>,
+    /// Boris's closed nullable status vocabulary: `None` is the wire null;
+    /// `Some(NodeStatus::Unknown(_))` is a non-null drifted string.
+    pub status: Option<NodeStatus>,
     pub tags: Vec<String>,
     pub body_offset: usize,
     /// The node's Cooklang recipe data when it carries one. `None` both
@@ -161,19 +169,208 @@ pub struct ReverseIndexEntry {
     pub incoming_edges: Vec<usize>,
 }
 
-/// One dependency edge or author semantic relation. Shape-identical in
-/// both arrays; the array it sits in carries the meaning.
+/// The closed endpoint `type` vocabulary. `Unknown` carries the exact
+/// nonconforming wire token, so a future or malformed value can be shown
+/// as drift without being mistaken for `page` or `source`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum EndpointType {
+    Page,
+    Source,
+    Unknown(String),
+}
+
+impl EndpointType {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Page => "page",
+            Self::Source => "source",
+            Self::Unknown(s) => s,
+        }
+    }
+
+    fn from_wire(s: String) -> Self {
+        match s.as_str() {
+            "page" => Self::Page,
+            "source" => Self::Source,
+            _ => Self::Unknown(s),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for EndpointType {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        String::deserialize(d).map(Self::from_wire)
+    }
+}
+
+/// The closed node `role` vocabulary. `Unknown` carries drift verbatim.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum NodeRole {
+    Trunk,
+    Satellite,
+    Unknown(String),
+}
+
+impl NodeRole {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Trunk => "trunk",
+            Self::Satellite => "satellite",
+            Self::Unknown(s) => s,
+        }
+    }
+
+    fn from_wire(s: String) -> Self {
+        match s.as_str() {
+            "trunk" => Self::Trunk,
+            "satellite" => Self::Satellite,
+            _ => Self::Unknown(s),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for NodeRole {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        String::deserialize(d).map(Self::from_wire)
+    }
+}
+
+/// One non-null node `status` value. The wire null stays outside this
+/// enum as `None` on [`Node::status`]; `Unknown` is a non-null string
+/// outside the closed vocabulary.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum NodeStatus {
+    Draft,
+    Published,
+    Archived,
+    Unknown(String),
+}
+
+impl NodeStatus {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Draft => "draft",
+            Self::Published => "published",
+            Self::Archived => "archived",
+            Self::Unknown(s) => s,
+        }
+    }
+
+    fn from_wire(s: String) -> Self {
+        match s.as_str() {
+            "draft" => Self::Draft,
+            "published" => Self::Published,
+            "archived" => Self::Archived,
+            _ => Self::Unknown(s),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for NodeStatus {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        String::deserialize(d).map(Self::from_wire)
+    }
+}
+
+/// The closed build dependency-edge `kind` vocabulary. `layout`, `asset`,
+/// future upstream additions, and malformed values are all `Unknown` here:
+/// preserved as evidence, never treated as one of the IR 0.2 kinds.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum DependencyKind {
+    Parent,
+    Include,
+    Reference,
+    Unknown(String),
+}
+
+impl DependencyKind {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Parent => "parent",
+            Self::Include => "include",
+            Self::Reference => "reference",
+            Self::Unknown(s) => s,
+        }
+    }
+
+    fn from_wire(s: String) -> Self {
+        match s.as_str() {
+            "parent" => Self::Parent,
+            "include" => Self::Include,
+            "reference" => Self::Reference,
+            _ => Self::Unknown(s),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for DependencyKind {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        String::deserialize(d).map(Self::from_wire)
+    }
+}
+
+/// A semantic-relation kind. This vocabulary is constrained-open rather
+/// than closed: Boris assigns no domain meaning to author tokens, but the
+/// machine schema bounds their shape to `[a-z][a-z0-9_]{0,63}`. `Token` is
+/// therefore any schema-conforming author token, canonical or novel.
+/// `Unknown` is wire drift outside that grammar, carried verbatim.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum SemanticRelationKind {
+    Token(String),
+    Unknown(String),
+}
+
+impl SemanticRelationKind {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Token(s) | Self::Unknown(s) => s,
+        }
+    }
+
+    fn from_wire(s: String) -> Self {
+        let bytes = s.as_bytes();
+        let conforms = bytes.len() <= 64
+            && matches!(bytes.first(), Some(b'a'..=b'z'))
+            && bytes[1..]
+                .iter()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || *b == b'_');
+        if conforms {
+            Self::Token(s)
+        } else {
+            Self::Unknown(s)
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for SemanticRelationKind {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        String::deserialize(d).map(Self::from_wire)
+    }
+}
+
+/// One build-dependency edge. Its kind is closed and is deliberately not
+/// interchangeable with an author semantic-relation kind.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
-pub struct Relation {
+pub struct DependencyEdge {
     pub from: Endpoint,
     pub to: Endpoint,
-    pub kind: String,
+    pub kind: DependencyKind,
+}
+
+/// One author semantic relation. Shape-adjacent to a dependency edge on
+/// the wire, but a distinct type because its kind vocabulary and graph
+/// meaning are different.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct SemanticRelation {
+    pub from: Endpoint,
+    pub to: Endpoint,
+    pub kind: SemanticRelationKind,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Endpoint {
     #[serde(rename = "type")]
-    pub kind: String,
+    pub kind: EndpointType,
     pub value: String,
 }
 
@@ -294,7 +491,7 @@ struct WireNodeCore {
     index: usize,
     id: String,
     source_path: String,
-    role: String,
+    role: NodeRole,
     #[serde(deserialize_with = "required_nullable")]
     parent: Option<String>,
     #[serde(deserialize_with = "required_nullable")]
@@ -302,7 +499,7 @@ struct WireNodeCore {
     #[serde(deserialize_with = "required_nullable")]
     title: Option<String>,
     #[serde(deserialize_with = "required_nullable")]
-    status: Option<String>,
+    status: Option<NodeStatus>,
     tags: Vec<String>,
     body_offset: usize,
 }
@@ -359,7 +556,7 @@ struct WireQuantity {
 struct WireGraphV02 {
     frozen: bool,
     nodes: Vec<WireNodeCore>,
-    edges: Vec<Relation>,
+    edges: Vec<DependencyEdge>,
     reverse_index: Vec<ReverseIndexEntry>,
     nav: Vec<NavEntry>,
 }
@@ -371,21 +568,21 @@ struct WireGraphV02 {
 struct WireGraphV03 {
     frozen: bool,
     nodes: Vec<WireNodeCore>,
-    edges: Vec<Relation>,
+    edges: Vec<DependencyEdge>,
     reverse_index: Vec<ReverseIndexEntry>,
     nav: Vec<NavEntry>,
-    relations: Vec<Relation>,
+    relations: Vec<SemanticRelation>,
 }
 
 /// IR 0.4 `relations`: absent when the corpus carries no semantic
 /// relations, an array when it does. Present-`null` is neither — the
 /// schema types the key as an array — so the present case decodes as a
 /// plain vector, which rejects null.
-fn present_array<'de, D>(d: D) -> Result<Option<Vec<Relation>>, D::Error>
+fn present_array<'de, D>(d: D) -> Result<Option<Vec<SemanticRelation>>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    Vec::<Relation>::deserialize(d).map(Some)
+    Vec::<SemanticRelation>::deserialize(d).map(Some)
 }
 
 /// IR 0.4 root: nodes carry the recipe facet; `relations` is present
@@ -395,11 +592,11 @@ where
 struct WireGraphV04 {
     frozen: bool,
     nodes: Vec<WireNodeV04>,
-    edges: Vec<Relation>,
+    edges: Vec<DependencyEdge>,
     reverse_index: Vec<ReverseIndexEntry>,
     nav: Vec<NavEntry>,
     #[serde(default, deserialize_with = "present_array")]
-    relations: Option<Vec<Relation>>,
+    relations: Option<Vec<SemanticRelation>>,
 }
 
 fn decode_v02(value: serde_json::Value, version: String) -> Result<Graph, GraphDecodeError> {

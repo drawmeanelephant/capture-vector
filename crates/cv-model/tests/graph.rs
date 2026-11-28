@@ -3,7 +3,7 @@
 
 mod support;
 
-use cv_contracts::graph::Graph;
+use cv_contracts::graph::{EndpointType, Graph, NodeRole, NodeStatus, SemanticRelationKind};
 use cv_core::id::{AccountId, StableId};
 use cv_model::graph::{GraphNavIndex, RelationDirection};
 use cv_model::module::{FieldSource, PageRecord, ProjectSnapshot, Registry};
@@ -68,7 +68,10 @@ fn captured_boris_ir_indexes_navigation_facts_without_reinterpretation() {
         .collect();
     assert_eq!(outgoing.len(), 1);
     let relation = outgoing[0];
-    assert_eq!(relation.kind, "relates_to");
+    assert_eq!(
+        relation.kind,
+        &SemanticRelationKind::Token("relates_to".into())
+    );
     assert_eq!(
         (relation.from.kind.as_str(), relation.from.value.as_str()),
         ("page", "guides/publishing")
@@ -97,13 +100,61 @@ fn captured_boris_ir_indexes_navigation_facts_without_reinterpretation() {
 
     let publishing = index.node("guides/publishing").expect("page id indexed");
     assert_eq!(publishing.index, 1);
-    assert_eq!(publishing.role, "satellite");
+    assert_eq!(publishing.role, &NodeRole::Satellite);
     assert!(index.graph().expect("graph retained").frozen);
     assert_eq!(publishing.degree.outgoing, 1);
     assert_eq!(publishing.degree.incoming, 0);
     assert_eq!(publishing.degree.total, 1);
     assert_eq!(publishing.child_count, 0);
     assert_eq!(index.relation_kinds().collect::<Vec<_>>(), ["relates_to"]);
+}
+
+#[test]
+fn typed_vocabulary_drift_stays_queryable_without_page_coercion() {
+    let raw = cv_fixtures::ir_capture("happy").file("graph.json");
+    let mut v: serde_json::Value = serde_json::from_slice(&raw).unwrap();
+    v["nodes"][0]["role"] = "branch".into();
+    v["nodes"][0]["status"] = "live".into();
+    v["relations"][0]["kind"] = "Unknown".into();
+    v["relations"][0]["from"]["type"] = "future_endpoint".into();
+    v["relations"][0]["to"]["type"] = "source".into();
+    let graph: Graph = serde_json::from_value(v).expect("typed drift decodes");
+    let index = GraphNavIndex::build(Arc::new(graph));
+
+    let node = index.node("guides/getting-started").unwrap();
+    assert_eq!(node.role, &NodeRole::Unknown("branch".into()));
+    assert_eq!(
+        node.status,
+        Some(&NodeStatus::Unknown("live".into())),
+        "wire null stays distinct from drifted non-null status"
+    );
+
+    let relation = index
+        .relations_by_kind("Unknown")
+        .next()
+        .expect("verbatim drifted kind remains queryable");
+    assert_eq!(
+        relation.kind,
+        &SemanticRelationKind::Unknown("Unknown".into())
+    );
+    assert_eq!(
+        relation.from.kind,
+        EndpointType::Unknown("future_endpoint".into())
+    );
+    assert_eq!(relation.to.kind, EndpointType::Source);
+    assert_eq!(
+        index
+            .relations_of("guides/publishing", RelationDirection::Outgoing)
+            .count(),
+        0,
+        "a non-page endpoint is never coerced into page adjacency"
+    );
+    assert_eq!(
+        index
+            .relations_of("guides/getting-started", RelationDirection::Incoming)
+            .count(),
+        0
+    );
 }
 
 #[test]
@@ -115,11 +166,17 @@ fn relation_free_ir_02_decodes_with_nav_and_empty_semantic_relations() {
     assert_eq!(index.relation_kinds().count(), 0);
 
     let agents = index.node("agents").expect("trunk indexed");
-    assert_eq!(agents.role, "trunk");
+    assert_eq!(agents.role, &NodeRole::Trunk);
     assert_eq!(index.children_of("agents").count(), 30);
     assert_eq!(ids(index.breadcrumb_of("agents")), ["agents"]);
     assert_eq!(index.siblings_of("agents").count(), 0);
-    assert_eq!(index.nodes().filter(|node| node.role == "trunk").count(), 7);
+    assert_eq!(
+        index
+            .nodes()
+            .filter(|node| node.role == &NodeRole::Trunk)
+            .count(),
+        7
+    );
 }
 
 /// Boris accepts and preserves duplicate tags (`tags: [repeat, repeat,
@@ -209,7 +266,7 @@ fn replacing_the_frozen_graph_updates_the_whole_index_deterministically() {
 
     let mut next = synthetic_scale_graph();
     next.nodes[123].title = Some("Retitled deterministic node".into());
-    next.relations[0].kind = "depends_on".into();
+    next.relations[0].kind = SemanticRelationKind::Token("depends_on".into());
     let update = index.update(Some(Arc::new(next)));
     assert!(update.changed);
     assert_eq!(update.generation, generation + 1);
