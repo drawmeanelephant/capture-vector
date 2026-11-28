@@ -4223,7 +4223,7 @@
         1040.0,
         28.3,
         240.0,
-        95.0
+        92.8
       ],
       "role": "group"
     },
@@ -4301,29 +4301,17 @@
         1048.0,
         46.0,
         224.0,
-        16.0
-      ],
-      "role": "group"
-    },
-    {
-      "key": "field-run-head",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/field-run-head",
-      "rect": [
-        1048.0,
-        46.0,
-        224.0,
-        16.0
+        13.8
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/field-run-head/#0",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/#0",
       "rect": [
         1048.0,
-        47.1,
+        46.0,
         72.0,
         13.8
       ],
@@ -4333,42 +4321,15 @@
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/field-run-head/#1",
+      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/#1",
       "rect": [
         1128.0,
-        47.1,
-        118.0,
+        46.0,
+        144.0,
         13.8
       ],
       "role": "text",
       "text": "1764000240000-hugo"
-    },
-    {
-      "help": "Show the full run value",
-      "key": "field-run-expand",
-      "label": "Show the full run value",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/field-run-head/field-run-expand",
-      "radius": 4.0,
-      "rect": [
-        1254.0,
-        46.0,
-        18.0,
-        16.0
-      ],
-      "role": "button"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/inspector/inspector-scroll/inspector-body/field-run/field-run-head/field-run-expand/#0",
-      "rect": [
-        1258.0,
-        49.0,
-        10.0,
-        10.0
-      ],
-      "role": "icon"
     },
     {
       "key": "field-item",
@@ -4376,7 +4337,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-item",
       "rect": [
         1048.0,
-        66.0,
+        63.8,
         224.0,
         13.8
       ],
@@ -4388,7 +4349,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-item/#0",
       "rect": [
         1048.0,
-        66.0,
+        63.8,
         72.0,
         13.8
       ],
@@ -4401,7 +4362,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-item/#1",
       "rect": [
         1128.0,
-        66.0,
+        63.8,
         144.0,
         13.8
       ],
@@ -4414,7 +4375,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-triage",
       "rect": [
         1048.0,
-        83.8,
+        81.5,
         224.0,
         13.8
       ],
@@ -4426,7 +4387,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-triage/#0",
       "rect": [
         1048.0,
-        83.8,
+        81.5,
         72.0,
         13.8
       ],
@@ -4439,7 +4400,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-triage/#1",
       "rect": [
         1128.0,
-        83.8,
+        81.5,
         144.0,
         13.8
       ],
@@ -4452,7 +4413,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-sidecar",
       "rect": [
         1048.0,
-        101.5,
+        99.3,
         224.0,
         13.8
       ],
@@ -4464,7 +4425,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-sidecar/#0",
       "rect": [
         1048.0,
-        101.5,
+        99.3,
         72.0,
         13.8
       ],
@@ -4477,7 +4438,7 @@
       "path": "shell/body/inspector/inspector-scroll/inspector-body/field-sidecar/#1",
       "rect": [
         1128.0,
-        101.5,
+        99.3,
         144.0,
         13.8
       ],

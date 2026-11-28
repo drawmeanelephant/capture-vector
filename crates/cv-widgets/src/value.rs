@@ -20,9 +20,11 @@ pub(crate) fn multiline(v: &str) -> bool {
 }
 
 /// The intentionally defined collapsed shape of a multi-line value: its
-/// first line only. Expansion is the one place every line appears.
+/// first line only. Expansion is the one place every line appears. A
+/// value that opens with blank lines previews its first non-empty one —
+/// an empty preview would look like nothing at all.
 pub(crate) fn first_line(v: &str) -> &str {
-    v.split(line_break).next().unwrap_or(v)
+    v.split(line_break).find(|s| !s.is_empty()).unwrap_or("")
 }
 
 /// Width `v` takes on one line in the inspector's mono style, measured by
@@ -48,8 +50,8 @@ pub(crate) fn needs_disclosure(t: &Theme, v: &str, available: f32) -> bool {
 pub(crate) fn activate_on_key<S>(
     s: &mut S,
     ev: &KeyEvent,
-    tx: &Tx,
-    activate: impl FnOnce(&mut S),
+    tx: &mut Tx,
+    activate: impl FnOnce(&mut S, &mut Tx),
 ) -> bool {
     let activation =
         matches!(ev.key, Key::Enter) || matches!(&ev.key, Key::Text(text) if text == " ");
@@ -57,7 +59,7 @@ pub(crate) fn activate_on_key<S>(
         return false;
     }
     if !tx.key_repeat() {
-        activate(s);
+        activate(s, tx);
     }
     true
 }
@@ -65,7 +67,7 @@ pub(crate) fn activate_on_key<S>(
 fn activation_handler<S: 'static>(
     toggle: Rc<dyn Fn(&mut S)>,
 ) -> impl Fn(&mut S, &KeyEvent, &mut Tx) -> bool {
-    move |s, ev, tx| activate_on_key(s, ev, tx, |s| toggle(s))
+    move |s, ev, tx| activate_on_key(s, ev, tx, |s, _| toggle(s))
 }
 
 /// The compact complete-value disclosure control: a chevron mirroring the
@@ -138,6 +140,7 @@ pub(crate) fn text_disclosure<S: 'static>(
 fn chevron(t: &Theme, open: bool, size: f32) -> El {
     icon(&icons::CHEVRON_RIGHT, size)
         .color(color(t.colors.text_dim))
+        .a11y_hidden()
         .icon_rotation(if open {
             std::f32::consts::FRAC_PI_2
         } else {
@@ -222,7 +225,9 @@ mod tests {
         assert!(multiline("one\r\ntwo"));
         assert!(multiline("one\u{2028}two"));
         assert_eq!(first_line("one\ntwo"), "one");
-        assert_eq!(first_line("\ntwo"), "");
+        assert_eq!(first_line("\ntwo"), "two");
+        assert_eq!(first_line("\n\n"), "");
+        assert_eq!(first_line(""), "");
         assert!(!multiline("one"));
     }
 

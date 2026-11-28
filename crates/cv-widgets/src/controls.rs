@@ -7,6 +7,7 @@ use rune::{El, Icon, Tx, row, text};
 use rune_kit::{
     Button, ButtonVariant, ControlSize, IconButton, IconButtonVariant, Keybind, KeybindVariant,
 };
+use std::rc::Rc;
 
 /// How loud a button is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -23,6 +24,10 @@ pub enum Variant {
 /// Held buttons shrink this much; Rune keeps them at 1 under reduced motion.
 pub const PRESS_SCALE: f32 = 0.97;
 
+/// A control's press, shared between its pointer handler and its
+/// activation key handler so both do the same thing.
+type Press<S> = Rc<dyn Fn(&mut S, &mut Tx)>;
+
 fn kit_button(label: &str, v: Variant) -> Button {
     let kv = match v {
         Variant::Primary => ButtonVariant::Contrast,
@@ -35,10 +40,17 @@ fn kit_button(label: &str, v: Variant) -> Button {
         .control_size(ControlSize::Small)
 }
 
-fn finish(key: &str, e: El, enabled: bool) -> El {
+fn finish<S: 'static>(key: &str, e: El, enabled: bool, press: Press<S>) -> El {
     let e = e.key(key.to_string());
     if enabled {
+        // Rune's focus handling presses Space on a focused control but
+        // passes Return on an ordinary button to the window's default
+        // button; with none it falls through to the shell keymap, which
+        // opens a companion. The disclosure activation pattern applies
+        // here too: unmodified Enter and Space press the focused
+        // control, and neither falls through.
         e.press_scale(PRESS_SCALE)
+            .on_key(move |s, ev, tx| crate::value::activate_on_key(s, ev, tx, |s, tx| press(s, tx)))
     } else {
         e
     }
@@ -62,10 +74,15 @@ pub fn button<S: 'static>(
     v: Variant,
     on_press: impl Fn(&mut S) + 'static,
 ) -> El {
+    let press: Press<S> = Rc::new(move |s: &mut S, _: &mut Tx| on_press(s));
+    let p = press.clone();
     finish(
         key,
-        kit_button(label, v).on_press(on_press).build(&kit(t)),
+        kit_button(label, v)
+            .on_press_tx(move |s, tx| p(s, tx))
+            .build(&kit(t)),
         true,
+        press,
     )
 }
 
@@ -79,13 +96,15 @@ pub fn button_tx<S: 'static>(
     enabled: bool,
     on_press: impl Fn(&mut S, &mut Tx) + 'static,
 ) -> El {
+    let press: Press<S> = Rc::new(on_press);
     let b = kit_button(label, v);
     let b = if enabled {
-        b.on_press_tx(on_press)
+        let p = press.clone();
+        b.on_press_tx(move |s, tx| p(s, tx))
     } else {
         b.disabled(true)
     };
-    finish(key, b.build(&kit(t)), enabled)
+    finish(key, b.build(&kit(t)), enabled, press)
 }
 
 /// [`button_tx`] for a command with a shortcut: `chord` (`"mod+s"`) rides
@@ -99,6 +118,7 @@ pub fn command_button<S: 'static>(
     enabled: bool,
     on_press: impl Fn(&mut S, &mut Tx) + 'static,
 ) -> El {
+    let press: Press<S> = Rc::new(on_press);
     let k = kit(t);
     let mut b = kit_button(label, v);
     if let Some(caps) = crate::keys::keycaps(chord) {
@@ -118,11 +138,12 @@ pub fn command_button<S: 'static>(
         });
     }
     let b = if enabled {
-        b.on_press_tx(on_press)
+        let p = press.clone();
+        b.on_press_tx(move |s, tx| p(s, tx))
     } else {
         b.disabled(true)
     };
-    finish(key, with_chord(b.build(&k), label, chord), enabled)
+    finish(key, with_chord(b.build(&k), label, chord), enabled, press)
 }
 
 fn kit_icon_button(icon: &'static Icon, label: &str) -> IconButton {
@@ -142,8 +163,16 @@ pub fn icon_button<S: 'static>(
     label: &str,
     on_press: impl Fn(&mut S) + 'static,
 ) -> El {
-    let b = kit_icon_button(icon, label).on_press(on_press);
-    finish(key, b.build(&kit(t)), true)
+    let press: Press<S> = Rc::new(move |s: &mut S, _: &mut Tx| on_press(s));
+    let p = press.clone();
+    finish(
+        key,
+        kit_icon_button(icon, label)
+            .on_press_tx(move |s, tx| p(s, tx))
+            .build(&kit(t)),
+        true,
+        press,
+    )
 }
 
 /// [`icon_button`] for a command with a shortcut (`"mod+z"`) in its
@@ -157,11 +186,18 @@ pub fn icon_command<S: 'static>(
     enabled: bool,
     on_press: impl Fn(&mut S) + 'static,
 ) -> El {
+    let press: Press<S> = Rc::new(move |s: &mut S, _: &mut Tx| on_press(s));
     let b = kit_icon_button(icon, label);
     let b = if enabled {
-        b.on_press(on_press)
+        let p = press.clone();
+        b.on_press_tx(move |s, tx| p(s, tx))
     } else {
         b.disabled(true)
     };
-    finish(key, with_chord(b.build(&kit(t)), label, chord), enabled)
+    finish(
+        key,
+        with_chord(b.build(&kit(t)), label, chord),
+        enabled,
+        press,
+    )
 }
