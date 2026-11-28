@@ -207,6 +207,30 @@ fn graph_pointer_traversal_and_pages_round_trip_follow_the_same_page_noun() {
 }
 
 #[test]
+fn graph_degraded_scenes_disclose_projection_states() {
+    for (name, needle) in [
+        ("graph-no-graph", "no graph.json projection was found"),
+        ("graph-stale", "stale coverage · uncovered scanned pages: 1"),
+        ("graph-malformed", "invalid JSON"),
+        (
+            "graph-projection-fallback",
+            "fallback · newest projection .cv/ir/graph.json is malformed",
+        ),
+        (
+            "graph-empty-relations",
+            "IR 0.2.0 predates the semantic-relations facet",
+        ),
+        ("graph-engine-absent", "Engine absent"),
+    ] {
+        let texts = scene(name).texts();
+        assert!(
+            texts.iter().any(|text| text.contains(needle)),
+            "{name}: missing {needle:?} in {texts:?}"
+        );
+    }
+}
+
+#[test]
 fn happy_snapshot_projects_pages_and_outputs() {
     let snap = snapshot::corpus_snapshot("happy");
     assert_eq!(snap.pages.len(), 3);

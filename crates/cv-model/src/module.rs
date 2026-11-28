@@ -168,6 +168,44 @@ pub struct Link {
     pub label: String,
 }
 
+/// Whether the composition root could establish Boris IR graph authority
+/// for this snapshot. `Unknown` is for synthetic snapshots constructed
+/// away from the workspace/projection boundary; the other variants are
+/// boundary facts, not a reinterpretation of the graph.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum GraphProjectionAvailability {
+    #[default]
+    Unknown,
+    Loaded,
+    Absent,
+    Malformed,
+}
+
+/// Evidence about the `graph.json` projection backing one snapshot.
+/// Coverage counts compare the scanned content inputs with the frozen
+/// graph's own source paths and `source` dependency endpoints. They are
+/// disclosed as coverage facts; they do not validate Boris topology.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
+pub struct GraphProjection {
+    pub availability: GraphProjectionAvailability,
+    /// Workspace-relative projection path when one was considered, or a
+    /// capture label in fixture-backed scenes.
+    pub source: Option<String>,
+    /// Decode/fallback detail from the projection boundary.
+    pub detail: Option<String>,
+    /// Scanned page sources not represented by the loaded graph.
+    pub uncovered_pages: u64,
+    /// Graph node/source-endpoint paths not present in the scanned sources.
+    pub missing_sources: u64,
+}
+
+impl GraphProjection {
+    pub fn stale_coverage(&self) -> bool {
+        self.uncovered_pages > 0 || self.missing_sources > 0
+    }
+}
+
 /// Project state resynced from the engine (`Engine::snapshot` + proof
 /// pack). Pure data: the composition root loads it, modules consume it.
 #[derive(Debug, Clone, PartialEq, Default, Serialize)]
@@ -184,6 +222,9 @@ pub struct ProjectSnapshot {
     /// serialized into shell state or the store.
     #[serde(skip_serializing)]
     pub ir_graph: Option<std::sync::Arc<Graph>>,
+    /// Boundary evidence for how `ir_graph` was established (or why none
+    /// was). This is metadata about files and coverage, not persisted IR.
+    pub graph_projection: GraphProjection,
     /// Hashes recorded at the last publish, by output path.
     pub last_publish: Option<PublishMark>,
     /// Directory the outputs' paths are relative to (the built HTML

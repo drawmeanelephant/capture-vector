@@ -4,8 +4,9 @@
 //! (compiler, profile target, snapshot, freshness vs the last publish).
 
 use crate::module::{
-    Chip, InspectorModel, Link, Module, ModuleSpec, NavItem, NavModel, OutputRecord,
-    ProjectSnapshot, PublishMark, ReadingLine, ReadingModel, Registry, RowModel, Slot, Tone,
+    Chip, GraphProjection, InspectorModel, Link, Module, ModuleSpec, NavItem, NavModel,
+    OutputRecord, ProjectSnapshot, PublishMark, ReadingLine, ReadingModel, Registry, RowModel,
+    Slot, Tone,
 };
 use cv_core::events::engine::EngineEvent;
 use cv_core::events::{AppEvent, Envelope};
@@ -136,6 +137,7 @@ impl Module for OutputsModule {
             pages: Vec::new(),
             outputs: snap.outputs.clone(),
             ir_graph: None,
+            graph_projection: GraphProjection::default(),
             last_publish: snap.last_publish.clone(),
             artifact_root: snap.artifact_root.clone(),
         };

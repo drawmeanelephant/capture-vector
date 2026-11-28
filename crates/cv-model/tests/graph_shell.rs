@@ -300,6 +300,18 @@ fn neighborhood_rows_disclose_structure_relation_direction_and_kind() {
     assert!(rows[3].detail.contains("incoming · depends_on"));
     assert!(rows[4].detail.contains("satellite"));
     assert!(rows[4].detail.contains("outgoing · implements"));
+
+    // The cached mailbox is invalidated when focus moves rather than
+    // freezing the first focus's neighborhood into every later frame.
+    wb.select_key("c");
+    let module = wb.registry.get(index).unwrap();
+    let rows: Vec<_> = (0..module.list_len(Some("neighborhood")))
+        .map(|i| module.row(Some("neighborhood"), i))
+        .collect();
+    assert_eq!(
+        rows.iter().map(|row| row.key.as_str()).collect::<Vec<_>>(),
+        ["c", "root", "a"]
+    );
 }
 
 #[test]

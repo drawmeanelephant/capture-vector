@@ -1,11 +1,15 @@
 //! cv-fixtures — captured corpora + `StubEngine` + `StubStore`, and
 //! captured migration-lab runs + `StubLab` ([`lab`]).
 //!
-//! Every fixture is a **real capture** pinned by sha256 in
+//! Every byte fixture is a **real capture** pinned by sha256 in
 //! `fixtures/MANIFEST.toml`. Lanes assert by corpus + file name; bytes are
-//! verified against the manifest on read so stale or hand-authored
-//! fixtures fail loudly.
+//! verified against the manifest on read so stale or hand-authored fixtures
+//! fail loudly. [`graph_scale`] is the explicit exception in kind, not in
+//! provenance discipline: an in-memory synthetic scale input that never
+//! claims Boris emitted it.
 
+#[cfg(feature = "scale")]
+pub mod graph_scale;
 pub mod lab;
 pub mod manifest;
 pub mod stub_engine;

@@ -24,7 +24,9 @@ use cv_core::events::shell::DegradedReason;
 use cv_core::events::{Envelope, EventId};
 use cv_fixtures::stub_engine::StubEngine;
 use cv_fixtures::stub_store::StubStore;
-use cv_model::module::{ProjectSnapshot, Registry};
+use cv_model::module::{
+    GraphProjection, GraphProjectionAvailability, PageRecord, ProjectSnapshot, Registry,
+};
 use cv_model::modules::doctor::{EngineState, LockHolder};
 use cv_model::theme::Mode;
 use cv_model::workbench::Workbench;
@@ -604,6 +606,67 @@ fn graph(wb: &mut Workbench) {
     wb.select_key("guides/publishing");
 }
 
+fn graph_no_graph(wb: &mut Workbench) {
+    wb.load_snapshot(&snapshot::corpus_snapshot("broken-frontmatter"));
+    show(wb, "graph");
+    wb.select_key("graph-projection-state");
+}
+
+fn graph_stale(wb: &mut Workbench) {
+    let mut snap = snapshot::corpus_snapshot(CANARY_CORPUS);
+    snap.pages.push(PageRecord {
+        path: "guides/added-after-ir.md".into(),
+        id: "guides/added-after-ir".into(),
+        title: "Added after the IR build".into(),
+        ..Default::default()
+    });
+    snap.graph_projection.uncovered_pages = 1;
+    wb.load_snapshot(&snap);
+    show(wb, "graph");
+    wb.select_key("guides/publishing");
+}
+
+fn graph_malformed(wb: &mut Workbench) {
+    let mut snap = snapshot::corpus_snapshot("broken-frontmatter");
+    snap.ir_graph = None;
+    snap.graph_projection = GraphProjection {
+        availability: GraphProjectionAvailability::Malformed,
+        source: Some(".cv/ir/graph.json".into()),
+        detail: Some(
+            ".cv/ir/graph.json: invalid JSON: EOF while parsing an object at line 1 column 8"
+                .into(),
+        ),
+        ..GraphProjection::default()
+    };
+    wb.load_snapshot(&snap);
+    show(wb, "graph");
+    wb.select_key("graph-projection-state");
+}
+
+fn graph_projection_fallback(wb: &mut Workbench) {
+    let mut snap = snapshot::corpus_snapshot(CANARY_CORPUS);
+    snap.graph_projection.source = Some(".boris/graph.json".into());
+    snap.graph_projection.detail = Some(
+        "newest projection .cv/ir/graph.json is malformed (invalid JSON: EOF while parsing an object); using older valid projection .boris/graph.json".into(),
+    );
+    wb.load_snapshot(&snap);
+    show(wb, "graph");
+    wb.select_key("guides/publishing");
+}
+
+fn graph_empty_relations(wb: &mut Workbench) {
+    wb.load_snapshot(&snapshot::corpus_snapshot("dogfood"));
+    show(wb, "graph");
+    wb.select_key("agents");
+}
+
+fn graph_engine_absent(wb: &mut Workbench) {
+    mid_watch(wb, "happy");
+    wb.disclose(DegradedReason::EngineAbsent);
+    show(wb, "graph");
+    wb.select_key("guides/publishing");
+}
+
 fn outputs(wb: &mut Workbench) {
     boot(wb);
     show(wb, "outputs");
@@ -717,6 +780,12 @@ pub const SCENES: &[Scene] = &[
     }),
     ("pages", pages),
     ("graph", graph),
+    ("graph-no-graph", graph_no_graph),
+    ("graph-stale", graph_stale),
+    ("graph-malformed", graph_malformed),
+    ("graph-projection-fallback", graph_projection_fallback),
+    ("graph-empty-relations", graph_empty_relations),
+    ("graph-engine-absent", graph_engine_absent),
     ("outputs", outputs),
     ("activity", activity),
     ("broken-duplicate-id", |wb| {

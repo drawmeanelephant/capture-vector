@@ -15,4 +15,4 @@ serde_json.workspace = true
 zeroize.workspace = true
 
 [dev-dependencies]
-cv-fixtures.workspace = true
+cv-fixtures = { workspace = true, features = ["scale"] }

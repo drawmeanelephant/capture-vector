@@ -12,20 +12,23 @@ use crate::command::{CommandSpec, Intent};
 use crate::dialog::{ActionTone, DialogAnswer, DialogKind, DialogSpec, Field};
 use crate::graph::{GraphNavIndex, RelationDirection};
 use crate::module::{
-    Chip, InspectorModel, Link, Module, ModuleSpec, NavCache, NavItem, NavModel, ProjectSnapshot,
-    ReadingLine, ReadingModel, Registry, RowModel, Slot, Tone,
+    Chip, GraphProjection, GraphProjectionAvailability, InspectorModel, Link, Module, ModuleSpec,
+    NavCache, NavItem, NavModel, ProjectSnapshot, ReadingLine, ReadingModel, Registry, RowModel,
+    Slot, Tone,
 };
 use cv_contracts::graph::{Endpoint, EndpointType};
 use cv_core::events::Envelope;
 use cv_core::id::{AccountId, AttrValue, NounAttrRow, NounId};
 use search::{GraphFilter, RoleFilter};
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::OnceLock;
 
 pub const ID: &str = "graph";
 
 const CORPUS: &str = "corpus";
 const NEIGHBORHOOD: &str = "neighborhood";
 const SEARCH: &str = "search";
+const PROJECTION_ROW: &str = "graph-projection-state";
 
 pub const SEARCH_COMMAND: &str = "graph.search";
 pub const CLEAR_SEARCH_COMMAND: &str = "graph.search.clear";
@@ -61,6 +64,7 @@ enum SemanticDirection {
 #[derive(Default)]
 pub struct GraphModule {
     index: GraphNavIndex,
+    projection: GraphProjection,
     /// Boris node order, as ids. Rows key by id rather than source path so a
     /// rename/reparent with a stable Boris page id does not break selection.
     order: Vec<String>,
@@ -70,6 +74,7 @@ pub struct GraphModule {
     filter: GraphFilter,
     search_results: Vec<String>,
     nav_cache: NavCache,
+    neighborhood_cache: OnceLock<Vec<String>>,
 }
 
 impl GraphModule {
@@ -125,7 +130,7 @@ impl GraphModule {
         } else {
             Vec::new()
         };
-        self.nav_cache.invalidate();
+        self.invalidate_navigation();
     }
 
     fn refresh_search(&mut self) {
@@ -137,6 +142,17 @@ impl GraphModule {
         if !ids.iter().any(|seen| seen == id) {
             ids.push(id.to_string());
         }
+    }
+
+    fn invalidate_navigation(&mut self) {
+        self.nav_cache.invalidate();
+        self.neighborhood_cache.take();
+    }
+
+    fn cached_neighborhood_ids(&self) -> &[String] {
+        self.neighborhood_cache
+            .get_or_init(|| self.neighborhood_ids())
+            .as_slice()
     }
 
     /// Ordered neighborhood ids: focus, ancestors, siblings, satellites,
@@ -231,7 +247,7 @@ impl GraphModule {
 
     fn reveal(&mut self, id: &str, nav: &str) -> Vec<Intent> {
         self.focus = Some(id.to_string());
-        self.nav_cache.invalidate();
+        self.invalidate_navigation();
         vec![Intent::Reveal {
             module: ID.into(),
             key: id.into(),
@@ -405,7 +421,85 @@ impl GraphModule {
     }
 
     fn no_graph(&self) -> Option<String> {
-        (self.order.is_empty()).then(|| "no Boris IR graph is loaded".to_string())
+        if !self.order.is_empty() {
+            return None;
+        }
+        Some(match self.projection.availability {
+            GraphProjectionAvailability::Absent => {
+                "no Boris IR graph projection was found".to_string()
+            }
+            GraphProjectionAvailability::Malformed => {
+                "the newest Boris IR graph projection is malformed".to_string()
+            }
+            _ => "no Boris IR graph is loaded".to_string(),
+        })
+    }
+
+    fn projection_warnings(&self) -> Vec<ReadingLine> {
+        let mut lines = Vec::new();
+        if self.projection.availability == GraphProjectionAvailability::Loaded
+            && let Some(detail) = &self.projection.detail
+        {
+            lines.push(ReadingLine {
+                label: Some("graph projection".into()),
+                text: format!("fallback · {detail}"),
+                tone: Tone::Warn,
+                mono: false,
+            });
+        }
+        if self.projection.stale_coverage() {
+            lines.push(ReadingLine {
+                label: Some("graph projection".into()),
+                text: format!(
+                    "stale coverage · uncovered scanned pages: {}; graph sources without scanned files: {}",
+                    self.projection.uncovered_pages, self.projection.missing_sources
+                ),
+                tone: Tone::Warn,
+                mono: false,
+            });
+        }
+        lines
+    }
+
+    fn empty_relation_line(&self) -> Option<ReadingLine> {
+        let graph = self.index.graph()?;
+        if !graph.relations.is_empty() {
+            return None;
+        }
+        let text = if graph.schema_version == cv_contracts::graph::SCHEMA_V02 {
+            "IR 0.2.0 predates the semantic-relations facet; the decoded relation set is empty."
+        } else {
+            "The frozen Boris IR graph carries an empty semantic relation set."
+        };
+        Some(ReadingLine {
+            label: Some("semantic relations".into()),
+            text: text.into(),
+            tone: Tone::Dim,
+            mono: false,
+        })
+    }
+
+    fn projection_row(&self) -> RowModel {
+        let (title, tone) = match self.projection.availability {
+            GraphProjectionAvailability::Absent => ("No graph projection", Tone::Warn),
+            GraphProjectionAvailability::Malformed => ("Malformed graph projection", Tone::Error),
+            _ => ("No graph loaded", Tone::Warn),
+        };
+        let detail = self
+            .projection
+            .detail
+            .clone()
+            .or_else(|| self.projection.source.clone())
+            .unwrap_or_else(|| "graph authority unavailable".into());
+        RowModel {
+            key: PROJECTION_ROW.into(),
+            title: title.into(),
+            detail,
+            badge: Some(Chip::new("projection", tone)),
+            tone,
+            rail: Some(tone),
+            path: false,
+        }
     }
 
     fn no_focus(&self) -> Option<String> {
@@ -476,14 +570,19 @@ impl Module for GraphModule {
     }
 
     fn load(&mut self, snap: &ProjectSnapshot) -> bool {
+        let projection_changed = self.projection != snap.graph_projection;
+        self.projection = snap.graph_projection.clone();
         let update = self.index.update(snap.ir_graph.clone());
         if !update.changed {
-            return false;
+            if projection_changed {
+                self.invalidate_navigation();
+            }
+            return projection_changed;
         }
         self.rebuild_order();
         self.repair_identity();
         self.refresh_search();
-        self.nav_cache.invalidate();
+        self.invalidate_navigation();
         true
     }
 
@@ -498,7 +597,7 @@ impl Module for GraphModule {
                 NavItem {
                     key: NEIGHBORHOOD.into(),
                     label: "Neighborhood".into(),
-                    count: Some(self.neighborhood_ids().len() as u64),
+                    count: Some(self.cached_neighborhood_ids().len() as u64),
                 },
                 NavItem {
                     key: SEARCH.into(),
@@ -511,47 +610,80 @@ impl Module for GraphModule {
 
     fn list_len(&self, nav: Option<&str>) -> usize {
         match nav.unwrap_or(CORPUS) {
-            NEIGHBORHOOD => self.neighborhood_ids().len(),
+            NEIGHBORHOOD => self.cached_neighborhood_ids().len(),
             SEARCH => self.search_results.len(),
+            _ if self.order.is_empty() => 1,
             _ => self.order.len(),
         }
     }
 
     fn row(&self, nav: Option<&str>, index: usize) -> RowModel {
-        let id = match nav.unwrap_or(CORPUS) {
-            NEIGHBORHOOD => self.neighborhood_ids().get(index).cloned(),
+        let nav = nav.unwrap_or(CORPUS);
+        if nav == CORPUS && self.order.is_empty() {
+            return if index == 0 {
+                self.projection_row()
+            } else {
+                RowModel::default()
+            };
+        }
+        let id = match nav {
+            NEIGHBORHOOD => self.cached_neighborhood_ids().get(index).cloned(),
             SEARCH => self.search_results.get(index).cloned(),
             _ => self.order.get(index).cloned(),
         };
-        id.map_or_else(RowModel::default, |id| self.row_for_id(nav, &id))
+        id.map_or_else(RowModel::default, |id| self.row_for_id(Some(nav), &id))
     }
 
     fn index_of_key(&self, nav: Option<&str>, key: &str) -> Option<usize> {
         match nav.unwrap_or(CORPUS) {
-            NEIGHBORHOOD => self.neighborhood_ids().iter().position(|id| id == key),
+            NEIGHBORHOOD => self
+                .cached_neighborhood_ids()
+                .iter()
+                .position(|id| id == key),
             SEARCH => self.search_results.iter().position(|id| id == key),
+            _ if self.order.is_empty() => (key == PROJECTION_ROW).then_some(0),
             _ => self.position_by_id.get(key).copied(),
         }
     }
 
     fn reading(&self, key: &str) -> ReadingModel {
         let Some(node) = self.index.node(key) else {
+            let text = if self.order.is_empty() {
+                match self.projection.availability {
+                    GraphProjectionAvailability::Absent => {
+                        "No Boris IR graph is loaded: no graph.json projection was found in .cv/ir, .boris, or the output directory. Run an IR build to establish graph authority.".into()
+                    }
+                    GraphProjectionAvailability::Malformed => {
+                        let detail = self
+                            .projection
+                            .detail
+                            .as_deref()
+                            .unwrap_or("the projection did not decode");
+                        format!("No Boris IR graph is loaded: {detail}. An older valid projection was not found.")
+                    }
+                    _ => {
+                        "No Boris IR graph is loaded. Run an IR build; malformed or stale projections stay out of graph authority.".into()
+                    }
+                }
+            } else {
+                "The selected page is not present in the frozen Boris graph.".into()
+            };
             return ReadingModel {
                 title: "No graph page selected".into(),
                 lines: vec![ReadingLine {
                     label: None,
-                    text: if self.order.is_empty() {
-                        "No Boris IR graph is loaded. Run an IR build; malformed or stale projections stay out of graph authority.".into()
-                    } else {
-                        "The selected page is not present in the frozen Boris graph.".into()
-                    },
+                    text,
                     tone: Tone::Dim,
                     mono: false,
                 }],
                 ..ReadingModel::default()
             };
         };
-        let mut lines = vec![
+        let mut lines = self.projection_warnings();
+        if let Some(empty) = self.empty_relation_line() {
+            lines.push(empty);
+        }
+        lines.extend([
             ReadingLine {
                 label: Some("page id".into()),
                 text: node.id.into(),
@@ -570,7 +702,7 @@ impl Module for GraphModule {
                 tone: Tone::Normal,
                 mono: false,
             },
-        ];
+        ]);
         if let Some(status) = node.status {
             lines.push(ReadingLine {
                 label: Some("status".into()),
@@ -699,7 +831,7 @@ impl Module for GraphModule {
         self.selected = key.map(str::to_string);
         if let Some(key) = key.filter(|key| self.index.node(key).is_some()) {
             self.focus = Some(key.into());
-            self.nav_cache.invalidate();
+            self.invalidate_navigation();
         }
     }
 
