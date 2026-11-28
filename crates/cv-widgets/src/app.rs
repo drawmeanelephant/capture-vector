@@ -332,6 +332,9 @@ pub const SIZE: (f32, f32) = (1280.0, 800.0);
 /// focus returns to the shell rather than silently jumping to another
 /// record's disclosure.
 pub(crate) fn input_on_key(s: &mut Workbench, ev: &rune::KeyEvent, tx: &mut Tx) -> bool {
+    if crate::dialog::close_control_key(s, ev, tx) {
+        return true;
+    }
     let Some(k) = crate::keys::map(ev) else {
         return false;
     };

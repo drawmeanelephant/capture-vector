@@ -458,7 +458,10 @@ impl EditorWindow {
     }
 }
 
-pub fn on_key(s: &mut EditorWindow, ev: &KeyEvent, _tx: &mut Tx) -> bool {
+pub fn on_key(s: &mut EditorWindow, ev: &KeyEvent, tx: &mut Tx) -> bool {
+    if crate::dialog::close_control_key(s, ev, tx) {
+        return true;
+    }
     s.key(ev)
 }
 

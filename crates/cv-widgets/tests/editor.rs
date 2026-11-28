@@ -52,6 +52,31 @@ fn click(rt: &mut Runtime<EditorWindow>, key: &str) {
     settle(rt);
 }
 
+fn key(rt: &mut Runtime<EditorWindow>, token: &str) {
+    rt.key(cv_widgets::keys::parse(token).remove(0));
+    settle(rt);
+}
+
+fn focused_key(rt: &Runtime<EditorWindow>) -> Option<String> {
+    rt.elements()
+        .iter()
+        .find(|e| e.focused)
+        .and_then(|e| e.key.clone())
+}
+
+fn focus_control(rt: &mut Runtime<EditorWindow>, key_name: &str) {
+    for _ in 0..16 {
+        if focused_key(rt).as_deref() == Some(key_name) {
+            return;
+        }
+        key(rt, "tab");
+    }
+    panic!(
+        "Tab traversal never reached {key_name}; focus is {:?}",
+        focused_key(rt)
+    );
+}
+
 fn texts(rt: &Runtime<EditorWindow>) -> Vec<String> {
     rt.elements().into_iter().filter_map(|e| e.text).collect()
 }
@@ -259,6 +284,47 @@ fn n_buffers_in_n_windows_keep_their_own_state_and_dirty_close_confirms() {
     ra.state.undo();
     editor::host::sync_dirty_from(&mut wins, &ses.borrow());
     assert_eq!(wins.close(wa, false), CloseOutcome::Closed(vec![wa]));
+}
+
+#[test]
+fn enter_on_the_focused_command_button_activates_it() {
+    let ses = session();
+    let buf = ses.borrow_mut().open("p.md", "x", None);
+    let mut rt = window(&ses, 1, buf);
+    caret(&mut rt, 1);
+    type_str(&mut rt, "y");
+    focus_control(&mut rt, "editor-save");
+    key(&mut rt, "enter");
+    assert!(
+        matches!(rt.state.save_status(), SaveStatus::Failed { .. }),
+        "{:?}",
+        rt.state.save_status()
+    );
+}
+
+#[test]
+fn enter_on_the_focused_icon_command_activates_it() {
+    let ses = session();
+    let buf = ses.borrow_mut().open("p.md", "x", None);
+    let mut rt = window(&ses, 1, buf);
+    caret(&mut rt, 1);
+    type_str(&mut rt, "y");
+    focus_control(&mut rt, "editor-undo");
+    key(&mut rt, "enter");
+    assert_eq!(rt.state.body.text, "x");
+}
+
+#[test]
+fn space_on_the_focused_icon_command_activates_it() {
+    let ses = session();
+    let buf = ses.borrow_mut().open("p.md", "x", None);
+    let mut rt = window(&ses, 1, buf);
+    caret(&mut rt, 1);
+    type_str(&mut rt, "y");
+    rt.state.undo();
+    focus_control(&mut rt, "editor-redo");
+    key(&mut rt, "space");
+    assert_eq!(rt.state.body.text, "xy");
 }
 
 #[test]

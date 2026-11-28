@@ -15,6 +15,8 @@ use rune_kit::{Dialog, Switch};
 
 /// A view state that can show a dialog.
 pub trait DialogHost: Sized + 'static {
+    /// Whether the host currently has a dialog on screen.
+    fn open(&self) -> bool;
     /// A button was pressed.
     fn act(&mut self, action: &str, tx: &mut Tx);
     /// Escape, the close button or a press outside.
@@ -30,6 +32,9 @@ pub trait DialogHost: Sized + 'static {
 }
 
 impl DialogHost for Workbench {
+    fn open(&self) -> bool {
+        self.dialogs.is_open()
+    }
     fn act(&mut self, action: &str, _tx: &mut Tx) {
         self.dialog_act(action);
     }
@@ -46,6 +51,16 @@ impl DialogHost for Workbench {
         self.dialog_choose(row);
     }
     const KEYS: Option<fn(&mut Self, &KeyEvent, &mut Tx) -> bool> = Some(crate::app::on_key);
+}
+
+/// The header close control's activation key when Rune lets it reach the
+/// window keymap (a dialog with no default button). Dialogs with a default
+/// answer it in their action handler instead, before this runs.
+pub(crate) fn close_control_key<S: DialogHost>(s: &mut S, ev: &KeyEvent, tx: &mut Tx) -> bool {
+    if !s.open() || tx.focused() != Some("close") {
+        return false;
+    }
+    crate::value::activate_on_key(s, ev, tx, |s, _| s.cancel())
 }
 
 fn caption(t: &Theme, s: impl Into<String>) -> El {
@@ -383,15 +398,27 @@ fn actions<S: DialogHost>(t: &Theme, key: &str, d: &OpenDialog, focus_primary: b
             ActionTone::Danger => Variant::Danger,
         };
         let id = a.id.clone();
+        let default = primary.as_deref() == Some(a.id.as_str());
         let b = controls::button_tx(
             t,
             &format!("{key}-{}", a.id),
             &a.label,
             v,
             true,
-            move |s: &mut S, tx| s.act(&id, tx),
+            move |s: &mut S, tx| {
+                // Rune Kit's header close button cannot carry this crate's
+                // control key handler. When Return falls through to the
+                // dialog's default button while close is focused, the close
+                // is the control being activated; answer it as a cancel,
+                // never as the action Return happened to reach.
+                if default && tx.by_keys() && tx.focused() == Some("close") {
+                    s.cancel();
+                } else {
+                    s.act(&id, tx);
+                }
+            },
         );
-        if primary.as_deref() == Some(a.id.as_str()) {
+        if default {
             let b = b.default_button();
             if focus_primary { b.autofocus() } else { b }
         } else {

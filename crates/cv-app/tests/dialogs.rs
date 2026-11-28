@@ -32,6 +32,28 @@ fn open_id(h: &Harness) -> Option<String> {
     h.state().dialogs.open().map(|d| d.spec.id.clone())
 }
 
+fn focused_key(h: &Harness) -> Option<String> {
+    h.rt.elements()
+        .into_iter()
+        .find(|e| e.focused)
+        .and_then(|e| e.key)
+}
+
+/// Keyboard focus walks through the dialog until it reaches the control
+/// keyed `key`. Panics if traversal never reaches it — the control is the test.
+fn focus_dialog_control(h: &mut Harness, key: &str) {
+    for _ in 0..8 {
+        if focused_key(h).as_deref() == Some(key) {
+            return;
+        }
+        h.key("tab");
+    }
+    panic!(
+        "Tab traversal never reached {key}; focus is {focused_key:?}",
+        focused_key = focused_key(h)
+    );
+}
+
 const KINDS: &[&str] = &[
     "dialog-confirm",
     "dialog-prompt",
@@ -62,6 +84,73 @@ fn enter_runs_the_primary_action_of_a_confirm() {
     assert_eq!(open_id(&h), None);
     let wb = h.state();
     assert!(wb.status.contains("archived"), "{}", wb.status);
+}
+
+#[test]
+fn enter_on_the_focused_close_button_cancels_instead_of_running_primary() {
+    let mut h = scene("dialog-confirm");
+    focus_dialog_control(&mut h, "close");
+    h.key("enter");
+    assert_eq!(open_id(&h), None);
+    assert!(
+        !h.state().status.contains("archived"),
+        "close must not run the primary action: {}",
+        h.state().status
+    );
+}
+
+#[test]
+fn space_on_the_focused_close_button_cancels() {
+    let mut h = scene("dialog-confirm");
+    focus_dialog_control(&mut h, "close");
+    h.key("space");
+    assert_eq!(open_id(&h), None);
+    assert!(!h.state().status.contains("archived"));
+}
+
+#[test]
+fn enter_on_the_focused_cancel_button_cancels() {
+    let mut h = scene("dialog-confirm");
+    focus_dialog_control(&mut h, "dialog-cancel");
+    h.key("enter");
+    assert_eq!(open_id(&h), None);
+    assert!(!h.state().status.contains("archived"));
+}
+
+#[test]
+fn enter_on_the_focused_primary_button_runs_it() {
+    let mut h = scene("dialog-confirm");
+    focus_dialog_control(&mut h, "dialog-archive");
+    h.key("enter");
+    assert_eq!(open_id(&h), None);
+    assert!(
+        h.state().status.contains("archived"),
+        "{}",
+        h.state().status
+    );
+}
+
+#[test]
+fn enter_with_no_control_focused_runs_the_default_primary() {
+    let mut h = scene("dialog-confirm");
+    h.rt.update(|_, tx| tx.blur());
+    h.key("enter");
+    assert_eq!(open_id(&h), None);
+    assert!(
+        h.state().status.contains("archived"),
+        "{}",
+        h.state().status
+    );
+}
+
+#[test]
+fn enter_on_close_cancels_a_dialog_without_a_primary_action() {
+    let mut h = scene("dialog-progress");
+    h.rt.update(|_, tx| tx.focus("close", true));
+    h.settle();
+    assert_eq!(focused_key(&h).as_deref(), Some("close"));
+    h.key("enter");
+    assert_eq!(open_id(&h), None);
 }
 
 #[test]
