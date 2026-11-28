@@ -9,7 +9,12 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AdoptionTarget {
     NewWorkspace(WorkspaceCreation),
-    ExistingWorkspace { subfolder: String },
+    ExistingWorkspace {
+        subfolder: String,
+    },
+    /// Apply an asset-filename utility run to the workspace it inspected.
+    /// No candidate tree is copied and no subfolder is involved.
+    ExistingWorkspaceInPlace,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -40,6 +45,14 @@ pub struct AdoptionReport {
     pub pages: usize,
     /// Non-page files in that same converged plan.
     pub assets: usize,
+    /// In-place Markdown reference rewrites inside the converged plan.
+    /// Zero for foreign-tree copy adoptions, which count written pages in
+    /// `pages` instead.
+    pub markdown_writes: usize,
+    /// In-place operations skipped because a destination collision bound
+    /// their dependency component. Zero for foreign-tree copy adoptions,
+    /// which refuse collisions instead of skipping them.
+    pub skipped_collisions: usize,
     /// User-facing content destination, `/`-separated and relative to the
     /// workspace (`content/imported/site`, for example).
     pub destination: String,

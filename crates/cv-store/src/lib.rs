@@ -10,6 +10,7 @@
 //! [`sidecar::ensure`] before opening its files.
 
 pub mod audit;
+pub(crate) mod identity;
 pub mod imports;
 pub mod lock;
 pub(crate) mod open;

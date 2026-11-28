@@ -792,10 +792,20 @@ mod windows_tests;
 mod adoption_tests;
 
 mod adoption;
+mod evidence;
+mod inventory;
 pub use adoption::{
     ADOPTION, ADOPTION_FORMAT, ADOPTION_SCHEMA_VERSION, AdoptedPage, AdoptionEvent, AdoptionRecord,
-    PENDING, PENDING_FORMAT, PENDING_SCHEMA_VERSION, PendingAdoption, PendingFile, clear_pending,
-    read_adoption_record, read_pending, scan_adoptions, write_adoption, write_pending,
+    AssetOperationKind, AssetOperationProvenance, AssetOperationStatus, PENDING, PENDING_FORMAT,
+    PENDING_SCHEMA_VERSION, PendingAdoption, PendingAssetOperation, PendingFile,
+    PendingTransformation, PlannedAssetMove, PlannedComponent, PlannedMarkdown,
+    TransformationPhase, clear_pending, read_adoption_record, read_pending, scan_adoptions,
+    write_adoption, write_pending,
+};
+pub use evidence::read_out_file;
+pub use inventory::{
+    FileIdentity, INPUT_INVENTORY, INPUT_INVENTORY_FORMAT, INPUT_INVENTORY_SCHEMA_VERSION,
+    InputEntry, InputInventory, ReadInputInventory, capture_input_inventory, read_input_inventory,
 };
 
 #[cfg(test)]

@@ -56,25 +56,43 @@ runs when the pinned `boris-migration-lab` is installed. Inventory-only
 runs are evidence, not adoptable content. A successfully finished emit run
 can be adopted when its mode exactly matches one of the six mirrored report
 contracts: `hugo`, `jekyll`, `substack`, `enex`, `obsidian`, or
-`wordpress`. Other successful emit modes remain evidence but are not
-adoptable because Capture Vector has not mirrored their report contracts.
-Adoption then has two forms:
+`wordpress`; a finished `asset-filename` utility run is also adoptable.
+Other successful emit modes remain evidence but are not adoptable because
+Capture Vector has not mirrored their report contracts. Adoption then has
+two forms:
 
 - **New workspace** — create a workspace from the candidate tree;
-- **Existing workspace** — copy the candidate tree into a new subfolder
-  you type in the adoption form, rooted at the workspace's configured
-  Boris input. `boris.json`'s `input` wins; otherwise `content` is the
-  fallback only when it exists. For such a `content` workspace the target
-  is `content/<subfolder>`; a custom input uses that input instead. A root
-  input (`.`) is refused rather than copying into the whole workspace.
+- **Existing workspace** — for importer modes, copy the candidate tree
+  into a new subfolder rooted at the workspace's configured Boris input.
+  `boris.json`'s `input` wins; otherwise `content` is the fallback only
+  when it exists. A root input (`.`) is refused rather than copying into
+  the whole workspace. For `asset-filename`, the choice is instead an
+  in-place transformation of the same workspace the utility inspected: a
+  captured content-input inventory proves the tree has not changed since
+  the lab ran, accepted asset renames move through transaction-scoped hard
+  links on the same volume (never a copy fallback, and refused where the
+  filesystem cannot link or report file identity), and each Markdown page
+  is replaced with the lab's post-image bytes after a best-effort compare
+  against its journaled pre-image — portable atomic compare-and-replace
+  does not exist, so that compare narrows the race but cannot close it.
+  Rejected or colliding assets, and every page or asset transitively bound
+  to a collision, stay untouched and are recorded.
 
 Adoption keeps provenance under `.cv/imports/<run-id>/`; it never writes
 Capture Vector provenance into Boris frontmatter. Existing-workspace
-adoption preflights path and page-id collisions before writing and refuses
-the whole merge rather than overwriting. The copy is watch-safe: watch is
-paused for the merge batch and restored when that batch ends. Capture
-Vector then runs the pinned engine's validate/build gate under the normal
-engine-seat contract, which may pause and resume watch again.
+importer adoption preflights path and page-id collisions before writing
+and refuses the whole merge rather than overwriting. In-place
+asset-filename adoption invents no page ids and copies no pages into the
+workspace; it rewrites existing Markdown references in place, so it cannot
+duplicate an explicit Boris id. Its snapshot journal — bound to the run's
+input inventory, the evidence digests, and the workspace instance — makes an
+interrupted attempt converge phase by phase on retry, while any foreign
+addition or edit after the journal refuses recovery instead of being folded
+in; a staged temporary file whose identity was never journaled is left in
+place as ambiguous foreign data for manual review. Both forms are watch-safe
+and end
+in the pinned engine's validate/build gate under the normal engine-seat
+contract.
 
 One current rough edge is visible in the UI rather than hidden: long
 inspector values can clip without a discoverable full-value view (issue

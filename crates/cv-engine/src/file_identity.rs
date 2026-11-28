@@ -55,3 +55,32 @@ pub fn identity(path: &Path) -> Option<(u64, u64)> {
 pub fn identity(_: &Path) -> Option<(u64, u64)> {
     None
 }
+
+/// Identity of an already-open file, so the identity and the bytes read
+/// through the same handle describe one storage object.
+#[cfg(unix)]
+pub fn identity_of_file(file: &std::fs::File) -> Option<(u64, u64)> {
+    use std::os::unix::fs::MetadataExt;
+    let m = file.metadata().ok()?;
+    Some((m.dev(), m.ino()))
+}
+
+#[cfg(windows)]
+pub fn identity_of_file(file: &std::fs::File) -> Option<(u64, u64)> {
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::Storage::FileSystem::{
+        BY_HANDLE_FILE_INFORMATION, GetFileInformationByHandle,
+    };
+    let mut info = std::mem::MaybeUninit::<BY_HANDLE_FILE_INFORMATION>::zeroed();
+    let ok = unsafe { GetFileInformationByHandle(file.as_raw_handle() as _, info.as_mut_ptr()) };
+    let info = (ok != 0).then(|| unsafe { info.assume_init() })?;
+    Some((
+        info.dwVolumeSerialNumber.into(),
+        ((info.nFileIndexHigh as u64) << 32) | u64::from(info.nFileIndexLow),
+    ))
+}
+
+#[cfg(not(any(unix, windows)))]
+pub fn identity_of_file(_: &std::fs::File) -> Option<(u64, u64)> {
+    None
+}

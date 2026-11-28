@@ -1,6 +1,7 @@
-//! Fingerprinted staged writes. Compare-then-replace: the draft's base
-//! fingerprint (sha256 + mtime) must still match disk, then the body is
-//! written to a sibling `*.tmp` and atomically renamed over the target.
+//! Fingerprinted staged writes. Creation installs a fully staged sibling
+//! through a no-replace hard link or `create_new` fallback; replacement is
+//! compare-then-replace: the draft's base fingerprint (sha256 + mtime) must
+//! still match disk, then the body is atomically renamed over the target.
 //! No frontmatter validation here — `boris validate` is authoritative.
 
 use crate::error::{EngineError, Result};
@@ -72,6 +73,86 @@ pub fn retry_sharing<T>(mut op: impl FnMut() -> std::io::Result<T>) -> std::io::
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InstallNew {
+    Installed,
+    AlreadyExists,
+}
+
+fn sync_parent_dir(path: &Path) -> std::io::Result<()> {
+    #[cfg(unix)]
+    if let Some(parent) = path.parent() {
+        std::fs::File::open(parent)?.sync_all()?;
+    }
+    let _ = path;
+    Ok(())
+}
+
+/// Direct-create fallback for filesystems that cannot hard-link a fully
+/// staged sibling. `create_new` is the no-clobber primitive: an existing
+/// file or link loses the race and is never opened for writing. This path
+/// is not crash-atomic in the way the hard-linked staged file is, so a
+/// crash can leave partial bytes at a previously absent target; journaled
+/// callers converge by hash and ordinary callers refuse that foreign shape
+/// rather than overwriting it.
+fn write_direct_new(
+    target: &Path,
+    body: &[u8],
+    permissions: Option<&std::fs::Permissions>,
+) -> std::io::Result<InstallNew> {
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_NOFOLLOW | libc::O_NOCTTY);
+    }
+    let mut file = match options.open(target) {
+        Ok(file) => file,
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+            return Ok(InstallNew::AlreadyExists);
+        }
+        Err(e) => return Err(e),
+    };
+    if let Some(permissions) = permissions {
+        file.set_permissions(permissions.clone())?;
+    }
+    file.write_all(body)?;
+    file.sync_all()?;
+    drop(file);
+    sync_parent_dir(target)?;
+    Ok(InstallNew::Installed)
+}
+
+/// Install a fully written staged file at a previously absent target
+/// without ever renaming over existing bytes. A hard link is atomic and
+/// keeps the complete staged body; when the filesystem refuses links, the
+/// direct `create_new` fallback preserves the same no-clobber guarantee.
+fn install_new_no_replace(
+    staged: &Path,
+    target: &Path,
+    body: &[u8],
+    permissions: Option<&std::fs::Permissions>,
+) -> std::io::Result<InstallNew> {
+    match std::fs::hard_link(staged, target) {
+        Ok(()) => {
+            let _ = retry_sharing(|| std::fs::remove_file(staged));
+            sync_parent_dir(target)?;
+            return Ok(InstallNew::Installed);
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+            return Ok(InstallNew::AlreadyExists);
+        }
+        Err(_) => {}
+    }
+    match std::fs::symlink_metadata(target) {
+        Ok(_) => return Ok(InstallNew::AlreadyExists),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(e),
+    }
+    write_direct_new(target, body, permissions)
+}
+
 /// `expected = None` means "create": an existing file is a stale base.
 pub fn write_staged(
     root: &Path,
@@ -109,6 +190,7 @@ fn write_staged_with_permissions(
             .and_then(|path| std::fs::metadata(path).map(|m| m.permissions()))
             .ok()
     });
+    let target_permissions = permissions.or(update_permissions);
     let dir = target.parent().unwrap_or(root);
     let mut tmp = tempfile::Builder::new()
         .prefix(".cv-write-")
@@ -116,25 +198,40 @@ fn write_staged_with_permissions(
         .tempfile_in(dir)?;
     tmp.write_all(body)?;
     tmp.as_file().sync_all()?;
-    if let Some(permissions) = permissions.or(update_permissions) {
-        std::fs::set_permissions(tmp.path(), permissions)?;
+    if let Some(permissions) = &target_permissions {
+        std::fs::set_permissions(tmp.path(), permissions.clone())?;
     }
-    // Re-check right before the swap to narrow the race with an external
-    // editor or a swapped directory; the rename itself is atomic.
+    // Re-check right before installation. Creation uses a no-replace
+    // primitive, so even a winner of this race cannot be clobbered; update
+    // replacement remains the fingerprinted compare-then-replace contract.
     let target = confine(rel, confirm_confined_file(root, Path::new(rel)))?;
     if let Some(stale) = check(&target)? {
         return Ok(stale);
     }
-    let mut tmp = Some(tmp);
-    retry_sharing(|| match tmp.take().expect("tmp present").persist(&target) {
-        Ok(_) => Ok(()),
-        Err(e) => {
-            let err = std::io::Error::new(e.error.kind(), e.error.to_string());
-            let raw = e.error.raw_os_error();
-            tmp = Some(e.file);
-            Err(raw.map(std::io::Error::from_raw_os_error).unwrap_or(err))
+    if expected.is_none() {
+        match install_new_no_replace(tmp.path(), &target, body, target_permissions.as_ref())? {
+            InstallNew::Installed => {}
+            InstallNew::AlreadyExists => {
+                let found = retry_sharing(|| fingerprint(&target))?.ok_or_else(|| {
+                    EngineError::Refused(format!(
+                        "{rel}: target appeared then vanished during creation"
+                    ))
+                })?;
+                return Ok(WriteOutcome::StaleBase { found });
+            }
         }
-    })?;
+    } else {
+        let mut tmp = Some(tmp);
+        retry_sharing(|| match tmp.take().expect("tmp present").persist(&target) {
+            Ok(_) => Ok(()),
+            Err(e) => {
+                let err = std::io::Error::new(e.error.kind(), e.error.to_string());
+                let raw = e.error.raw_os_error();
+                tmp = Some(e.file);
+                Err(raw.map(std::io::Error::from_raw_os_error).unwrap_or(err))
+            }
+        })?;
+    }
     let fp = retry_sharing(|| fingerprint(&target))?
         .ok_or_else(|| EngineError::Refused(format!("{rel}: vanished after write")))?;
     Ok(WriteOutcome::Written { fingerprint: fp })
@@ -197,6 +294,13 @@ fn not_found(e: &EngineError) -> bool {
     matches!(e, EngineError::Io(io) if io.kind() == std::io::ErrorKind::NotFound)
 }
 
+enum RenameAttempt {
+    Renamed,
+    SourceStale,
+    SourceMissing,
+    TargetAppeared,
+}
+
 fn cross_device(e: &std::io::Error) -> bool {
     #[cfg(unix)]
     {
@@ -213,21 +317,44 @@ fn cross_device(e: &std::io::Error) -> bool {
     }
 }
 
-enum RenameAttempt {
-    Renamed,
-    SourceStale,
-    SourceMissing,
-    TargetAppeared,
-}
-
 fn rollback_target(root: &Path, rel: &str, fp: Fingerprint) {
     let _ = remove_staged(root, rel, fp);
 }
 
+fn finish_move_after_target(
+    root: &Path,
+    from: &str,
+    to: &str,
+    base: Fingerprint,
+    written: Fingerprint,
+) -> Result<MoveOutcome> {
+    match remove_move_source(root, from, base) {
+        // The destination already holds the copied or linked bytes. If an
+        // external actor removed the source in the post-write window, the
+        // requested end state is present; rolling back would destroy the
+        // only copy.
+        Ok(MoveSourceRemoval::Removed | MoveSourceRemoval::Missing) => Ok(MoveOutcome::Moved {
+            fingerprint: written,
+        }),
+        Ok(MoveSourceRemoval::StaleBase(found)) => {
+            rollback_target(root, to, written);
+            Ok(MoveOutcome::SourceStale { found })
+        }
+        Err(e) if not_found(&e) => Ok(MoveOutcome::Moved {
+            fingerprint: written,
+        }),
+        Err(e) => {
+            rollback_target(root, to, written);
+            Err(e)
+        }
+    }
+}
+
 /// Write `body` at `to` and remove `from`, with both sides fingerprinted.
-/// The destination write is staged + atomic; the pair cannot be atomic on
-/// any supported filesystem, so a post-write source race rolls the
-/// unchanged destination back before reporting the conflict.
+/// The destination write is staged + no-clobber; the pair cannot be atomic
+/// on every supported filesystem, so a post-write source race rolls the
+/// unchanged destination back before reporting the conflict when it still
+/// carries exactly the bytes this operation wrote.
 pub fn move_staged(root: &Path, mv: &PageMove) -> Result<MoveOutcome> {
     move_staged_with(root, mv, || {})
 }
@@ -328,25 +455,7 @@ fn move_staged_with(root: &Path, mv: &PageMove, after_write: impl FnOnce()) -> R
         WriteOutcome::StaleBase { found } => return Ok(MoveOutcome::TargetExists { found }),
     };
     after_write();
-    match remove_move_source(root, &mv.from, mv.base) {
-        // The destination already holds the copied bytes. If an external
-        // actor removed the source in the post-write window, the requested
-        // end state is present; rolling back would destroy the only copy.
-        Ok(MoveSourceRemoval::Removed | MoveSourceRemoval::Missing) => Ok(MoveOutcome::Moved {
-            fingerprint: written,
-        }),
-        Ok(MoveSourceRemoval::StaleBase(found)) => {
-            rollback_target(root, &mv.to, written);
-            Ok(MoveOutcome::SourceStale { found })
-        }
-        Err(e) if not_found(&e) => Ok(MoveOutcome::Moved {
-            fingerprint: written,
-        }),
-        Err(e) => {
-            rollback_target(root, &mv.to, written);
-            Err(e)
-        }
-    }
+    finish_move_after_target(root, &mv.from, &mv.to, mv.base, written)
 }
 
 #[cfg(test)]
@@ -767,5 +876,20 @@ mod tests {
             std::fs::read(t.path().join("content/nested/b.md")).unwrap(),
             b"one"
         );
+    }
+
+    #[test]
+    fn no_replace_installation_refuses_an_existing_foreign_target() {
+        let t = tempfile::tempdir().unwrap();
+        let mut staged = tempfile::NamedTempFile::new_in(t.path()).unwrap();
+        staged.write_all(b"incoming").unwrap();
+        let target = t.path().join("target.bin");
+        std::fs::write(&target, b"foreign").unwrap();
+
+        assert_eq!(
+            install_new_no_replace(staged.path(), &target, b"incoming", None).unwrap(),
+            InstallNew::AlreadyExists
+        );
+        assert_eq!(std::fs::read(&target).unwrap(), b"foreign");
     }
 }

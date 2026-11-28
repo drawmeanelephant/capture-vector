@@ -145,6 +145,33 @@ fn count_text(n: usize, one: &str, many: &str) -> String {
 }
 
 fn adoption_status(run_id: &str, report: &crate::adoption::AdoptionReport) -> String {
+    // An in-place asset-filename transformation records no adopted pages;
+    // it moved assets and rewrote Markdown references in place.
+    if !report.new_workspace && report.pages == 0 && report.markdown_writes + report.assets > 0 {
+        // Collision-bound operations are disclosed, not silently absent
+        // from the applied counts.
+        let skipped = if report.skipped_collisions > 0 {
+            format!(
+                " · skipped {} on collisions",
+                count_text(report.skipped_collisions, "operation", "operations")
+            )
+        } else {
+            String::new()
+        };
+        return format!(
+            "applied {} and {} from {run_id} in {}{} · validate {}, build {}",
+            count_text(report.assets, "asset rename", "asset renames"),
+            count_text(
+                report.markdown_writes,
+                "Markdown rewrite",
+                "Markdown rewrites"
+            ),
+            report.destination,
+            skipped,
+            report.validate,
+            report.build
+        );
+    }
     format!(
         "adopted {} and {} from {run_id} into {} · validate {}, build {}",
         count_text(report.pages, "page", "pages"),
@@ -698,6 +725,8 @@ mod tests {
                 files_written: 3,
                 pages: 2,
                 assets: 1,
+                markdown_writes: 0,
+                skipped_collisions: 0,
                 destination: "content/imported/site".into(),
                 validate: "ok".into(),
                 build: "ok".into(),
@@ -720,6 +749,8 @@ mod tests {
             files_written: 3,
             pages: 2,
             assets: 1,
+            markdown_writes: 0,
+            skipped_collisions: 0,
             destination: "content/imported/site".into(),
             validate: "ok".into(),
             build: "ok".into(),
@@ -728,6 +759,26 @@ mod tests {
         assert_eq!(
             adoption_status("20261127-hugo", &report),
             "adopted 2 pages and 1 asset from 20261127-hugo into content/imported/site · validate ok, build ok"
+        );
+    }
+
+    #[test]
+    fn in_place_adoption_status_discloses_collision_skips() {
+        let report = crate::adoption::AdoptionReport {
+            workspace: PathBuf::from("/site"),
+            files_written: 8,
+            pages: 0,
+            assets: 4,
+            markdown_writes: 4,
+            skipped_collisions: 6,
+            destination: "content".into(),
+            validate: "ok".into(),
+            build: "ok".into(),
+            new_workspace: false,
+        };
+        assert_eq!(
+            adoption_status("asset-run", &report),
+            "applied 4 asset renames and 4 Markdown rewrites from asset-run in content · skipped 6 operations on collisions · validate ok, build ok"
         );
     }
 
