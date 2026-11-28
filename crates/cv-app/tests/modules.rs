@@ -207,14 +207,42 @@ fn graph_pointer_traversal_and_pages_round_trip_follow_the_same_page_noun() {
 }
 
 #[test]
+fn graph_spatial_viewport_pans_zooms_and_resets() {
+    let mut h = scene("graph");
+    let (x, y) = h.rt.find("graph-canvas").expect("graph canvas mounted");
+    let before = h.state().active_viewport().expect("viewport").camera;
+    h.rt.wheel_xy(x, y, 42.0, 28.0);
+    h.settle();
+    let panned = h.state().active_viewport().expect("viewport").camera;
+    assert_ne!(panned.center, before.center, "wheel input pans the camera");
+
+    assert!(h.click("graph-control-in"));
+    let zoomed = h.state().active_viewport().expect("viewport").camera;
+    assert!(
+        zoomed.zoom > panned.zoom,
+        "zoom control increases camera zoom: {panned:?} -> {zoomed:?}"
+    );
+
+    assert!(h.click("graph-control-reset"));
+    let reset = h.state().active_viewport().expect("viewport").camera;
+    assert!(
+        reset.zoom < zoomed.zoom,
+        "reset returns from the zoomed camera: {zoomed:?} -> {reset:?}"
+    );
+}
+
+#[test]
 fn graph_degraded_scenes_disclose_projection_states() {
     for (name, needle) in [
         ("graph-no-graph", "no graph.json projection was found"),
-        ("graph-stale", "stale coverage · uncovered scanned pages: 1"),
+        (
+            "graph-stale",
+            "stale graph coverage · uncovered scanned pages: 1",
+        ),
         ("graph-malformed", "invalid JSON"),
         (
             "graph-projection-fallback",
-            "fallback · newest projection .cv/ir/graph.json is malformed",
+            "graph projection fallback · newest projection .cv/ir/graph.json is malformed",
         ),
         (
             "graph-empty-relations",

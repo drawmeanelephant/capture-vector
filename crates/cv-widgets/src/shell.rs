@@ -864,7 +864,11 @@ pub fn view(s: &Workbench, cx: &mut Cx<Workbench>) -> El {
         .child(rail(s, lights > 0.0))
         .child(nav(s))
         .child(list(s))
-        .child(crate::reading::pane(s));
+        .child(if s.has_active_viewport() {
+            crate::viewport::pane(s)
+        } else {
+            crate::reading::pane(s)
+        });
     if s.inspector_open {
         body = body.child(crate::inspector::pane(s));
     }

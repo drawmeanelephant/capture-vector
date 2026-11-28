@@ -2645,10 +2645,10 @@
       "text": "reference/frontmatter · trunk"
     },
     {
-      "fill": "#14171dff",
-      "key": "reading",
+      "fill": "#0e1014ff",
+      "key": "viewport-pane",
       "opacity": 1.0,
-      "path": "shell/body/reading",
+      "path": "shell/body/viewport-pane",
       "rect": [
         588.0,
         0.0,
@@ -2658,803 +2658,253 @@
       "role": "group"
     },
     {
-      "key": "reading-scroll",
+      "key": "viewport-status",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll",
+      "path": "shell/body/viewport-pane/viewport-status",
       "rect": [
         588.0,
         0.0,
         452.0,
-        778.0
-      ],
-      "role": "group"
-    },
-    {
-      "fill": "#14171dff",
-      "key": "reading-head",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-head",
-      "rect": [
-        588.0,
-        0.0,
-        452.0,
-        63.8
-      ],
-      "role": "group"
-    },
-    {
-      "key": "breadcrumbs",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs",
-      "rect": [
-        604.0,
-        16.0,
-        420.0,
-        13.8
+        21.8
       ],
       "role": "group"
     },
     {
       "color": "#8a93a3ff",
-      "key": "crumb-0",
+      "key": "viewport-zoom",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs/crumb-0",
+      "path": "shell/body/viewport-pane/viewport-status/viewport-zoom",
       "rect": [
-        604.0,
-        16.0,
-        93.5,
+        596.0,
+        4.0,
+        63.6,
+        13.8
+      ],
+      "role": "text",
+      "text": "graph · 75%"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "detail · 4 shown · 41 outside view · pan or zoom out to reveal · IR 0.2.0 predates the semantic-relations facet; the decoded relation set is empty",
+      "key": "viewport-disclosure",
+      "opacity": 1.0,
+      "path": "shell/body/viewport-pane/viewport-status/viewport-disclosure",
+      "rect": [
+        667.6,
+        4.0,
+        364.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "detail · 4 shown · 41 outside view · pan or zoom out to reveal · IR 0.2.0 predates the semantic-relations facet; the decoded relation set is empty"
+    },
+    {
+      "key": "graph-canvas",
+      "opacity": 1.0,
+      "path": "shell/body/viewport-pane/graph-canvas",
+      "rect": [
+        588.0,
+        21.8,
+        452.0,
+        756.3
+      ],
+      "role": "group"
+    },
+    {
+      "key": "graph-edges",
+      "opacity": 1.0,
+      "path": "shell/body/viewport-pane/graph-canvas/graph-edges",
+      "rect": [
+        588.0,
+        21.8,
+        452.0,
+        756.3
+      ],
+      "role": "image"
+    },
+    {
+      "fill": "#00d1ff66",
+      "help": "Agent Field Notes — trunk · 30 satellites · 0 semantic relations",
+      "key": "graph-node:agents",
+      "opacity": 1.0,
+      "path": "shell/body/viewport-pane/graph-canvas/graph-node:agents",
+      "radius": 4.0,
+      "rect": [
+        752.0,
+        385.9,
+        124.0,
+        28.0
+      ],
+      "role": "button"
+    },
+    {
+      "color": "#e6e9efff",
+      "help": "Agent Field Notes",
+      "opacity": 1.0,
+      "path": "shell/body/viewport-pane/graph-canvas/graph-node:agents/#0",
+      "rect": [
+        763.3,
+        393.0,
+        101.5,
         13.8
       ],
       "role": "text",
       "text": "Agent Field Notes"
     },
     {
+      "fill": "#1a1e26ff",
+      "help": "Antigravity — satellite · 0 satellites · 0 semantic relations",
+      "key": "graph-node:agents/antigravity",
+      "opacity": 1.0,
+      "path": "shell/body/viewport-pane/graph-canvas/#!graph-node:agents%2Fantigravity",
+      "radius": 999.0,
+      "rect": [
+        906.5,
+        393.4,
+        13.0,
+        13.0
+      ],
+      "role": "button"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "help": "Bacon — satellite · 0 satellites · 0 semantic relations",
+      "key": "graph-node:agents/bacon",
+      "opacity": 1.0,
+      "path": "shell/body/viewport-pane/graph-canvas/#!graph-node:agents%2Fbacon",
+      "radius": 999.0,
+      "rect": [
+        1005.5,
+        393.4,
+        13.0,
+        13.0
+      ],
+      "role": "button"
+    },
+    {
+      "fill": "#1a1e26ff",
+      "help": "Cicero — satellite · 0 satellites · 0 semantic relations",
+      "key": "graph-node:agents/cicero",
+      "opacity": 1.0,
+      "path": "shell/body/viewport-pane/graph-canvas/#!graph-node:agents%2Fcicero",
+      "radius": 4.0,
+      "rect": [
+        1049.0,
+        385.9,
+        124.0,
+        28.0
+      ],
+      "role": "button"
+    },
+    {
       "color": "#e6e9efff",
-      "key": "reading-title",
+      "help": "Cicero",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-head/reading-title",
+      "path": "shell/body/viewport-pane/graph-canvas/#!graph-node:agents%2Fcicero/#0",
       "rect": [
-        604.0,
-        35.8,
-        420.0,
-        20.0
-      ],
-      "role": "text",
-      "text": "Agent Field Notes"
-    },
-    {
-      "key": "reading-body",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body",
-      "rect": [
-        588.0,
-        63.8,
-        452.0,
-        421.5
-      ],
-      "role": "group"
-    },
-    {
-      "key": "line-0",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-0",
-      "rect": [
-        604.0,
-        63.8,
-        420.0,
-        30.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-0/#0",
-      "rect": [
-        604.0,
-        63.8,
-        96.0,
-        30.0
-      ],
-      "role": "text",
-      "text": "semantic relations"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-0/#1",
-      "rect": [
-        708.0,
-        63.8,
-        316.0,
-        30.0
-      ],
-      "role": "text",
-      "text": "IR 0.2.0 predates the semantic-relations facet; the decoded relation set is empty."
-    },
-    {
-      "key": "line-1",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-1",
-      "rect": [
-        604.0,
-        99.8,
-        420.0,
+        1089.8,
+        393.0,
+        42.3,
         13.8
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-1/#0",
-      "rect": [
-        604.0,
-        99.8,
-        96.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "page id"
-    },
-    {
-      "color": "#e6e9efff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-1/#1",
-      "rect": [
-        708.0,
-        99.8,
-        316.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "agents"
-    },
-    {
-      "key": "line-2",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-2",
-      "rect": [
-        604.0,
-        119.5,
-        420.0,
-        13.8
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-2/#0",
-      "rect": [
-        604.0,
-        119.5,
-        96.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "source"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-2/#1",
-      "rect": [
-        708.0,
-        119.5,
-        316.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "agents/index.md"
-    },
-    {
-      "key": "line-3",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-3",
-      "rect": [
-        604.0,
-        139.3,
-        420.0,
-        15.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-3/#0",
-      "rect": [
-        604.0,
-        139.3,
-        96.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "role"
-    },
-    {
-      "color": "#e6e9efff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-3/#1",
-      "rect": [
-        708.0,
-        139.3,
-        316.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "trunk"
-    },
-    {
-      "key": "line-4",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-4",
-      "rect": [
-        604.0,
-        160.3,
-        420.0,
-        15.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-4/#0",
-      "rect": [
-        604.0,
-        160.3,
-        96.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "status"
-    },
-    {
-      "color": "#e6e9efff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-4/#1",
-      "rect": [
-        708.0,
-        160.3,
-        316.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "published"
-    },
-    {
-      "key": "line-5",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-5",
-      "rect": [
-        604.0,
-        181.3,
-        420.0,
-        15.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-5/#0",
-      "rect": [
-        604.0,
-        181.3,
-        96.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "tags"
-    },
-    {
-      "color": "#e6e9efff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-5/#1",
-      "rect": [
-        708.0,
-        181.3,
-        316.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "agents, dogfood"
-    },
-    {
-      "key": "line-6",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-6",
-      "rect": [
-        604.0,
-        202.3,
-        420.0,
-        15.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-6/#0",
-      "rect": [
-        604.0,
-        202.3,
-        96.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "satellite"
-    },
-    {
-      "color": "#e6e9efff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-6/#1",
-      "rect": [
-        708.0,
-        202.3,
-        316.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "Antigravity"
-    },
-    {
-      "key": "line-7",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-7",
-      "rect": [
-        604.0,
-        223.3,
-        420.0,
-        15.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-7/#0",
-      "rect": [
-        604.0,
-        223.3,
-        96.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "satellite"
-    },
-    {
-      "color": "#e6e9efff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-7/#1",
-      "rect": [
-        708.0,
-        223.3,
-        316.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "Bacon"
-    },
-    {
-      "key": "line-8",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-8",
-      "rect": [
-        604.0,
-        244.3,
-        420.0,
-        15.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-8/#0",
-      "rect": [
-        604.0,
-        244.3,
-        96.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "satellite"
-    },
-    {
-      "color": "#e6e9efff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-8/#1",
-      "rect": [
-        708.0,
-        244.3,
-        316.0,
-        15.0
       ],
       "role": "text",
       "text": "Cicero"
     },
     {
-      "key": "line-9",
+      "key": "graph-controls",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-9",
+      "path": "shell/body/viewport-pane/graph-canvas/graph-controls",
       "rect": [
-        604.0,
-        265.3,
-        420.0,
-        15.0
+        938.0,
+        744.0,
+        92.0,
+        24.0
       ],
       "role": "group"
     },
     {
-      "color": "#8a93a3ff",
+      "fill": "#1a1e26ff",
+      "help": "Zoom out",
+      "key": "graph-control-out",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-9/#0",
+      "path": "shell/body/viewport-pane/graph-canvas/graph-controls/graph-control-out",
+      "radius": 4.0,
       "rect": [
-        604.0,
-        265.3,
-        96.0,
-        15.0
+        938.0,
+        744.0,
+        28.0,
+        24.0
       ],
-      "role": "text",
-      "text": "satellite"
+      "role": "button"
     },
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-9/#1",
+      "path": "shell/body/viewport-pane/graph-canvas/graph-controls/graph-control-out/#0",
       "rect": [
-        708.0,
-        265.3,
-        316.0,
-        15.0
+        948.3,
+        749.1,
+        7.3,
+        13.8
       ],
       "role": "text",
-      "text": "Codex — Children Layout"
+      "text": "−"
     },
     {
-      "key": "line-10",
+      "fill": "#1a1e26ff",
+      "help": "Zoom in",
+      "key": "graph-control-in",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-10",
+      "path": "shell/body/viewport-pane/graph-canvas/graph-controls/graph-control-in",
+      "radius": 4.0,
       "rect": [
-        604.0,
-        286.3,
-        420.0,
-        15.0
+        970.0,
+        744.0,
+        28.0,
+        24.0
       ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-10/#0",
-      "rect": [
-        604.0,
-        286.3,
-        96.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "satellite"
+      "role": "button"
     },
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-10/#1",
+      "path": "shell/body/viewport-pane/graph-canvas/graph-controls/graph-control-in/#0",
       "rect": [
-        708.0,
-        286.3,
-        316.0,
-        15.0
+        980.3,
+        749.1,
+        7.3,
+        13.8
       ],
       "role": "text",
-      "text": "Codex — Shared HTML Bodies"
+      "text": "+"
     },
     {
-      "key": "line-11",
+      "fill": "#1a1e26ff",
+      "help": "Reset the graph camera",
+      "key": "graph-control-reset",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-11",
+      "path": "shell/body/viewport-pane/graph-canvas/graph-controls/graph-control-reset",
+      "radius": 4.0,
       "rect": [
-        604.0,
-        307.3,
-        420.0,
-        15.0
+        1002.0,
+        744.0,
+        28.0,
+        24.0
       ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-11/#0",
-      "rect": [
-        604.0,
-        307.3,
-        96.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "satellite"
+      "role": "button"
     },
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-11/#1",
+      "path": "shell/body/viewport-pane/graph-canvas/graph-controls/graph-control-reset/#0",
       "rect": [
-        708.0,
-        307.3,
-        316.0,
-        15.0
+        1012.2,
+        749.1,
+        7.7,
+        13.8
       ],
       "role": "text",
-      "text": "Codex — Migration-Lab CI"
-    },
-    {
-      "key": "line-12",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-12",
-      "rect": [
-        604.0,
-        328.3,
-        420.0,
-        15.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-12/#0",
-      "rect": [
-        604.0,
-        328.3,
-        96.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "satellite"
-    },
-    {
-      "color": "#e6e9efff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-12/#1",
-      "rect": [
-        708.0,
-        328.3,
-        316.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "Codex — Release Docs Truth"
-    },
-    {
-      "key": "line-13",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-13",
-      "rect": [
-        604.0,
-        349.3,
-        420.0,
-        15.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-13/#0",
-      "rect": [
-        604.0,
-        349.3,
-        96.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "satellite"
-    },
-    {
-      "color": "#e6e9efff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-13/#1",
-      "rect": [
-        708.0,
-        349.3,
-        316.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "Codex — Session Success Story"
-    },
-    {
-      "key": "line-14",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-14",
-      "rect": [
-        604.0,
-        370.3,
-        420.0,
-        15.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-14/#0",
-      "rect": [
-        604.0,
-        370.3,
-        96.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "satellite"
-    },
-    {
-      "color": "#e6e9efff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-14/#1",
-      "rect": [
-        708.0,
-        370.3,
-        316.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "Codex — Source-RAG Stewardship"
-    },
-    {
-      "key": "line-15",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-15",
-      "rect": [
-        604.0,
-        391.3,
-        420.0,
-        15.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-15/#0",
-      "rect": [
-        604.0,
-        391.3,
-        96.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "satellite"
-    },
-    {
-      "color": "#e6e9efff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-15/#1",
-      "rect": [
-        708.0,
-        391.3,
-        316.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "Confucius"
-    },
-    {
-      "key": "line-16",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-16",
-      "rect": [
-        604.0,
-        412.3,
-        420.0,
-        15.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-16/#0",
-      "rect": [
-        604.0,
-        412.3,
-        96.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "satellite"
-    },
-    {
-      "color": "#e6e9efff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-16/#1",
-      "rect": [
-        708.0,
-        412.3,
-        316.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "Agent Credits & Roster"
-    },
-    {
-      "key": "line-17",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-17",
-      "rect": [
-        604.0,
-        433.3,
-        420.0,
-        15.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-17/#0",
-      "rect": [
-        604.0,
-        433.3,
-        96.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "satellite"
-    },
-    {
-      "color": "#e6e9efff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-17/#1",
-      "rect": [
-        708.0,
-        433.3,
-        316.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "Gauss"
-    },
-    {
-      "key": "line-18",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-18",
-      "rect": [
-        604.0,
-        454.3,
-        420.0,
-        15.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-18/#0",
-      "rect": [
-        604.0,
-        454.3,
-        96.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "satellites"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-18/#1",
-      "rect": [
-        708.0,
-        454.3,
-        316.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "18 more direct satellites"
+      "text": "⌂"
     },
     {
       "fill": "#0e1014ff",

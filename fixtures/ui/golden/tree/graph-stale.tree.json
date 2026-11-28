@@ -966,10 +966,10 @@
       "text": "index · trunk · 2 satellites"
     },
     {
-      "fill": "#14171dff",
-      "key": "reading",
+      "fill": "#0e1014ff",
+      "key": "viewport-pane",
       "opacity": 1.0,
-      "path": "shell/body/reading",
+      "path": "shell/body/viewport-pane",
       "rect": [
         588.0,
         0.0,
@@ -979,374 +979,224 @@
       "role": "group"
     },
     {
-      "key": "reading-scroll",
+      "key": "viewport-status",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll",
+      "path": "shell/body/viewport-pane/viewport-status",
       "rect": [
         588.0,
         0.0,
         452.0,
-        778.0
+        21.8
       ],
       "role": "group"
     },
     {
-      "fill": "#14171dff",
-      "key": "reading-head",
+      "color": "#8a93a3ff",
+      "key": "viewport-zoom",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-head",
+      "path": "shell/body/viewport-pane/viewport-status/viewport-zoom",
+      "rect": [
+        596.0,
+        4.0,
+        63.6,
+        13.8
+      ],
+      "role": "text",
+      "text": "graph · 75%"
+    },
+    {
+      "color": "#8a93a3ff",
+      "help": "detail · 3 shown · stale graph coverage · uncovered scanned pages: 1; graph sources without scanned files: 0",
+      "key": "viewport-disclosure",
+      "opacity": 1.0,
+      "path": "shell/body/viewport-pane/viewport-status/viewport-disclosure",
+      "rect": [
+        667.6,
+        4.0,
+        364.4,
+        13.8
+      ],
+      "role": "text",
+      "text": "detail · 3 shown · stale graph coverage · uncovered scanned pages: 1; graph sources without scanned files: 0"
+    },
+    {
+      "key": "graph-canvas",
+      "opacity": 1.0,
+      "path": "shell/body/viewport-pane/graph-canvas",
       "rect": [
         588.0,
-        0.0,
+        21.8,
         452.0,
-        63.8
+        756.3
       ],
       "role": "group"
     },
     {
-      "key": "breadcrumbs",
+      "key": "graph-edges",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs",
+      "path": "shell/body/viewport-pane/graph-canvas/graph-edges",
       "rect": [
-        604.0,
-        16.0,
-        420.0,
-        13.8
+        588.0,
+        21.8,
+        452.0,
+        756.3
       ],
-      "role": "group"
+      "role": "image"
     },
     {
-      "color": "#8a93a3ff",
-      "key": "crumb-0",
+      "fill": "#1a1e26ff",
+      "help": "Getting Started — satellite · 0 satellites · 1 semantic relations",
+      "key": "graph-node:guides/getting-started",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs/crumb-0",
+      "path": "shell/body/viewport-pane/graph-canvas/#!graph-node:guides%2Fgetting-started",
+      "radius": 999.0,
       "rect": [
-        604.0,
-        16.0,
-        69.2,
-        13.8
+        708.5,
+        393.4,
+        13.0,
+        13.0
       ],
-      "role": "text",
-      "text": "My Boris Site"
+      "role": "button"
     },
     {
-      "color": "#8a93a3ff",
+      "fill": "#00d1ff66",
+      "help": "Publishing — satellite · 0 satellites · 1 semantic relations",
+      "key": "graph-node:guides/publishing",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs/#1",
+      "path": "shell/body/viewport-pane/graph-canvas/#!graph-node:guides%2Fpublishing",
+      "radius": 4.0,
       "rect": [
-        677.2,
-        16.0,
-        4.4,
-        13.8
+        752.0,
+        385.9,
+        124.0,
+        28.0
       ],
-      "role": "text",
-      "text": "›"
+      "role": "button"
     },
     {
-      "color": "#8a93a3ff",
-      "key": "crumb-1",
+      "color": "#e6e9efff",
+      "help": "Publishing",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-head/breadcrumbs/crumb-1",
+      "path": "shell/body/viewport-pane/graph-canvas/#!graph-node:guides%2Fpublishing/#0",
       "rect": [
-        685.6,
-        16.0,
-        54.8,
+        782.6,
+        393.0,
+        62.8,
         13.8
       ],
       "role": "text",
       "text": "Publishing"
     },
     {
-      "color": "#e6e9efff",
-      "key": "reading-title",
+      "fill": "#3dff9a34",
+      "help": "My Boris Site — trunk · 2 satellites · 0 semantic relations",
+      "key": "graph-node:index",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-head/reading-title",
+      "path": "shell/body/viewport-pane/graph-canvas/graph-node:index",
+      "radius": 999.0,
       "rect": [
-        604.0,
-        35.8,
-        420.0,
-        20.0
+        906.5,
+        393.4,
+        13.0,
+        13.0
       ],
-      "role": "text",
-      "text": "Publishing"
+      "role": "button"
     },
     {
-      "key": "reading-body",
+      "key": "graph-controls",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body",
+      "path": "shell/body/viewport-pane/graph-canvas/graph-controls",
       "rect": [
-        588.0,
-        63.8,
-        452.0,
-        169.5
+        938.0,
+        744.0,
+        92.0,
+        24.0
       ],
       "role": "group"
     },
     {
-      "key": "line-0",
+      "fill": "#1a1e26ff",
+      "help": "Zoom out",
+      "key": "graph-control-out",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-0",
+      "path": "shell/body/viewport-pane/graph-canvas/graph-controls/graph-control-out",
+      "radius": 4.0,
       "rect": [
-        604.0,
-        63.8,
-        420.0,
-        30.0
+        938.0,
+        744.0,
+        28.0,
+        24.0
       ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-0/#0",
-      "rect": [
-        604.0,
-        63.8,
-        96.0,
-        30.0
-      ],
-      "role": "text",
-      "text": "graph projection"
-    },
-    {
-      "color": "#ffb020ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-0/#1",
-      "rect": [
-        708.0,
-        63.8,
-        316.0,
-        30.0
-      ],
-      "role": "text",
-      "text": "stale coverage · uncovered scanned pages: 1; graph sources without scanned files: 0"
-    },
-    {
-      "key": "line-1",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-1",
-      "rect": [
-        604.0,
-        99.8,
-        420.0,
-        13.8
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-1/#0",
-      "rect": [
-        604.0,
-        99.8,
-        96.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "page id"
+      "role": "button"
     },
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-1/#1",
+      "path": "shell/body/viewport-pane/graph-canvas/graph-controls/graph-control-out/#0",
       "rect": [
-        708.0,
-        99.8,
-        316.0,
+        948.3,
+        749.1,
+        7.3,
         13.8
       ],
       "role": "text",
-      "text": "guides/publishing"
+      "text": "−"
     },
     {
-      "key": "line-2",
+      "fill": "#1a1e26ff",
+      "help": "Zoom in",
+      "key": "graph-control-in",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-2",
+      "path": "shell/body/viewport-pane/graph-canvas/graph-controls/graph-control-in",
+      "radius": 4.0,
       "rect": [
-        604.0,
-        119.5,
-        420.0,
-        13.8
+        970.0,
+        744.0,
+        28.0,
+        24.0
       ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-2/#0",
-      "rect": [
-        604.0,
-        119.5,
-        96.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "source"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-2/#1",
-      "rect": [
-        708.0,
-        119.5,
-        316.0,
-        13.8
-      ],
-      "role": "text",
-      "text": "guides/publishing.md"
-    },
-    {
-      "key": "line-3",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-3",
-      "rect": [
-        604.0,
-        139.3,
-        420.0,
-        15.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-3/#0",
-      "rect": [
-        604.0,
-        139.3,
-        96.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "role"
+      "role": "button"
     },
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-3/#1",
+      "path": "shell/body/viewport-pane/graph-canvas/graph-controls/graph-control-in/#0",
       "rect": [
-        708.0,
-        139.3,
-        316.0,
-        15.0
+        980.3,
+        749.1,
+        7.3,
+        13.8
       ],
       "role": "text",
-      "text": "satellite"
+      "text": "+"
     },
     {
-      "key": "line-4",
+      "fill": "#1a1e26ff",
+      "help": "Reset the graph camera",
+      "key": "graph-control-reset",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-4",
+      "path": "shell/body/viewport-pane/graph-canvas/graph-controls/graph-control-reset",
+      "radius": 4.0,
       "rect": [
-        604.0,
-        160.3,
-        420.0,
-        15.0
+        1002.0,
+        744.0,
+        28.0,
+        24.0
       ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-4/#0",
-      "rect": [
-        604.0,
-        160.3,
-        96.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "tags"
+      "role": "button"
     },
     {
       "color": "#e6e9efff",
       "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-4/#1",
+      "path": "shell/body/viewport-pane/graph-canvas/graph-controls/graph-control-reset/#0",
       "rect": [
-        708.0,
-        160.3,
-        316.0,
-        15.0
+        1012.2,
+        749.1,
+        7.7,
+        13.8
       ],
       "role": "text",
-      "text": "guides"
-    },
-    {
-      "key": "line-5",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-5",
-      "rect": [
-        604.0,
-        181.3,
-        420.0,
-        15.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-5/#0",
-      "rect": [
-        604.0,
-        181.3,
-        96.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "parent"
-    },
-    {
-      "color": "#e6e9efff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-5/#1",
-      "rect": [
-        708.0,
-        181.3,
-        316.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "My Boris Site"
-    },
-    {
-      "key": "line-6",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-6",
-      "rect": [
-        604.0,
-        202.3,
-        420.0,
-        15.0
-      ],
-      "role": "group"
-    },
-    {
-      "color": "#8a93a3ff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-6/#0",
-      "rect": [
-        604.0,
-        202.3,
-        96.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "outgoing · relates_to"
-    },
-    {
-      "color": "#e6e9efff",
-      "opacity": 1.0,
-      "path": "shell/body/reading/reading-scroll/reading-body/line-6/#1",
-      "rect": [
-        708.0,
-        202.3,
-        316.0,
-        15.0
-      ],
-      "role": "text",
-      "text": "Getting Started (guides/getting-started)"
+      "text": "⌂"
     },
     {
       "fill": "#0e1014ff",

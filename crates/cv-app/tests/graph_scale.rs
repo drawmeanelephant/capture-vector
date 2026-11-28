@@ -7,6 +7,7 @@ use cv_app::init;
 use cv_model::dialog::{DialogAnswer, Value};
 use cv_model::module::ProjectSnapshot;
 use cv_model::modules::graph::SEARCH_COMMAND;
+use cv_model::viewport::MAX_MOUNTED_NODES;
 use cv_model::workbench::Workbench;
 use cv_widgets::harness::Harness;
 use cv_widgets::keys;
@@ -41,6 +42,30 @@ fn mounted_graph_rows(h: &Harness) -> usize {
                 .is_some_and(|key| key.starts_with("row-page-"))
         })
         .count()
+}
+
+fn mounted_viewport_nodes(h: &Harness) -> usize {
+    h.rt.elements()
+        .iter()
+        .filter(|e| {
+            e.key.as_deref().is_some_and(|key| {
+                key.starts_with("graph-node:") || key.starts_with("graph-cluster:")
+            })
+        })
+        .count()
+}
+
+fn assert_viewport_bounded(h: &Harness) {
+    let mounted = mounted_viewport_nodes(h);
+    assert!(
+        mounted <= MAX_MOUNTED_NODES,
+        "viewport mounts {mounted} nodes/clusters, over cap {MAX_MOUNTED_NODES}"
+    );
+    assert!(
+        h.rt.elements().len() < 700,
+        "shell plus viewport element tree stays bounded: {}",
+        h.rt.elements().len()
+    );
 }
 
 fn percentile(sorted: &[Duration], numerator: usize) -> Duration {
@@ -113,6 +138,62 @@ fn answer_search(h: &mut Harness, needle: &str) {
     for intent in intents {
         h.state_mut().apply(intent);
     }
+}
+
+fn pan_cost(nodes: usize) -> Vec<Duration> {
+    let mut h = Harness::new(graph_workbench(nodes));
+    assert_viewport_bounded(&h);
+    let (x, y) = h.rt.find("graph-canvas").expect("graph canvas mounted");
+    let initial = h.state().active_viewport().expect("viewport").camera.center;
+    let mut times = Vec::new();
+    let mut t = 1.0;
+    for _ in 0..FRAMES {
+        h.rt.wheel_xy(x, y, 36.0, 24.0);
+        t += 1.0 / 60.0;
+        let start = Instant::now();
+        h.rt.frame(t);
+        times.push(start.elapsed());
+        assert_viewport_bounded(&h);
+    }
+    assert_ne!(
+        h.state().active_viewport().expect("viewport").camera.center,
+        initial,
+        "wheel/trackpad input panned the graph camera"
+    );
+    times
+}
+
+fn zoom_cost(nodes: usize) -> Vec<Duration> {
+    let mut h = Harness::new(graph_workbench(nodes));
+    assert_viewport_bounded(&h);
+    assert!(h.rt.find("graph-control-in").is_some());
+    assert!(h.rt.find("graph-control-out").is_some());
+    let mut times = Vec::new();
+    let mut t = 1.0;
+    let mut changed = 0usize;
+    for i in 0..SEARCHES {
+        let key = if i < SEARCHES / 2 {
+            "graph-control-in"
+        } else {
+            "graph-control-out"
+        };
+        let (x, y) = h.rt.find(key).expect("zoom control mounted");
+        let before = h.state().active_viewport().expect("viewport").camera.zoom;
+        h.rt.pointer_down(x, y);
+        h.rt.pointer_up(x, y);
+        t += 1.0 / 60.0;
+        let start = Instant::now();
+        h.rt.frame(t);
+        times.push(start.elapsed());
+        let after = h.state().active_viewport().expect("viewport").camera.zoom;
+        changed += usize::from((after - before).abs() > f32::EPSILON);
+        assert_viewport_bounded(&h);
+    }
+    assert_eq!(
+        changed, SEARCHES,
+        "every zoom control input changed the camera"
+    );
+    times
 }
 
 fn search_cost(nodes: usize) -> Vec<Duration> {
@@ -207,12 +288,15 @@ fn graph_scale_surface_interactions_have_bounded_mounts_and_frame_evidence() {
     assert_eq!(trunk_children, 60);
 
     assert_cost("scroll", scroll_cost(5_000), scroll_cost(500), false);
+    assert_cost("pan", pan_cost(5_000), pan_cost(500), true);
+    assert_cost("zoom", zoom_cost(5_000), zoom_cost(500), true);
     assert_cost("search", search_cost(5_000), search_cost(500), true);
     assert_cost("focus", focus_cost(5_000), focus_cost(500), false);
     eprintln!(
-        "graph-scale omissions: pan and zoom are not measured because this stacked \
-         graph surface uses the shell's row/reading navigation grammar and has no \
-         camera viewport; viewport-camera evidence belongs with the bounded-viewport lane. \
-         Headless frames also leave out GPU upload and presentation."
+        "graph-scale omissions: headless input/layout CPU measurements leave out GPU upload, \
+         compositor presentation, OS input delivery, and real Boris capture cost. Pan uses \
+         wheel/trackpad input on the canvas; zoom uses the mounted zoom controls across aggregate, compact and detail LODs. Camera planning \
+         scans the immutable corpus projection linearly; mounted elements stay bounded. The corpus is \
+         deterministic synthetic in-memory input, not a Boris capture."
     );
 }

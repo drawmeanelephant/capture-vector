@@ -2909,7 +2909,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦en⁩  ⁩"
+      "text": "⁦  ⁦en⁩"
     },
     {
       "key": "c1",
@@ -3059,7 +3059,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦en/about⁩  ⁩"
+      "text": "⁦  ⁦en/about⁩"
     },
     {
       "key": "c1",
@@ -3209,7 +3209,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦en/guides⁩  ⁩"
+      "text": "⁦  ⁦en/guides⁩"
     },
     {
       "key": "c1",
@@ -3359,7 +3359,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦en/guides/inner⁩  ⁩"
+      "text": "⁦  ⁦en/guides/inner⁩"
     },
     {
       "key": "c1",
@@ -3509,7 +3509,7 @@
         40.0
       ],
       "role": "text",
-      "text": "⁦  ⁦en/guides/inner/deep-page⁩  ⁩"
+      "text": "⁦  ⁦en/guides/inner/deep-page⁩"
     },
     {
       "key": "c1",
@@ -3659,7 +3659,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦en/posts⁩  ⁩"
+      "text": "⁦  ⁦en/posts⁩"
     },
     {
       "key": "c1",
@@ -3809,7 +3809,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦en/posts/draft-note⁩  ⁩"
+      "text": "⁦  ⁦en/posts/draft-note⁩"
     },
     {
       "key": "c1",
@@ -3959,7 +3959,7 @@
         40.0
       ],
       "role": "text",
-      "text": "⁦  ⁦en/posts/hello-bundle⁩  ⁩"
+      "text": "⁦  ⁦en/posts/hello-bundle⁩"
     },
     {
       "key": "c1",
@@ -4109,7 +4109,7 @@
         40.0
       ],
       "role": "text",
-      "text": "⁦  ⁦en/posts/markup-shortcode⁩  ⁩"
+      "text": "⁦  ⁦en/posts/markup-shortcode⁩"
     },
     {
       "key": "c1",
@@ -4259,7 +4259,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦fr⁩  ⁩"
+      "text": "⁦  ⁦fr⁩"
     },
     {
       "key": "c1",
@@ -4409,7 +4409,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦fr/posts⁩  ⁩"
+      "text": "⁦  ⁦fr/posts⁩"
     },
     {
       "key": "c1",
@@ -4559,7 +4559,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦fr/posts/bonjour⁩  ⁩"
+      "text": "⁦  ⁦fr/posts/bonjour⁩"
     },
     {
       "key": "c1",
@@ -5075,7 +5075,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦/legacy/hb⁩  ⁩"
+      "text": "⁦  ⁦/legacy/hb⁩"
     },
     {
       "key": "c2",
@@ -5100,7 +5100,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦en/posts/hello-bundle⁩  ⁩"
+      "text": "⁦  ⁦en/posts/hello-bundle⁩"
     },
     {
       "fill": "#262b35ff",
@@ -5175,7 +5175,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦/old/hello-bundle/⁩  ⁩"
+      "text": "⁦  ⁦/old/hello-bundle/⁩"
     },
     {
       "key": "c2",
@@ -5200,7 +5200,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦en/posts/hello-bundle⁩  ⁩"
+      "text": "⁦  ⁦en/posts/hello-bundle⁩"
     },
     {
       "fill": "#262b35ff",
@@ -5275,7 +5275,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦hello-custom-slug⁩  ⁩"
+      "text": "⁦  ⁦hello-custom-slug⁩"
     },
     {
       "key": "c2",
@@ -5300,7 +5300,7 @@
         20.0
       ],
       "role": "text",
-      "text": "⁦  ⁦en/posts/hello-bundle⁩  ⁩"
+      "text": "⁦  ⁦en/posts/hello-bundle⁩"
     },
     {
       "color": "#e6e9efff",
@@ -6588,9 +6588,9 @@
     },
     {
       "color": "#8a93a3ff",
-      "key": "status-1.25",
+      "key": "status-1.27",
       "opacity": 1.0,
-      "path": "shell/status/status-1/status-1.25",
+      "path": "shell/status/status-1/status-1.27",
       "rect": [
         105.4,
         782.1,

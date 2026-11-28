@@ -14,6 +14,7 @@ pub mod modules;
 pub mod new_workspace;
 pub mod noun_views;
 pub mod theme;
+pub mod viewport;
 pub mod windows;
 pub mod workbench;
 pub mod workspace_key;

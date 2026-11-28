@@ -4,6 +4,7 @@
 
 use crate::command::{CommandSpec, Intent};
 use crate::dialog::DialogAnswer;
+use crate::viewport::{ViewportInput, ViewportModel};
 use cv_contracts::graph::Graph;
 use cv_core::diagnostic::Diagnostic;
 use cv_core::events::Envelope;
@@ -317,6 +318,26 @@ pub trait Module {
     fn reading(&self, key: &str) -> ReadingModel;
     fn inspector(&self, _key: &str) -> InspectorModel {
         InspectorModel::default()
+    }
+
+    /// Whether this nav exposes a bounded spatial viewport in place of the
+    /// generic reading pane. This is a view-grammar capability flag, not a
+    /// module-identity hook.
+    fn has_viewport(&self, _nav: Option<&str>) -> bool {
+        false
+    }
+
+    /// The bounded viewport projection for this nav. Implementations must
+    /// already have applied camera culling and deterministic level-of-detail;
+    /// the shell mounts only what this model contains.
+    fn viewport(&self, _nav: Option<&str>) -> Option<ViewportModel> {
+        None
+    }
+
+    /// Canvas input routed back to the owning module. Returns true when the
+    /// input changed the model and the frame should rebuild.
+    fn viewport_input(&mut self, _nav: Option<&str>, _input: ViewportInput) -> bool {
+        false
     }
     fn noun(&self, _key: &str) -> Option<NounId> {
         None
