@@ -547,10 +547,7 @@ fn directory_at_a_destination_blocks_its_component_before_any_write() {
         store::AssetOperationKind::Asset,
         "spaces.assets/hello world.png",
     );
-    assert_eq!(
-        ops[0].status,
-        store::AssetOperationStatus::SkippedCollision,
-    );
+    assert_eq!(ops[0].status, store::AssetOperationStatus::SkippedCollision,);
     let page_op = ops_for(root, store::AssetOperationKind::Markdown, "spaces.md");
     assert_eq!(
         page_op[0].status,
