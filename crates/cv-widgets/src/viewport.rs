@@ -146,7 +146,7 @@ fn controls(t: &Theme, m: &ViewportModel) -> El {
                 y: center[1],
             },
         ))
-        .child(control(t, "reset", "⌂", ViewportInput::Reset))
+        .child(control(t, "reset", "fit", ViewportInput::Reset))
 }
 
 /// The viewport pane. Every mounted graph node is a real keyed element, which

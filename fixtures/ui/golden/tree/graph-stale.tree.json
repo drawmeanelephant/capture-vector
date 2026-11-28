@@ -1190,13 +1190,13 @@
       "opacity": 1.0,
       "path": "shell/body/viewport-pane/graph-canvas/graph-controls/graph-control-reset/#0",
       "rect": [
-        1012.2,
+        1010.6,
         749.1,
-        7.7,
+        10.7,
         13.8
       ],
       "role": "text",
-      "text": "⌂"
+      "text": "fit"
     },
     {
       "fill": "#0e1014ff",
