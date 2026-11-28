@@ -11,7 +11,7 @@ use crate::dialog::{Dialogs, PickPurpose, SecretPort};
 use crate::module::{Link, ProjectSnapshot, Registry};
 use crate::modules::activity;
 use crate::new_workspace::{self, Archetypes, Notices, ShellNotice};
-use crate::status::{StatusKind, StatusNotice, StatusOperation};
+use crate::status::{StatusKind, StatusNotice, StatusOperation, StatusOperationScope};
 use crate::theme::{Mode, Theme};
 use crate::windows::{CloseOutcome, PRIMARY, WindowId, Windows};
 use crate::workspace_key::WorkspaceKey;
@@ -32,7 +32,7 @@ use outcome_retention::{
     MAX_PENDING_OUTCOME_BYTES, MAX_PENDING_OUTCOMES, dedupe_outcome_copies, digest,
     enforce_outcome_retention,
 };
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{Receiver, Sender, channel};
@@ -221,6 +221,22 @@ impl OutcomeSink {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StatusOperationIdentity {
+    /// A causally tagged operation minted by product code.
+    Explicit,
+    /// Compatibility operation for untagged progress. Only an untagged
+    /// outcome may close it; it can never claim an explicit operation.
+    Legacy,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct StatusOperationState {
+    scope: StatusOperationScope,
+    identity: StatusOperationIdentity,
+    live: bool,
+}
+
 pub struct Workbench {
     pub app: AppState,
     pub theme: Theme,
@@ -249,12 +265,12 @@ pub struct Workbench {
     /// Classification of `status`, used to keep ambient refresh/engine
     /// notices from overwriting foreground operation outcomes and progress.
     status_kind: Option<StatusKind>,
-    /// The live foreground operation's causal token. Evidence must carry the
-    /// same token to cross the operation boundary; ambient evidence cannot.
-    status_operation: Option<StatusOperation>,
-    /// Mint for causal operation tokens. The token is only meaningful when
-    /// compared by this workbench; it is not persisted or ordered across shells.
-    next_status_operation: u64,
+    /// Live and closed causal operations known to this shell. Closing never
+    /// revives a token; workspace-generation operations are retired on reset.
+    status_operations: BTreeMap<StatusOperation, StatusOperationState>,
+    /// The operation whose notice is currently presented, even if that notice
+    /// has since completed the operation. `None` is an immediate or ambient notice.
+    visible_status_operation: Option<StatusOperation>,
     /// Root of the open workspace, if any.
     pub workspace: Option<PathBuf>,
     /// Instance identity of `workspace`, shared with scheduler registration.
@@ -271,6 +287,8 @@ pub struct Workbench {
     pub new_parent: Option<PathBuf>,
     /// Cancellation for the one workspace creation progress dialog.
     pub(crate) create_cancel: Option<CancelToken>,
+    /// Causal status identity paired with `create_cancel`.
+    pub(crate) create_status_operation: Option<StatusOperation>,
     notice_tx: Sender<ShellNotice>,
     notice_rx: Receiver<ShellNotice>,
     outcome_tx: Sender<(u64, WorkspaceKey, Envelope)>,
@@ -322,8 +340,8 @@ impl Workbench {
             debug_windows: false,
             status: String::new(),
             status_kind: None,
-            status_operation: None,
-            next_status_operation: 0,
+            status_operations: BTreeMap::new(),
+            visible_status_operation: None,
             workspace: None,
             workspace_key: None,
             identity_disclosures: BTreeSet::new(),
@@ -332,6 +350,7 @@ impl Workbench {
             archetypes: Err(new_workspace::LOCATING.into()),
             new_parent: None,
             create_cancel: None,
+            create_status_operation: None,
             notice_tx,
             notice_rx,
             outcome_tx,
@@ -415,77 +434,222 @@ impl Workbench {
         self.status_kind
     }
 
-    /// Mark that a foreground operation is starting even when its first
-    /// visible notice will be engine evidence rather than progress.
-    pub fn begin_status_operation(&mut self) -> StatusOperation {
-        self.next_status_operation += 1;
-        let operation = StatusOperation::new(self.next_status_operation);
-        self.status_operation = Some(operation);
+    /// Register an explicit operation before its worker can report. Re-registering
+    /// a live operation is idempotent; a closed or retired operation never revives.
+    pub fn register_status_operation(
+        &mut self,
+        operation: StatusOperation,
+        scope: StatusOperationScope,
+    ) -> bool {
+        if let Some(state) = self.status_operations.get(&operation) {
+            return state.live;
+        }
+        self.status_operations.insert(
+            operation,
+            StatusOperationState {
+                scope,
+                identity: StatusOperationIdentity::Explicit,
+                live: true,
+            },
+        );
+        true
+    }
+
+    fn register_legacy_status_operation(&mut self) -> StatusOperation {
+        let operation = StatusOperation::mint();
+        self.status_operations.insert(
+            operation,
+            StatusOperationState {
+                scope: StatusOperationScope::Workspace,
+                identity: StatusOperationIdentity::Legacy,
+                live: true,
+            },
+        );
         operation
     }
 
-    /// Present a classified status notice. Progress and outcomes are the
-    /// foreground operation lifecycle: progress starts or continues an
-    /// operation and may supersede an older outcome; an outcome completes
-    /// whatever is visible. While progress is live, ambient bookkeeping and
-    /// engine evidence cannot displace it. A completed outcome holds against
-    /// both ambient classes until a new operation starts; evidence belonging
-    /// to that new operation may supersede the older outcome. Returns whether
-    /// the visible status changed.
-    pub fn set_status_notice(&mut self, notice: StatusNotice) -> bool {
-        let kind = notice.kind;
-        let operation_matches = notice
-            .operation
-            .is_some_and(|operation| self.status_operation == Some(operation));
-        let stale_operation = notice.operation.is_some() && !operation_matches;
-        let foreground = matches!(
-            self.status_kind,
-            Some(StatusKind::Outcome | StatusKind::Progress)
-        );
-        let replace = match kind {
-            StatusKind::Outcome | StatusKind::Progress => !stale_operation,
-            StatusKind::Bookkeeping => !stale_operation && !foreground,
-            StatusKind::EngineEvidence => {
-                if stale_operation {
-                    false
-                } else if operation_matches {
-                    // Intermediate evidence may introduce a newly started
-                    // operation, but only its terminal evidence may cross live
-                    // progress and close that operation's boundary.
-                    notice.terminal_evidence
-                        || !matches!(self.status_kind, Some(StatusKind::Progress))
-                } else {
-                    !foreground
-                }
-            }
+    /// Mark that a workspace-generation foreground operation is starting even
+    /// when its first visible notice will be engine evidence rather than progress.
+    pub fn begin_status_operation(&mut self) -> StatusOperation {
+        let operation = StatusOperation::mint();
+        assert!(self.register_status_operation(operation, StatusOperationScope::Workspace));
+        operation
+    }
+
+    /// Mark a shell-scoped operation whose worker intentionally survives a
+    /// workspace switch.
+    pub fn begin_shell_status_operation(&mut self) -> StatusOperation {
+        let operation = StatusOperation::mint();
+        assert!(self.register_status_operation(operation, StatusOperationScope::Shell));
+        operation
+    }
+
+    fn operation_state(&self, operation: StatusOperation) -> Option<StatusOperationState> {
+        self.status_operations.get(&operation).copied()
+    }
+
+    fn live_operation(&self, operation: StatusOperation) -> bool {
+        self.operation_state(operation)
+            .is_some_and(|state| state.live)
+    }
+
+    fn newest_live_operation(&self) -> Option<StatusOperation> {
+        self.status_operations
+            .iter()
+            .filter(|(_, state)| state.live)
+            .map(|(operation, _)| *operation)
+            .next_back()
+    }
+
+    fn close_status_operation(&mut self, operation: StatusOperation) -> bool {
+        let Some(state) = self.status_operations.get_mut(&operation) else {
+            return false;
         };
-        if !replace {
+        if !state.live {
             return false;
         }
-        match kind {
-            StatusKind::Progress => {
-                if self.status_operation.is_none() {
-                    self.begin_status_operation();
-                }
-            }
-            StatusKind::Outcome => self.status_operation = None,
-            StatusKind::EngineEvidence if operation_matches && notice.terminal_evidence => {
-                self.status_operation = None;
-            }
-            StatusKind::EngineEvidence | StatusKind::Bookkeeping => {}
-        }
-        let text = notice.text;
-        if self.status == text && self.status_kind == Some(kind) {
+        state.live = false;
+        true
+    }
+
+    fn present_status(
+        &mut self,
+        kind: StatusKind,
+        text: String,
+        operation: Option<StatusOperation>,
+    ) -> bool {
+        if self.status == text
+            && self.status_kind == Some(kind)
+            && self.visible_status_operation == operation
+        {
             return false;
         }
         self.status = text;
         self.status_kind = Some(kind);
+        self.visible_status_operation = operation;
         true
+    }
+
+    fn visible_live_operation(&self) -> Option<StatusOperation> {
+        self.visible_status_operation
+            .filter(|operation| self.live_operation(*operation))
+    }
+
+    fn legacy_progress(&mut self, text: String) -> bool {
+        let operation = self
+            .visible_status_operation
+            .filter(|operation| {
+                self.operation_state(*operation).is_some_and(|state| {
+                    state.live && state.identity == StatusOperationIdentity::Legacy
+                })
+            })
+            .unwrap_or_else(|| self.register_legacy_status_operation());
+        self.present_status(StatusKind::Progress, text, Some(operation))
+    }
+
+    fn untagged_outcome(&mut self, text: String) -> bool {
+        // Compatibility for the pre-token API: an untagged outcome may complete
+        // only the legacy operation created by untagged progress. It can never
+        // consume an explicit operation such as workspace opening.
+        let legacy = self
+            .visible_status_operation
+            .filter(|operation| {
+                self.operation_state(*operation).is_some_and(|state| {
+                    state.live && state.identity == StatusOperationIdentity::Legacy
+                })
+            })
+            .or_else(|| {
+                self.status_operations
+                    .iter()
+                    .filter(|(_, state)| {
+                        state.live && state.identity == StatusOperationIdentity::Legacy
+                    })
+                    .map(|(operation, _)| *operation)
+                    .next_back()
+            });
+        if let Some(operation) = legacy {
+            self.close_status_operation(operation);
+        }
+        self.present_status(StatusKind::Outcome, text, None)
+    }
+
+    fn tagged_status_notice(&mut self, notice: StatusNotice, operation: StatusOperation) -> bool {
+        if !self.live_operation(operation) {
+            return false;
+        }
+        let kind = notice.kind;
+        let terminal = kind == StatusKind::Outcome
+            || (kind == StatusKind::EngineEvidence && notice.terminal_evidence);
+        if !terminal {
+            // The newest live operation owns foreground progress. An operation
+            // already on screen may refine its own notice; an older concurrent
+            // operation cannot pull focus back from a newer one.
+            let foreground = self.newest_live_operation() == Some(operation);
+            let visible_same = self.visible_status_operation == Some(operation);
+            return (foreground || visible_same)
+                && self.present_status(kind, notice.text, Some(operation));
+        }
+
+        let newer_live = self
+            .status_operations
+            .iter()
+            .any(|(other, state)| *other > operation && state.live);
+        let was_visible = self.visible_status_operation == Some(operation);
+        self.close_status_operation(operation);
+        let present = match kind {
+            // Product outcomes are terminal facts the user asked for. They may
+            // overlay another operation's progress, but closing is causal: the
+            // other operation remains live and its next notice can return.
+            StatusKind::Outcome => true,
+            // Machinery evidence is subordinate to a newer live operation unless
+            // it completes the operation already on screen.
+            StatusKind::EngineEvidence => !newer_live || was_visible,
+            StatusKind::Progress | StatusKind::Bookkeeping => false,
+        };
+        present && self.present_status(kind, notice.text, Some(operation))
+    }
+
+    /// Present a classified status notice under the operation state machine
+    /// documented in [`crate::status`]. Returns whether the visible status changed.
+    pub fn set_status_notice(&mut self, notice: StatusNotice) -> bool {
+        if let Some(operation) = notice.operation {
+            return self.tagged_status_notice(notice, operation);
+        }
+        match notice.kind {
+            StatusKind::Progress => self.legacy_progress(notice.text),
+            StatusKind::Outcome => self.untagged_outcome(notice.text),
+            StatusKind::Bookkeeping | StatusKind::EngineEvidence => {
+                if self.visible_live_operation().is_some()
+                    || self.status_kind == Some(StatusKind::Outcome)
+                {
+                    return false;
+                }
+                self.present_status(notice.kind, notice.text, None)
+            }
+        }
     }
 
     /// [`set_status_notice`] with the kind and text separate.
     pub fn set_status_kind(&mut self, kind: StatusKind, text: impl Into<String>) -> bool {
         self.set_status_notice(StatusNotice::new(kind, text))
+    }
+
+    /// Apply a product/machinery status intent emitted while handling one
+    /// causal operation. Immediate command statuses stay untagged; statuses
+    /// belonging to the operation carry its token.
+    pub(crate) fn apply_operation_intent(&mut self, intent: Intent, operation: StatusOperation) {
+        match intent {
+            Intent::Outcome(text) => {
+                self.set_status_notice(StatusNotice::operation_outcome(operation, text));
+            }
+            Intent::Progress(text) => {
+                self.set_status_notice(StatusNotice::operation_progress(operation, text));
+            }
+            Intent::EngineEvidence(text) => {
+                self.set_status_notice(StatusNotice::operation_evidence(operation, text));
+            }
+            other => self.apply(other),
+        }
     }
 
     /// Convenience for a completed user-requested operation.
@@ -508,12 +672,13 @@ impl Workbench {
         self.set_status_kind(StatusKind::EngineEvidence, text)
     }
 
-    /// Dismiss the status line; the next ambient notice may show again.
+    /// Dismiss the visible toast. This is presentation only: it neither
+    /// cancels nor closes the operation that produced the notice.
     pub fn clear_status(&mut self) -> bool {
         let changed = !self.status.is_empty();
         self.status.clear();
         self.status_kind = None;
-        self.status_operation = None;
+        self.visible_status_operation = None;
         changed
     }
 
@@ -522,6 +687,13 @@ impl Workbench {
     /// rebuild module state. Theme, windows, waker and store survive.
     pub fn reset_project(&mut self, registry: Registry) {
         self.stop_watch();
+        // Workspace-generation operations cannot complete into the replacement
+        // generation. Shell-scoped operations (creation/adoption) remain causal.
+        for state in self.status_operations.values_mut() {
+            if state.scope == StatusOperationScope::Workspace {
+                state.live = false;
+            }
+        }
         let (tx, rx) = channel();
         self.tx = tx;
         self.rx = rx;
@@ -1003,6 +1175,12 @@ impl Workbench {
             Intent::EngineEvidence(s) => {
                 self.evidence_status(s);
             }
+            Intent::BeginStatusOperation { operation, scope } => {
+                self.register_status_operation(operation, scope);
+            }
+            Intent::Status(notice) => {
+                self.set_status_notice(notice);
+            }
             Intent::RebuildIndexes => match self.workspace.clone() {
                 Some(root) => {
                     self.index_rebuild_requested = true;
@@ -1062,19 +1240,21 @@ impl Workbench {
             } => self.adopt_new_workspace(&run_id, suggested_archetype.as_deref()),
             Intent::AdoptRun(request) => match self.workspace.clone() {
                 Some(source_root) => {
-                    let cancel = match &request.target {
+                    let (cancel, operation) = match &request.target {
                         crate::adoption::AdoptionTarget::NewWorkspace(creation) => {
-                            creation.cancel.clone()
+                            (creation.cancel.clone(), creation.operation)
                         }
                         crate::adoption::AdoptionTarget::ExistingWorkspace { .. }
                         | crate::adoption::AdoptionTarget::ExistingWorkspaceInPlace => {
-                            CancelToken::new()
+                            (CancelToken::new(), StatusOperation::mint())
                         }
                     };
+                    self.register_status_operation(operation, StatusOperationScope::Shell);
                     self.requests.push(ShellRequest::AdoptRun(AdoptionJob {
                         source_root,
                         request,
                         cancel,
+                        operation,
                     }));
                 }
                 None => {
@@ -1089,6 +1269,7 @@ impl Workbench {
                     };
                     job.workspace = root;
                 }
+                self.register_status_operation(job.operation, StatusOperationScope::Workspace);
                 self.requests.push(ShellRequest::RunImport(job));
             }
         }

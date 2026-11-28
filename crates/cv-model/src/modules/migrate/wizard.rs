@@ -8,6 +8,7 @@ use crate::dialog::{
     ActionTone, CHOICE, Choice, DialogAnswer, DialogKind, DialogSpec, Field, FileFilter, Pick,
     Progress,
 };
+use crate::status::{StatusNotice, StatusOperation};
 use cv_core::engine::CancelToken;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -29,6 +30,7 @@ pub(crate) enum WizardStage {
         phase: ImportPhase,
         run_id: String,
         cancel: CancelToken,
+        operation: StatusOperation,
     },
     AwaitingEmit {
         inventory_run: String,
@@ -344,6 +346,7 @@ impl MigrateModule {
             })
             .collect::<Vec<_>>();
         let cancel = CancelToken::new();
+        let operation = StatusOperation::mint();
         let job = ImportJob {
             workspace: PathBuf::new(),
             run_id: run_id.clone(),
@@ -352,11 +355,13 @@ impl MigrateModule {
             inputs,
             extras,
             cancel: cancel.clone(),
+            operation,
         };
         self.wizard.stage = WizardStage::Running {
             phase,
             run_id,
             cancel,
+            operation,
         };
         vec![
             Intent::dialog(Self::progress_dialog(&job)),
@@ -370,6 +375,7 @@ impl MigrateModule {
     pub(crate) fn start_workspace_utility(&mut self, mode_name: &str) -> Vec<Intent> {
         let run_id = self.next_run_id(mode_name);
         let cancel = CancelToken::new();
+        let operation = StatusOperation::mint();
         let job = ImportJob {
             workspace: PathBuf::new(),
             run_id: run_id.clone(),
@@ -378,11 +384,13 @@ impl MigrateModule {
             inputs: Vec::new(),
             extras: Vec::new(),
             cancel: cancel.clone(),
+            operation,
         };
         self.wizard.stage = WizardStage::Running {
             phase: ImportPhase::Utility,
             run_id,
             cancel,
+            operation,
         };
         vec![
             Intent::dialog(Self::progress_dialog(&job)),
@@ -585,11 +593,20 @@ impl MigrateModule {
                 }
             }
             PROGRESS => {
-                if let WizardStage::Running { cancel, phase, .. } = &self.wizard.stage {
+                if let WizardStage::Running {
+                    cancel,
+                    phase,
+                    operation,
+                    ..
+                } = &self.wizard.stage
+                {
                     cancel.cancel();
-                    vec![Intent::progress(format!(
-                        "Cancelling the {}; the run record will show what happened",
-                        phase.label()
+                    vec![Intent::Status(StatusNotice::operation_progress(
+                        *operation,
+                        format!(
+                            "Cancelling the {}; the run record will show what happened",
+                            phase.label()
+                        ),
                     ))]
                 } else {
                     Vec::new()
@@ -654,6 +671,7 @@ impl MigrateModule {
             phase,
             run_id,
             cancel,
+            ..
         } = stage
         else {
             return Vec::new();

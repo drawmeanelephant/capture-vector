@@ -353,6 +353,7 @@ fn collision_resolved_start_retargets_the_running_wizard() {
         inputs: Vec::new(),
         extras: Vec::new(),
         cancel,
+        operation: crate::status::StatusOperation::mint(),
     };
     m.retarget_started_import(&requested, &actual);
     match &m.wizard.stage {
@@ -381,6 +382,7 @@ fn a_collision_notice_for_a_different_operation_never_retargets_the_wizard() {
         inputs: Vec::new(),
         extras: Vec::new(),
         cancel: cv_core::engine::CancelToken::new(),
+        operation: crate::status::StatusOperation::mint(),
     };
     m.retarget_started_import(&requested, &foreign);
     match &m.wizard.stage {

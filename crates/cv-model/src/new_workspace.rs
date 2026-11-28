@@ -7,6 +7,7 @@
 use crate::adoption::{ADOPT_NEW_DIALOG, AdoptionRequest, AdoptionTarget};
 use crate::command::{ImportJob, Intent};
 use crate::dialog::{ActionTone, DialogAnswer, DialogKind, DialogSpec, Field, Pick, Progress};
+use crate::status::{StatusNotice, StatusOperation};
 use crate::workbench::{ShellRequest, Waker, Workbench};
 use cv_core::engine::{CancelToken, ExitClass};
 use std::path::{Path, PathBuf};
@@ -63,6 +64,8 @@ impl NewWorkspace {
 pub struct WorkspaceCreation {
     pub draft: NewWorkspace,
     pub cancel: CancelToken,
+    /// Causal shell-status identity for the init/adoption operation.
+    pub operation: StatusOperation,
 }
 
 impl WorkspaceCreation {
@@ -70,6 +73,7 @@ impl WorkspaceCreation {
         Self {
             draft,
             cancel: CancelToken::new(),
+            operation: StatusOperation::mint(),
         }
     }
 }
@@ -89,8 +93,10 @@ pub enum ShellNotice {
     /// path; errors are disclosed in place.
     Adopted {
         run_id: String,
-        /// Stable identity of the adoption operation this notice belongs to.
+        /// Stable cancellation identity of the adoption operation this notice belongs to.
         cancel: CancelToken,
+        /// Causal shell-status identity of that same operation.
+        operation: StatusOperation,
         result: Result<crate::adoption::AdoptionReport, String>,
     },
     ImportStarted {
@@ -327,7 +333,12 @@ impl Workbench {
         }
         self.new_parent = Some(draft.parent.clone());
         let creation = WorkspaceCreation::new(draft);
+        self.register_status_operation(
+            creation.operation,
+            crate::status::StatusOperationScope::Shell,
+        );
         self.create_cancel = Some(creation.cancel.clone());
+        self.create_status_operation = Some(creation.operation);
         self.dialogs.push(
             DialogSpec::new(
                 CREATING,
@@ -374,7 +385,12 @@ impl Workbench {
         }
         self.new_parent = Some(draft.parent.clone());
         let creation = WorkspaceCreation::new(draft);
+        self.register_status_operation(
+            creation.operation,
+            crate::status::StatusOperationScope::Shell,
+        );
         self.create_cancel = Some(creation.cancel.clone());
+        self.create_status_operation = Some(creation.operation);
         self.dialogs.push(
             DialogSpec::new(
                 CREATING,
@@ -398,7 +414,12 @@ impl Workbench {
     pub(crate) fn cancel_workspace_creation(&mut self) {
         if let Some(cancel) = &self.create_cancel {
             cancel.cancel();
-            self.progress_status("Cancelling workspace creation…");
+            if let Some(operation) = self.create_status_operation {
+                self.set_status_notice(StatusNotice::operation_progress(
+                    operation,
+                    "Cancelling workspace creation…",
+                ));
+            }
         }
     }
 
@@ -408,6 +429,7 @@ impl Workbench {
             ShellNotice::Adopted {
                 run_id,
                 cancel,
+                operation,
                 result,
             } => {
                 // Adoption and ordinary creation can overlap. Only the
@@ -420,18 +442,25 @@ impl Workbench {
                     .is_some_and(|live| *live == cancel);
                 if owns_creation {
                     self.create_cancel = None;
+                    self.create_status_operation = None;
                     self.dialogs.close(CREATING);
                 }
                 match result {
                     Ok(report) if report.new_workspace => {
-                        self.outcome_status(adoption_status(&run_id, &report));
+                        self.set_status_notice(StatusNotice::operation_outcome(
+                            operation,
+                            adoption_status(&run_id, &report),
+                        ));
                         self.requests
                             .push(ShellRequest::OpenWorkspace(report.workspace));
                     }
                     Ok(report) => {
                         // The operation outcome lands first; reloading the
                         // mailbox is bookkeeping and cannot replace it.
-                        self.outcome_status(adoption_status(&run_id, &report));
+                        self.set_status_notice(StatusNotice::operation_outcome(
+                            operation,
+                            adoption_status(&run_id, &report),
+                        ));
                         if self
                             .registry
                             .index_of(crate::modules::migrate::ID)
@@ -441,7 +470,10 @@ impl Workbench {
                         }
                     }
                     Err(e) => {
-                        self.outcome_status(format!("adoption of {run_id} refused: {e}"));
+                        self.set_status_notice(StatusNotice::operation_outcome(
+                            operation,
+                            format!("adoption of {run_id} refused: {e}"),
+                        ));
                     }
                 }
             }
@@ -453,21 +485,36 @@ impl Workbench {
                     .is_some_and(|c| *c == creation.cancel)
                 {
                     self.create_cancel = None;
+                    self.create_status_operation = None;
                 }
                 self.dialogs.close(CREATING);
+                let operation = creation.operation;
                 if cancelled {
-                    self.outcome_status("Workspace creation cancelled.");
+                    self.set_status_notice(StatusNotice::operation_outcome(
+                        operation,
+                        "Workspace creation cancelled.",
+                    ));
                     return;
                 }
                 let draft = creation.draft;
                 match (result, self.archetypes.clone()) {
-                    (Ok(root), _) => self.requests.push(ShellRequest::OpenWorkspace(root)),
+                    (Ok(root), _) => {
+                        self.set_status_notice(StatusNotice::operation_outcome(
+                            operation,
+                            "Workspace created; opening it now.",
+                        ));
+                        self.requests.push(ShellRequest::OpenWorkspace(root));
+                    }
                     (Err(e), Ok(a)) => {
+                        self.set_status_notice(StatusNotice::operation_outcome(
+                            operation,
+                            format!("Workspace creation failed: {e}"),
+                        ));
                         let spec = self.new_workspace_form(&a, Some(&draft), Some(e));
                         self.dialogs.push(spec);
                     }
                     (Err(e), Err(_)) => {
-                        self.outcome_status(e);
+                        self.set_status_notice(StatusNotice::operation_outcome(operation, e));
                     }
                 }
             }
@@ -507,7 +554,10 @@ impl Workbench {
                 // one workspace, and a foreign or stale completion must not
                 // close the active cancellation control.
                 if self.workspace.as_ref() != Some(&job.workspace) {
-                    self.outcome_status(format!(
+                    // A foreign completion is ambient evidence for a workspace the
+                    // user is not looking at. It must not consume the foreground
+                    // operation of the workspace that is open now.
+                    self.bookkeeping_status(format!(
                         "{} finished for a workspace that is no longer open",
                         job.phase.label()
                     ));
@@ -522,15 +572,15 @@ impl Workbench {
                     .map(|m| m.import_finished(&job))
                     .unwrap_or_default();
                 for it in intents {
-                    self.apply(it);
+                    self.apply_operation_intent(it, job.operation);
                 }
                 if i == self.active {
                     self.revalidate_selection();
                 }
                 if let Err(e) = result {
-                    self.outcome_status(format!(
-                        "{} could not be recorded: {e}",
-                        job.phase.label()
+                    self.set_status_notice(StatusNotice::operation_outcome(
+                        job.operation,
+                        format!("{} could not be recorded: {e}", job.phase.label()),
                     ));
                 }
             }
@@ -722,9 +772,12 @@ mod tests {
 
         // Existing-workspace adoption can overlap an ordinary creation;
         // its failure is a different operation and must not complete it.
+        let operation = crate::status::StatusOperation::mint();
+        wb.register_status_operation(operation, crate::status::StatusOperationScope::Shell);
         wb.notice(ShellNotice::Adopted {
             run_id: "unrelated-existing-adoption".into(),
             cancel: CancelToken::new(),
+            operation,
             result: Err("adoption collision".into()),
         });
 
@@ -745,9 +798,12 @@ mod tests {
         wb.key(&KeyPress::new(KeyInput::Enter));
         let creation = take_creation(&mut wb);
         let token = creation.cancel.clone();
+        let operation = crate::status::StatusOperation::mint();
+        wb.register_status_operation(operation, crate::status::StatusOperationScope::Shell);
         wb.notice(ShellNotice::Adopted {
             run_id: "unrelated-existing-adoption".into(),
             cancel: CancelToken::new(),
+            operation,
             result: Ok(crate::adoption::AdoptionReport {
                 workspace: PathBuf::from("/elsewhere"),
                 files_written: 3,
@@ -860,6 +916,7 @@ mod tests {
         wb.notice(ShellNotice::Adopted {
             run_id: "matching-adoption".into(),
             cancel: token,
+            operation: creation.operation,
             result: Err("adoption collision".into()),
         });
 
@@ -869,6 +926,41 @@ mod tests {
             wb.status,
             "adoption of matching-adoption refused: adoption collision"
         );
+    }
+
+    #[test]
+    fn a_foreign_import_completion_never_consumes_the_opening_operation() {
+        let mut wb = wb();
+        wb.workspace = Some(PathBuf::from("/current"));
+        let opening = wb.begin_status_operation();
+        assert!(wb.set_status_notice(StatusNotice::operation_progress(
+            opening,
+            "Opening workspace /current…"
+        )));
+        let operation = crate::status::StatusOperation::mint();
+        wb.register_status_operation(operation, crate::status::StatusOperationScope::Workspace);
+        wb.notice(ShellNotice::ImportFinished {
+            job: crate::command::ImportJob {
+                workspace: PathBuf::from("/foreign"),
+                run_id: "foreign-run".into(),
+                mode: "hugo-inventory".into(),
+                phase: crate::command::ImportPhase::Inventory,
+                inputs: Vec::new(),
+                extras: Vec::new(),
+                cancel: CancelToken::new(),
+                operation,
+            },
+            result: Ok(()),
+        });
+
+        assert_eq!(wb.status, "Opening workspace /current…");
+        assert!(
+            wb.set_status_notice(StatusNotice::terminal_operation_evidence(
+                opening,
+                "/current · boris/0.9.0 (Path) · watch"
+            ))
+        );
+        assert_eq!(wb.status, "/current · boris/0.9.0 (Path) · watch");
     }
 
     #[test]

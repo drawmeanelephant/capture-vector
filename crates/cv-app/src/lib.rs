@@ -334,8 +334,8 @@ pub fn open_workspace(
         f.lab.state = lab.state;
         f.lab.candidates = lab.candidates;
     });
-    let status_operation = wb.begin_status_operation();
     wb.reset_project(workspace_registry());
+    let status_operation = wb.begin_status_operation();
     wb.workspace_key = Some(slots::workspace_key(&root));
     wb.workspace = Some(root.clone());
     show(wb, "pages");
@@ -352,7 +352,10 @@ pub fn open_workspace(
             w.clone(),
         ));
     } else {
-        wb.progress_status(format!("Opening workspace {}…", root.display()));
+        wb.set_status_notice(StatusNotice::operation_progress(
+            status_operation,
+            format!("Opening workspace {}…", root.display()),
+        ));
     }
     let mut recent = env.recent();
     recent.push(&root);

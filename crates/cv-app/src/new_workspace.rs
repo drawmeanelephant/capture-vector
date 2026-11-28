@@ -6,6 +6,7 @@ use cv_engine::init::Initializer;
 use cv_engine::locate::{Locator, PINNED};
 use cv_engine::proc::CancelToken;
 use cv_model::new_workspace::{Archetypes, ShellNotice, WorkspaceCreation};
+use cv_model::status::StatusOperationScope;
 use cv_model::workbench::Workbench;
 use std::path::{Path, PathBuf};
 use std::thread::JoinHandle;
@@ -109,6 +110,7 @@ pub fn create_workspace(
     creation: WorkspaceCreation,
     env: &WorkspaceEnv,
 ) -> Option<JoinHandle<()>> {
+    wb.register_status_operation(creation.operation, StatusOperationScope::Shell);
     let notices = wb.notices();
     let cwd = creation.draft.parent.clone();
     let locator = locator(env, &cwd);

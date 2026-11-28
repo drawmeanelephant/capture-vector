@@ -13,6 +13,7 @@ use crate::module::{
     InspectorModel, Link, Module, ModuleSpec, NavItem, NavModel, ProjectSnapshot, ReadingLine,
     ReadingModel, Registry, RowModel, Slot, Tone,
 };
+use crate::status::{StatusNotice, StatusOperation, StatusOperationScope};
 use cv_core::engine::{CancelToken, ExitClass, ExportKind, Verb};
 use cv_core::events::engine::{EngineEvent, VerbReport};
 use cv_core::events::{AppEvent, Envelope};
@@ -32,6 +33,8 @@ const IMPACT: &str = "impact";
 pub struct VerbRun {
     pub verb: Verb,
     pub cancel: CancelToken,
+    /// Causal shell-status identity for progress/completion arbitration.
+    pub operation: StatusOperation,
 }
 
 /// IO boundary. `start` returns once the run is queued; the run ends with
@@ -208,15 +211,32 @@ impl EngineModule {
                 "{other} is still running; wait for it or cancel it first"
             ))];
         }
+        if self.running.iter().any(|(running, _)| running == &name) {
+            return vec![Intent::outcome(format!(
+                "{} is already running; wait for it to finish",
+                lowercase_first(label.clone())
+            ))];
+        }
+        let operation = StatusOperation::mint();
         let run = VerbRun {
             verb,
             cancel: CancelToken::new(),
+            operation,
         };
         if let Err(e) = start(run.clone()) {
             return vec![Intent::outcome(format!("{label} could not start: {e}"))];
         }
         self.running.push((name, run));
-        let mut out = vec![Intent::progress(progress.clone())];
+        let mut out = vec![
+            Intent::BeginStatusOperation {
+                operation,
+                scope: StatusOperationScope::Workspace,
+            },
+            Intent::Status(StatusNotice::operation_progress(
+                operation,
+                progress.clone(),
+            )),
+        ];
         if long {
             out.push(Intent::dialog(
                 DialogSpec::new(
@@ -254,7 +274,11 @@ impl EngineModule {
             ExitClass::Ok => format!("{label} {}", success_word(&r.verb)),
             _ => format!("{label} failed · see Activity"),
         };
-        self.owed.push(Intent::outcome(status));
+        self.owed
+            .push(Intent::Status(StatusNotice::operation_outcome(
+                run.operation,
+                status,
+            )));
         if let (Verb::Impact { id }, ExitClass::Ok) = (&run.verb, r.exit)
             && let Some(impact) = parse_impact(id, r)
         {
@@ -280,7 +304,11 @@ impl EngineModule {
         } else {
             format!("{label} failed · see Activity")
         };
-        self.owed.push(Intent::outcome(status));
+        self.owed
+            .push(Intent::Status(StatusNotice::operation_outcome(
+                run.operation,
+                status,
+            )));
         true
     }
 
@@ -516,7 +544,10 @@ impl Module for EngineModule {
         };
         run.cancel.cancel();
         let label = lowercase_first(product_label(name));
-        vec![Intent::progress(format!("Cancelling {label}…"))]
+        vec![Intent::Status(StatusNotice::operation_progress(
+            run.operation,
+            format!("Cancelling {label}…"),
+        ))]
     }
 }
 

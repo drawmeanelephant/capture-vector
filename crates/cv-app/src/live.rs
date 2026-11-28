@@ -241,7 +241,10 @@ impl VerbRoute {
         if result.is_err() {
             self.delivery
                 .inbox
-                .send(Inbound::Status(StatusNotice::outcome(outcome.clone())));
+                .send(Inbound::Status(StatusNotice::operation_outcome(
+                    run.operation,
+                    outcome.clone(),
+                )));
         }
         // Err loses the report's `stopped_watch`, so compare sessions.
         let Some(stopped) = watching.filter(|_| sched.watch_session().is_none()) else {

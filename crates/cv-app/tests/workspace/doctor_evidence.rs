@@ -245,6 +245,7 @@ fn a_finished_import_worker_refreshes_doctor_imports_health() {
         inputs: vec![("--root".into(), source)],
         extras: Vec::new(),
         cancel: cv_core::engine::CancelToken::new(),
+        operation: cv_model::status::StatusOperation::mint(),
     };
     cv_app::migrate::spawn_import_with(&mut wb, job, Some(identity))
         .expect("import worker spawned")

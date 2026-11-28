@@ -21,21 +21,40 @@
 //!
 //! Completion text leads with the product result. Mechanical details stay in
 //! Activity (or the owning inspector) rather than becoming the primary shell
-//! outcome. Replacement is a small foreground-operation state machine rather
-//! than a fixed priority order:
+//! outcome.
 //!
-//! - live progress always starts or continues the newest foreground
-//!   operation, so it may replace an older operation's outcome;
-//! - an outcome completes that foreground operation and replaces anything;
-//! - while progress is live, bookkeeping and ambient engine evidence stay out
-//!   of the toast (their detail remains in Activity); terminal engine evidence
-//!   carrying the live operation's causal token may complete that operation;
-//! - a completed outcome holds against ambient bookkeeping and engine
-//!   evidence until another foreground operation starts; evidence belonging
-//!   to that new operation may supersede the older outcome;
-//! - bookkeeping and engine evidence replace one another when no foreground
-//!   operation is live.
+//! ## Operation state machine
 //!
+//! Long-running work is causal, not merely positional in the toast queue:
+//!
+//! - every long-running foreground operation mints one [`StatusOperation`]
+//!   before its worker starts and carries that token through its progress,
+//!   evidence, and terminal outcome;
+//! - an operation is registered as live before any worker notice can arrive,
+//!   is either workspace-generation scoped or shell scoped, and is closed
+//!   exactly once — by an outcome naming that token or by terminal engine
+//!   evidence naming that token;
+//! - a notice naming a closed, retired, or unknown operation is stale and is
+//!   never presented;
+//! - terminal notices close only the operation they name. They never consume
+//!   a newer or unrelated operation, and untagged immediate outcomes never
+//!   close a tagged operation;
+//! - the newest live operation owns foreground progress. Terminal product
+//!   outcomes may be presented over that progress because they are facts the
+//!   user asked for, but the progress operation remains live; terminal engine
+//!   evidence is machinery and does not displace a newer live operation;
+//! - bookkeeping and ambient engine evidence never displace live
+//!   operation-owned progress/evidence or a completed outcome. They remain
+//!   visible only when no foreground or outcome status owns the toast.
+//!
+//! Untagged progress/outcome remains as a compatibility path for immediate
+//! shell commands. Untagged progress creates a shell-local legacy operation;
+//! an untagged outcome may complete only that legacy operation, never a
+//! causally tagged one. New long-running work must use the tagged
+//! constructors instead.
+
+use std::sync::atomic::{AtomicU64, Ordering};
+
 /// What kind of statement a shell status makes. The kind decides whether a
 /// later notice may replace the one on screen.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -57,16 +76,32 @@ impl StatusKind {
     }
 }
 
-/// Causal identity of one foreground status operation. Workers that report
-/// operation-bound evidence carry this token back with the notice; ambient
-/// notices have no token and can never claim the operation's boundary.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Causal identity of one foreground status operation.
+///
+/// Tokens are minted before the operation's worker starts and travel with
+/// the operation's job/notice values. Equality is identity, not coincidence
+/// of text or workspace. Ordering is mint order inside this process; the
+/// workbench uses it only to decide which live operation is newest.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct StatusOperation(u64);
 
 impl StatusOperation {
-    pub(crate) fn new(id: u64) -> Self {
-        Self(id)
+    /// Mint a process-unique operation token.
+    pub fn mint() -> Self {
+        static NEXT: AtomicU64 = AtomicU64::new(1);
+        Self(NEXT.fetch_add(1, Ordering::SeqCst))
     }
+}
+
+/// How long one operation remains causally relevant to the shell.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StatusOperationScope {
+    /// The operation belongs to one workspace generation. Project reset
+    /// retires it even if its worker never reports back.
+    Workspace,
+    /// The operation intentionally crosses a project switch (workspace
+    /// creation and migration adoption, for example).
+    Shell,
 }
 
 /// One shell status line, with the product/machinery classification needed
@@ -108,12 +143,27 @@ impl StatusNotice {
         Self::new(StatusKind::EngineEvidence, text)
     }
 
+    fn tagged(mut self, operation: StatusOperation) -> Self {
+        self.operation = Some(operation);
+        self
+    }
+
+    /// Progress belonging to `operation`. This may start or continue the
+    /// operation's visible lifecycle, but never closes it.
+    pub fn operation_progress(operation: StatusOperation, text: impl Into<String>) -> Self {
+        Self::progress(text).tagged(operation)
+    }
+
+    /// The product outcome belonging to `operation`. Outcomes are terminal
+    /// by definition and close exactly that operation.
+    pub fn operation_outcome(operation: StatusOperation, text: impl Into<String>) -> Self {
+        Self::outcome(text).tagged(operation)
+    }
+
     /// Intermediate engine evidence belonging to `operation`: it may explain
     /// that operation, but it does not close the operation boundary.
     pub fn operation_evidence(operation: StatusOperation, text: impl Into<String>) -> Self {
-        let mut notice = Self::engine_evidence(text);
-        notice.operation = Some(operation);
-        notice
+        Self::engine_evidence(text).tagged(operation)
     }
 
     /// Terminal engine evidence belonging to `operation`. This is for boot or

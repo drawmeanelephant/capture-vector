@@ -18,6 +18,7 @@ use cv_engine::locate::{Locator, PINNED};
 use cv_engine::{EngineConfig, EngineScheduler, ProcessEngine, SeatPolicy};
 use cv_model::adoption::{AdoptionJob, AdoptionReport, AdoptionTarget};
 use cv_model::new_workspace::ShellNotice;
+use cv_model::status::StatusOperationScope;
 use cv_model::workbench::{Inbound, Inbox, OutcomeSink, Workbench};
 use cv_model::workspace_key::WorkspaceKey;
 use std::collections::BTreeMap;
@@ -561,6 +562,7 @@ fn execute(
 /// `ShellNotice::Adopted`, and engine events stream through the live
 /// delivery pipeline like any other engine run.
 pub fn adopt(wb: &mut Workbench, job: AdoptionJob, env: &WorkspaceEnv) -> Option<JoinHandle<()>> {
+    wb.register_status_operation(job.operation, StatusOperationScope::Shell);
     let notices = wb.notices();
     let inbox = wb.inbox();
     let outcomes = wb.outcome_sink();
@@ -571,6 +573,7 @@ pub fn adopt(wb: &mut Workbench, job: AdoptionJob, env: &WorkspaceEnv) -> Option
     let worker_run = run_id.clone();
     let cancel = job.cancel.clone();
     let worker_cancel = cancel.clone();
+    let operation = job.operation;
     match std::thread::Builder::new()
         .name("cv-migrate-adopt".into())
         .spawn(move || {
@@ -597,6 +600,7 @@ pub fn adopt(wb: &mut Workbench, job: AdoptionJob, env: &WorkspaceEnv) -> Option
             worker_notices.send(ShellNotice::Adopted {
                 run_id: worker_run,
                 cancel: worker_cancel,
+                operation,
                 result,
             });
         }) {
@@ -605,6 +609,7 @@ pub fn adopt(wb: &mut Workbench, job: AdoptionJob, env: &WorkspaceEnv) -> Option
             notices.send(ShellNotice::Adopted {
                 run_id,
                 cancel,
+                operation,
                 result: Err(format!("could not start the adoption worker: {e}")),
             });
             None

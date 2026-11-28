@@ -3,6 +3,7 @@
 
 use crate::adoption::AdoptionRequest;
 use crate::dialog::{DialogSpec, Pick};
+use crate::status::{StatusOperation, StatusOperationScope};
 use cv_core::engine::CancelToken;
 use cv_core::events::pages::PagesEvent;
 use cv_core::events::shell::DegradedReason;
@@ -98,6 +99,8 @@ pub struct ImportJob {
     /// `(flag, value)` scalar pass-through options; empty means lab defaults.
     pub extras: Vec<(String, String)>,
     pub cancel: CancelToken,
+    /// Causal shell-status identity for the worker's progress/completion.
+    pub operation: StatusOperation,
 }
 
 /// What a module asks the shell to do. Modules emit intents; the shell
@@ -117,6 +120,13 @@ pub enum Intent {
     Bookkeeping(String),
     /// Machinery evidence Activity also carries.
     EngineEvidence(String),
+    /// Register a long-running operation before any tagged notice can arrive.
+    BeginStatusOperation {
+        operation: StatusOperation,
+        scope: StatusOperationScope,
+    },
+    /// A classified status notice, used when it carries causal operation identity.
+    Status(crate::status::StatusNotice),
     /// Close the open stores, rebuild every SQLite index from `.cv/` JSONL,
     /// and reopen the same workspace.
     RebuildIndexes,
