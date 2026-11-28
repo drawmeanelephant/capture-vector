@@ -30,6 +30,7 @@ serde_json.workspace = true
 effects = ["cv-widgets/effects"]
 
 [dev-dependencies]
+cv-fixtures = { workspace = true, features = ["scale"] }
 cv-widgets = { workspace = true, features = ["reference", "harness"] }
 tempfile.workspace = true
 

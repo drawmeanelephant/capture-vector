@@ -19,6 +19,8 @@ pub fn map(ev: &KeyEvent) -> Option<KeyPress> {
         }
         Key::Up => KeyInput::Up,
         Key::Down => KeyInput::Down,
+        Key::Left => KeyInput::Left,
+        Key::Right => KeyInput::Right,
         Key::Enter => KeyInput::Enter,
         Key::Escape => KeyInput::Escape,
         Key::Backspace => KeyInput::Backspace,
@@ -80,6 +82,8 @@ pub fn parse(token: &str) -> Vec<KeyEvent> {
     let key = match name {
         "up" => Key::Up,
         "down" => Key::Down,
+        "left" => Key::Left,
+        "right" => Key::Right,
         "enter" => Key::Enter,
         "esc" => Key::Escape,
         "tab" => Key::Tab,

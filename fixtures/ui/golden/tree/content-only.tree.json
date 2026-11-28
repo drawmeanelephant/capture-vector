@@ -591,13 +591,64 @@
       "text": "Demo"
     },
     {
+      "fill": "#08090cff",
+      "key": "rail-graph",
       "opacity": 1.0,
-      "path": "shell/body/rail/#7",
+      "path": "shell/body/rail/rail-graph",
+      "radius": 6.0,
       "rect": [
         4.0,
         416.5,
         80.0,
-        279.5
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-graph/#0",
+      "rect": [
+        12.0,
+        422.5,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-graph-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-graph/#0/rail-graph-icon",
+      "rect": [
+        12.0,
+        422.5,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-graph/#1",
+      "rect": [
+        12.0,
+        442.5,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Graph"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/#8",
+      "rect": [
+        4.0,
+        468.8,
+        80.0,
+        227.3
       ],
       "role": "group"
     },
@@ -1406,9 +1457,9 @@
     },
     {
       "color": "#8a93a3ff",
-      "key": "status-1.21",
+      "key": "status-1.23",
       "opacity": 1.0,
-      "path": "shell/status/status-1/status-1.21",
+      "path": "shell/status/status-1/status-1.23",
       "rect": [
         105.4,
         782.1,

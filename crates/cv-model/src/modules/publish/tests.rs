@@ -439,7 +439,7 @@ fn dialog(intents: &[Intent]) -> &DialogSpec {
 fn reveals(intents: &[Intent], key: &str) -> bool {
     intents
         .iter()
-        .any(|i| matches!(i, Intent::Reveal { module, key: k } if module == ID && k == key))
+        .any(|i| matches!(i, Intent::Reveal { module, key: k, .. } if module == ID && k == key))
 }
 
 fn status_of(intents: &[Intent]) -> String {

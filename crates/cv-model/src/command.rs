@@ -101,10 +101,12 @@ pub enum Intent {
         key: String,
     },
     MarkDirty,
-    /// Activate `module` and select `key` in its first mailbox.
+    /// Activate `module` and select `key`. `nav` names the mailbox to
+    /// reveal it in; `None` uses the module's first mailbox.
     Reveal {
         module: String,
         key: String,
+        nav: Option<String>,
     },
     /// Put `text` on the system clipboard.
     Copy(String),

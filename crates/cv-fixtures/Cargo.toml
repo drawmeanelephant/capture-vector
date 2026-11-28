@@ -14,5 +14,9 @@ serde_json.workspace = true
 toml.workspace = true
 sha2.workspace = true
 
+[features]
+# Deterministic in-memory scale inputs are test evidence, not shipped captures.
+scale = []
+
 [dev-dependencies]
 tempfile.workspace = true

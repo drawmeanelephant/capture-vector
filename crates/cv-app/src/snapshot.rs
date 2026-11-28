@@ -10,8 +10,11 @@
 
 use cv_contracts::graph::{DependencyKind, EndpointType, Graph, Node};
 use cv_engine::verbs::IR_DIR;
-use cv_fixtures::{Manifest, corpus, fixtures_root};
-use cv_model::module::{FieldSource, OutputRecord, PageRecord, ProjectSnapshot};
+use cv_fixtures::{Manifest, corpus, fixtures_root, ir_capture};
+use cv_model::module::{
+    FieldSource, GraphProjection, GraphProjectionAvailability, OutputRecord, PageRecord,
+    ProjectSnapshot,
+};
 use cv_store::paths::{confined, confined_file, is_link};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -44,6 +47,42 @@ pub fn corpus_snapshot(name: &str) -> ProjectSnapshot {
         .any(|(k, _)| *k == artifacts_key)
         .then(|| c.file(ARTIFACTS))
         .and_then(|raw| serde_json::from_slice(&raw).ok());
+    // IR captures are named after their corpus when one exists. These are
+    // the same pinned Boris bytes the live path reads from `.cv/ir` — never
+    // a hand-authored projection — so demo/headless scenes exercise the same
+    // graph authority as a real workspace.
+    let mut frozen_graph = None;
+    let capture = fixtures_root()
+        .join("ir/captures")
+        .join(name)
+        .join("graph.json");
+    let mut graph_projection = GraphProjection {
+        availability: GraphProjectionAvailability::Absent,
+        ..GraphProjection::default()
+    };
+    if capture.is_file() {
+        let bytes = ir_capture(name).file("graph.json");
+        match cv_contracts::graph::decode_graph(&bytes) {
+            Ok(graph) => {
+                apply_ir(&mut pages, &graph);
+                graph_projection = GraphProjection {
+                    availability: GraphProjectionAvailability::Loaded,
+                    source: Some(format!("ir/captures/{name}/graph.json")),
+                    ..GraphProjection::default()
+                };
+                graph_coverage(&graph, &pages, &mut graph_projection);
+                frozen_graph = Some(Arc::new(graph));
+            }
+            Err(e) => {
+                graph_projection = GraphProjection {
+                    availability: GraphProjectionAvailability::Malformed,
+                    source: Some(format!("ir/captures/{name}/graph.json")),
+                    detail: Some(e.to_string()),
+                    ..GraphProjection::default()
+                };
+            }
+        }
+    }
     let mut outputs: Vec<OutputRecord> = index
         .as_ref()
         .and_then(|v| v["artifacts"].as_array())
@@ -86,7 +125,8 @@ pub fn corpus_snapshot(name: &str) -> ProjectSnapshot {
             .map(String::from),
         pages,
         outputs,
-        ir_graph: None,
+        ir_graph: frozen_graph,
+        graph_projection,
         last_publish: None,
         artifact_root: Some(fixtures_root().join(format!("captures/{name}/dist/dist")))
             .filter(|d| d.is_dir())
@@ -395,6 +435,38 @@ impl<'a> Scan<'a> {
     }
 }
 
+struct IrScan {
+    graph: Option<Graph>,
+    projection: GraphProjection,
+}
+
+fn one_line(detail: &str) -> String {
+    const LIMIT: usize = 180;
+    let first = detail.lines().next().unwrap_or(detail);
+    let clipped: String = first.chars().take(LIMIT).collect();
+    if first.chars().count() > LIMIT {
+        format!("{clipped}…")
+    } else {
+        clipped
+    }
+}
+
+/// Read one candidate as graph authority, preserving why the boundary
+/// refused it. The error text deliberately uses the workspace-relative
+/// projection label supplied by the caller rather than absolute paths.
+fn workspace_graph(root: &Path, rel: &Path, label: &str) -> Result<Graph, String> {
+    let path = confined_file(root, rel)
+        .map_err(|_| format!("{label}: projection path escapes the workspace"))?;
+    let meta = fs::symlink_metadata(&path)
+        .map_err(|e| format!("{label}: projection metadata is unreadable: {e}"))?;
+    let mut bytes_left = MAX_INDEX_BYTES;
+    let raw = regular_text(&path, &meta, MAX_INDEX_BYTES, &mut bytes_left).ok_or_else(|| {
+        format!("{label}: projection is unreadable, linked, oversized, or not UTF-8")
+    })?;
+    let value = serde_json::from_str(&raw).map_err(|e| format!("{label}: invalid JSON: {e}"))?;
+    cv_contracts::graph::decode_graph_value(value).map_err(|e| format!("{label}: {e}"))
+}
+
 /// IR-mode builds write `graph.json` under `--out`: the live session's
 /// own projection (`IR_DIR`), Boris's default `.boris`, or the HTML dir
 /// of a workspace built with `--out <html_dir>`. The freshest *valid*
@@ -402,11 +474,13 @@ impl<'a> Scan<'a> {
 /// including one claiming an unsupported IR `schemaVersion` — never
 /// hides an older good one and never becomes graph authority. On a tie
 /// the earlier candidate wins, so the projection the live session keeps
-/// fresh is read first.
-fn ir_graph(root: &Path, html_dir: &str) -> Option<Graph> {
+/// fresh is read first. The scan also returns that boundary evidence so
+/// fallback is disclosed instead of looking silent.
+fn ir_graph(root: &Path, html_dir: &str) -> IrScan {
     let mut candidates = Vec::new();
     for (priority, dir) in [IR_DIR, ".boris", html_dir].into_iter().enumerate() {
         let rel = Path::new(dir).join("graph.json");
+        let label = format!("{dir}/graph.json");
         let Some(modified) = confined_file(root, &rel)
             .ok()
             .and_then(|path| fs::symlink_metadata(path).ok())
@@ -414,13 +488,87 @@ fn ir_graph(root: &Path, html_dir: &str) -> Option<Graph> {
         else {
             continue;
         };
-        candidates.push((modified, priority, rel));
+        candidates.push((modified, priority, rel, label));
     }
     candidates.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
-    candidates.into_iter().find_map(|(_, _, rel)| {
-        workspace_json(root, &rel, MAX_INDEX_BYTES)
-            .and_then(|v| cv_contracts::graph::decode_graph_value(v).ok())
-    })
+    if candidates.is_empty() {
+        return IrScan {
+            graph: None,
+            projection: GraphProjection {
+                availability: GraphProjectionAvailability::Absent,
+                ..GraphProjection::default()
+            },
+        };
+    }
+
+    let mut rejected: Vec<(String, String)> = Vec::new();
+    for (_, _, rel, label) in candidates {
+        match workspace_graph(root, &rel, &label) {
+            Ok(graph) => {
+                let detail = (!rejected.is_empty()).then(|| {
+                    let newest = &rejected[0];
+                    let malformed = if rejected.len() == 1 {
+                        format!("newest projection {} is malformed", newest.0)
+                    } else {
+                        format!("{} newer projections are malformed", rejected.len())
+                    };
+                    format!(
+                        "{malformed} ({}); using older valid projection {label}",
+                        one_line(&newest.1)
+                    )
+                });
+                return IrScan {
+                    graph: Some(graph),
+                    projection: GraphProjection {
+                        availability: GraphProjectionAvailability::Loaded,
+                        source: Some(label),
+                        detail,
+                        ..GraphProjection::default()
+                    },
+                };
+            }
+            Err(e) => rejected.push((label, e)),
+        }
+    }
+    let (source, detail) = rejected
+        .first()
+        .map(|(source, detail)| (Some(source.clone()), Some(one_line(detail))))
+        .unwrap_or((None, None));
+    IrScan {
+        graph: None,
+        projection: GraphProjection {
+            availability: GraphProjectionAvailability::Malformed,
+            source,
+            detail,
+            ..GraphProjection::default()
+        },
+    }
+}
+
+/// Compare the scanned content inputs with the graph's own wire facts.
+/// Page-node source paths cover pages; `source` dependency endpoints cover
+/// non-page inputs such as includes. Anything outside both is evidence
+/// that the frozen projection does not cover the current scan.
+fn graph_coverage(graph: &Graph, pages: &[PageRecord], projection: &mut GraphProjection) {
+    let mut covered = HashSet::new();
+    covered.extend(graph.nodes.iter().map(|n| n.source_path.as_str()));
+    for edge in &graph.edges {
+        if edge.from.kind == EndpointType::Source {
+            covered.insert(edge.from.value.as_str());
+        }
+        if edge.to.kind == EndpointType::Source {
+            covered.insert(edge.to.value.as_str());
+        }
+    }
+    let scanned: HashSet<&str> = pages.iter().map(|p| p.path.as_str()).collect();
+    projection.uncovered_pages = pages
+        .iter()
+        .filter(|page| !covered.contains(page.path.as_str()))
+        .count() as u64;
+    projection.missing_sources = covered
+        .iter()
+        .filter(|source| !scanned.contains(*source))
+        .count() as u64;
 }
 
 /// Replace the frontmatter guess with what Boris reported for every page
@@ -542,12 +690,19 @@ pub fn workspace_snapshot(
 ) -> ProjectSnapshot {
     let mut scan = Scan::new(html_dir);
     let mut frozen_graph = None;
+    let mut graph_projection = GraphProjection {
+        availability: GraphProjectionAvailability::Absent,
+        ..GraphProjection::default()
+    };
     let index = workspace_root(root).and_then(|base| {
         if let Some(dir) = source_root(&base, Path::new(&input_at(&base))) {
             scan.walk(&dir, "", 0);
         }
-        if let Some(graph) = ir_graph(&base, html_dir) {
+        let ir = ir_graph(&base, html_dir);
+        graph_projection = ir.projection;
+        if let Some(graph) = ir.graph {
             apply_ir(&mut scan.pages, &graph);
+            graph_coverage(&graph, &scan.pages, &mut graph_projection);
             frozen_graph = Some(Arc::new(graph));
         }
         apply_imports(&base, &mut scan.pages);
@@ -582,6 +737,7 @@ pub fn workspace_snapshot(
         pages,
         outputs,
         ir_graph: frozen_graph,
+        graph_projection,
         last_publish: None,
         artifact_root: Some(root.join(html_dir).to_string_lossy().into_owned()),
     }

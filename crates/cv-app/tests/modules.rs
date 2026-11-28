@@ -165,6 +165,104 @@ fn activity_click_through_reveals_the_page() {
 }
 
 #[test]
+fn graph_pointer_traversal_and_pages_round_trip_follow_the_same_page_noun() {
+    let mut h = scene("pages");
+    assert_eq!(h.state().selected_key(), Some("guides/publishing.md"));
+    show(h.state_mut(), "graph");
+    h.settle();
+
+    // Activating Graph preserved the selected Boris page id even though
+    // Pages keys rows by source path.
+    assert_eq!(h.state().selected_key(), Some("guides/publishing"));
+    assert!(h.state().app.selection.noun.is_some());
+    h.state_mut().set_nav("neighborhood");
+    h.settle();
+    assert!(h.click("row-index"));
+    assert_eq!(h.state().selected_key(), Some("index"));
+    assert_eq!(
+        h.state()
+            .app
+            .selection
+            .noun
+            .as_ref()
+            .map(|n| n.stable.0.as_str()),
+        Some("index")
+    );
+
+    assert!(h.click("row-guides/getting-started"));
+    assert_eq!(h.state().selected_key(), Some("guides/getting-started"));
+    let noun = h.state().app.selection.noun.clone();
+    assert_eq!(
+        noun.as_ref().map(|n| n.stable.0.as_str()),
+        Some("guides/getting-started")
+    );
+
+    h.script(&["key:mod+o"]);
+    assert_eq!(
+        h.state().registry.get(h.state().active).unwrap().spec().id,
+        "pages"
+    );
+    assert_eq!(h.state().selected_key(), Some("guides/getting-started.md"));
+    assert_eq!(h.state().app.selection.noun, noun);
+}
+
+#[test]
+fn graph_spatial_viewport_pans_zooms_and_resets() {
+    let mut h = scene("graph");
+    let (x, y) = h.rt.find("graph-canvas").expect("graph canvas mounted");
+    let before = h.state().active_viewport().expect("viewport").camera;
+    h.rt.wheel_xy(x, y, 42.0, 28.0);
+    h.settle();
+    let panned = h.state().active_viewport().expect("viewport").camera;
+    assert_ne!(panned.center, before.center, "wheel input pans the camera");
+
+    assert!(h.click("graph-control-in"));
+    let zoomed = h.state().active_viewport().expect("viewport").camera;
+    assert!(
+        zoomed.zoom > panned.zoom,
+        "zoom control increases camera zoom: {panned:?} -> {zoomed:?}"
+    );
+
+    assert!(h.click("graph-control-reset"));
+    let reset = h.state().active_viewport().expect("viewport").camera;
+    assert!(
+        reset.zoom < zoomed.zoom,
+        "reset returns from the zoomed camera: {zoomed:?} -> {reset:?}"
+    );
+}
+
+#[test]
+fn graph_degraded_scenes_disclose_projection_states() {
+    for (name, needle) in [
+        ("graph-no-graph", "no graph.json projection was found"),
+        (
+            "graph-stale",
+            "stale graph coverage · uncovered scanned pages: 1",
+        ),
+        ("graph-malformed", "invalid JSON"),
+        (
+            "graph-projection-fallback",
+            "graph projection fallback · newest projection .cv/ir/graph.json is malformed",
+        ),
+        (
+            "graph-empty-relations",
+            "IR 0.2.0 predates the semantic-relations facet",
+        ),
+        (
+            "graph-empty-relations-current",
+            "carries an empty semantic relation set",
+        ),
+        ("graph-engine-absent", "Engine absent"),
+    ] {
+        let texts = scene(name).texts();
+        assert!(
+            texts.iter().any(|text| text.contains(needle)),
+            "{name}: missing {needle:?} in {texts:?}"
+        );
+    }
+}
+
+#[test]
 fn happy_snapshot_projects_pages_and_outputs() {
     let snap = snapshot::corpus_snapshot("happy");
     assert_eq!(snap.pages.len(), 3);

@@ -17,6 +17,7 @@ use crate::workspace_key::WorkspaceKey;
 mod disclosure;
 mod input;
 mod outcome_retention;
+mod viewport;
 use cv_core::engine::{CancelToken, EventSink, WatchHandle};
 use cv_core::events::Envelope;
 use cv_core::events::shell::{DegradedReason, ShellEvent};
@@ -607,6 +608,7 @@ impl Workbench {
             Some(l) => self.apply(Intent::Reveal {
                 module: l.module.to_string(),
                 key: l.key,
+                nav: None,
             }),
             None => self.status = "nothing to open".into(),
         }
@@ -692,10 +694,45 @@ impl Workbench {
             return;
         }
         if index != self.active {
+            // `Selection` is shell-wide identity, not row position. When the
+            // newly active module can represent the same noun, reveal it
+            // there instead of dropping the round-trip at the module boundary.
+            let noun = self.app.selection.noun.clone();
             self.clear_selection();
             self.active = index;
-        }
-        if let Some(m) = self.registry.get_mut(index) {
+            if let Some(m) = self.registry.get_mut(index) {
+                m.activated();
+            }
+            if let Some(noun) = noun {
+                let key = self.registry.get(index).and_then(|m| m.key_for(&noun));
+                if let Some(key) = key {
+                    let in_current_nav = self
+                        .registry
+                        .get(index)
+                        .and_then(|m| m.index_of_key(self.active_nav(), &key))
+                        .is_some();
+                    if !in_current_nav {
+                        let nav = self
+                            .registry
+                            .get(index)
+                            .map(|m| m.nav().items)
+                            .unwrap_or_default()
+                            .into_iter()
+                            .find(|item| {
+                                self.registry
+                                    .get(index)
+                                    .and_then(|m| m.index_of_key(Some(&item.key), &key))
+                                    .is_some()
+                            })
+                            .map(|item| item.key);
+                        if let Some(nav) = nav {
+                            self.set_nav(&nav);
+                        }
+                    }
+                    self.select_key(&key);
+                }
+            }
+        } else if let Some(m) = self.registry.get_mut(index) {
             m.activated();
         }
     }
@@ -1002,6 +1039,7 @@ impl Workbench {
             Some(key) => self.apply(Intent::Reveal {
                 module: activity::ID.into(),
                 key,
+                nav: None,
             }),
             None => self.status = format!("{code} is not in Activity"),
         }
@@ -1047,17 +1085,21 @@ impl Workbench {
                 self.windows.open_companion(module, &key, &title);
                 self.status = format!("companion: {title}");
             }
-            Intent::Reveal { module, key } => {
+            Intent::Reveal { module, key, nav } => {
                 let Some(i) = self.registry.index_of(&module) else {
                     self.status = format!("no module {module}");
                     return;
                 };
                 self.activate(i);
-                let first = self
+                let items = self
                     .registry
                     .get(i)
-                    .and_then(|m| m.nav().items.first().map(|n| n.key.clone()));
-                if let Some(nav) = first {
+                    .map(|m| m.nav().items)
+                    .unwrap_or_default();
+                let chosen = nav
+                    .filter(|wanted| items.iter().any(|item| &item.key == wanted))
+                    .or_else(|| items.first().map(|item| item.key.clone()));
+                if let Some(nav) = chosen {
                     self.set_nav(&nav);
                 }
                 self.select_key(&key);
@@ -1126,63 +1168,6 @@ impl Workbench {
             self.status = format!("{} window(s) have unsaved changes", ws.len());
         }
         out
-    }
-
-    // ---- keyboard ----
-
-    /// Keyboard-first shell keymap. Returns true when consumed.
-    pub fn key(&mut self, k: &KeyPress) -> bool {
-        if self.dialogs.is_open() {
-            return self.dialog_key(k);
-        }
-        if self.palette.open {
-            return self.palette_key(k);
-        }
-        match &k.key {
-            KeyInput::Command('k') => self.palette.toggle(),
-            KeyInput::Command('i') => self.run_command("shell.inspector.toggle"),
-            KeyInput::Command('o') if k.shift => self.run_command("shell.workspace.open"),
-            KeyInput::Command('n') if k.shift => self.run_command(new_workspace::NEW),
-            KeyInput::Command('o') => self.follow_link(),
-            KeyInput::Command(c) if c.is_ascii_digit() && *c != '0' => {
-                self.activate(*c as usize - '1' as usize)
-            }
-            KeyInput::Down | KeyInput::Char('j') => self.move_row(1),
-            KeyInput::Up | KeyInput::Char('k') => self.move_row(-1),
-            KeyInput::Tab => self.cycle_nav(if k.shift { -1 } else { 1 }),
-            KeyInput::Enter => self.run_command("shell.window.companion"),
-            KeyInput::Escape => self.clear_selection(),
-            _ => return false,
-        }
-        true
-    }
-
-    fn palette_key(&mut self, k: &KeyPress) -> bool {
-        let cmds = self.commands();
-        match &k.key {
-            KeyInput::Escape | KeyInput::Command('k') => self.palette.close(),
-            KeyInput::Char(c) => self.palette.type_char(*c),
-            KeyInput::Backspace => self.palette.backspace(),
-            KeyInput::Down | KeyInput::Tab => self
-                .palette
-                .move_cursor(1, self.palette.matches(&cmds).len()),
-            KeyInput::Up => self
-                .palette
-                .move_cursor(-1, self.palette.matches(&cmds).len()),
-            KeyInput::Enter => {
-                let selected = self.palette.selected(&cmds).cloned();
-                self.palette.close();
-                if let Some(c) = selected {
-                    if let Some(why) = c.disabled {
-                        self.status = format!("{} is unavailable: {why}", c.title);
-                    } else {
-                        self.run_command(&c.id);
-                    }
-                }
-            }
-            _ => return false,
-        }
-        true
     }
 }
 

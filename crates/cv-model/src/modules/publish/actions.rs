@@ -166,6 +166,7 @@ fn after(
     let reveal = |key: &str| Intent::Reveal {
         module: super::ID.into(),
         key: key.into(),
+        nav: None,
     };
     match done {
         Ok(d) => vec![reveal(&d.run), Intent::Status(d.status)],

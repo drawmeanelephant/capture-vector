@@ -268,6 +268,7 @@ impl EngineModule {
             self.owed.push(Intent::Reveal {
                 module: ID.into(),
                 key,
+                nav: None,
             });
         }
         true

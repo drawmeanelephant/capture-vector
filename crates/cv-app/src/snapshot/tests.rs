@@ -251,6 +251,27 @@ fn a_malformed_newest_ir_graph_falls_back_to_an_older_valid_graph() {
     let snap = workspace_snapshot(ws.path(), "dist", None, 1);
     assert_eq!(by_path(&snap, "index.md").title, "Mini Site (English)");
     assert_eq!(by_path(&snap, "index.md").fields, FieldSource::Boris);
+    assert_eq!(
+        snap.graph_projection.availability,
+        GraphProjectionAvailability::Loaded
+    );
+    assert_eq!(
+        snap.graph_projection.source.as_deref(),
+        Some(".boris/graph.json")
+    );
+    let detail = snap
+        .graph_projection
+        .detail
+        .as_deref()
+        .expect("fallback is disclosed");
+    assert!(
+        detail.contains("newest projection .cv/ir/graph.json is malformed"),
+        "{detail}"
+    );
+    assert!(
+        detail.contains("using older valid projection .boris/graph.json"),
+        "{detail}"
+    );
 }
 
 #[cfg(unix)]
@@ -309,6 +330,22 @@ fn an_unsupported_ir_version_never_becomes_graph_authority() {
     assert!(
         snap.pages.iter().all(|p| p.fields == FieldSource::Source),
         "pages degrade to source-guessed fields"
+    );
+    assert_eq!(
+        snap.graph_projection.availability,
+        GraphProjectionAvailability::Malformed
+    );
+    assert_eq!(
+        snap.graph_projection.source.as_deref(),
+        Some(".boris/graph.json")
+    );
+    assert!(
+        snap.graph_projection
+            .detail
+            .as_deref()
+            .is_some_and(|d| d.contains("schemaVersion")),
+        "{:?}",
+        snap.graph_projection.detail
     );
 }
 
@@ -383,6 +420,9 @@ fn pages_without_boris_ir_are_marked_as_read_from_source() {
     let snap = workspace_snapshot(ws.path(), "dist", None, 1);
     assert_eq!(by_path(&snap, "index.md").fields, FieldSource::Boris);
     assert_eq!(by_path(&snap, "guides/new.md").fields, FieldSource::Source);
+    assert_eq!(snap.graph_projection.uncovered_pages, 1);
+    assert_eq!(snap.graph_projection.missing_sources, 0);
+    assert!(snap.graph_projection.stale_coverage());
 
     fs::remove_file(ws.path().join(".boris/graph.json")).unwrap();
     let snap = workspace_snapshot(ws.path(), "dist", None, 2);
@@ -430,6 +470,64 @@ fn corpus_snapshot_reads_the_captured_artifact_index() {
     let snap = corpus_snapshot("happy");
     assert_eq!(snap.target.as_deref(), Some("default"));
     assert!(snap.outputs.iter().any(|o| o.path == "index.html"));
+}
+
+#[test]
+fn a_workspace_without_ir_projection_discloses_absence() {
+    let temp = tempfile::tempdir().unwrap();
+    write(temp.path(), "content/index.md", "Hello");
+    let snap = workspace_snapshot(temp.path(), "dist", None, 1);
+    assert!(snap.ir_graph.is_none());
+    assert_eq!(
+        snap.graph_projection.availability,
+        GraphProjectionAvailability::Absent
+    );
+    assert_eq!(snap.graph_projection.source, None);
+}
+
+#[test]
+fn dogfood_include_inputs_do_not_count_as_uncovered_pages() {
+    let snap = corpus_snapshot("dogfood");
+    assert_eq!(
+        snap.graph_projection.availability,
+        GraphProjectionAvailability::Loaded
+    );
+    assert_eq!(snap.graph_projection.uncovered_pages, 0);
+    assert_eq!(snap.graph_projection.missing_sources, 0);
+}
+
+#[test]
+fn a_deleted_page_counts_as_missing_graph_source_coverage() {
+    let ws = captured_workspace("quoted-scalars", ".boris/graph.json");
+    fs::remove_file(ws.path().join("content/index.md")).unwrap();
+    let snap = workspace_snapshot(ws.path(), "dist", None, 1);
+    assert_eq!(snap.graph_projection.uncovered_pages, 0);
+    assert_eq!(snap.graph_projection.missing_sources, 1);
+    assert!(snap.graph_projection.stale_coverage());
+}
+
+#[test]
+fn corpus_snapshot_shares_the_pinned_ir_capture_with_the_graph_surface() {
+    let snap = corpus_snapshot("happy");
+    let graph = snap.ir_graph.as_ref().expect("happy IR capture is loaded");
+    assert_eq!(graph.nodes.len(), 3);
+    assert_eq!(snap.graph_projection.uncovered_pages, 0);
+    assert_eq!(snap.graph_projection.missing_sources, 0);
+    assert_eq!(graph.relations.len(), 1);
+    let publishing = snap
+        .pages
+        .iter()
+        .find(|p| p.path == "guides/publishing.md")
+        .expect("publishing page");
+    assert_eq!(publishing.id, "guides/publishing");
+    assert_eq!(publishing.fields, FieldSource::Boris);
+    assert_eq!(
+        publishing.relations,
+        [(
+            "relates_to".to_string(),
+            "guides/getting-started".to_string()
+        )]
+    );
 }
 
 #[test]

@@ -450,13 +450,64 @@
       "text": "Activity"
     },
     {
+      "fill": "#08090cff",
+      "key": "rail-graph",
       "opacity": 1.0,
-      "path": "shell/body/rail/#6",
+      "path": "shell/body/rail/rail-graph",
+      "radius": 6.0,
       "rect": [
         4.0,
         353.5,
         80.0,
-        342.5
+        48.3
+      ],
+      "role": "tab"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-graph/#0",
+      "rect": [
+        12.0,
+        359.5,
+        64.0,
+        16.0
+      ],
+      "role": "group"
+    },
+    {
+      "color": "#e6e9efff",
+      "key": "rail-graph-icon",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-graph/#0/rail-graph-icon",
+      "rect": [
+        12.0,
+        359.5,
+        16.0,
+        16.0
+      ],
+      "role": "icon"
+    },
+    {
+      "color": "#e6e9efff",
+      "opacity": 1.0,
+      "path": "shell/body/rail/rail-graph/#1",
+      "rect": [
+        12.0,
+        379.5,
+        64.0,
+        16.3
+      ],
+      "role": "text",
+      "text": "Graph"
+    },
+    {
+      "opacity": 1.0,
+      "path": "shell/body/rail/#7",
+      "rect": [
+        4.0,
+        405.8,
+        80.0,
+        290.3
       ],
       "role": "group"
     },

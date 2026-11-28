@@ -7,6 +7,7 @@ pub mod audit;
 pub mod demo;
 pub mod doctor;
 pub mod engine;
+pub mod graph;
 pub mod migrate;
 pub mod outputs;
 pub mod pages;
@@ -19,6 +20,7 @@ pub fn register_all(r: &mut crate::module::Registry) {
     demo::register(r);
     doctor::register(r);
     engine::register(r);
+    graph::register(r);
     migrate::register(r);
     outputs::register(r);
     pages::register(r);

@@ -37,6 +37,7 @@ fn snap() -> ProjectSnapshot {
         ir_graph: None,
         last_publish: None,
         artifact_root: None,
+        ..Default::default()
     }
 }
 
