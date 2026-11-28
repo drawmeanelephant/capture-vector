@@ -24,13 +24,16 @@ pub struct Manifest {
 }
 
 /// Where `scripts/fetch-migration-lab.sh` builds the lab from, and what
-/// the built binary must print for `--version`.
+/// the built binary must print for `--version`. `zig_version` is the
+/// compiler version recorded in the original tool pin; capture metadata
+/// does not record the compiler.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MigrationLabPin {
     pub repo: String,
     /// Full 40-hex commit.
     pub commit: String,
     pub tool_id: String,
+    pub zig_series: String,
     pub zig_version: String,
 }
 
@@ -46,6 +49,7 @@ impl MigrationLabPin {
             repo: get("repo"),
             commit: get("commit"),
             tool_id: get("tool_id"),
+            zig_series: get("zig_series"),
             zig_version: get("zig_version"),
         }
     }

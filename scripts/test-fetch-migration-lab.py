@@ -33,9 +33,13 @@ TOOL_ID = pin("tool_id")
 COMMIT = pin("commit")
 ZIG_SERIES = pin("zig_series")
 ZIG_VERSION = pin("zig_version")
+SEMVER_NUMBER = r"(?:0|[1-9]\d*)"
+SERIES_RE = rf"^{SEMVER_NUMBER}\.{SEMVER_NUMBER}$"
+RELEASE_RE = rf"^{SEMVER_NUMBER}\.{SEMVER_NUMBER}\.{SEMVER_NUMBER}$"
 
 
 def write_executable(path: Path, contents: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(contents)
     path.chmod(path.stat().st_mode | stat.S_IXUSR)
 
@@ -113,15 +117,23 @@ exit 1
     )
 
 
-def install_fake_cygpath(bin_dir: Path, converted: Path) -> None:
+def install_fake_cygpath(bin_dir: Path, windows_path: str, converted: Path) -> None:
     write_executable(
         bin_dir / "cygpath",
         f"""#!/bin/sh
-if [ "$1" = "-u" ]; then
-  printf '%s\\n' {shlex.quote(str(converted))}
-  exit 0
+if [ "$#" -ne 2 ]; then
+  echo "fake cygpath: expected 2 arguments, got $#" >&2
+  exit 1
 fi
-exit 1
+if [ "$1" != "-u" ]; then
+  echo "fake cygpath: unexpected mode $1" >&2
+  exit 1
+fi
+if [ "$2" != {shlex.quote(windows_path)} ]; then
+  echo "fake cygpath: input was mangled: $2" >&2
+  exit 1
+fi
+printf '%s\\n' {shlex.quote(str(converted))}
 """,
     )
 
@@ -151,15 +163,30 @@ def run_direct(root: Path, bin_dir: Path, zig_value: str) -> subprocess.Complete
     )
 
 
+def assert_refused_before_build(
+    test_case: unittest.TestCase,
+    root: Path,
+    log: Path,
+    result: subprocess.CompletedProcess[str],
+) -> None:
+    test_case.assertNotEqual(result.returncode, 0)
+    test_case.assertIn("unsupported", result.stderr)
+    test_case.assertIn(ZIG_SERIES + ".x", result.stderr)
+    test_case.assertEqual(log.read_text().splitlines(), ["version"])
+    test_case.assertFalse((root / "vendor" / "boris-migration-lab").exists())
+
+
 class ManifestPinTests(unittest.TestCase):
-    def test_zig_series_is_the_major_minor_series_of_the_capture_compiler(self) -> None:
-        self.assertRegex(ZIG_SERIES, r"^\d+\.\d+$")
-        self.assertTrue(ZIG_VERSION.startswith(ZIG_SERIES + "."))
+    def test_zig_series_is_the_major_minor_series_of_the_compiler_recorded_in_the_tool_pin(self) -> None:
+        self.assertRegex(ZIG_SERIES, SERIES_RE)
+        self.assertRegex(ZIG_VERSION, RELEASE_RE)
+        major, minor, _patch = ZIG_VERSION.split(".", 2)
+        self.assertEqual(f"{major}.{minor}", ZIG_SERIES)
 
 
 @unittest.skipIf(os.name == "nt", "the fake compiler and git are POSIX shell executables")
 class FetchMigrationLabScriptTests(unittest.TestCase):
-    def test_inline_zig_override_reaches_directly_executed_script(self) -> None:
+    def test_inline_zig_override_reaches_directly_executed_script_on_posix(self) -> None:
         with tempfile.TemporaryDirectory() as raw_tmp:
             tmp = Path(raw_tmp)
             root, bin_dir = prepare(tmp)
@@ -188,22 +215,55 @@ class FetchMigrationLabScriptTests(unittest.TestCase):
 
             result = run_direct(root, bin_dir, str(custom_zig))
 
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn("unsupported", result.stderr)
-            self.assertIn(ZIG_SERIES + ".x", result.stderr)
-            self.assertEqual(custom_log.read_text().splitlines(), ["version"])
-            self.assertFalse((root / "vendor" / "boris-migration-lab").exists())
+            assert_refused_before_build(self, root, custom_log, result)
+
+    def test_malformed_and_prerelease_zig_versions_are_refused_before_build(self) -> None:
+        malformed_versions = [
+            ZIG_SERIES + ".0-dev.1+abcdef",
+            ZIG_SERIES + ".0-rc.1",
+            ZIG_SERIES + ".0+build.5",
+            ZIG_SERIES + ".x",
+            ZIG_SERIES + ".",
+            ZIG_SERIES + ".01",
+            ZIG_SERIES,
+            ZIG_SERIES + ".0 ",
+        ]
+        for version in malformed_versions:
+            with self.subTest(version=version), tempfile.TemporaryDirectory() as raw_tmp:
+                tmp = Path(raw_tmp)
+                root, bin_dir = prepare(tmp)
+                custom_log = tmp / "custom-zig.log"
+                custom_zig = bin_dir / "zig-custom"
+                install_fake_zig(custom_zig, version, custom_log)
+
+                result = run_direct(root, bin_dir, str(custom_zig))
+
+                assert_refused_before_build(self, root, custom_log, result)
 
     def test_windows_drive_zig_path_is_normalized_with_cygpath(self) -> None:
         with tempfile.TemporaryDirectory() as raw_tmp:
             tmp = Path(raw_tmp)
             root, bin_dir = prepare(tmp)
+            windows_zig = "C:\\tools\\zig space\\zig.exe"
+            converted_zig = tmp / "converted zig" / "zig-custom"
             custom_log = tmp / "custom-zig.log"
-            custom_zig = bin_dir / "zig-custom"
-            install_fake_zig(custom_zig, ZIG_VERSION, custom_log)
-            install_fake_cygpath(bin_dir, custom_zig)
+            install_fake_zig(converted_zig, ZIG_VERSION, custom_log)
+            install_fake_cygpath(bin_dir, windows_zig, converted_zig)
 
-            result = run_direct(root, bin_dir, "C:\\tools\\zig.exe")
+            result = run_direct(root, bin_dir, windows_zig)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(custom_log.read_text().splitlines(), ["version", "build"])
+
+    def test_relative_zig_path_is_resolved_before_the_build_cd(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_tmp:
+            tmp = Path(raw_tmp)
+            root, bin_dir = prepare(tmp)
+            custom_log = tmp / "custom-zig.log"
+            relative_zig = "./tools/zig-custom"
+            install_fake_zig(root / "tools" / "zig-custom", ZIG_VERSION, custom_log)
+
+            result = run_direct(root, bin_dir, relative_zig)
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(custom_log.read_text().splitlines(), ["version", "build"])
