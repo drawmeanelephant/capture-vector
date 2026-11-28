@@ -104,13 +104,24 @@ Keyboard basics:
 |---|---|
 | `mod+K` | command palette |
 | `mod+1` … `mod+9` | switch module |
-| `Tab` / `shift+Tab` | cycle mailboxes |
+| `Tab` / `shift+Tab` | cycle mailboxes while no control is focused |
+| `F6` | move keyboard focus into the inspector |
 | `Up`/`Down` or `k`/`j` | move in the list |
 | `Enter` | open the selected noun in a companion window |
 | `mod+O` | follow the selected linked noun |
 | `mod+shift+O` | open workspace |
 | `mod+I` | toggle inspector |
 | `Esc` | clear selection / close palette |
+
+Inspector chevrons are keyboard controls. Press `F6` to focus the first
+one, `Tab` / `shift+Tab` to move through the inspector's disclosures and
+other controls, and `Space` or `Enter` to open or close the focused one.
+Expanding a long value or diagnostic location shows its complete text in
+place, including every line of a multi-line value; collapsing it returns
+to the first-line preview. While such a control is focused, `Tab` belongs
+to control navigation rather than mailbox cycling. Moving the list
+selection with `Up`/`Down` or `k`/`j` returns focus to the shell, where
+`Tab` cycles mailboxes again.
 
 While a dialog is open (a confirmation, the capture prompt, the filter
 form, the recent-workspace chooser), it takes every key; the list behind

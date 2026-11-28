@@ -321,6 +321,16 @@ pub const SIZE: (f32, f32) = (1280.0, 800.0);
 /// rune `on_key` plumbing: keymap lives in cv-model; reveal the newly
 /// selected row. Shared by the real window and the (feature-gated)
 /// headless harness — it is product input handling, not QA machinery.
+///
+/// Keyboard focus is deliberately split at this boundary. While nothing
+/// is focused, Rune offers keys here first and the shell keeps its
+/// established Tab mailbox cycling. Once an inspector disclosure (or any
+/// other focusable control) is focused — normally by pressing F6 into the
+/// inspector — Rune's focus navigation runs before this handler, so Tab
+/// and Shift+Tab move through controls instead of cycling mailboxes.
+/// Moving the shell's row selection invalidates that control context, so
+/// focus returns to the shell rather than silently jumping to another
+/// record's disclosure.
 pub(crate) fn input_on_key(s: &mut Workbench, ev: &rune::KeyEvent, tx: &mut Tx) -> bool {
     let Some(k) = crate::keys::map(ev) else {
         return false;
@@ -331,6 +341,7 @@ pub(crate) fn input_on_key(s: &mut Workbench, ev: &rune::KeyEvent, tx: &mut Tx) 
         && before.as_deref() != Some(key)
     {
         tx.scroll_into_view_in("list-pane", format!("row-{key}"));
+        tx.blur();
     }
     used
 }
