@@ -805,6 +805,7 @@ fn boot_thread_failure_is_disclosed_as_engine_absent() {
         &Some("indexes rebuilt".into()),
         Path::new("/ws"),
         &refused,
+        None,
     );
     wb.drain();
     assert_eq!(wb.app.degraded, Some(DegradedReason::EngineAbsent));

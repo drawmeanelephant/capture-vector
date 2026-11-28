@@ -56,6 +56,7 @@ fn boot(root: &Path, bin: &Path, slot: EngineSlot, inbox: Inbox) -> EngineBoot {
         warning: None,
         notice: None,
         doctor: Feed::default(),
+        status_operation: None,
     }
 }
 

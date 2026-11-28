@@ -70,8 +70,11 @@ fn engine_evidence_for_a_new_operation_can_replace_an_old_outcome() {
     let mut wb = Workbench::new(Registry::with_all());
     wb.outcome_status("Import finished; the run is in Runs");
 
-    wb.begin_status_operation();
-    assert!(wb.evidence_status("Boris watch stopped · running one build for diagnostics…"));
+    let operation = wb.begin_status_operation();
+    assert!(wb.set_status_notice(StatusNotice::operation_evidence(
+        operation,
+        "Boris watch stopped · running one build for diagnostics…"
+    )));
     assert_eq!(
         wb.status,
         "Boris watch stopped · running one build for diagnostics…"
@@ -79,6 +82,65 @@ fn engine_evidence_for_a_new_operation_can_replace_an_old_outcome() {
     assert_eq!(
         wb.status_kind(),
         Some(crate::status::StatusKind::EngineEvidence)
+    );
+}
+
+#[test]
+fn terminal_operation_evidence_completes_opening_progress_while_ambient_evidence_stays_out() {
+    let mut wb = Workbench::new(Registry::with_all());
+    wb.outcome_status("Import finished; the run is in Runs");
+    let operation = wb.begin_status_operation();
+
+    assert!(wb.progress_status("Opening workspace /site…"));
+    assert!(!wb.evidence_status("boris build finished (exit 0, 12 ms)"));
+    assert_eq!(wb.status, "Opening workspace /site…");
+
+    assert!(
+        wb.set_status_notice(StatusNotice::terminal_operation_evidence(
+            operation,
+            "/site · boris/0.9.0 (Path) · watch"
+        ))
+    );
+    assert_eq!(wb.status, "/site · boris/0.9.0 (Path) · watch");
+    assert_eq!(
+        wb.status_kind(),
+        Some(crate::status::StatusKind::EngineEvidence)
+    );
+
+    assert!(
+        !wb.set_status_notice(StatusNotice::terminal_operation_evidence(
+            operation,
+            "stale boot evidence"
+        ))
+    );
+    assert!(wb.evidence_status("Boris one-shot build succeeded · reopen workspace"));
+    assert_eq!(
+        wb.status, "Boris one-shot build succeeded · reopen workspace",
+        "terminal evidence must close the opening operation so later engine truth can land"
+    );
+}
+
+#[test]
+fn intermediate_operation_evidence_does_not_close_the_operation_boundary() {
+    let mut wb = Workbench::new(Registry::with_all());
+    wb.outcome_status("Import finished; the run is in Runs");
+    let operation = wb.begin_status_operation();
+
+    assert!(wb.set_status_notice(StatusNotice::operation_evidence(
+        operation,
+        "research notes not persisted: locked"
+    )));
+    assert_eq!(wb.status, "research notes not persisted: locked");
+
+    assert!(
+        wb.set_status_notice(StatusNotice::terminal_operation_evidence(
+            operation,
+            "research notes not persisted: locked · /site: boris not found"
+        ))
+    );
+    assert_eq!(
+        wb.status,
+        "research notes not persisted: locked · /site: boris not found"
     );
 }
 

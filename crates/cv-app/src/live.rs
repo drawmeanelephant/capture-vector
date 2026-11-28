@@ -25,7 +25,7 @@ use cv_engine::{
 use cv_model::cascade::WANT_ENGINE;
 use cv_model::modules::doctor::{EngineState, Feed};
 use cv_model::modules::engine::{EnginePort, VerbRun, product_label};
-use cv_model::status::StatusNotice;
+use cv_model::status::{StatusNotice, StatusOperation};
 use cv_model::workbench::{Inbound, Inbox};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -175,6 +175,7 @@ impl EngineSlot {
             route.delivery.clone(),
             route.warning.clone(),
             Some(format!("{outcome} · watch resumed")),
+            None,
             move || gate.is_current(),
         );
     }
@@ -253,6 +254,7 @@ impl VerbRoute {
                 self.delivery.clone(),
                 self.warning.clone(),
                 Some(format!("{outcome} · watch resumed")),
+                None,
                 move || gate.is_current(),
             );
         }
@@ -422,6 +424,9 @@ pub struct EngineBoot {
     /// Doctor's facts: the gate and probe outcome land here before the
     /// status send that wakes the UI.
     pub doctor: Feed,
+    /// The workspace-opening operation whose terminal boot/watch evidence may
+    /// cross its opening progress. Watch restores do not carry this token.
+    pub status_operation: Option<StatusOperation>,
 }
 
 /// Final status + any degraded state; a carried warning stays visible.
@@ -431,6 +436,7 @@ fn finish(
     notice: &Option<String>,
     degraded: Option<DegradedReason>,
     status: String,
+    operation: Option<StatusOperation>,
 ) {
     crate::logging::info(
         "engine_status",
@@ -446,16 +452,17 @@ fn finish(
         Some(n) => format!("{n} · {status}"),
         None => status,
     };
-    match warning {
-        Some(w) => {
-            inbox.send(Inbound::Status(StatusNotice::engine_evidence(format!(
-                "{w} · {status}"
-            ))));
-            inbox.send(Inbound::Degraded(DegradedReason::StoreCorrupt));
-        }
-        None => {
-            inbox.send(Inbound::Status(StatusNotice::engine_evidence(status)));
-        }
+    let text = match warning {
+        Some(w) => format!("{w} · {status}"),
+        None => status,
+    };
+    let notice = match operation {
+        Some(operation) => StatusNotice::terminal_operation_evidence(operation, text),
+        None => StatusNotice::engine_evidence(text),
+    };
+    inbox.send(Inbound::Status(notice));
+    if warning.is_some() {
+        inbox.send(Inbound::Degraded(DegradedReason::StoreCorrupt));
     }
 }
 
@@ -467,6 +474,7 @@ pub fn spawn(b: EngineBoot) -> Option<JoinHandle<()>> {
     let notice = b.notice.clone();
     let root = b.cfg.root.clone();
     let doctor = b.doctor.clone();
+    let status_operation = b.status_operation;
     let shell_generation = b.slot.generation();
     match std::thread::Builder::new()
         .name("cv-engine-boot".into())
@@ -479,7 +487,7 @@ pub fn spawn(b: EngineBoot) -> Option<JoinHandle<()>> {
                     error: format!("engine boot thread failed to start: {e}"),
                 }
             });
-            boot_thread_failed(&inbox, &warning, &notice, &root, &e);
+            boot_thread_failed(&inbox, &warning, &notice, &root, &e, status_operation);
             None
         }
     }
@@ -491,6 +499,7 @@ fn boot_thread_failed(
     notice: &Option<String>,
     root: &std::path::Path,
     e: &std::io::Error,
+    operation: Option<StatusOperation>,
 ) {
     let status = format!(
         "{}: engine boot thread failed to start: {e}",
@@ -502,6 +511,7 @@ fn boot_thread_failed(
         notice,
         Some(DegradedReason::EngineAbsent),
         status,
+        operation,
     );
 }
 
@@ -795,6 +805,7 @@ fn recover_build(
         notice,
         Some(reason),
         format!("{status} · reopen workspace to resume watching · {identity}"),
+        None,
     );
 }
 
@@ -806,6 +817,7 @@ fn run(b: EngineBoot, shell_generation: u64) {
         warning,
         notice,
         doctor,
+        status_operation,
     } = b;
     let _boot = slot.boot.lock().unwrap_or_else(|e| e.into_inner());
     let root: PathBuf = cfg.root.clone();
@@ -843,7 +855,14 @@ fn run(b: EngineBoot, shell_generation: u64) {
             Err(e) => {
                 doctor.update(|f| f.engine = crate::doctor::engine_state(&e));
                 let status = format!("{}: {e}", root.display());
-                finish(&inbox, &warning, &notice, Some(degraded_reason(&e)), status);
+                finish(
+                    &inbox,
+                    &warning,
+                    &notice,
+                    Some(degraded_reason(&e)),
+                    status,
+                    status_operation,
+                );
                 return;
             }
         };
@@ -877,7 +896,14 @@ fn run(b: EngineBoot, shell_generation: u64) {
             Some(version),
             1,
         )));
-        start_workspace_watch_gated(sched, delivery, warning, notice, move || route.is_current());
+        start_workspace_watch_gated(
+            sched,
+            delivery,
+            warning,
+            notice,
+            status_operation,
+            move || route.is_current(),
+        );
         return;
     }
     let engine = match ProcessEngine::start(cfg) {
@@ -891,7 +917,14 @@ fn run(b: EngineBoot, shell_generation: u64) {
         Err(e) => {
             doctor.update(|f| f.engine = crate::doctor::engine_state(&e));
             let status = format!("{}: {e}", root.display());
-            finish(&inbox, &warning, &notice, Some(degraded_reason(&e)), status);
+            finish(
+                &inbox,
+                &warning,
+                &notice,
+                Some(degraded_reason(&e)),
+                status,
+                status_operation,
+            );
             return;
         }
     };
@@ -919,7 +952,14 @@ fn run(b: EngineBoot, shell_generation: u64) {
     }
     let route = slot.route().expect("installed above");
     let _ = slot.sched.set(sched.clone());
-    start_workspace_watch_gated(sched, delivery, warning, notice, move || route.is_current());
+    start_workspace_watch_gated(
+        sched,
+        delivery,
+        warning,
+        notice,
+        status_operation,
+        move || route.is_current(),
+    );
 }
 
 #[cfg(test)]
@@ -929,7 +969,7 @@ fn start_workspace_watch(
     warning: Option<String>,
     notice: Option<String>,
 ) {
-    start_workspace_watch_gated(sched, delivery, warning, notice, || true);
+    start_workspace_watch_gated(sched, delivery, warning, notice, None, || true);
 }
 
 fn start_workspace_watch_gated(
@@ -937,6 +977,7 @@ fn start_workspace_watch_gated(
     delivery: LiveDelivery,
     warning: Option<String>,
     notice: Option<String>,
+    operation: Option<StatusOperation>,
     publishable: impl Fn() -> bool,
 ) {
     let mode = delivery.engine.report().watch_mode;
@@ -1011,7 +1052,7 @@ fn start_workspace_watch_gated(
     let published = match started {
         Ok(Some(_session)) => {
             let status = format!("{} · {mode_label}", delivery.workspace_identity());
-            finish(inbox, &warning, &notice, None, status);
+            finish(inbox, &warning, &notice, None, status, operation);
             true
         }
         Ok(None) => {
@@ -1027,7 +1068,7 @@ fn start_workspace_watch_gated(
             // event to clear a false WatchDead banner.
             if sched.watch_session().is_some() {
                 let status = format!("{} · watch already live", delivery.workspace_identity());
-                finish(inbox, &warning, &notice, None, status);
+                finish(inbox, &warning, &notice, None, status, operation);
             } else {
                 let status = format!("{}: {e}", delivery.engine.root().display());
                 finish(
@@ -1036,6 +1077,7 @@ fn start_workspace_watch_gated(
                     &notice,
                     Some(DegradedReason::WatchDead),
                     status,
+                    operation,
                 );
             }
             false

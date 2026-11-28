@@ -11,7 +11,7 @@ use crate::dialog::{Dialogs, PickPurpose, SecretPort};
 use crate::module::{Link, ProjectSnapshot, Registry};
 use crate::modules::activity;
 use crate::new_workspace::{self, Archetypes, Notices, ShellNotice};
-use crate::status::{StatusKind, StatusNotice};
+use crate::status::{StatusKind, StatusNotice, StatusOperation};
 use crate::theme::{Mode, Theme};
 use crate::windows::{CloseOutcome, PRIMARY, WindowId, Windows};
 use crate::workspace_key::WorkspaceKey;
@@ -249,12 +249,12 @@ pub struct Workbench {
     /// Classification of `status`, used to keep ambient refresh/engine
     /// notices from overwriting foreground operation outcomes and progress.
     status_kind: Option<StatusKind>,
-    /// Whether a foreground operation has started and not yet produced its
-    /// first terminal/evidence notice. This is the shell's smallest causal
-    /// operation boundary: it lets evidence for a newly started operation
-    /// supersede an older operation's outcome without letting ambient
-    /// evidence erase every fresh outcome.
-    status_operation_open: bool,
+    /// The live foreground operation's causal token. Evidence must carry the
+    /// same token to cross the operation boundary; ambient evidence cannot.
+    status_operation: Option<StatusOperation>,
+    /// Mint for causal operation tokens. The token is only meaningful when
+    /// compared by this workbench; it is not persisted or ordered across shells.
+    next_status_operation: u64,
     /// Root of the open workspace, if any.
     pub workspace: Option<PathBuf>,
     /// Instance identity of `workspace`, shared with scheduler registration.
@@ -322,7 +322,8 @@ impl Workbench {
             debug_windows: false,
             status: String::new(),
             status_kind: None,
-            status_operation_open: false,
+            status_operation: None,
+            next_status_operation: 0,
             workspace: None,
             workspace_key: None,
             identity_disclosures: BTreeSet::new(),
@@ -416,8 +417,11 @@ impl Workbench {
 
     /// Mark that a foreground operation is starting even when its first
     /// visible notice will be engine evidence rather than progress.
-    pub fn begin_status_operation(&mut self) {
-        self.status_operation_open = true;
+    pub fn begin_status_operation(&mut self) -> StatusOperation {
+        self.next_status_operation += 1;
+        let operation = StatusOperation::new(self.next_status_operation);
+        self.status_operation = Some(operation);
+        operation
     }
 
     /// Present a classified status notice. Progress and outcomes are the
@@ -429,38 +433,59 @@ impl Workbench {
     /// to that new operation may supersede the older outcome. Returns whether
     /// the visible status changed.
     pub fn set_status_notice(&mut self, notice: StatusNotice) -> bool {
-        self.set_status_kind(notice.kind, notice.text)
-    }
-
-    /// [`set_status_notice`] with the kind and text separate.
-    pub fn set_status_kind(&mut self, kind: StatusKind, text: impl Into<String>) -> bool {
-        let text = text.into();
+        let kind = notice.kind;
+        let operation_matches = notice
+            .operation
+            .is_some_and(|operation| self.status_operation == Some(operation));
+        let stale_operation = notice.operation.is_some() && !operation_matches;
+        let foreground = matches!(
+            self.status_kind,
+            Some(StatusKind::Outcome | StatusKind::Progress)
+        );
         let replace = match kind {
-            StatusKind::Outcome | StatusKind::Progress => true,
-            StatusKind::Bookkeeping => !matches!(
-                self.status_kind,
-                Some(StatusKind::Outcome | StatusKind::Progress)
-            ),
+            StatusKind::Outcome | StatusKind::Progress => !stale_operation,
+            StatusKind::Bookkeeping => !stale_operation && !foreground,
             StatusKind::EngineEvidence => {
-                !matches!(self.status_kind, Some(StatusKind::Progress))
-                    && (self.status_operation_open
-                        || !matches!(self.status_kind, Some(StatusKind::Outcome)))
+                if stale_operation {
+                    false
+                } else if operation_matches {
+                    // Intermediate evidence may introduce a newly started
+                    // operation, but only its terminal evidence may cross live
+                    // progress and close that operation's boundary.
+                    notice.terminal_evidence
+                        || !matches!(self.status_kind, Some(StatusKind::Progress))
+                } else {
+                    !foreground
+                }
             }
         };
         if !replace {
             return false;
         }
         match kind {
-            StatusKind::Progress => self.status_operation_open = true,
-            StatusKind::Outcome | StatusKind::EngineEvidence => self.status_operation_open = false,
-            StatusKind::Bookkeeping => {}
+            StatusKind::Progress => {
+                if self.status_operation.is_none() {
+                    self.begin_status_operation();
+                }
+            }
+            StatusKind::Outcome => self.status_operation = None,
+            StatusKind::EngineEvidence if operation_matches && notice.terminal_evidence => {
+                self.status_operation = None;
+            }
+            StatusKind::EngineEvidence | StatusKind::Bookkeeping => {}
         }
+        let text = notice.text;
         if self.status == text && self.status_kind == Some(kind) {
             return false;
         }
         self.status = text;
         self.status_kind = Some(kind);
         true
+    }
+
+    /// [`set_status_notice`] with the kind and text separate.
+    pub fn set_status_kind(&mut self, kind: StatusKind, text: impl Into<String>) -> bool {
+        self.set_status_notice(StatusNotice::new(kind, text))
     }
 
     /// Convenience for a completed user-requested operation.
@@ -488,7 +513,7 @@ impl Workbench {
         let changed = !self.status.is_empty();
         self.status.clear();
         self.status_kind = None;
-        self.status_operation_open = false;
+        self.status_operation = None;
         changed
     }
 

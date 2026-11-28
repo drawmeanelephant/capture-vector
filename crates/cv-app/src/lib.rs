@@ -28,6 +28,7 @@ use cv_model::module::{
     GraphProjection, GraphProjectionAvailability, PageRecord, ProjectSnapshot, Registry,
 };
 use cv_model::modules::doctor::{EngineState, LockHolder};
+use cv_model::status::StatusNotice;
 use cv_model::theme::Mode;
 use cv_model::workbench::Workbench;
 use cv_widgets::app::{Launch, Scene};
@@ -333,7 +334,7 @@ pub fn open_workspace(
         f.lab.state = lab.state;
         f.lab.candidates = lab.candidates;
     });
-    wb.begin_status_operation();
+    let status_operation = wb.begin_status_operation();
     wb.reset_project(workspace_registry());
     wb.workspace_key = Some(slots::workspace_key(&root));
     wb.workspace = Some(root.clone());
@@ -346,7 +347,10 @@ pub fn open_workspace(
         // Storage degradation is evidence carried by the engine boot status;
         // classing it as a completed operation would make it sticky across
         // the reopen that clears it.
-        wb.evidence_status(w.clone());
+        wb.set_status_notice(StatusNotice::operation_evidence(
+            status_operation,
+            w.clone(),
+        ));
     } else {
         wb.progress_status(format!("Opening workspace {}…", root.display()));
     }
@@ -387,6 +391,7 @@ pub fn open_workspace(
         warning,
         notice,
         doctor: feed,
+        status_operation: Some(status_operation),
     })
 }
 
