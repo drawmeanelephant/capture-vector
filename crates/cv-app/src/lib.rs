@@ -23,13 +23,13 @@ use cv_core::engine::{Engine, Verb};
 use cv_core::events::shell::DegradedReason;
 use cv_core::events::{Envelope, EventId};
 use cv_fixtures::stub_engine::StubEngine;
-use cv_fixtures::stub_store::StubStore;
 use cv_model::module::{
     GraphProjection, GraphProjectionAvailability, PageRecord, ProjectSnapshot, Registry,
 };
 use cv_model::modules::doctor::{EngineState, LockHolder};
 use cv_model::theme::Mode;
 use cv_model::workbench::Workbench;
+use cv_store::docs::{DiskStore, EphemeralStore};
 use cv_widgets::app::{Launch, Scene};
 use std::path::{Path, PathBuf};
 use std::thread::JoinHandle;
@@ -62,7 +62,9 @@ fn init_ports(
     cv_model::modules::engine::detach();
     cv_model::modules::migrate::install(migrate);
     doctor::install(None, None);
-    Workbench::new(Registry::with_all()).with_store(Box::new(StubStore::new()))
+    // The journal store is ephemeral until `open_workspace` binds the
+    // on-disk `.cv/store/` sidecar for the project.
+    Workbench::new(Registry::with_all()).with_store(Box::new(EphemeralStore::new()))
 }
 
 /// A publish ledger that cannot be trusted is disclosed like any other
@@ -319,6 +321,29 @@ pub fn open_workspace(
     let publish_err = publish_warning(&publish);
     opened.ledger.error = publish.error().map(str::to_string);
     cv_model::modules::publish::install(Box::new(publish));
+    // Rebind the journal store to this workspace. Swapping first drops
+    // the previous root's writer lock, and a failed open keeps the
+    // ephemeral store so journaled evidence never lands in the wrong
+    // project's `.cv/`.
+    wb.set_store(Box::new(EphemeralStore::new()));
+    let journal_err = match if rebuild_indexes {
+        DiskStore::open_rebuilding_index(&root)
+    } else {
+        DiskStore::open(&root)
+    } {
+        Ok((store, _report)) => {
+            opened.journal.lock = Some(LockHolder::ThisWindow);
+            wb.set_store(Box::new(store));
+            None
+        }
+        Err(e) => {
+            if matches!(e, cv_store::docs::Error::Locked(_)) {
+                opened.journal.lock = Some(LockHolder::OtherProcess);
+            }
+            opened.journal.error = Some(e.to_string());
+            Some(format!("shell journal not persisted: {e}"))
+        }
+    };
     let lab = migrate::locate_detailed(&root, env.lab_locator.as_ref());
     cv_model::modules::migrate::install(Box::new(migrate::DiskPort::open(
         &root,
@@ -336,7 +361,8 @@ pub fn open_workspace(
     show(wb, "pages");
     let warning = research_err
         .or_else(|| audit_err.map(|e| format!("finding snoozes not persisted: {e}")))
-        .or(publish_err);
+        .or(publish_err)
+        .or(journal_err);
     if let Some(w) = &warning {
         wb.disclose(DegradedReason::StoreCorrupt);
         wb.status = w.clone();
@@ -466,6 +492,8 @@ fn open_corpus_tapped(
     corpus: &str,
     tap: impl FnMut(&Envelope) + Send + 'static,
 ) -> StubEngine {
+    // Fixture evidence never lands in a real workspace's journal.
+    wb.set_store(Box::new(EphemeralStore::new()));
     wb.load_snapshot(&snapshot::corpus_snapshot(corpus));
     let engine = StubEngine::new(corpus);
     cv_model::modules::engine::install(Box::new(verbs::FixtureVerbs::new(
@@ -538,6 +566,7 @@ fn show(wb: &mut Workbench, module: &str) {
 /// A live session mid-watch: every captured envelope but the last, so
 /// the session is open and the rebuild has not landed yet.
 pub fn mid_watch(wb: &mut Workbench, corpus: &str) {
+    wb.set_store(Box::new(EphemeralStore::new()));
     wb.load_snapshot(&snapshot::corpus_snapshot(corpus));
     let captured = std::sync::Arc::new(std::sync::Mutex::new(Vec::<Envelope>::new()));
     let c = captured.clone();

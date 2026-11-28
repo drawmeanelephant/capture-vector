@@ -344,6 +344,14 @@ impl Workbench {
         self
     }
 
+    /// Swap the `Store` port: the composition root binds the on-disk
+    /// store when a workspace opens and drops it back to an ephemeral
+    /// one for fixture sessions, so journaled evidence is never
+    /// attributed to the wrong project.
+    pub fn set_store(&mut self, store: Box<dyn Store>) {
+        self.store = Some(store);
+    }
+
     /// Where `Secret` dialogs store what was typed.
     pub fn with_secrets(mut self, secrets: Box<dyn SecretPort>) -> Self {
         self.secrets = Some(secrets);

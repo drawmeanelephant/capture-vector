@@ -161,6 +161,8 @@ pub struct StoreOpen {
     pub ledger: Opened,
     /// Imports is read-only here; there is no session-long open outcome.
     pub imports: Opened,
+    /// The `cv_core::store::Store` sidecar (`.cv/store/`).
+    pub journal: Opened,
 }
 
 fn stamp(root: &Path, ns: &sidecar::Namespace) -> Stamp {
@@ -233,6 +235,9 @@ pub fn store(root: &Path, opened: &StoreOpen) -> Store {
     let ledger_index = cv_ledger::LedgerIndex::path_for(root)
         .ok()
         .map(|p| p.display().to_string());
+    let journal_index = cv_store::docs::index_path(root)
+        .ok()
+        .map(|p| p.display().to_string());
     let observed_lock = |path: String, known: Option<LockHolder>| {
         lock_state(root, &path, known).map(|holder| Lock { path, holder })
     };
@@ -277,6 +282,12 @@ pub fn store(root: &Path, opened: &StoreOpen) -> Store {
                     imports_store::REVIEW_LOCK
                 )),
                 None,
+            ),
+            ns(
+                &cv_store::docs::SCHEMA,
+                &opened.journal,
+                Some(cv_store::docs::WRITER_LOCK_REL.into()),
+                journal_index,
             ),
         ],
         imports: Some(imports_health(root)),
