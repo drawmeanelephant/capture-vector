@@ -9,11 +9,14 @@ pub mod cascade;
 pub mod command;
 pub mod dialog;
 pub mod graph;
+#[doc(hidden)]
+pub mod graph_scale;
 pub mod module;
 pub mod modules;
 pub mod new_workspace;
 pub mod noun_views;
 pub mod theme;
+pub mod viewport;
 pub mod windows;
 pub mod workbench;
 pub mod workspace_key;

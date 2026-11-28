@@ -17,6 +17,7 @@ use crate::workspace_key::WorkspaceKey;
 mod disclosure;
 mod input;
 mod outcome_retention;
+mod viewport;
 use cv_core::engine::{CancelToken, EventSink, WatchHandle};
 use cv_core::events::Envelope;
 use cv_core::events::shell::{DegradedReason, ShellEvent};

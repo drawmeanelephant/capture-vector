@@ -433,6 +433,7 @@ fn rail_icon(key: &str) -> &'static Icon {
         "outputs" => &icons::PACKAGE,
         "activity" => &icons::ACTIVITY,
         cv_model::modules::demo::ID => &icons::PLAY,
+        cv_model::modules::graph::ID => &icons::NETWORK,
         cv_model::modules::migrate::ID => &icons::IMPORT,
         _ => &icons::CIRCLE,
     }
@@ -862,7 +863,11 @@ pub fn view(s: &Workbench, cx: &mut Cx<Workbench>) -> El {
         .child(rail(s, lights > 0.0))
         .child(nav(s))
         .child(list(s))
-        .child(crate::reading::pane(s));
+        .child(if s.has_active_viewport() {
+            crate::viewport::pane(s)
+        } else {
+            crate::reading::pane(s)
+        });
     if s.inspector_open {
         body = body.child(crate::inspector::pane(s));
     }
