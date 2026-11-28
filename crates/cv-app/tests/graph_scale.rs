@@ -11,7 +11,7 @@ use cv_model::viewport::MAX_MOUNTED_NODES;
 use cv_model::workbench::Workbench;
 use cv_widgets::harness::Harness;
 use cv_widgets::keys;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -66,6 +66,41 @@ fn assert_viewport_bounded(h: &Harness) {
         "shell plus viewport element tree stays bounded: {}",
         h.rt.elements().len()
     );
+}
+
+fn graph_node_keys(h: &Harness) -> BTreeSet<String> {
+    h.rt.elements()
+        .into_iter()
+        .filter_map(|e| e.key)
+        .filter(|key| key.starts_with("graph-node:"))
+        .collect()
+}
+
+fn overlap(a: [f32; 4], b: [f32; 4]) -> bool {
+    a[0] < b[0] + b[2] && a[0] + a[2] > b[0] && a[1] < b[1] + b[3] && a[1] + a[3] > b[1]
+}
+
+fn assert_visible_labels_do_not_overlap(h: &Harness) {
+    let mut labelled: Vec<[f32; 4]> =
+        h.rt.elements()
+            .into_iter()
+            .filter(|e| {
+                e.key
+                    .as_deref()
+                    .is_some_and(|key| key.starts_with("graph-node:"))
+            })
+            .map(|e| e.rect)
+            .filter(|rect| rect[2] > 30.0)
+            .collect();
+    labelled.sort_by(|a, b| (a[1], a[0]).partial_cmp(&(b[1], b[0])).unwrap());
+    for (i, a) in labelled.iter().enumerate() {
+        for b in &labelled[i + 1..] {
+            assert!(
+                !overlap(*a, *b),
+                "visible dense-hub labels overlap: {a:?} intersects {b:?}"
+            );
+        }
+    }
 }
 
 fn percentile(sorted: &[Duration], numerator: usize) -> Duration {
@@ -243,6 +278,7 @@ fn focus_cost(nodes: usize) -> Vec<Duration> {
             "focus changed through graph hierarchy"
         );
         assert!(mounted_graph_rows(&h) < 200, "focus mounts stay bounded");
+        assert_viewport_bounded(&h);
     }
     times
 }
@@ -271,6 +307,70 @@ fn assert_cost(label: &str, big: Vec<Duration>, small: Vec<Duration>, linear: bo
             "{label}: p95 input+frame cost {big_p95:?} over {budget:?}"
         );
     }
+}
+
+#[test]
+fn dense_trunk_neighborhood_at_scale_stays_bounded_and_inspectable() {
+    let mut wb = graph_workbench(5_000);
+    wb.set_nav("neighborhood");
+    wb.select_key("page-00000");
+    let mut h = Harness::new(wb);
+    h.settle();
+
+    assert_viewport_bounded(&h);
+    let keys = graph_node_keys(&h);
+    let satellite_keys = |keys: &BTreeSet<String>| {
+        (1..=cv_fixtures::graph_scale::TRUNK_DIRECT_SATELLITES)
+            .map(|i| format!("graph-node:{}", cv_fixtures::graph_scale::page_id(i)))
+            .filter(|key| keys.contains(key))
+            .collect::<BTreeSet<_>>()
+    };
+    let before_satellites = satellite_keys(&keys);
+    assert!(
+        before_satellites.len() >= 8,
+        "several of the trunk's 60 direct satellites are inspectable at once; the rest are pannable: {}",
+        before_satellites.len()
+    );
+    assert!(
+        h.rt.elements().iter().all(|e| {
+            !e.key
+                .as_deref()
+                .is_some_and(|key| key.starts_with("graph-cluster:"))
+        }),
+        "focused detail must not collapse the dense hub into aggregate clusters"
+    );
+    assert_visible_labels_do_not_overlap(&h);
+    let model = h.state().active_viewport().expect("graph viewport model");
+    assert!(
+        model.status.contains("shown"),
+        "viewport disclosure says what is shown: {}",
+        model.status
+    );
+
+    let before_center = model.camera.center;
+    let before_keys = keys;
+    let (x, y) = h.rt.find("graph-canvas").expect("graph canvas mounted");
+    h.rt.wheel_xy(x, y, -360.0, 0.0);
+    h.settle();
+    assert_viewport_bounded(&h);
+    assert_visible_labels_do_not_overlap(&h);
+    let after = h.state().active_viewport().expect("graph viewport model");
+    assert_ne!(
+        after.camera.center, before_center,
+        "panning the dense hub moves the camera"
+    );
+    let after_keys = graph_node_keys(&h);
+    assert_ne!(
+        after_keys, before_keys,
+        "panning the dense hub reveals a different bounded window"
+    );
+    let after_satellites = satellite_keys(&after_keys);
+    assert!(
+        after_satellites
+            .iter()
+            .any(|key| !before_satellites.contains(key)),
+        "panning reveals previously hidden direct satellites"
+    );
 }
 
 #[test]

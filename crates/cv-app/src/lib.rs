@@ -660,6 +660,23 @@ fn graph_empty_relations(wb: &mut Workbench) {
     wb.select_key("agents");
 }
 
+fn graph_empty_relations_current(wb: &mut Workbench) {
+    let mut snap = snapshot::corpus_snapshot(CANARY_CORPUS);
+    let mut graph = snap
+        .ir_graph
+        .as_ref()
+        .expect("happy IR capture is loaded")
+        .as_ref()
+        .clone();
+    assert_ne!(graph.schema_version, cv_contracts::graph::SCHEMA_V02);
+    assert!(!graph.relations.is_empty());
+    graph.relations.clear();
+    snap.ir_graph = Some(std::sync::Arc::new(graph));
+    wb.load_snapshot(&snap);
+    show(wb, "graph");
+    wb.select_key("guides/publishing");
+}
+
 fn graph_engine_absent(wb: &mut Workbench) {
     mid_watch(wb, "happy");
     wb.disclose(DegradedReason::EngineAbsent);
@@ -785,6 +802,10 @@ pub const SCENES: &[Scene] = &[
     ("graph-malformed", graph_malformed),
     ("graph-projection-fallback", graph_projection_fallback),
     ("graph-empty-relations", graph_empty_relations),
+    (
+        "graph-empty-relations-current",
+        graph_empty_relations_current,
+    ),
     ("graph-engine-absent", graph_engine_absent),
     ("outputs", outputs),
     ("activity", activity),

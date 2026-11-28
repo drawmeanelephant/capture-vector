@@ -32,6 +32,7 @@ const TREE_SCENES: &[&str] = &[
     "graph-malformed",
     "graph-projection-fallback",
     "graph-empty-relations",
+    "graph-empty-relations-current",
     "graph-engine-absent",
     "outputs",
     "activity",

@@ -248,6 +248,10 @@ fn graph_degraded_scenes_disclose_projection_states() {
             "graph-empty-relations",
             "IR 0.2.0 predates the semantic-relations facet",
         ),
+        (
+            "graph-empty-relations-current",
+            "carries an empty semantic relation set",
+        ),
         ("graph-engine-absent", "Engine absent"),
     ] {
         let texts = scene(name).texts();
